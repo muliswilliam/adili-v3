@@ -47,7 +47,7 @@ export class TenantStatus {
   async of(tenant: string): Promise<TenantAiStatus> {
     const [routes, gate] = await Promise.all([
       Promise.all(REVIEWER_TASKS.map((task) => this.routing.route(tenant, task))),
-      this.gate.effective(tenant),
+      this.gate.effective(tenant, REVIEWER_TASKS),
     ]);
     const reachable = routes.flatMap((route) => {
       const provider = this.providers.get(route.provider);

@@ -1,0 +1,113 @@
+# Drafted operations of the reporting API for spec 09b, not implemented yet: EACC's read of one
+# open-data release with its tables (#350). `pnpm --filter @adili/reporting contracts` merges them
+# into packages/schemas/internal/reporting.yaml, where they may reference the implemented
+# components (e.g. `#/components/schemas/OpenDataRelease`, `ProblemDetails`). When an operation or
+# component is implemented, delete it here: the export fails while both define it.
+paths:
+  /v1/eacc/open-data/releases/{releaseId}:
+    parameters:
+      - $ref: '#/components/parameters/ReleaseId'
+    get:
+      tags: [open-data]
+      operationId: getOpenDataReleaseEacc
+      summary: A release of any status with its six tables as built, suppression applied, and its source (EACC)
+      description: >-
+        Spec 09b S6 (#350): the preview EACC checks before a supervisor publishes it.
+        eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Any status, a preview
+        included (the public API never serves a preview). `tables` are the release's table files
+        as stored, the same JSON `getOpenDataTable` serves once published. `source` is what the
+        tables were built from and reconciled with at build (`buildOpenDataRelease`): the
+        national consolidated report (its reference once approved) or, for a snapshot of a year
+        without one, the live projections. A release that exists has reconciled.
+      responses:
+        '200':
+          description: The release, who built it, its source and its tables
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenDataReleaseDetail'
+        '400':
+          description: The release id is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: Object storage could not be reached (`storage-unavailable`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+components:
+  parameters:
+    ReleaseId:
+      name: releaseId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    NotFound:
+      description: Not found, or not visible to the caller
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Caller lacks the required role or scope
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    OpenDataReleaseDetail:
+      type: object
+      required: [release, builtBy, source, tables]
+      properties:
+        release:
+          $ref: '#/components/schemas/OpenDataRelease'
+        builtBy:
+          description: Who built it; null for the release workflow on NCR approval
+          oneOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
+        source:
+          type: object
+          required: [kind, nationalReportReference]
+          properties:
+            kind:
+              type: string
+              enum: [national-report, live-projections]
+            nationalReportReference:
+              type: [string, 'null']
+              description: The NCR's reference (`NCR-EACC-...`) once approved; null for a draft NCR or the live projections
+        tables:
+          type: object
+          required:
+            [
+              filing-by-commission,
+              compliance-by-commission,
+              by-entity-type,
+              by-cycle,
+              access-requests,
+              national-totals,
+            ]
+          additionalProperties: false
+          properties:
+            filing-by-commission:
+              $ref: '#/components/schemas/OpenDataTableFile'
+            compliance-by-commission:
+              $ref: '#/components/schemas/OpenDataTableFile'
+            by-entity-type:
+              $ref: '#/components/schemas/OpenDataTableFile'
+            by-cycle:
+              $ref: '#/components/schemas/OpenDataTableFile'
+            access-requests:
+              $ref: '#/components/schemas/OpenDataTableFile'
+            national-totals:
+              $ref: '#/components/schemas/OpenDataTableFile'

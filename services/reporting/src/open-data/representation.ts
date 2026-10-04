@@ -66,10 +66,10 @@ export const openDataReleaseSchema = z.object({
 export type OpenDataReleaseView = z.infer<typeof openDataReleaseSchema>;
 
 /**
- * reporting.yaml `OpenDataTableData`: a table as released and served by `getOpenDataTable` as
+ * reporting.yaml `OpenDataTableFile`: a table as released and served by `getOpenDataTable` as
  * JSON, byte for byte the stored file.
  */
-export const openDataTableDataSchema = z
+export const openDataTableFileSchema = z
   .object({
     table: openDataTableNameSchema,
     columns: z.array(z.string()),

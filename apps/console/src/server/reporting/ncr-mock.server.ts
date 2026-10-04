@@ -99,8 +99,9 @@ interface Store {
 
 let store: Store | null = null;
 
-const BRIAN: Officer = { subject: 'mock-brian-otieno', name: 'Brian Otieno' };
-const ESTHER: Officer = { subject: 'mock-esther-chebet', name: 'Esther Chebet' };
+/** The mock's EACC analyst and supervisor, shared with the releases part. */
+export const BRIAN: Officer = { subject: 'mock-brian-otieno', name: 'Brian Otieno' };
+export const ESTHER: Officer = { subject: 'mock-esther-chebet', name: 'Esther Chebet' };
 
 const DRAFT_OVERVIEW =
   'This report consolidates the compliance reports (Form M) received from Responsible Commissions for the financial year 1 July 2025 to 30 June 2026 under Regulation 25(2) of the Conflict of Interest Regulations, 2026.';
@@ -593,4 +594,48 @@ export function mockNcrDocumentsClient(roles: readonly string[]) {
     fetch: async (request: Request) =>
       (await mockNcrDocumentsFetch(request)) ?? problem(404, 'Not found'),
   });
+}
+
+/** What the open-data releases part of the mock (#350) builds a release of the year from. */
+export interface NcrMockSource {
+  /** The aggregates as the report was last built, or from the receipts while it is not. */
+  aggregates: NationalAggregates;
+  /** Whether the year's report has been built (draft or approved). */
+  built: boolean;
+  /** Its NCR reference once approved. */
+  reference: string | null;
+  approver: Officer | null;
+  approvedAt: string | null;
+}
+
+/**
+ * The year's national report as the open-data releases part of the mock reads it: the report's
+ * aggregates once built, else the receipts' as they stand; null for a year without receipts.
+ */
+export function mockNcrSourceOf(fy: number): NcrMockSource | null {
+  const data = ensureSeeded();
+  const report = data.reports.get(fy);
+  if (report) {
+    return {
+      aggregates: report.aggregates,
+      built: true,
+      reference: report.reference,
+      approver: report.approver,
+      approvedAt: report.approvedAt,
+    };
+  }
+  const receipts = receiptsOf(fy);
+  if (receipts.length === 0) return null;
+  return {
+    aggregates: buildAggregates(fy, receipts),
+    built: false,
+    reference: null,
+    approver: null,
+    approvedAt: null,
+  };
+}
+
+/** The mock's Commissions of the year (slug and name), as the national report counts them. */
+export function mockNcrCommissions(fy: number): readonly { slug: string; name: string }[] {
+  return mockEaccIntake(fy).commissions.map(({ commission }) => commission);
 }

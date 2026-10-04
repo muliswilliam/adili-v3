@@ -254,7 +254,7 @@ export class PublicOpenDataController {
     description: 'Table',
     headers: { ...OK_HEADERS, Vary: { schema: { type: 'string', enum: ['Accept'] } } },
     content: {
-      'application/json': { schema: schemaRef('OpenDataTableData') },
+      'application/json': { schema: schemaRef('OpenDataTableFile') },
       'text/csv': { schema: { type: 'string', description: CSV_DESCRIPTION } },
     },
   })

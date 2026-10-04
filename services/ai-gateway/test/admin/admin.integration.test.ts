@@ -148,6 +148,35 @@ describe('admin API', { timeout: 90_000 }, () => {
   });
 
   describe('gate policy (S16)', () => {
+    it('widens a rule for some tasks only when tasks: null says so (spec 05b)', async () => {
+      const put = (rules: object[]) =>
+        request('PUT', '/v1/ai/policies/scoped', admin, { rules, approvalRef: 'EACC/AI/2026/040' });
+      const cell = { dataClass: 'highly-confidential', providerClass: 'external' } as const;
+      await put([{ ...cell, allowed: true, tasks: ['extract-document'] }]);
+
+      // A change that names no tasks would apply to every task: refused, nothing stored.
+      const silent = await put([{ ...cell, allowed: true }]);
+      expect(silent.statusCode).toBe(400);
+      expect(contractErrors('ProblemDetails', silent.json())).toEqual([]);
+      expect(silent.json()).toMatchObject({ errors: [{ path: 'rules.0.tasks' }] });
+      const kept = (await request('GET', '/v1/ai/policies', admin)).json<{
+        tenants: { tenant: string; rules: { tasks: string[] | null }[] }[];
+      }>();
+      expect(kept.tenants.find((each) => each.tenant === 'scoped')?.rules).toMatchObject([
+        { tasks: ['extract-document'] },
+      ]);
+
+      // Revoking for the same tasks, then widening on purpose.
+      expect(
+        (await put([{ ...cell, allowed: false, tasks: ['extract-document'] }])).json(),
+      ).toMatchObject({
+        rules: [{ allowed: false, tasks: ['extract-document'] }],
+      });
+      expect((await put([{ ...cell, allowed: true, tasks: null }])).json()).toMatchObject({
+        rules: [{ allowed: true, tasks: null }],
+      });
+    });
+
     it('applies several rules on one approval, audits each with the reference, and lists them', async () => {
       const before = await request('GET', '/v1/ai/policies', admin);
       expect(before.statusCode).toBe(200);
@@ -181,6 +210,7 @@ describe('admin API', { timeout: 90_000 }, () => {
             dataClass: 'synthetic',
             providerClass: 'external',
             allowed: false,
+            tasks: null,
             approvalRef: 'EACC/AI/2026/014',
             changedBy: 'platform-admin-1',
             changedByName: 'Amina Odhiambo',
@@ -190,6 +220,7 @@ describe('admin API', { timeout: 90_000 }, () => {
             dataClass: 'restricted',
             providerClass: 'external',
             allowed: true,
+            tasks: null,
             approvalRef: 'EACC/AI/2026/014',
             changedBy: 'platform-admin-1',
             changedByName: 'Amina Odhiambo',
@@ -487,6 +518,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         ['draft-clarification', null],
         ['narrate-compliance-report', null],
         ['answer-declarant-question', null],
+        ['extract-document', null],
         ['retired-task', null],
       ]);
     });
@@ -540,6 +572,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         ['draft-clarification', null],
         ['narrate-compliance-report', null],
         ['answer-declarant-question', null],
+        ['extract-document', null],
       ]);
       expect(table).toContainEqual(
         expect.objectContaining({ tenant: 'rcomm', model: 'claude-sonnet-5' }),
@@ -708,6 +741,19 @@ describe('admin API', { timeout: 90_000 }, () => {
         provider: 'scripted',
         dataClasses: [],
       });
+    });
+
+    it("leaves out a rule scoped to tasks that are not the Commission's reviewer tasks", async () => {
+      await setGate('docsonly', [
+        {
+          dataClass: 'highly-confidential',
+          providerClass: 'external',
+          allowed: true,
+          tasks: ['extract-document'],
+        },
+      ]);
+
+      expect(await status('docsonly')).toMatchObject({ enabled: false, dataClasses: [] });
     });
 
     it('names the routed provider class; mixed routes read as external', async () => {

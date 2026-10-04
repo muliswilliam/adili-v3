@@ -1,0 +1,308 @@
+// @vitest-environment jsdom
+import { ToastProvider, TooltipProvider } from '@adili/ui';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import type { ComponentProps, ReactNode } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import {
+  buildOpenDataSnapshot,
+  listOpenDataReleases,
+} from '../../server/open-data-releases.server';
+import {
+  mockReportingClient,
+  resetReportingMock as resetFormMMock,
+  setReportingMockLatency,
+} from '../../server/reporting/mock.server';
+import { setEaccIntakeMockLatency } from '../../server/reporting/eacc-mock.server';
+import { resetNcrMock } from '../../server/reporting/ncr-mock.server';
+import {
+  type ReleasesMockSeed,
+  resetReleasesMock,
+} from '../../server/reporting/releases-mock.server';
+import { ReleasesView } from './releases-view';
+
+const invalidate = vi.fn();
+vi.mock('@tanstack/react-router', () => ({
+  useRouter: () => ({ invalidate }),
+  Link: ({
+    to,
+    params,
+    children,
+    ...props
+  }: {
+    to: string;
+    params?: Record<string, string>;
+    children: ReactNode;
+  }) => (
+    <a href={to.replace('$releaseId', params?.releaseId ?? '')} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
+const analyst = () =>
+  mockReportingClient(['eacc-analyst'], {
+    name: 'Brian Otieno',
+    subject: 'user-brian-otieno',
+    tenant: 'eacc',
+  });
+
+async function releasesOf(seed: ReleasesMockSeed) {
+  resetReleasesMock(seed);
+  return listOpenDataReleases(analyst());
+}
+
+type Props = ComponentProps<typeof ReleasesView>;
+
+const LINKS = { publicPage: 'http://portal.test/open-data', verifyBase: null };
+
+function renderView(props: Partial<Props> & Pick<Props, 'result'>) {
+  const all: Props = {
+    links: LINKS,
+    fy: 2026,
+    build: (fy, key) => buildOpenDataSnapshot(analyst(), fy, key),
+    onBuilt: vi.fn(),
+    onUnauthenticated: vi.fn(),
+    ...props,
+  };
+  const tree = (current: Props) => (
+    <TooltipProvider>
+      <ToastProvider>
+        <ReleasesView {...current} />
+      </ToastProvider>
+    </TooltipProvider>
+  );
+  const rendered = render(tree(all));
+  return {
+    ...all,
+    /** Renders the same view again with `changes`, as the router does on new loader data. */
+    rerender: (changes: Partial<Props>) => {
+      rendered.rerender(tree({ ...all, ...changes }));
+    },
+  };
+}
+
+beforeEach(() => {
+  // FY 2025/2026's reports are in, FY 2026/2027's not due.
+  resetFormMMock('2026-10-03');
+  setReportingMockLatency(0);
+  setEaccIntakeMockLatency(0);
+  resetNcrMock('not-built');
+});
+
+describe('#350 releases list', () => {
+  it('lists each release with its year, kind, version, status and who published it', async () => {
+    renderView({ result: await releasesOf('history') });
+
+    const table = screen.getByRole('table', { name: 'Open-data releases' });
+    const [first, second, ...rest] = within(table).getAllByRole('row').slice(1);
+    if (!first || !second) throw new Error('expected two releases');
+    expect(rest).toHaveLength(0);
+    expect(first.textContent).toContain('FY 2025/2026');
+    expect(first.textContent).toContain('Snapshot');
+    expect(first.textContent).toContain('v2');
+    expect(first.textContent).toContain('Published');
+    expect(first.textContent).toContain('Esther Chebet');
+    expect(second.textContent).toContain('Withdrawn');
+    expect(second.textContent).toContain('Withdrawn 19 Feb 2026');
+    expect(within(first).getByRole('link').getAttribute('href')).toBe(
+      '/eacc/open-data/0199c000-0000-7000-8000-000000000002',
+    );
+    expect(screen.getByRole('link', { name: /Public page/ }).getAttribute('href')).toBe(
+      'http://portal.test/open-data',
+    );
+  });
+
+  it('shows loading rows while the list loads', () => {
+    renderView({ result: null });
+
+    expect(
+      screen.getByRole('table', { name: 'Open-data releases' }).getAttribute('aria-busy'),
+    ).toBe('true');
+  });
+
+  it('says there are no releases yet, with Build snapshot', async () => {
+    renderView({ result: await releasesOf('none') });
+
+    expect(screen.getByText('No releases yet')).toBeTruthy();
+    expect(
+      screen.getByText('The annual release publishes when the national report is approved.'),
+    ).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /Build snapshot/ })).toHaveLength(2);
+  });
+
+  it('offers a retry when the list could not be loaded', async () => {
+    renderView({ result: await releasesOf('unavailable') });
+
+    expect(screen.getByText('We could not load releases')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Try again/ }));
+    expect(invalidate).toHaveBeenCalled();
+  });
+
+  it('turns away anyone outside EACC', async () => {
+    resetReleasesMock('history');
+    renderView({ result: await listOpenDataReleases(mockReportingClient(['supervisor'])) });
+
+    expect(screen.getByText('This page is for EACC analysts and supervisors.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Build snapshot/ })).toBeNull();
+  });
+});
+
+describe('#350 build snapshot', () => {
+  it('confirms, shows the build in progress, then opens the preview', async () => {
+    const view = renderView({ result: await releasesOf('history') });
+
+    fireEvent.click(screen.getByRole('button', { name: /Build snapshot/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Build FY 2026/2027 snapshot' });
+    expect(dialog.textContent).toContain(
+      'Preview only. Nothing is public until a supervisor publishes.',
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Build' }));
+
+    expect(await screen.findByText('Building FY 2026/2027 snapshot…')).toBeTruthy();
+    await waitFor(() => {
+      expect(view.onBuilt).toHaveBeenCalledWith(
+        expect.objectContaining({ fy: 2026, status: 'preview', version: 1 }),
+      );
+    });
+  });
+
+  it('S9 stops on a reconciliation failure, naming the totals, and offers a retry', async () => {
+    renderView({ result: await releasesOf('reconciliation-failed') });
+
+    fireEvent.click(screen.getByRole('button', { name: /Build snapshot/ }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Build' }));
+
+    const stopped = await screen.findByText('Snapshot build stopped.');
+    const alert = stopped.closest<HTMLElement>('[role="alert"]');
+    if (!alert) throw new Error('expected the build failure as an alert');
+    expect(alert.textContent).toContain('Snapshot build stopped.');
+    expect(alert.textContent).toContain(
+      'National totals did not match their source (declarations made in all cycles, declarations made in the final cycle). Nothing was written.',
+    );
+    expect(within(alert).getByRole('button', { name: 'Try again' })).toBeTruthy();
+    fireEvent.click(within(alert).getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByText('Snapshot build stopped.')).toBeNull();
+  });
+
+  it('retries a build that got no answer with the same key, so it is not built twice', async () => {
+    const build = vi
+      .fn<Props['build']>()
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { kind: 'unavailable', detail: null, problemType: 'storage-unavailable' },
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: { type: 'about:blank', title: 'Conflict', status: 409 },
+        },
+      })
+      .mockImplementation((fy, key) => buildOpenDataSnapshot(analyst(), fy, key));
+    renderView({ result: await releasesOf('history'), build });
+
+    fireEvent.click(screen.getByRole('button', { name: /Build snapshot/ }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Build' }));
+    expect(
+      await screen.findByText('File storage could not be reached. Nothing was written.'),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await screen.findByText('The snapshot could not be built. Nothing was written.');
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    await waitFor(() => {
+      expect(build).toHaveBeenCalledTimes(3);
+    });
+    const keys = build.mock.calls.map(([, key]) => key);
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[1]);
+  });
+
+  it('F1 keeps the key while the first build is still running, so Try again does not build twice', async () => {
+    const build = vi
+      .fn<Props['build']>()
+      .mockResolvedValueOnce({
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: {
+            type: 'idempotency-key-in-use',
+            title: 'Request in progress',
+            status: 409,
+          },
+        },
+      })
+      .mockImplementation((fy, key) => buildOpenDataSnapshot(analyst(), fy, key));
+    const view = renderView({ result: await releasesOf('history'), build });
+
+    fireEvent.click(screen.getByRole('button', { name: /Build snapshot/ }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Build' }));
+    expect(
+      await screen.findByText('The build is still running. Try again in a moment to see it.'),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    await waitFor(() => {
+      expect(view.onBuilt).toHaveBeenCalled();
+    });
+    const keys = build.mock.calls.map(([, key]) => key);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  it('F2 reuses a build key that got no answer after Dismiss, then a new one once settled', async () => {
+    const build = vi
+      .fn<Props['build']>()
+      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } })
+      .mockImplementation((fy, key) => buildOpenDataSnapshot(analyst(), fy, key));
+    const view = renderView({ result: await releasesOf('history'), build });
+    const buildFromDialog = async () => {
+      const [headerButton] = screen.getAllByRole('button', { name: /Build snapshot/ });
+      if (!headerButton) throw new Error('expected Build snapshot');
+      fireEvent.click(headerButton);
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Build' }));
+      await waitFor(() => {
+        expect(screen.queryByText(/^Building FY/)).toBeNull();
+      });
+    };
+
+    await buildFromDialog();
+    fireEvent.click(await screen.findByRole('button', { name: 'Dismiss' }));
+    await buildFromDialog();
+    await waitFor(() => {
+      expect(view.onBuilt).toHaveBeenCalledTimes(1);
+    });
+    await buildFromDialog();
+
+    const keys = build.mock.calls.map(([, key]) => key);
+    expect(keys).toHaveLength(3);
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[1]);
+  });
+
+  it('gives a build of another year a new key, even with one of the year before pending', async () => {
+    const build = vi
+      .fn<Props['build']>()
+      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } })
+      .mockImplementation((fy, key) => buildOpenDataSnapshot(analyst(), fy, key));
+    const view = renderView({ result: await releasesOf('history'), build, fy: 2025 });
+
+    fireEvent.click(screen.getByRole('button', { name: /Build snapshot/ }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Build' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dismiss' }));
+    // 1 July comes while the page is open: the same view now builds FY 2026/2027.
+    view.rerender({ fy: 2026 });
+    fireEvent.click(screen.getByRole('button', { name: /Build snapshot/ }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Build' }));
+
+    await waitFor(() => {
+      expect(view.onBuilt).toHaveBeenCalledWith(expect.objectContaining({ fy: 2026 }));
+    });
+    const [[fyBefore, keyBefore], [fyAfter, keyAfter]] = build.mock.calls as [
+      [number, string],
+      [number, string],
+    ];
+    expect([fyBefore, fyAfter]).toEqual([2025, 2026]);
+    expect(keyAfter).not.toBe(keyBefore);
+  });
+});

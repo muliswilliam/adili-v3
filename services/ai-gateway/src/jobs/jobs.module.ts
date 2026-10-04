@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
 
 import { config } from '../config.js';
+import {
+  DOCUMENT_FETCHER_OPTIONS,
+  DocumentFetcher,
+  type DocumentFetcherOptions,
+} from '../documents/document-fetcher.js';
 import { PolicyModule } from '../policy/policy.module.js';
 import { ProvidersModule } from '../providers/providers.module.js';
 import { Admission } from './admission.js';
@@ -27,6 +32,15 @@ const ATTEMPT_OVERHEAD_MS = 30_000;
     JobWorkflows,
     JobsJanitor,
     Routing,
+    DocumentFetcher,
+    {
+      provide: DOCUMENT_FETCHER_OPTIONS,
+      useValue: {
+        allowedOrigins: config.AI_DOCUMENT_ORIGINS,
+        maxBytes: config.AI_DOCUMENT_MAX_BYTES,
+        timeoutMs: config.AI_DOCUMENT_TIMEOUT_MS,
+      } satisfies DocumentFetcherOptions,
+    },
     { provide: ROUTING_OPTIONS, useValue: { model: config.AI_MODEL } satisfies RoutingOptions },
     {
       provide: JOB_WORKFLOWS_OPTIONS,

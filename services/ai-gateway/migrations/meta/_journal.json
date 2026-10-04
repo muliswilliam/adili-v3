@@ -36,6 +36,13 @@
       "when": 1791012524733,
       "tag": "0004_cache_without_violations",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791023923853,
+      "tag": "0005_gate_rule_tasks",
+      "breakpoints": true
     }
   ]
 }

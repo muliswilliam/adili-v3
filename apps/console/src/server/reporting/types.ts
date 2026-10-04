@@ -113,3 +113,10 @@ const ICMS_STATUS_SET = {
 
 /** reporting.yaml `IcmsStatus`, in the order the intake filters them. */
 export const ICMS_STATUSES = Object.keys(ICMS_STATUS_SET) as [IcmsStatus, ...IcmsStatus[]];
+
+/** reporting.yaml `OpenDataRelease`: an open-data release as EACC sees it (spec 09b). */
+export type OpenDataRelease = Schemas['OpenDataRelease'];
+export type OpenDataTableName = Schemas['OpenDataTable'];
+/** reporting.yaml `OpenDataReleaseDetail`: a release with its tables as built (#350). */
+export type OpenDataReleaseDetail = Schemas['OpenDataReleaseDetail'];
+export type OpenDataTableFile = Schemas['OpenDataTableFile'];

@@ -29,7 +29,7 @@ import { commissionOpenDataPreviewSchema } from './open-data/commission-preview.
 import { publicOpenDataReleaseSchema } from './open-data/public-representation.js';
 import {
   openDataReleaseSchema,
-  openDataTableDataSchema,
+  openDataTableFileSchema,
   openDataTableNameSchema,
 } from './open-data/representation.js';
 import {
@@ -77,7 +77,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   AiTaskRatings: aiTaskRatingsSchema,
   OpenDataTable: openDataTableNameSchema,
   OpenDataRelease: openDataReleaseSchema,
-  OpenDataTableData: openDataTableDataSchema,
+  OpenDataTableFile: openDataTableFileSchema,
   CommissionOpenDataPreview: commissionOpenDataPreviewSchema,
   PublicOpenDataRelease: publicOpenDataReleaseSchema,
 };

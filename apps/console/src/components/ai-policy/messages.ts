@@ -146,6 +146,10 @@ export const en = {
   changes: 'Changes',
   noChanges: 'No changes. The default applies: external providers see no data.',
   defaultRule: 'Default',
+  forTasksOnly: (text: string, tasks: readonly string[]) => `${text}, for ${tasks.join(', ')} only`,
+  scopeNote: (tasks: readonly string[]) => `${tasks.join(', ')} only`,
+  tasksOnly: (allowed: boolean, tasks: readonly string[]) =>
+    `${allowed ? 'Allowed' : 'Blocked'} for ${tasks.join(', ')} only`,
   changeAllowed: (provider: string, data: string) =>
     `Allowed ${provider.toLowerCase()} providers for ${data.toLowerCase()} data`,
   changeBlocked: (provider: string, data: string) =>
