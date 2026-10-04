@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { LADDER_STEPS } from '../actions/ladder';
 import { REFERRAL_GROUNDS } from '../referral/view';
 import type { ApprovalKind } from '../server/review/types';
 
@@ -18,7 +19,11 @@ export const APPROVAL_KINDS = [
 ] as const satisfies readonly ApprovalKind[];
 
 /** The kinds the inbox shows so far, in tab order; the first is the default tab. */
-export const INBOX_KINDS = ['determination', 'referral'] as const satisfies readonly ApprovalKind[];
+export const INBOX_KINDS = [
+  'determination',
+  'action',
+  'referral',
+] as const satisfies readonly ApprovalKind[];
 
 export type InboxKind = (typeof INBOX_KINDS)[number];
 
@@ -34,6 +39,35 @@ const determinationSummary = z.object({
   reasonsExcerpt: z.string(),
 });
 export type DeterminationSummary = z.infer<typeof determinationSummary>;
+
+const actionStep = z.enum(LADDER_STEPS);
+
+/**
+ * A drafted ladder step's summary (review's `ActionApprovals`): the step, what the ladder is
+ * about, the declarant, and the steps issued before it with the declarant's responses.
+ */
+const actionSummary = z.object({
+  ladderId: z.uuid(),
+  step: actionStep,
+  subjectKind: z.enum(['obligation', 'clarification']),
+  subjectId: z.uuid(),
+  subjectReference: z.string(),
+  declarantName: z.string(),
+  personnelFileNumber: z.string(),
+  priorSteps: z.array(
+    z.object({
+      actionId: z.uuid(),
+      step: actionStep,
+      status: z.string(),
+      reference: z.string().nullable(),
+      issuedAt: z.string().nullable(),
+      respondedAt: z.string().nullable(),
+      responseExcerpt: z.string().nullable(),
+      responseAttachments: z.number().int().min(0),
+    }),
+  ),
+});
+export type ActionSummary = z.infer<typeof actionSummary>;
 
 /**
  * A referral's summary (services/review `ReferralApprovals`): the grounds, the declarant, the
@@ -58,12 +92,14 @@ export type ReferralSummary = z.infer<typeof referralSummary>;
 /** Each shown kind's summary, as its schema reads it. */
 export interface Summaries {
   determination: DeterminationSummary;
+  action: ActionSummary;
   referral: ReferralSummary;
 }
 
 /** The summary schema of each kind the inbox shows. */
 export const SUMMARIES: { [K in InboxKind]: z.ZodType<Summaries[K]> } = {
   determination: determinationSummary,
+  action: actionSummary,
   referral: referralSummary,
 };
 

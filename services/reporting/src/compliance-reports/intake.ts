@@ -1,4 +1,7 @@
+import { z } from 'zod';
+
 import type { CommissionFacts } from '../directory/directory-client.js';
+import { countSchema as count } from './representation.js';
 import type { ReportCounts } from './schema.js';
 
 /**
@@ -9,7 +12,8 @@ import type { ReportCounts } from './schema.js';
  */
 
 /** reporting.yaml `IntakeStatus`. */
-export type IntakeStatus = 'not-reported' | 'submitted-on-time' | 'submitted-late';
+export const INTAKE_STATUSES = ['not-reported', 'submitted-on-time', 'submitted-late'] as const;
+export type IntakeStatus = (typeof INTAKE_STATUSES)[number];
 
 export const INTAKE_SECTIONS = ['initial', 'biennial', 'final'] as const;
 export type IntakeSection = (typeof INTAKE_SECTIONS)[number];
@@ -18,18 +22,16 @@ export type IntakeSection = (typeof INTAKE_SECTIONS)[number];
  * reporting.yaml `Intake` outliers. No "declared, none expected": hosted declared derives from
  * expected, and the federated rules refuse it.
  */
-export type Outlier =
-  'low-initial-rate' | 'low-biennial-rate' | 'low-final-rate' | 'section-missing';
+export const OUTLIERS = [
+  'low-initial-rate',
+  'low-biennial-rate',
+  'low-final-rate',
+  'section-missing',
+] as const;
+export type Outlier = (typeof OUTLIERS)[number];
 
 /** The lowest declared rate (declared / expected) per section before a report is an outlier. */
 export type RateThresholds = Record<IntakeSection, number>;
-
-export interface SectionRate {
-  expected: number;
-  declared: number;
-  /** declared / expected, to four decimals; null when nothing was expected. */
-  rate: number | null;
-}
 
 /** EACC's receipt of a submitted report (`report_receipts`). */
 export interface ReceiptFacts {
@@ -50,30 +52,62 @@ export interface ChaseFacts {
   lastAt: Date | null;
 }
 
-export interface IntakeItem {
-  commission: { slug: string; name: string };
-  status: IntakeStatus;
-  reportId: string | null;
-  reference: string | null;
-  submittedAt: string | null;
-  rates: Partial<Record<IntakeSection, SectionRate>>;
-  outliers: Outlier[];
-  chases: { count: number; lastAt: string | null };
-  formMDocumentId: string | null;
-  receiptDocumentId: string | null;
-}
+export const intakeStatusSchema = z.enum(INTAKE_STATUSES).meta({
+  description: "Not reported, or submitted on time or late (after 31 July) by EACC's receipt",
+});
+
+const sectionRateSchema = z.object({
+  expected: count,
+  declared: count,
+  rate: z
+    .number()
+    .nullable()
+    .meta({ description: 'declared / expected to four decimals; null when none expected' }),
+});
+export type SectionRate = z.infer<typeof sectionRateSchema>;
+
+const intakeItemSchema = z.object({
+  commission: z.object({ slug: z.string(), name: z.string() }),
+  status: intakeStatusSchema,
+  reportId: z.uuid().nullable(),
+  reference: z.string().nullable(),
+  submittedAt: z.iso.datetime().nullable(),
+  rates: z
+    .object({
+      initial: sectionRateSchema.optional(),
+      biennial: sectionRateSchema.optional(),
+      final: sectionRateSchema.optional(),
+    })
+    .meta({ description: 'Per section from the report as filed; empty when not reported' }),
+  outliers: z.array(z.enum(OUTLIERS)),
+  chases: z
+    .object({ count, lastAt: z.iso.datetime().nullable() })
+    .meta({ description: "EACC's weekly chases from 1 August while not reported" }),
+  formMDocumentId: z
+    .uuid()
+    .nullable()
+    .meta({ description: 'The Restricted Form M PDF as filed, once issued' }),
+  receiptDocumentId: z
+    .uuid()
+    .nullable()
+    .meta({ description: 'The signed acknowledgement receipt, once issued' }),
+});
+export type IntakeItem = z.infer<typeof intakeItemSchema>;
 
 /** reporting.yaml `Intake`. */
-export interface IntakeView {
-  fy: number;
-  totals: {
-    onTime: number;
-    late: number;
-    notReported: number;
-    nationalDeclaredRate: number | null;
-  };
-  commissions: IntakeItem[];
-}
+export const intakeSchema = z.object({
+  fy: z.number().int(),
+  totals: z
+    .object({
+      onTime: count,
+      late: count,
+      notReported: count,
+      nationalDeclaredRate: z.number().nullable(),
+    })
+    .meta({ description: 'The whole year, whatever the filters' }),
+  commissions: z.array(intakeItemSchema),
+});
+export type IntakeView = z.infer<typeof intakeSchema>;
 
 export interface IntakeFilters {
   status?: IntakeStatus;

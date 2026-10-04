@@ -1,4 +1,5 @@
 import { DEFAULT_INBOX_KIND, type InboxKind } from '../../approvals/kinds';
+import { actionKind } from './action-approval';
 import { determinationKind } from './determination-approval';
 import { referralKind } from './referral-approval';
 import type { InboxKindView, ItemOf, KindApprovalProps } from './kind';
@@ -23,6 +24,7 @@ import type { InboxKindView, ItemOf, KindApprovalProps } from './kind';
  */
 export const KINDS: { [K in InboxKind]: InboxKindView<K> } = {
   determination: determinationKind,
+  action: actionKind,
   referral: referralKind,
 };
 

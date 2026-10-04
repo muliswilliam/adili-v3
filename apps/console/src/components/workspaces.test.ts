@@ -5,22 +5,37 @@ import { opensOwnPolicy, readsCommissionPolicy, workspaceFor, workspacesFor } fr
 const ids = (roles: string[]) => workspacesFor(roles).map((workspace) => workspace.id);
 
 describe('workspacesFor', () => {
-  it('gives reviewers the review queue, referrals and obligations', () => {
+  it('gives reviewers the review queue, actions, referrals and obligations', () => {
     expect(ids(['reviewer', 'default-roles-adili'])).toEqual([
       'review',
+      'actions',
       'referrals',
       'obligations',
     ]);
   });
 
-  it('gives supervisors review, approvals, referrals, access requests and obligations, once each', () => {
+  it('gives supervisors review, approvals, actions, referrals, access requests, obligations and Form M, once each', () => {
     expect(ids(['supervisor', 'reviewer'])).toEqual([
       'review',
       'approvals',
+      'actions',
       'referrals',
       'access',
       'obligations',
+      'form-m',
     ]);
+  });
+
+  it('opens Form M to its supervisor and commission-admin, read-only to the reporting officer (spec 09)', () => {
+    expect(workspaceFor(['supervisor'], 'form-m')).toMatchObject({
+      href: '/form-m',
+      readOnly: false,
+    });
+    expect(workspaceFor(['commission-admin'], 'form-m')?.readOnly).toBe(false);
+    expect(workspaceFor(['reporting-officer'], 'form-m')?.readOnly).toBe(true);
+    for (const roles of [['reviewer'], ['access-officer'], ['eacc-analyst'], ['platform-admin']]) {
+      expect(workspaceFor(roles, 'form-m')).toBeUndefined();
+    }
   });
 
   it('gives EACC analysts Commissions, national obligations and compliance reports but not the review queue', () => {

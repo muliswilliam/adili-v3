@@ -5,6 +5,7 @@ import {
   COMMISSION_ROSTER_ROLES,
   COMMISSION_STAFF_ROLES,
   EACC_ROLES,
+  FORM_M_ROLES,
   HELPDESK,
   LAW_ENFORCEMENT,
   NATIONAL_ROLES,
@@ -32,11 +33,13 @@ export type WorkspaceHref =
   | '/obligations/national'
   | '/review'
   | '/approvals'
+  | '/actions'
   | '/referrals'
   | '/access/requests'
   | '/lea/requests'
   | '/platform/law-enforcement'
-  | '/ai-policy';
+  | '/ai-policy'
+  | '/form-m';
 
 interface WorkspaceDefinition {
   id: string;
@@ -97,6 +100,13 @@ export function readsCommissionPolicy(roles: readonly string[]): boolean {
   return COMMISSION_POLICY_ROLES.some((role) => roles.includes(role));
 }
 
+/**
+ * Roles that act on their Commission's Form M (spec 09): the supervisor compiles and reviews, the
+ * commission-admin confirms and submits. The reporting officer only reads it (`FORM_M_ROLES`);
+ * nobody else sees it, EACC included.
+ */
+export const FORM_M_WRITE_ROLES = [SUPERVISOR, COMMISSION_ADMIN] as const;
+
 /** National roles, who see obligation counts per Commission but no declarant (spec 04). */
 export const NATIONAL_OBLIGATIONS_ROLES = NATIONAL_ROLES;
 
@@ -131,6 +141,14 @@ const WORKSPACES: WorkspaceDefinition[] = [
     description: 'Approve determinations and administrative actions proposed by reviewers.',
     href: '/approvals',
     roles: [SUPERVISOR],
+  },
+  {
+    id: 'actions',
+    title: 'Actions',
+    description:
+      'Approve the notices and warnings drafted for overdue declarations and clarifications.',
+    href: '/actions',
+    roles: [REVIEWER, SUPERVISOR],
   },
   {
     id: 'referrals',
@@ -179,6 +197,15 @@ const WORKSPACES: WorkspaceDefinition[] = [
     title: 'Commission administration',
     description: 'Manage users, policies and document templates for your Commission.',
     roles: [COMMISSION_ADMIN],
+  },
+  {
+    id: 'form-m',
+    title: 'Form M',
+    description: "Your Commission's compliance report to EACC, compiled from your data.",
+    readOnlyDescription: "Your Commission's compliance report to EACC and where it stands.",
+    href: '/form-m',
+    roles: FORM_M_ROLES,
+    writeRoles: FORM_M_WRITE_ROLES,
   },
   {
     id: 'compliance',

@@ -23,6 +23,9 @@
  * - Spec 08's cases and their determinations (`ready` to `bulkClosure`, and a proposal on
  *   `peters`): see the notes on `MOCK_CASE_IDS` and `MOCK_DETERMINATION_IDS`.
  *
+ * The version comparison (spec 07a #167) of every case on the mock declaration comes from
+ * `compare-mock.server.ts`; the first declarations (`unassigned`, `contested`) answer 409.
+ *
  * As review.yaml has it: claim an unassigned case (409 `case-already-assigned` otherwise),
  * release your own (403 otherwise), reassign or unassign as a supervisor (the mock does not
  * check roles), add a note (1-2,000 characters), mark a flag reviewed once (note 1-1,000
@@ -58,7 +61,14 @@ import { isOutstanding } from '../../clarification/labels';
 import { mockTenantAiStatus } from '../ai-gateway/mock.server';
 import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
+import {
+  actionApprovals,
+  actionsRoute,
+  mockActionFileTitle,
+  resetActionsMock,
+} from './actions-mock.server';
 import type { paths } from './api.gen';
+import { mockComparison } from './compare-mock.server';
 import {
   copilotRoute,
   declarationOf,
@@ -527,6 +537,7 @@ export function resetReviewMock(
   now: number = Date.now(),
   { copilot = 'ready' }: { copilot?: Env['REVIEW_MOCK_COPILOT'] } = {},
 ) {
+  resetActionsMock(now);
   cases.clear();
   clarifications.clear();
   letterReadyAt.clear();
@@ -913,7 +924,11 @@ function seedDeterminationCases(now: number) {
   }
   // First: the determinations seed their reassignments into it.
   resetApprovalsMock({
-    sources: { determination: determinationApprovals, referral: referralApprovals(referralCases) },
+    sources: {
+      determination: determinationApprovals,
+      action: actionApprovals,
+      referral: referralApprovals(referralCases),
+    },
     staff: [
       { ...PETER, supervisor: false },
       { ...MERCY, supervisor: false },
@@ -1216,7 +1231,7 @@ export function mockFileTitle(id: string): string | null {
     const file = documentAttachments(stored.document).get(id);
     if (file) return file.replace(/\.pdf$/i, '');
   }
-  return null;
+  return mockActionFileTitle(id);
 }
 
 async function route(request: Request): Promise<Response> {
@@ -1231,6 +1246,9 @@ async function route(request: Request): Promise<Response> {
     if (!mockCallerOf(request).roles.includes(COMMISSION_ADMIN)) return problem(404, 'Not found');
     return json(200, mockTenantAiStatus(aiStatus[1]));
   }
+
+  const actions = await actionsRoute(request, mockCallerOf(request));
+  if (actions) return actions;
 
   const attachment = /^\/v1\/review\/cases\/([^/]+)\/attachments\/([^/]+)\/download$/.exec(
     pathname,
@@ -1294,6 +1312,9 @@ async function route(request: Request): Promise<Response> {
     return once(request, () => issueDraft(id, caller));
   }
 
+  const compare = /^\/v1\/review\/cases\/([^/]+)\/compare$/.exec(pathname);
+  if (method === 'GET' && compare?.[1]) return compareCase(compare[1]);
+
   const oneCase = /^\/v1\/review\/cases\/([^/]+)$/.exec(pathname);
   if (method === 'GET' && oneCase?.[1]) {
     const stored = cases.get(oneCase[1]);
@@ -1344,6 +1365,31 @@ async function route(request: Request): Promise<Response> {
   }
 
   return problem(404, 'Not found');
+}
+
+/**
+ * The comparison with the person's previous submitted version: 409 for a first declaration on
+ * Adili, 502 while declarations is down. A single-version case compares with the previous
+ * cycle's declaration (version 1 of its own declaration).
+ */
+function compareCase(caseId: string): Response {
+  const stored = cases.get(caseId);
+  if (!stored) return problem(404, 'Not found');
+  if (stored.declarationsDown) return problem(502, 'Declarations unavailable');
+  const { currentVersion } = stored.item;
+  const current = stored.versions.find((each) => each.version === currentVersion);
+  if (!stored.document || current?.firstOnAdili) {
+    return json(409, {
+      type: 'no-previous-version',
+      title: 'No previous version',
+      status: 409,
+      detail: "This is the declarant's first declaration on Adili; there is nothing to compare.",
+    });
+  }
+  return json(
+    200,
+    mockComparison(stored.document, Math.max(currentVersion - 1, 1), currentVersion),
+  );
 }
 
 function listItem(stored: StoredCase, caller: Assignee): CaseListItem {

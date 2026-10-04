@@ -1,7 +1,15 @@
 import { z } from 'zod';
 
 import type { ReviewClient } from './review/client.server';
-import type { Assignee, CaseDetail, CaseListItem, Flag, Note, RegistryView } from './review/types';
+import type {
+  Assignee,
+  CaseDetail,
+  CaseListItem,
+  Flag,
+  Note,
+  RegistryView,
+  VersionComparison,
+} from './review/types';
 import { callService, type ServiceError, type ServiceResult } from './service-call';
 
 /**
@@ -98,6 +106,24 @@ export async function loadCaseView(
     ok: true,
     data: { detail: result.data as CaseViewDetail, documentUnavailable: false, viewer },
   };
+}
+
+/**
+ * `GET .../compare`: the current version against the person's previous submitted version, both
+ * pulled from declarations for this call (an audited read). Null when there is none to compare
+ * with (409 `no-previous-version`): a first declaration on Adili.
+ */
+export async function loadComparison(
+  client: ReviewClient,
+  caseId: string,
+): Promise<ServiceResult<VersionComparison | null>> {
+  const result = await callService(() =>
+    client.GET('/v1/review/cases/{caseId}/compare', { params: { path: { caseId } } }),
+  );
+  if (!result.ok && result.error.kind === 'problem' && result.error.problem.status === 409) {
+    return { ok: true, data: null };
+  }
+  return result;
 }
 
 /** `POST .../claim`: the case becomes the caller's (409 `case-already-assigned` if taken). */

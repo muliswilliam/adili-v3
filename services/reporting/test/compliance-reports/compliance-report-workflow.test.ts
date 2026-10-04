@@ -44,6 +44,7 @@ const AGGREGATE: Aggregate = {
   },
   nonFilers: { initial: [], biennial: [], final: [] },
   clarificationIds: [],
+  declineReasons: [],
 };
 
 describe('ComplianceReportWorkflow', () => {
