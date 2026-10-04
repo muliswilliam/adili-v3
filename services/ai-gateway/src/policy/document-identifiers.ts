@@ -108,6 +108,13 @@ const RUN_INTRODUCERS: readonly RegExp[] = [
 /** Words that introduce a run themselves, where a run ends: short titles and salutations. */
 const INTRODUCER_WORDS = new Set([...SHORT_TITLES, 'dear', 'mpendwa', 'ndugu']);
 
+/**
+ * An identifier's shape: a regular expression, or a scan that `String.replace` runs as one
+ * (minimisation's parcels).
+ */
+export type Shape =
+  RegExp | { [Symbol.replace](text: string, replacer: (match: string) => string): string };
+
 /** What a shape's characters are blanked to: a private-use mark that is no word. */
 const BLANK = '\ue000';
 
@@ -174,7 +181,7 @@ const CURRENCIES: ReadonlySet<string> = new Set([
 ]);
 
 /** Words that join two parties, in any case: "and", "or", Swahili "na", "aka", "alias". */
-const JOINER_WORDS = new Set(['and', 'or', 'na', 'pia', 'pamoja', 'aka', 'alias']);
+const JOINER_WORDS = new Set(['and', 'or', 'and/or', 'na', 'pia', 'pamoja', 'aka', 'alias']);
 /** Lowercase particles inside a name: "Ali bin Hassan", "Kamau wa Ngengi", "Maria de Souza". */
 const PARTICLES = new Set([
   'bin',
@@ -202,6 +209,7 @@ const MAX_VALUE_LENGTH = 200;
 const ORGANISATION_WORDS = new Set([
   ...['limited', 'ltd', 'plc', 'company', 'co', 'bank', 'sacco', 'society'],
   ...['holdings', 'enterprises', 'cooperative', 'trust', 'group', 'chama', 'traders', 'power'],
+  ...['foods', 'industries', 'services', 'motors', 'investments', 'ventures', 'supplies'],
 ]);
 /** Offices a name sits next to ("Director Peter Kamau", "Kevin Odera Sacco Secretary"). */
 const ROLE_WORDS = new Set([
@@ -485,6 +493,14 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
     // Numbers and other data are skipped; a currency ends the span ("John Kamau KES 12,500,000").
     if (token?.kind !== 'word') continue;
     const word = token.text;
+    // A label that prose follows names no one ("Members of the Board").
+    if (
+      words === 0 &&
+      !isCapitalised(word) &&
+      !PARTICLES.has(word) &&
+      !FILLER_WORDS.has(lower(word))
+    )
+      break;
     // A place after "of" is where a party lives, no name ("John Kamau of Nakuru").
     if (lower(word) === 'of') {
       nextParty();
@@ -505,7 +521,8 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
       // number the span opens on is followed by a name or ends it ("Member No. 3310 Mary
       // Wanjiru", not "... Stima Sacco").
       const numberFirst = words === 0 && LABEL_TAILS.has(lower(word));
-      const next = words === 0 && !numberFirst ? value : partyAfterValue(tokens, value);
+      const next =
+        words === 0 && !numberFirst ? value : partyAfterValue(tokens, value, numberFirst);
       if (next < 0) break;
       nextParty();
       at = next - 1;
@@ -524,14 +541,23 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
 
 /**
  * Whether a person's name starts at `at`: capitalised name words and particles, none a known word
- * (a field, heading, office, vehicle model or currency), not an organisation's or an address's,
- * and not places alone ("Mary Wanjiru", "Kericho Langat"; not "Toyota Premio", "Freehold",
- * "Equity Bank", "Runda Estate", "Nairobi").
+ * (a field, heading, office, vehicle model or currency), not an organisation's, and not places
+ * alone ("Mary Wanjiru", "Kericho Langat"; not "Toyota Premio", "Freehold", "Equity Bank",
+ * "Nairobi"). An address's word that is no surname makes the run an address ("Runda Estate",
+ * "Kakuzi Estate", "Kileleshwa Road"); one that is a surname does only after places alone
+ * ("Westlands Park", not "Mary Park", "Peter Close"). When `strict` (after a member's number,
+ * where a statement's fields follow), the run is no name either before a colon, a currency, a
+ * month or an uncapitalised word, or when one word is all it holds before a field word
+ * ("Statement Period:", "Monthly Contribution KES 5,000", "Approved by the Board", "Opening
+ * Balance 20,000").
  */
-function nameRunAt(tokens: readonly Token[], at: number): boolean {
+function nameRunAt(tokens: readonly Token[], at: number, strict = false): boolean {
   let names = 0;
   let places = 0;
-  for (let next = at; next < tokens.length; next++) {
+  let next = at;
+  // What ends the run: the token after it, and whether it is a field word.
+  let field = false;
+  for (; next < tokens.length; next++) {
     const token = tokens[next];
     if (token?.kind === 'space') continue;
     if (token?.kind !== 'word') break;
@@ -539,11 +565,11 @@ function nameRunAt(tokens: readonly Token[], at: number): boolean {
     const word = lower(token.text);
     if (isOrganisationWord(word)) return false;
     if (!isCapitalised(token.text)) break;
-    // An address's word makes the run no person's ("Runda Estate", "Kileleshwa Road"), and so do
-    // places alone ("Nairobi"); a name may start with one ("Kericho Langat").
+    if (strict && MONTHS.has(word)) return false;
     // A field's label ends the name ("Peter Otieno Staff No. 12").
     if (CODE_LEADS.has(word) || LABEL_TAILS.has(word)) break;
-    if (ADDRESS_TAIL_WORDS.has(word)) return false;
+    if (ADDRESS_WORDS_NO_NAME.has(word)) return false;
+    if (ADDRESS_TAIL_WORDS.has(word) && names === places) return false;
     if (PLACES.has(word)) {
       places++;
       names++;
@@ -551,22 +577,47 @@ function nameRunAt(tokens: readonly Token[], at: number): boolean {
     }
     // A common word that is also a name is one here ("Grace Njeri").
     const common = COMMON_WORDS.has(word) && !FIELD_LEADS.has(word);
-    if ((WRITTEN_ONLY.has(word) && !common) || VEHICLE_MODELS.has(word) || FIELD_WORDS.has(word))
+    if ((WRITTEN_ONLY.has(word) && !common) || VEHICLE_MODELS.has(word) || FIELD_WORDS.has(word)) {
+      field = FIELD_LEADS.has(word) || CURRENCIES.has(word);
       break;
+    }
     if (startsLabel(tokens, next) || labelsAField(tokens, next)) break;
     names++;
   }
-  return names > places;
+  if (names <= places) return false;
+  if (!strict) return true;
+  const after = tokens[next];
+  const prose =
+    after?.kind === 'colon' ||
+    (after?.kind === 'word' && !isCapitalised(after.text) && !JOINER_WORDS.has(after.text));
+  return (
+    !prose &&
+    !(field && names === 1) &&
+    !(after?.kind === 'word' && CURRENCIES.has(lower(after.text)))
+  );
 }
+
+/** Months, which a statement's dates hold ("Jan 2023", "31 December 2023"). */
+const MONTHS: ReadonlySet<string> = new Set([
+  ...['jan', 'january', 'feb', 'february', 'mar', 'march', 'apr', 'april', 'may', 'jun', 'june'],
+  ...['jul', 'july', 'aug', 'august', 'sep', 'sept', 'september', 'oct', 'october', 'nov'],
+  ...['november', 'dec', 'december'],
+]);
 
 /** Words a field's label may hold after its field words ("ID No.", "Account Number"). */
 const LABEL_TAILS: ReadonlySet<string> = new Set(NUMBER_WORDS);
 
+/** Words of an address that are no one's surname ("Runda Estate", "Westlands Road"). */
+const ADDRESS_WORDS_NO_NAME: ReadonlySet<string> = new Set([
+  ...['road', 'rd', 'street', 'avenue', 'highway', 'town', 'city', 'estate', 'building'],
+  ...['floor', 'county', 'centre', 'apartments', 'apartment', 'gardens', 'flats'],
+]);
 /** Words of an address's tail after its box or before its town ("Westlands Road", "Plot No. 45"). */
 const ADDRESS_TAIL_WORDS: ReadonlySet<string> = new Set([
-  ...['of', 'box', 'road', 'rd', 'street', 'avenue', 'lane', 'drive', 'close', 'way', 'highway'],
-  ...['town', 'city', 'estate', 'house', 'plot', 'building', 'floor', 'county', 'centre'],
-  ...['apartments', 'apartment', 'court', 'gardens', 'flats', 'heights', 'park'],
+  ...ADDRESS_WORDS_NO_NAME,
+  // Address words that are also surnames ("Mary Park", "Peter Close").
+  ...['lane', 'drive', 'close', 'way', 'house', 'court', 'heights', 'park'],
+  ...['of', 'box', 'plot'],
   ...NUMBER_WORDS,
 ]);
 
@@ -625,7 +676,7 @@ function fieldValueAt(tokens: readonly Token[], at: number, opening = false): nu
  * an organisation or a place follows instead ("... ID 12345678 Toyota Premio", "... Equity Bank",
  * "... ID 12345678, Runda Estate, Nairobi").
  */
-function partyAfterValue(tokens: readonly Token[], at: number): number {
+function partyAfterValue(tokens: readonly Token[], at: number, strict = false): number {
   let next = addressTail(tokens, at);
   for (;;) {
     const value = fieldValueAt(tokens, next);
@@ -633,10 +684,27 @@ function partyAfterValue(tokens: readonly Token[], at: number): number {
     const joins =
       after?.kind === 'joiner' || (after?.kind === 'word' && JOINER_WORDS.has(lower(after.text)));
     if (value > 0) next = addressTail(tokens, value);
-    else if (joins) next = nextToken(tokens, next);
+    else if (joins) next = pastFiller(tokens, nextToken(tokens, next));
     else break;
   }
-  return nameRunAt(tokens, next) ? next : -1;
+  return nameRunAt(tokens, next, strict) ? next : -1;
+}
+
+/** Words between a joiner and the name it joins ("and the Late Mary", "and his wife Mary"). */
+const FILLER_WORDS: ReadonlySet<string> = new Set([
+  ...['the', 'late', 'his', 'her', 'their', 'wife', 'husband', 'spouse', 'son', 'daughter'],
+  ...['marehemu', 'mke', 'mume', 'wake', 'mr', 'mrs', 'ms', 'miss', 'dr'],
+]);
+
+/** The first token from `at` past filler words, their dots and spaces. */
+function pastFiller(tokens: readonly Token[], at: number): number {
+  let next = at;
+  for (; next < tokens.length; next++) {
+    const token = tokens[next];
+    if (token?.kind === 'space' || isMark(token, '.')) continue;
+    if (token?.kind !== 'word' || !FILLER_WORDS.has(lower(token.text))) break;
+  }
+  return next;
 }
 
 /**
@@ -1107,7 +1175,7 @@ const ADDRESS_LABEL = new RegExp(
  */
 export function documentIdentifiers(
   text: string,
-  shapes: readonly RegExp[] = [],
+  shapes: readonly Shape[] = [],
 ): DocumentIdentifier[] {
   const found: DocumentIdentifier[] = [];
   // Each character of a shape becomes a private-use mark: a value, no name ("Tel 0712 ..."). The
