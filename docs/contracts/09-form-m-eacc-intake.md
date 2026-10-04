@@ -82,9 +82,9 @@ Known specifics as of #491's head `adc5e4b6` (3 October), as examples:
 
 ### PR #493 (Form M section 5 from access events, #467)
 
-#493 changes section 5 while this PR is open, and is not merged into it:
+#493 changed section 5 after this PR merged, and was merged second, so it carries both the looser rule and its sentence in `federated-reports.controller.ts`:
 
-- It edits `submitComplianceReport`'s description in `internal/reporting.yaml` by hand: "the decline reasons add up to declined" becomes "the decline reasons count at least every decline (a denial citing several grounds counts under each)", next to the looser rule in `federated-submission.ts`. On this branch, the contract states the rule this branch enforces ("add up to declined"), so a Commission that follows it is never refused. Whichever of #493 and #238 merges second carries both the rule and the sentence. The sentence then lives in `federated-reports.controller.ts`, and the file is re-exported, never edited by hand.
+- `federated-submission.ts` accepts decline reasons that add up to at least declined, and `submitComplianceReport`'s description in `federated-reports.controller.ts` states it: "the decline reasons count at least every decline (a denial citing several grounds counts under each)" replaces #238's "the decline reasons add up to declined". `internal/reporting.yaml` and the console client are re-exported from it, never edited by hand.
 - Its other changes (the `access_request_facts` projection, migration 0009, `form-m.ts` compiling section 5, `dataUnavailable` false for hosted reports) touch no HTTP contract. `ComplianceReport.accessDataUnavailable` and `ReportCounts.accessRequests` keep their shape.
 - It updates `docs/contracts/10-access-requests.md`, which this PR does not touch.
 
