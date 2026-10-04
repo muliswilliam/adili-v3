@@ -8,6 +8,7 @@ import {
   attachmentLink,
   claim,
   loadCaseView,
+  loadComparison,
   markFlagReviewed,
   reassign,
   release,
@@ -54,7 +55,7 @@ describe('loadCaseView (S9)', () => {
     expect(detail.reviewerHistory).toEqual([MOCK_OFFICERS.peter, ME]);
     expect(detail.versions.map((each) => each.version)).toEqual([1, 2]);
     expect(detail.timeline.at(0)?.kind).toBe('case-created');
-    expect('determinations' in detail).toBe(false);
+    expect(detail.determinations).toEqual([]);
   });
 
   it('still shows the case when the declarations service is down (502)', async () => {
@@ -355,5 +356,49 @@ describe('recheck', () => {
         CASE_ID,
       ),
     ).toMatchObject({ ok: false, refusal: null, error: { kind: 'unavailable' } });
+  });
+});
+
+describe('loadComparison (S10)', () => {
+  it('returns matched items with deltas and the items in one version only', async () => {
+    const result = await loadComparison(as(ME), CASES.mine);
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    const comparison = result.data;
+    if (!comparison) throw new Error('expected a comparison');
+    expect([comparison.previousVersion, comparison.currentVersion]).toEqual([1, 2]);
+    const officer = comparison.statements[0];
+    expect(officer?.personName).toBe('John Kennedy Otieno');
+    const plot = officer?.matched.find((item) => item.type === 'land');
+    expect(plot).toMatchObject({
+      previousCents: 180_000_000,
+      currentCents: 450_000_000,
+      deltaCents: 270_000_000,
+      deltaPercent: 150,
+      flaggedByDeclarant: false,
+    });
+    expect(officer?.onlyCurrent.map((item) => item.description)).toContain(
+      'CIC Money Market Fund units',
+    );
+    expect(officer?.onlyPrevious.map((item) => item.description)).toEqual([
+      'Toyota Probox KCA 123X',
+    ]);
+  });
+
+  it('is null when there is no previous version to compare with (409)', async () => {
+    const result = await loadComparison(as(ME), CASES.unassigned);
+    expect(result).toEqual({ ok: true, data: null });
+  });
+
+  it('fails as unavailable when the declarations service is down (502)', async () => {
+    const result = await loadComparison(as(ME), CASES.unavailable);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('unavailable');
+  });
+
+  it('reads another case as missing (404)', async () => {
+    const result = await loadComparison(as(ME), 'ca5e0000-0000-4000-8000-0000000000ff');
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(result.error).toMatchObject({ kind: 'problem', problem: { status: 404 } });
   });
 });

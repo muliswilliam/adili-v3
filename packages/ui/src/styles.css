@@ -468,6 +468,12 @@
   );
 }
 
+/* A suppressed open-data figure's chip: `muted` and `border` in 4px/2px diagonal hatching (the kit's
+   .sup in 12-open-data). */
+@utility bg-stripes-muted {
+  background-image: repeating-linear-gradient(135deg, var(--muted) 0 4px, var(--border) 4px 6px);
+}
+
 @layer base {
   *,
   ::before,

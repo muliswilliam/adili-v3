@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-import type { Conforms } from '../conforms.js';
 import type { CommissionFacts } from '../directory/directory-client.js';
 import { countSchema as count } from './representation.js';
 import type { ReportCounts } from './schema.js';
@@ -34,13 +33,6 @@ export type Outlier = (typeof OUTLIERS)[number];
 /** The lowest declared rate (declared / expected) per section before a report is an outlier. */
 export type RateThresholds = Record<IntakeSection, number>;
 
-export interface SectionRate {
-  expected: number;
-  declared: number;
-  /** declared / expected, to four decimals; null when nothing was expected. */
-  rate: number | null;
-}
-
 /** EACC's receipt of a submitted report (`report_receipts`). */
 export interface ReceiptFacts {
   reportId: string;
@@ -60,31 +52,6 @@ export interface ChaseFacts {
   lastAt: Date | null;
 }
 
-export interface IntakeItem {
-  commission: { slug: string; name: string };
-  status: IntakeStatus;
-  reportId: string | null;
-  reference: string | null;
-  submittedAt: string | null;
-  rates: Partial<Record<IntakeSection, SectionRate>>;
-  outliers: Outlier[];
-  chases: { count: number; lastAt: string | null };
-  formMDocumentId: string | null;
-  receiptDocumentId: string | null;
-}
-
-/** reporting.yaml `Intake`. */
-export interface IntakeView {
-  fy: number;
-  totals: {
-    onTime: number;
-    late: number;
-    notReported: number;
-    nationalDeclaredRate: number | null;
-  };
-  commissions: IntakeItem[];
-}
-
 export const intakeStatusSchema = z.enum(INTAKE_STATUSES).meta({
   description: "Not reported, or submitted on time or late (after 31 July) by EACC's receipt",
 });
@@ -97,6 +64,7 @@ const sectionRateSchema = z.object({
     .nullable()
     .meta({ description: 'declared / expected to four decimals; null when none expected' }),
 });
+export type SectionRate = z.infer<typeof sectionRateSchema>;
 
 const intakeItemSchema = z.object({
   commission: z.object({ slug: z.string(), name: z.string() }),
@@ -124,7 +92,9 @@ const intakeItemSchema = z.object({
     .nullable()
     .meta({ description: 'The signed acknowledgement receipt, once issued' }),
 });
+export type IntakeItem = z.infer<typeof intakeItemSchema>;
 
+/** reporting.yaml `Intake`. */
 export const intakeSchema = z.object({
   fy: z.number().int(),
   totals: z
@@ -137,7 +107,7 @@ export const intakeSchema = z.object({
     .meta({ description: 'The whole year, whatever the filters' }),
   commissions: z.array(intakeItemSchema),
 });
-true satisfies Conforms<IntakeView, typeof intakeSchema>;
+export type IntakeView = z.infer<typeof intakeSchema>;
 
 export interface IntakeFilters {
   status?: IntakeStatus;

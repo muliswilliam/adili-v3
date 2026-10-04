@@ -1,6 +1,20 @@
 import type { z } from 'zod';
 
 import {
+  aiLabelSchema,
+  askRequestSchema,
+  assistantAnswerSchema,
+  assistantConversationSchema,
+  assistantMessageSchema,
+  completenessHintSchema,
+  completenessHintsSchema,
+  openConversationRequestSchema,
+  questionThemeCountSchema,
+  questionThemeSchema,
+  rateMessageRequestSchema,
+  reportingOfficerContactSchema,
+} from './assistant/representation.js';
+import {
   acknowledgementPayloadSchema,
   acknowledgementSlipSchema,
 } from './acknowledgement/representation.js';
@@ -154,6 +168,18 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   HelpArticle: helpArticleSchema,
   CorpusPassage: corpusPassageSchema,
   CorpusImportResult: corpusImportResultSchema,
+  OpenAssistantConversationRequest: openConversationRequestSchema,
+  AskAssistantRequest: askRequestSchema,
+  AssistantAiLabel: aiLabelSchema,
+  ReportingOfficerContact: reportingOfficerContactSchema,
+  AssistantMessage: assistantMessageSchema,
+  AssistantConversation: assistantConversationSchema,
+  AssistantAnswer: assistantAnswerSchema,
+  RateAssistantMessageRequest: rateMessageRequestSchema,
+  CompletenessHint: completenessHintSchema,
+  CompletenessHints: completenessHintsSchema,
+  QuestionTheme: questionThemeSchema,
+  QuestionThemeCount: questionThemeCountSchema,
   InternalVersionDocument: internalVersionDocumentSchema,
   InternalPersonVersion: internalPersonVersionSchema,
   InternalPreviousVersion: internalPreviousVersionSchema,

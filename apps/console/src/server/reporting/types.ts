@@ -73,6 +73,8 @@ export interface ReportingProblem {
   detail?: string;
   /** A `PROBLEM_CODES` code (api-kit), e.g. `preview-not-available`, `report-submitted` or `separation-of-duties`. */
   code?: Schemas['ProblemDetails']['code'];
+  /** Field-level errors, e.g. the form-m.v1 paths an `incomplete` report has still to fill. */
+  errors?: Schemas['ProblemDetails']['errors'];
 }
 
 /** reporting.yaml `Intake`: every Commission's report status for a financial year (EACC). */
@@ -93,3 +95,21 @@ export type SubmittedReport = Omit<Schemas['SubmittedComplianceReport'], 'docume
 
 /** reporting.yaml `PatternCandidate`: a notable pattern the service computed for the year. */
 export type PatternCandidate = Schemas['PatternCandidate'];
+
+/** EACC's referrals intake (spec 09 S12). */
+export type ReferralIntakeItem = Schemas['ReferralIntakeItem'];
+export type ReferralIntakePage = Schemas['ReferralIntakePage'];
+export type ReferralGrounds = Schemas['ReferralGrounds'];
+export type IcmsStatus = Schemas['IcmsStatus'];
+export type IcmsPushError = Schemas['IcmsPushError'];
+
+/** Every `IcmsStatus`, checked against the generated union both ways, in the intake's filter order. */
+const ICMS_STATUS_SET = {
+  'not-pushed': true,
+  pushed: true,
+  registered: true,
+  'push-failed': true,
+} as const satisfies Record<IcmsStatus, true>;
+
+/** reporting.yaml `IcmsStatus`, in the order the intake filters them. */
+export const ICMS_STATUSES = Object.keys(ICMS_STATUS_SET) as [IcmsStatus, ...IcmsStatus[]];
