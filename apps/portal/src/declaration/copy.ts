@@ -98,7 +98,7 @@ export const PREFILL_COPY = {
   },
   /**
    * Why a reading failed: the set's `reason` (`document-unavailable`, `document-unreadable`,
-   * `not-read`, `unavailable`), or what the portal saw itself.
+   * `not-read`, `unavailable`, `not-a-draft`), or what the portal saw itself.
    */
   failureReason: {
     unknown: en('the document could not be processed'),
@@ -109,6 +109,7 @@ export const PREFILL_COPY = {
     'document-unavailable': en('the file could not be fetched in time'),
     'document-unreadable': en('the file is damaged, too long, or of a type that cannot be read'),
     'not-read': en('nothing usable could be read from it'),
+    'not-a-draft': en('the declaration was submitted while it was being read'),
   },
   /** The labels of the fields a document is read into, by their path in the item. */
   readField: {

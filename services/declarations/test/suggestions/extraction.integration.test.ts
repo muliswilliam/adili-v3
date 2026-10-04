@@ -13,8 +13,10 @@ import {
   outbox,
   rosterSnapshots,
   suggestions,
+  suggestionSets,
 } from '../../src/db/schema.js';
 import { TRANSACTION_OPEN } from '../../src/db/workflow-transactions.js';
+import { AiGatewayUnavailable } from '../../src/ai-gateway/ai-gateway-client.js';
 import { DocumentReadingWorkflows } from '../../src/suggestions/document-reading-workflows.js';
 import { ReadingActivities } from '../../src/suggestions/workflow/activities.js';
 import type {
@@ -23,7 +25,12 @@ import type {
   SectionEnvelope,
 } from '../../src/drafts/representation.js';
 import type { SuggestionSet } from '../../src/suggestions/representation.js';
-import { READING_TIMEOUT_MS } from '../../src/suggestions/workflow/contract.js';
+import {
+  documentReadingWorkflowId,
+  READING_TIMEOUT_MS,
+} from '../../src/suggestions/workflow/contract.js';
+import { TEMPORAL_CLIENT } from '@adili/temporal';
+import type { Client } from '@temporalio/client';
 import { contractErrors } from '../support/contract.js';
 import {
   type Caller,
@@ -532,14 +539,16 @@ describe('when the Commission does not read documents, or the reading fails (S6)
     ]);
   });
 
-  it('answers 503 and records nothing when the gateway cannot take the request', async () => {
+  it('answers 503 and fails the reading when the gateway cannot take the request', async () => {
     const { draft, attachment } = await draftWithLogbook();
     api.ai.unavailable = true;
 
     const response = await extract(draft.id, attachment.id);
 
     expect(response.statusCode).toBe(503);
-    expect(await documentSets(draft.id)).toEqual([]);
+    expect(await documentSets(draft.id)).toEqual([
+      expect.objectContaining({ status: 'failed', reason: 'unavailable', aiJobId: null }),
+    ]);
   });
 
   it('settles a set only on the event of its own job, about its own declaration', async () => {
@@ -607,14 +616,16 @@ describe('settling as the declarant who asked (ADR-003, ADR-018)', () => {
     }
   });
 
-  it('writes no reading into a declaration that is no longer a draft', async () => {
+  it('writes no reading into a declaration that is no longer a draft, and fails its set', async () => {
     const { draft, attachment } = await draftWithLogbook();
     const set = (await extract(draft.id, attachment.id)).json<SuggestionSet>();
     if (!set.aiJobId) throw new Error('no job');
-    api.ai.finish(set.aiJobId, { output: logbookReading() });
+    // Submitted before the job ends: the reading's workflow, which settles as soon as it starts
+    // and again on every pull, must never see an ended job on a draft.
     await api.asPerson(ACHIENG, (tx) =>
       tx.update(declarations).set({ status: 'submitted' }).where(eq(declarations.id, draft.id)),
     );
+    api.ai.finish(set.aiJobId, { output: logbookReading() });
 
     const outcome = await api.app
       .get(ReadingActivities)
@@ -625,9 +636,13 @@ describe('settling as the declarant who asked (ADR-003, ADR-018)', () => {
       tx.select().from(suggestions).where(eq(suggestions.declarationId, draft.id)),
     );
     expect(rows).toEqual([]);
+    const [stored] = await api.asPerson(ACHIENG, (tx) =>
+      tx.select().from(suggestionSets).where(eq(suggestionSets.id, set.id)),
+    );
+    expect(stored).toMatchObject({ status: 'failed', reason: 'not-a-draft' });
   });
 
-  it('answers 503 and records nothing when the workflow cannot be started', async () => {
+  it('answers 503 and fails the reading when the workflow cannot be started', async () => {
     const { draft, attachment } = await draftWithLogbook();
     vi.spyOn(api.app.get(DocumentReadingWorkflows), 'start').mockRejectedValueOnce(
       new Error('Temporal unavailable'),
@@ -636,13 +651,15 @@ describe('settling as the declarant who asked (ADR-003, ADR-018)', () => {
     const response = await extract(draft.id, attachment.id);
 
     expect(response.statusCode).toBe(503);
-    expect(await documentSets(draft.id)).toEqual([]);
+    expect(await documentSets(draft.id)).toEqual([
+      expect.objectContaining({ status: 'failed', reason: 'unavailable', aiJobId: null }),
+    ]);
     expect(await eventsOf('declaration.extraction-requested.v1')).toEqual([]);
     // Asking again reads it (the gateway answers from its live job).
     expect((await extract(draft.id, attachment.id)).statusCode).toBe(202);
   });
 
-  it('answers 503 and records nothing when documents does not answer', async () => {
+  it('answers 503 and fails the reading when documents does not answer', async () => {
     const { draft, attachment } = await draftWithLogbook();
     api.documents.unavailable = true;
 
@@ -650,7 +667,25 @@ describe('settling as the declarant who asked (ADR-003, ADR-018)', () => {
 
     expect(response.statusCode).toBe(503);
     expect(api.ai.requests).toEqual([]);
-    expect(await documentSets(draft.id)).toEqual([]);
+    expect(await documentSets(draft.id)).toEqual([
+      expect.objectContaining({ status: 'failed', reason: 'document-unavailable', aiJobId: null }),
+    ]);
+  });
+});
+
+describe('the harness', () => {
+  it("terminates a live reading's workflow on reset", async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    const set = (await extract(draft.id, attachment.id)).json<SuggestionSet>();
+    if (!set.aiJobId) throw new Error('no job');
+    const handle = api.app
+      .get<Client>(TEMPORAL_CLIENT)
+      .workflow.getHandle(documentReadingWorkflowId(draft.id, set.aiJobId));
+    expect((await handle.describe()).status.name).toBe('RUNNING');
+
+    await api.reset();
+
+    expect((await handle.describe()).status.name).toBe('TERMINATED');
   });
 });
 
@@ -732,6 +767,39 @@ describe('one reading per attachment and kind', () => {
     });
   });
 
+  it('ends the reading for a request answered with it when the request that reserved it fails', async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const reached = vi.fn();
+    vi.spyOn(api.ai, 'extractDocument').mockImplementationOnce(async () => {
+      reached();
+      await held;
+      throw new AiGatewayUnavailable('No answer');
+    });
+
+    const winner = extract(draft.id, attachment.id);
+    await vi.waitFor(() => {
+      expect(reached).toHaveBeenCalled();
+    });
+    const loser = await extract(draft.id, attachment.id);
+    release();
+
+    expect((await winner).statusCode).toBe(503);
+    expect(loser.statusCode).toBe(202);
+    const answered = loser.json<SuggestionSet>();
+    expect(answered.status).toBe('pending');
+    // The set it was given ends, so the portal's poll stops and offers Try again.
+    expect(await documentSets(draft.id)).toEqual([
+      expect.objectContaining({ id: answered.id, status: 'failed', reason: 'unavailable' }),
+    ]);
+    expect((await extract(draft.id, attachment.id)).json<SuggestionSet>()).toMatchObject({
+      status: 'pending',
+    });
+  });
+
   it('reads it again as another kind, superseding the earlier reading not decided on', async () => {
     const { draft, attachment } = await draftWithLogbook();
     await extract(draft.id, attachment.id);
@@ -771,9 +839,23 @@ describe('who may read (S9)', () => {
     api.documents.givenUploads(upload('psc', ACHIENG, { id: uploadId, state: 'infected' }));
 
     const response = await extract(draft.id, attachment.id);
+    const again = await extract(draft.id, attachment.id);
 
     expect(response.statusCode).toBe(409);
+    expect(again.statusCode).toBe(409);
     expect(api.ai.requests).toEqual([]);
+    // Refused for the file itself: no reading is recorded, failed or otherwise.
+    expect(await documentSets(draft.id)).toEqual([]);
+  });
+
+  it('records nothing for an upload documents no longer has (404)', async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    api.documents.reset();
+
+    const response = await extract(draft.id, attachment.id);
+
+    expect(response.statusCode).toBe(404);
+    expect(await documentSets(draft.id)).toEqual([]);
   });
 
   it('refuses with 400 an unknown kind or language', async () => {

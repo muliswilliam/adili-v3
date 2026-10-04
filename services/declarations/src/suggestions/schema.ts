@@ -60,13 +60,15 @@ export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
  * did not answer (`document-unavailable`, try again), the file cannot be read (`document-unreadable`:
  * damaged, too long, or a type the reading does not take), nothing usable came back
  * (`not-read`: the reading did not fit the item, or the model declined), or the reading service
- * could not do it now (`unavailable`).
+ * could not do it now (`unavailable`), or the declaration stopped being a draft while it was
+ * read (`not-a-draft`: nothing more can be read into it).
  */
 export const EXTRACTION_FAILURES = [
   'document-unavailable',
   'document-unreadable',
   'not-read',
   'unavailable',
+  'not-a-draft',
 ] as const;
 export type ExtractionFailure = (typeof EXTRACTION_FAILURES)[number];
 

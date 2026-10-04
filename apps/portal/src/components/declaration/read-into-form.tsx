@@ -170,10 +170,16 @@ export function ReadIntoForm({
     pollKey: readingSetId,
     read: () => listDeclarationSuggestions({ data: { declarationId, personKey, sectionKey } }),
     onRead: (listed) => {
-      const set =
-        listed?.status === 'ok' ? listed.sets.find((each) => each.id === readingSetId) : null;
-      const state = set ? readingState(set) : null;
-      if (!state || state.status === 'reading') return false;
+      if (listed?.status !== 'ok') return false;
+      const set = listed.sets.find((each) => each.id === readingSetId);
+      // Gone from the list: a concurrent request reserved it and was refused for the file (not
+      // clean, no longer there), which records no reading. Asking again gets that refusal.
+      if (!set) {
+        setStep({ name: 'failed', reason: FAILURE_REASONS.refused });
+        return true;
+      }
+      const state = readingState(set);
+      if (state.status === 'reading') return false;
       settle(state);
       return true;
     },

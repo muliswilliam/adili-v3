@@ -79,7 +79,8 @@ export class DocumentReadingSteps {
    * has not, `settled` once nothing waits for it. Nothing waits when the transaction that
    * recorded the job rolled back (`transactionId`, waited on first: a retryable failure while it
    * is open), when the declaration is gone or past the draft (submitted: a draft's suggestions
-   * never reach it, ADR-018 decision 5), or when the gateway knows no such job (its sets fail).
+   * never reach it, ADR-018 decision 5, and its pending sets fail as `not-a-draft`), or when the
+   * gateway knows no such job (its sets fail).
    * Throws `AiGatewayUnavailable` when the gateway cannot answer.
    */
   async settle(ref: ReadingRef & { transactionId?: string | null }): Promise<ReadingOutcome> {
@@ -87,7 +88,15 @@ export class DocumentReadingSteps {
     const person = personOf(ref);
     const declaration = await withPerson(this.db, person, async (tx) => {
       const found = await liveDeclaration(tx, ref.declarationId);
-      if (!found || !isEditable(found.status)) return null;
+      if (!found) return null;
+      if (!isEditable(found.status)) {
+        // Past the draft: nothing is read into it, and nothing is left pending.
+        await tx
+          .update(suggestionSets)
+          .set({ status: 'failed', reason: 'not-a-draft' })
+          .where(pendingOf(ref));
+        return null;
+      }
       const [waiting] = await tx
         .select({ id: suggestionSets.id })
         .from(suggestionSets)

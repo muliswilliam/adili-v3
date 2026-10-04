@@ -14,7 +14,7 @@ import {
   withPerson,
   withTenant,
 } from '@adili/data-access';
-import { FakeCipher } from '@adili/data-access/testing';
+import { FakeCipher, truncateTables } from '@adili/data-access/testing';
 import {
   deadLetterQueue,
   EVENTS_EXCHANGE,
@@ -52,7 +52,13 @@ import {
   CycleOpeningSchedules,
 } from '../../src/obligations/workflow/cycle-opening-schedules.js';
 import { ObligationSteps } from '../../src/obligations/workflow/obligation-steps.js';
+import { DocumentReadingWorkflows } from '../../src/suggestions/document-reading-workflows.js';
 import { ExtractionJobConsumer } from '../../src/suggestions/extraction-job.consumer.js';
+import { RegistryLookupWorkflows } from '../../src/suggestions/registry-lookup-workflows.js';
+import {
+  documentReadingWorkflowId,
+  registryLookupsWorkflowId,
+} from '../../src/suggestions/workflow/contract.js';
 import { ObligationsSweep, SweepSchedule } from '../../src/obligations/workflow/sweep.js';
 import {
   type ObligationChanges,
@@ -386,6 +392,7 @@ export async function startDeclarationsApi({
       persistent: true,
     });
   }
+  const suggestionWorkflows = recordSuggestionWorkflows(app);
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
   // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
@@ -438,9 +445,9 @@ export async function startDeclarationsApi({
       return app.inject({ method: 'GET', url: path });
     },
     async reset() {
-      await db.execute(
-        sql`truncate help_articles, suggestions, suggestion_sets, suggestion_consents, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
-      );
+      // The suite's suggestion workflows end first, so none acts on the next test's rows.
+      await terminateWorkflows(app.get<Client>(TEMPORAL_CLIENT), suggestionWorkflows);
+      await truncateTables(db, RESET_TABLES);
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
       directory.reset();
@@ -466,6 +473,71 @@ export async function startDeclarationsApi({
     },
   };
 }
+
+/**
+ * Records the id of every suggestion workflow the service starts (registry lookups by consent,
+ * document readings by declaration and job), so `reset` can end them: read back from the tables
+ * they would not be, as the suggestion tables are the declarant's alone under row-level security.
+ */
+function recordSuggestionWorkflows(app: NestFastifyApplication): Set<string> {
+  const started = new Set<string>();
+  const lookups = app.get(RegistryLookupWorkflows);
+  const startLookups = lookups.start.bind(lookups);
+  lookups.start = (input) => {
+    started.add(registryLookupsWorkflowId(input.consentId));
+    return startLookups(input);
+  };
+  const readings = app.get(DocumentReadingWorkflows);
+  const startReading = readings.start.bind(readings);
+  readings.start = (input) => {
+    started.add(documentReadingWorkflowId(input.declarationId, input.jobId));
+    return startReading(input);
+  };
+  return started;
+}
+
+/**
+ * Terminates the suggestion workflows the suite started and forgets them. Left running, a
+ * reading keeps pulling the fake gateway for 15 minutes, taking worker slots and locking the next
+ * test's tables. One never started, or ended already, is skipped.
+ */
+async function terminateWorkflows(temporal: Client, started: Set<string>): Promise<void> {
+  // `FakeTemporal` (the `fake` mode) starts nothing to terminate.
+  if (!('getHandle' in temporal.workflow)) return;
+  for (const id of started) {
+    try {
+      await temporal.workflow.getHandle(id).terminate();
+    } catch {
+      // Never started, or ended already.
+    }
+  }
+  started.clear();
+}
+
+/** Every table `reset` empties. */
+const RESET_TABLES = [
+  'help_articles',
+  'suggestions',
+  'suggestion_sets',
+  'suggestion_consents',
+  'declaration_items',
+  'declaration_versions',
+  'numbering_counters',
+  'idempotency_keys',
+  'obligation_drafts',
+  'declaration_attachments',
+  'declaration_sections',
+  'declarations',
+  'reminder_messages',
+  'obligation_reminders',
+  'filing_obligations',
+  'roster_snapshots',
+  'tenant_policy_cache',
+  'commission_refs',
+  'cycle_openings',
+  'outbox',
+  'inbox',
+] as const;
 
 /** Deletes the suite's own events queue and its dead-letter queue. */
 async function deleteQueues(rabbitmqUrl: string, service: string): Promise<void> {

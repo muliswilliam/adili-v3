@@ -487,6 +487,53 @@ export const DOCUMENTS: readonly SyntheticDocument[] = [
     ],
   },
   {
+    file: 'logbook-form-digital.pdf',
+    output: 'pdf',
+    pages: [
+      [
+        { kind: 'center', text: 'NATIONAL TRANSPORT AND SAFETY AUTHORITY', size: 13, bold: true },
+        { kind: 'center', text: 'MOTOR VEHICLE RECORD (E-CITIZEN COPY)', size: 11 },
+        { kind: 'rule' },
+        {
+          kind: 'text',
+          text: 'Registered Owner: BRIAN OTIENO OUMA    Make: TOYOTA    Model: AXIO',
+        },
+        {
+          kind: 'text',
+          text: 'Registration No.: KDB 214Q    Year of Manufacture: 2018    Colour: GREY',
+        },
+        { kind: 'text', text: 'Body Type: SALOON    Engine Rating: 1490 CC    Fuel: PETROL' },
+        { kind: 'text', text: 'Owner PIN: A012345678Z    Date of Registration: 04/09/2021' },
+        { kind: 'rule' },
+        {
+          kind: 'text',
+          size: 8.5,
+          text: 'This record is evidence of registration only and not of legal ownership.',
+        },
+      ],
+    ],
+  },
+  {
+    file: 'bank-account-form.pdf',
+    output: 'pdf',
+    pages: [
+      [
+        { kind: 'text', bold: true, size: 14, text: 'Highlands Bank Kenya PLC' },
+        { kind: 'text', bold: true, text: 'ACCOUNT DETAILS CONFIRMATION' },
+        { kind: 'rule' },
+        {
+          kind: 'text',
+          text: 'Account Name: Mary Wanjiru Kamau    Account Type: Fixed Deposit    Branch: Nyali',
+        },
+        { kind: 'text', text: 'Bank Name: Highlands Bank Kenya PLC    Branch Name: Nyali' },
+        { kind: 'text', text: 'Account Number: 0150-2938-4757    Currency: KES' },
+        { kind: 'text', text: 'Balance at 30/06/2026: KES 1,250,000.00    Status: Active' },
+        { kind: 'rule' },
+        { kind: 'text', text: 'Signed: Daniel Mutiso, Branch Operations Manager' },
+      ],
+    ],
+  },
+  {
     file: 'bank-letter-planted.pdf',
     output: 'pdf',
     pages: [
