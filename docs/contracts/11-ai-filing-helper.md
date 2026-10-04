@@ -8,7 +8,7 @@ ADR-019 records the streamed answer's tagged text; ADR-013 §2 and §8.14 the an
 
 | Contract | Source | Drafts left | Drift check |
 |---|---|---|---|
-| `internal/declarations.yaml` | exported from `services/declarations` (`pnpm --filter @adili/declarations contracts`) | `drafts/declarations.yaml`: spec 11's `getSuggestedQuestions` (#544) and the console's `previewHelpSearch` and `getCorpusPassage` (#550), and spec 05b's `extractAttachment` until #520 merges | `pnpm contracts:drift` |
+| `internal/declarations.yaml` | exported from `services/declarations` (`pnpm --filter @adili/declarations contracts`) | `drafts/declarations.yaml`: spec 11's `getSuggestedQuestions` (#544), the console's `previewHelpSearch` and `getCorpusPassage` (#550), and the portal's `getHelpPassage` (#340) | `pnpm contracts:drift` |
 | `internal/ai-gateway.yaml` | exported from `services/ai-gateway` (`pnpm --filter @adili/ai-gateway contracts`) | `drafts/ai-gateway.yaml`: spec 05b's `extract-document` only, until #506 merges; no spec 11 component | same |
 | `internal/directory.yaml` | exported | none (spec 11 added nothing) | same |
 
