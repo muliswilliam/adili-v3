@@ -1,12 +1,23 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { EACC_SUPERVISOR } from '@adili/roles';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 
 import { messages as m } from '../../../components/open-data/messages';
+import { ReleaseActions } from '../../../components/open-data/release-actions';
 import { releaseName } from '../../../components/open-data/release-parts';
 import { ReleaseView } from '../../../components/open-data/release-view';
-import { signInRedirect } from '../../../components/sign-in-redirect';
-import { getOpenDataReleasePage, type ReleasePage } from '../../../server/open-data-releases';
+import { goToSignIn, signInRedirect } from '../../../components/sign-in-redirect';
+import {
+  buildOpenDataReleaseFn,
+  getOpenDataReleasePage,
+  publishOpenDataReleaseFn,
+  type ReleasePage,
+  withdrawOpenDataReleaseFn,
+} from '../../../server/open-data-releases';
 
-/** One open-data release: a preview with its six tables, or a published or withdrawn one (#350). */
+/**
+ * One open-data release: a preview with its six tables, or a published or withdrawn one (#350),
+ * with Publish and Withdraw for EACC supervisors and its version history (#353).
+ */
 export const Route = createFileRoute('/eacc/open-data/$releaseId')({
   loader: async ({ context, params, location }) => {
     if (!context.workspace) return null;
@@ -34,6 +45,37 @@ function titleOf(page: ReleasePage | null | undefined): string {
 
 function ReleasePageView() {
   const page = Route.useLoaderData();
+  const { roles } = Route.useRouteContext();
+  const navigate = useNavigate();
   if (!page) return null;
-  return <ReleaseView result={page.release} links={page.links} />;
+  // The service decides (403 for anyone else); the console only hides what they cannot do.
+  const supervisor = roles.includes(EACC_SUPERVISOR);
+  return (
+    <ReleaseView
+      result={page.release}
+      links={page.links}
+      supervisor={supervisor}
+      actions={(view) => (
+        <ReleaseActions
+          view={view}
+          supervisor={supervisor}
+          publish={(releaseId, idempotencyKey) =>
+            publishOpenDataReleaseFn({ data: { releaseId, idempotencyKey } })
+          }
+          withdraw={(releaseId, reason, idempotencyKey) =>
+            withdrawOpenDataReleaseFn({ data: { releaseId, reason, idempotencyKey } })
+          }
+          rebuild={(fy, kind, idempotencyKey) =>
+            buildOpenDataReleaseFn({ data: { fy, kind, idempotencyKey } })
+          }
+          onRebuilt={(release) => {
+            void navigate({ to: '/eacc/open-data/$releaseId', params: { releaseId: release.id } });
+          }}
+          onUnauthenticated={() => {
+            goToSignIn();
+          }}
+        />
+      )}
+    />
+  );
 }

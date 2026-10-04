@@ -454,7 +454,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Publish a preview release (EACC supervisor) */
+        /**
+         * Publish a preview release (EACC supervisor)
+         * @description eacc-supervisor (tenant `eacc`); anyone else, an eacc-analyst included, 403. Issues the release's manifest (year, kind, version, build time, the NCR reference it reconciles with, the publisher, the suppression threshold, and each table's rows, hidden cells and the SHA-256 of its JSON and CSV files, with the release JSON's) through documents as a Public verifiable document (`open-data-manifest`), then marks the release `published` by the caller. Emits `open-data.release.published.v1` (release id, year, kind, version; no figures). An annual release publishes itself the same way when its NCR is approved, `publishedBy` the approver. The release was reconciled with the NCR when it was built. A year has one published annual release at a time: an annual preview is published only once the year's published one is withdrawn (409 `annual-release-published`).
+         */
         post: operations["publishOpenDataRelease"];
         delete?: never;
         options?: never;
@@ -473,7 +476,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Withdraw a published release with a public reason (EACC supervisor) */
+        /**
+         * Withdraw a published release with a public reason (EACC supervisor)
+         * @description eacc-supervisor (tenant `eacc`); anyone else 403. Revokes the release's manifest through documents (reason `withdrawn`), so its verify page shows it revoked, then marks the release `withdrawn` with the reason (trimmed), by the caller; it stays in the history and its files are still served, with the reason. A corrected release is a new build (`buildOpenDataRelease`, `kind` as the withdrawn one's), the next version of the year's releases of its kind. Emits `open-data.release.withdrawn.v1` (release id, year, kind, version; not the reason).
+         */
         post: operations["withdrawOpenDataRelease"];
         delete?: never;
         options?: never;
@@ -2521,7 +2527,10 @@ export interface operations {
     publishOpenDataRelease: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 releaseId: components["parameters"]["ReleaseId"];
             };
@@ -2538,9 +2547,46 @@ export interface operations {
                     "application/json": components["schemas"]["OpenDataRelease"];
                 };
             };
+            /** @description The release id is not a UUID, or the Idempotency-Key is not 1 to 255 characters (`idempotency-key-missing`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             403: components["responses"]["Forbidden"];
-            /** @description Not in preview, or reconciliation failed */
+            404: components["responses"]["NotFound"];
+            /** @description The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`); or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service refused the manifest (`manifest-refused`); nothing is published */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Documents (`documents-unavailable`) or object storage (`storage-unavailable`) could not be reached; nothing is published */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2553,7 +2599,10 @@ export interface operations {
     withdrawOpenDataRelease: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 releaseId: components["parameters"]["ReleaseId"];
             };
@@ -2562,6 +2611,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @description Shown with the withdrawn release in the public API */
                     reason: string;
                 };
             };
@@ -2576,9 +2626,46 @@ export interface operations {
                     "application/json": components["schemas"]["OpenDataRelease"];
                 };
             };
+            /** @description Body failed validation, the release id is not a UUID, or the Idempotency-Key is not 1 to 255 characters (`idempotency-key-missing`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             403: components["responses"]["Forbidden"];
-            /** @description Not published */
+            404: components["responses"]["NotFound"];
+            /** @description The release is a preview or withdrawn already (`release-not-published`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service refused to revoke the manifest (`manifest-revocation-refused`); nothing is withdrawn */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Documents could not be reached (`documents-unavailable`); nothing is withdrawn */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
