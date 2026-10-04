@@ -287,7 +287,7 @@ async function proposeOn(
     furtherActionLink: null,
     proposerKind: 'user',
     proposer: { subject: caller.subject, name: caller.name },
-    proposedAt: new Date(reviewClock.now()).toISOString(),
+    proposedAt: reviewClock.isoNow(),
     status: 'proposed',
     approver: null,
     approvedAt: null,
@@ -313,7 +313,7 @@ function approve(stored: StoredDetermination, caller: MockApprover, cases: MockC
   const approver = { subject: caller.subject, name: caller.name };
   stored.status = 'approved';
   stored.approver = approver;
-  stored.approvedAt = new Date(reviewClock.now()).toISOString();
+  stored.approvedAt = reviewClock.isoNow();
   stored.reference = cmpReference();
   stored.letterAvailable = true;
   stored.letterDocumentId = randomUUID();
@@ -339,7 +339,7 @@ async function returnTo(
   }
   stored.status = 'returned';
   stored.returnedBy = { subject: caller.subject, name: caller.name };
-  stored.returnedAt = new Date(reviewClock.now()).toISOString();
+  stored.returnedAt = reviewClock.isoNow();
   stored.returnReason = reason;
   return json(200, view(stored, caller));
 }

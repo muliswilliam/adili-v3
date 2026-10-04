@@ -217,7 +217,7 @@ async function respond(request: Request, actionId: string): Promise<Response> {
   const updated: Notice = {
     ...found,
     status: 'responded',
-    response: { text, attachments: files, submittedAt: new Date(reviewClock.now()).toISOString() },
+    response: { text, attachments: files, submittedAt: reviewClock.isoNow() },
   };
   notices.set(actionId, updated);
   const reply = json(201, updated);

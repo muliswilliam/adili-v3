@@ -442,7 +442,7 @@ async function respond(request: Request, id: string): Promise<Response> {
     answers.push({ index: item.index, text: item.text, attachments: files });
   }
 
-  const now = new Date(reviewClock.now()).toISOString();
+  const now = reviewClock.isoNow();
   const updated: DeclarantClarification = {
     ...found,
     status: 'responded',

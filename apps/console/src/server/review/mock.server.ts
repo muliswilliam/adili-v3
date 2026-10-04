@@ -1022,16 +1022,10 @@ function mockCases(caller: Assignee): MockCases {
       const stored = cases.get(caseId);
       if (!stored) return;
       stored.item = { ...stored.item, status };
-      stored.timeline.push(
-        entry('status-changed', actor, new Date(reviewClock.now()).toISOString(), summary, status),
-      );
+      stored.timeline.push(entry('status-changed', actor, reviewClock.isoNow(), summary, status));
     },
     record: (caseId, kind, actor, summary, ref) => {
-      cases
-        .get(caseId)
-        ?.timeline.push(
-          entry(kind, actor, new Date(reviewClock.now()).toISOString(), summary, ref),
-        );
+      cases.get(caseId)?.timeline.push(entry(kind, actor, reviewClock.isoNow(), summary, ref));
     },
   };
 }
@@ -1123,7 +1117,7 @@ function refreshCase(stored: StoredCase, actor: Assignee | null = null) {
         ? 'awaiting-clarification'
         : 'ready-for-determination';
   if (actor && stored.item.status === 'awaiting-clarification' && status !== stored.item.status) {
-    const changedAt = new Date(reviewClock.now()).toISOString();
+    const changedAt = reviewClock.isoNow();
     for (const [to, summary] of [
       ['clarified', 'Case clarified: no clarification open'],
       ['ready-for-determination', 'Case ready for determination'],
@@ -1392,7 +1386,7 @@ async function assignmentOrNote(
   action: string,
   caller: Assignee,
 ): Promise<Response> {
-  const now = new Date(reviewClock.now()).toISOString();
+  const now = reviewClock.isoNow();
   const holder = holderOf(stored, caller);
   const hand = (to: Assignee | null, summary: string) => {
     stored.holder = to;
@@ -1473,7 +1467,7 @@ async function markReviewed(
   }
   const note = await textField(request, 'note', 1000);
   if (note === null) return problem(400, 'A note of 1 to 1,000 characters is required');
-  const now = new Date(reviewClock.now()).toISOString();
+  const now = reviewClock.isoNow();
   const updated: Flag = { ...flag, reviewed: { at: now, by: caller, note } };
   stored.flags[index] = updated;
   stored.timeline.push(
@@ -1507,7 +1501,7 @@ async function act(
       {
         ...found,
         status: 'resolved',
-        resolvedAt: new Date(reviewClock.now()).toISOString(),
+        resolvedAt: reviewClock.isoNow(),
         resolutionNote: note,
       },
       caller,
