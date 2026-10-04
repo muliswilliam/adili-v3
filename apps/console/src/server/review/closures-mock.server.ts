@@ -26,6 +26,7 @@ import { addDays, nairobiDayStartOf } from '@adili/ui';
 import { CLOSURE_TYPES, closureFilterKey, CYCLE_YEARS } from '../../closures/search';
 import { json, type MockCaller, problem } from '../mock-http';
 import type { components } from './api.gen';
+import { reviewClock } from './mock-clock.server';
 
 type Schemas = components['schemas'];
 type DeclarationType = Schemas['DeclarationType'];
@@ -241,7 +242,7 @@ async function approve(
       return problem(503, 'The numbering service did not respond');
     }
     if (chunksThisRequest > 1) await pause(options.chunkDelayMs);
-    const at = new Date().toISOString();
+    const at = reviewClock.isoNow();
     for (const each of chunk) {
       each.status = 'approved';
       each.reference = nextReference(slug, at);
