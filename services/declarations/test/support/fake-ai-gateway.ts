@@ -128,6 +128,11 @@ export class FakeAiGateway extends AiGatewayClient {
     return release;
   }
 
+  /** Forgets every job it ran, as a gateway that no longer knows them. */
+  forgetJobs(): void {
+    this.jobs.clear();
+  }
+
   reset(): void {
     this.requests.length = 0;
     this.hintRequests.length = 0;

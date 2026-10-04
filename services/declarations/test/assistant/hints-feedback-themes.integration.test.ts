@@ -402,6 +402,23 @@ describe('feedback (S8)', () => {
     expect(resumed.messages.find((message) => message.id === answer.id)?.rating).toBe('helpful');
   });
 
+  it('keeps a rating the gateway cannot take because it does not know the job', async () => {
+    const { draft, conversation, answer } = await answered();
+    api.aiGateway.forgetJobs();
+
+    const response = await rate(conversation.id, answer.id, { rating: 'helpful', reason: null });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json<AssistantMessage>().rating).toBe('helpful');
+    expect(api.aiGateway.feedback).toEqual([]);
+    const resumed = await opened(draft.id);
+    expect(resumed.messages.find((message) => message.id === answer.id)?.rating).toBe('helpful');
+    const [event] = await eventsOf('assistant.feedback.recorded.v1');
+    expect(event).toMatchObject({
+      data: { jobId: expect.any(String) as string, forwarded: false },
+    });
+  });
+
   it('keeps the rating of a decline made without the AI, with no job to forward it to', async () => {
     const { conversation, answer } = await answered(OFF_CORPUS_QUESTION);
     expect(answer.declined).toBe(true);
