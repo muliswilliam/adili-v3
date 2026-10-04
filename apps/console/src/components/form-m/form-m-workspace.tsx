@@ -75,8 +75,9 @@ export type CompiledReport = ComplianceReport & { document: FormMV1 };
 export interface FormMReportExtensions {
   /**
    * The step's action in the footer: Mark reviewed, Confirm and submit. Told whether the report
-   * is a preview, so the sign-off screens decide what a preview allows; when it returns an action
-   * the footer leaves out its own note.
+   * is a preview, so the sign-off screens decide what a preview allows. Return null for no
+   * action: the footer then shows its own note; with an action it leaves the note out. Not asked
+   * for a submitted report, which has no footer.
    */
   footerActions?: (report: CompiledReport, context: { preview: boolean }) => ReactNode;
   /** Extra props per section 1-3, e.g. `onRemarkChange` and `autosave` for the supervisor. */
@@ -521,8 +522,8 @@ function ReportView({
   if (!document) return <Compiling />;
   const report: CompiledReport = { ...answered, document };
   const missing = manualMissing(document);
-  const actions = extensions.footerActions?.(report, { preview }) ?? null;
   const submitted = report.status === 'submitted';
+  const actions = submitted ? null : (extensions.footerActions?.(report, { preview }) ?? null);
   const submittedHeader = submitted ? extensions.submitted?.(report) : undefined;
   return (
     <>
