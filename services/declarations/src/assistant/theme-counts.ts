@@ -13,27 +13,48 @@ import { type QuestionTheme, themeOf } from './themes.js';
 
 const logger = new Logger('ThemeCounts');
 
+/** A question being stored with its answer: its Commission, words, time and whether declined. */
+export interface CountedQuestion {
+  tenant: string;
+  text: string;
+  at: Date;
+  declined: boolean;
+}
+
 /**
  * Counts the question at the conversation's Commission, in a savepoint of the transaction that
- * stores it: a count refused (the person no longer has an obligation there, as the row-level
- * security requires) is logged and skipped rather than losing the answer. Returns its theme.
+ * stores it: a count the row-level security refuses (the person no longer has an obligation
+ * there) is logged and skipped rather than losing the answer; any other failure fails the store.
+ * Returns its theme.
  */
 export async function countQuestion(
   tx: Transaction,
-  question: { tenant: string; text: string; at: Date; declined: boolean },
+  question: CountedQuestion,
 ): Promise<QuestionTheme> {
   const theme = themeOf(question.text);
   try {
     await tx.transaction((savepoint) => upsertCount(savepoint, question, theme));
   } catch (error) {
+    if (!refusedByRowSecurity(error)) throw error;
     logger.warn({ err: error }, 'A question could not be counted');
   }
   return theme;
 }
 
+/**
+ * Whether row-level security refused the query, through Drizzle's wrapper: SQLSTATE 42501
+ * (`insufficient_privilege`), which a person transaction holding its grants gets only from RLS.
+ */
+function refusedByRowSecurity(error: unknown): boolean {
+  for (let cause = error; cause instanceof Error; cause = cause.cause) {
+    if ('code' in cause && cause.code === '42501') return true;
+  }
+  return false;
+}
+
 async function upsertCount(
   tx: Transaction,
-  question: { tenant: string; at: Date; declined: boolean },
+  question: Omit<CountedQuestion, 'text'>,
   theme: QuestionTheme,
 ): Promise<void> {
   const unanswered = question.declined ? 1 : 0;

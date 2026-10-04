@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { AssistantMessage } from '../../src/assistant/representation.js';
@@ -383,6 +383,93 @@ describe('feedback (S8)', () => {
     ]);
   });
 
+  it('keeps the gateway and the answer on the same rating when two land at once', async () => {
+    const { draft, conversation, answer } = await answered();
+    const release = api.aiGateway.holdFeedback();
+    const first = rate(conversation.id, answer.id, { rating: 'not-helpful', reason: 'unclear' });
+    await expect.poll(() => api.aiGateway.feedback.length).toBe(1);
+
+    // The second is not held back by the first, still at the gateway: it is kept at once.
+    const second = await rate(conversation.id, answer.id, { rating: 'helpful', reason: null });
+    expect(second.json<AssistantMessage>().rating).toBe('helpful');
+    release();
+    const late = await first;
+
+    // The first finds the second kept, so it forwards itself again and is kept over it.
+    expect(late.statusCode, late.body).toBe(200);
+    expect(late.json<AssistantMessage>().rating).toBe('not-helpful');
+    const ratings = api.aiGateway.feedback.map((each) => each.feedback.rating);
+    expect(ratings).toEqual(['not-helpful', 'helpful', 'not-helpful']);
+    const resumed = await opened(draft.id);
+    expect(resumed.messages.find((message) => message.id === answer.id)?.rating).toBe(
+      'not-helpful',
+    );
+    const events = await eventsOf('assistant.feedback.recorded.v1');
+    expect(events.map((event) => event.data.rating)).toEqual(['helpful', 'not-helpful']);
+  });
+
+  it('answers 503 and keeps nothing on the answer when other ratings keep crossing it', async () => {
+    const { draft, conversation, answer } = await answered();
+    // Each time this rating reaches the gateway, another is kept on the answer meanwhile.
+    api.aiGateway.onFeedback(() =>
+      api.asPerson(ACHIENG, async (tx) => {
+        await tx
+          .update(assistantMessages)
+          .set({ feedbackVersion: sql`${assistantMessages.feedbackVersion} + 1` })
+          .where(eq(assistantMessages.id, answer.id));
+      }),
+    );
+
+    const response = await rate(conversation.id, answer.id, { rating: 'helpful', reason: null });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ type: 'assistant-unavailable' });
+    expect(api.aiGateway.feedback.map((each) => each.feedback.rating)).toEqual([
+      'helpful',
+      'helpful',
+      'helpful',
+    ]);
+    const resumed = await opened(draft.id);
+    expect(resumed.messages.find((message) => message.id === answer.id)?.rating).toBeNull();
+    expect(await eventsOf('assistant.feedback.recorded.v1')).toEqual([]);
+  });
+
+  it('answers 404 and keeps nothing when the draft is discarded while the rating is forwarded', async () => {
+    const { draft, conversation, answer } = await answered();
+    api.aiGateway.onFeedback(async () => {
+      const discarded = await api.request('DELETE', `/v1/declarations/${draft.id}`, achieng);
+      expect(discarded.statusCode).toBe(204);
+    });
+
+    const response = await rate(conversation.id, answer.id, { rating: 'helpful', reason: null });
+
+    expect(response.statusCode).toBe(404);
+    expect(api.aiGateway.feedback).toHaveLength(1);
+    expect(
+      await api.asPerson(ACHIENG, (tx) =>
+        tx.select().from(assistantMessages).where(eq(assistantMessages.id, answer.id)),
+      ),
+    ).toEqual([]);
+    expect(await eventsOf('assistant.feedback.recorded.v1')).toEqual([]);
+  });
+
+  it('keeps a rating the gateway cannot take because it does not know the job', async () => {
+    const { draft, conversation, answer } = await answered();
+    api.aiGateway.forgetJobs();
+
+    const response = await rate(conversation.id, answer.id, { rating: 'helpful', reason: null });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json<AssistantMessage>().rating).toBe('helpful');
+    expect(api.aiGateway.feedback).toEqual([]);
+    const resumed = await opened(draft.id);
+    expect(resumed.messages.find((message) => message.id === answer.id)?.rating).toBe('helpful');
+    const [event] = await eventsOf('assistant.feedback.recorded.v1');
+    expect(event).toMatchObject({
+      data: { jobId: expect.any(String) as string, forwarded: false },
+    });
+  });
+
   it('keeps the rating of a decline made without the AI, with no job to forward it to', async () => {
     const { conversation, answer } = await answered(OFF_CORPUS_QUESTION);
     expect(answer.declined).toBe(true);
@@ -406,6 +493,11 @@ describe('feedback (S8)', () => {
     expect(response.json()).toMatchObject({ type: 'assistant-unavailable' });
     const resumed = await opened(draft.id);
     expect(resumed.messages.find((message) => message.id === answer.id)?.rating).toBeNull();
+    expect(await eventsOf('assistant.feedback.recorded.v1')).toEqual([]);
+    const [row] = await api.asPerson(ACHIENG, (tx) =>
+      tx.select().from(assistantMessages).where(eq(assistantMessages.id, answer.id)),
+    );
+    expect(row).toMatchObject({ rating: null, feedbackCiphertext: null, feedbackEnvelope: null });
   });
 
   it("answers 404 for a question, an unknown message and another person's answer", async () => {

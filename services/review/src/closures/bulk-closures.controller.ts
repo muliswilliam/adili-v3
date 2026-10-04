@@ -1,10 +1,10 @@
-import { Controller, Get, Headers, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
   ApiQueryParameters,
   CurrentPrincipal,
-  IDEMPOTENCY_KEY_HEADER,
+  IdempotencyKey,
   type Principal,
   RequireIdempotencyKey,
   schemaRef,
@@ -73,7 +73,7 @@ export class BulkClosuresController {
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
     @Query(new ZodValidationPipe(closureFilter)) filter: ClosureFilter,
-    @Headers(IDEMPOTENCY_KEY_HEADER) idempotencyKey: string,
+    @IdempotencyKey() idempotencyKey: string,
   ): Promise<BulkApprovalResultView> {
     return this.closures.approve(principal, slug, filter, idempotencyKey);
   }

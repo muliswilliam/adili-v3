@@ -5,6 +5,7 @@ import { completenessIssueSchema } from '../drafts/representation.js';
 import { SECTION_KEY } from '../drafts/sections.js';
 import { ITEM_TYPE_TAGS } from '../help/corpus.js';
 import { helpLanguageSchema, helpPassageSchema } from '../help/representation.js';
+import { ASSISTANT_RATING_VALUES } from './schema.js';
 import { QUESTION_THEMES } from './themes.js';
 
 /**
@@ -94,7 +95,7 @@ export const assistantMessageSchema = z.object({
     description:
       'How an answer from the AI is labelled (ai-gateway AiLabel); null for a question, and for a decline made without asking the AI',
   }),
-  rating: z.enum(['helpful', 'not-helpful']).nullable(),
+  rating: z.enum(ASSISTANT_RATING_VALUES).nullable(),
   at: z.iso.datetime({ offset: true }),
 });
 
@@ -131,7 +132,7 @@ export const FEEDBACK_REASONS = [
 ] as const satisfies readonly NonNullable<FeedbackInput['reason']>[];
 
 export const rateMessageRequestSchema = z.object({
-  rating: z.enum(['helpful', 'not-helpful']),
+  rating: z.enum(ASSISTANT_RATING_VALUES),
   reason: z.enum(FEEDBACK_REASONS).nullable(),
   note: z
     .string()

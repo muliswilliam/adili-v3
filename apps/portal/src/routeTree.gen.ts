@@ -34,6 +34,8 @@ import { Route as GetStartedVerifyEmailRouteImport } from './routes/get-started/
 import { Route as GetStartedVerifyPhoneRouteImport } from './routes/get-started/verify-phone'
 import { Route as HelpIndexRouteImport } from './routes/help/index'
 import { Route as HelpPassageIdRouteImport } from './routes/help/$passageId'
+import { Route as NoticesIndexRouteImport } from './routes/notices/index'
+import { Route as NoticesActionIdRouteImport } from './routes/notices/$actionId'
 import { Route as AccessGetStartedIndexRouteImport } from './routes/access/get-started/index'
 import { Route as AccessGetStartedCheckEmailRouteImport } from './routes/access/get-started/check-email'
 import { Route as AccessGetStartedCreateRouteImport } from './routes/access/get-started/create'
@@ -182,6 +184,16 @@ const HelpIndexRoute = HelpIndexRouteImport.update({
 const HelpPassageIdRoute = HelpPassageIdRouteImport.update({
   id: '/help/$passageId',
   path: '/help/$passageId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NoticesIndexRoute = NoticesIndexRouteImport.update({
+  id: '/notices/',
+  path: '/notices/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NoticesActionIdRoute = NoticesActionIdRouteImport.update({
+  id: '/notices/$actionId',
+  path: '/notices/$actionId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccessGetStartedIndexRoute = AccessGetStartedIndexRouteImport.update({
@@ -333,11 +345,13 @@ export interface FileRoutesByFullPath {
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
   '/help/$passageId': typeof HelpPassageIdRoute
+  '/notices/$actionId': typeof NoticesActionIdRoute
   '/access/': typeof AccessIndexRoute
   '/clarifications/': typeof ClarificationsIndexRoute
   '/declarations/': typeof DeclarationsIndexRoute
   '/get-started/': typeof GetStartedIndexRoute
   '/help/': typeof HelpIndexRoute
+  '/notices/': typeof NoticesIndexRoute
   '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
   '/access/get-started/create': typeof AccessGetStartedCreateRoute
   '/access/get-started/details': typeof AccessGetStartedDetailsRoute
@@ -381,11 +395,13 @@ export interface FileRoutesByTo {
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
   '/help/$passageId': typeof HelpPassageIdRoute
+  '/notices/$actionId': typeof NoticesActionIdRoute
   '/access': typeof AccessIndexRoute
   '/clarifications': typeof ClarificationsIndexRoute
   '/declarations': typeof DeclarationsIndexRoute
   '/get-started': typeof GetStartedIndexRoute
   '/help': typeof HelpIndexRoute
+  '/notices': typeof NoticesIndexRoute
   '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
   '/access/get-started/create': typeof AccessGetStartedCreateRoute
   '/access/get-started/details': typeof AccessGetStartedDetailsRoute
@@ -433,11 +449,13 @@ export interface FileRoutesById {
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
   '/help/$passageId': typeof HelpPassageIdRoute
+  '/notices/$actionId': typeof NoticesActionIdRoute
   '/access/': typeof AccessIndexRoute
   '/clarifications/': typeof ClarificationsIndexRoute
   '/declarations/': typeof DeclarationsIndexRoute
   '/get-started/': typeof GetStartedIndexRoute
   '/help/': typeof HelpIndexRoute
+  '/notices/': typeof NoticesIndexRoute
   '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
   '/access/get-started/create': typeof AccessGetStartedCreateRoute
   '/access/get-started/details': typeof AccessGetStartedDetailsRoute
@@ -486,11 +504,13 @@ export interface FileRouteTypes {
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
     | '/help/$passageId'
+    | '/notices/$actionId'
     | '/access/'
     | '/clarifications/'
     | '/declarations/'
     | '/get-started/'
     | '/help/'
+    | '/notices/'
     | '/access/get-started/check-email'
     | '/access/get-started/create'
     | '/access/get-started/details'
@@ -534,11 +554,13 @@ export interface FileRouteTypes {
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
     | '/help/$passageId'
+    | '/notices/$actionId'
     | '/access'
     | '/clarifications'
     | '/declarations'
     | '/get-started'
     | '/help'
+    | '/notices'
     | '/access/get-started/check-email'
     | '/access/get-started/create'
     | '/access/get-started/details'
@@ -585,11 +607,13 @@ export interface FileRouteTypes {
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
     | '/help/$passageId'
+    | '/notices/$actionId'
     | '/access/'
     | '/clarifications/'
     | '/declarations/'
     | '/get-started/'
     | '/help/'
+    | '/notices/'
     | '/access/get-started/check-email'
     | '/access/get-started/create'
     | '/access/get-started/details'
@@ -630,10 +654,12 @@ export interface RootRouteChildren {
   AuthStepUpRoute: typeof AuthStepUpRoute
   ClarificationsIdRoute: typeof ClarificationsIdRoute
   HelpPassageIdRoute: typeof HelpPassageIdRoute
+  NoticesActionIdRoute: typeof NoticesActionIdRoute
   AccessIndexRoute: typeof AccessIndexRoute
   ClarificationsIndexRoute: typeof ClarificationsIndexRoute
   DeclarationsIndexRoute: typeof DeclarationsIndexRoute
   HelpIndexRoute: typeof HelpIndexRoute
+  NoticesIndexRoute: typeof NoticesIndexRoute
   AccessNoticesIdRoute: typeof AccessNoticesIdRoute
   AccessRequestsIdRoute: typeof AccessRequestsIdRoute
   AccessRequestsNewRoute: typeof AccessRequestsNewRoute
@@ -824,6 +850,20 @@ declare module '@tanstack/react-router' {
       path: '/help/$passageId'
       fullPath: '/help/$passageId'
       preLoaderRoute: typeof HelpPassageIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notices/': {
+      id: '/notices/'
+      path: '/notices'
+      fullPath: '/notices/'
+      preLoaderRoute: typeof NoticesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notices/$actionId': {
+      id: '/notices/$actionId'
+      path: '/notices/$actionId'
+      fullPath: '/notices/$actionId'
+      preLoaderRoute: typeof NoticesActionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/access/get-started/': {
@@ -1080,10 +1120,12 @@ const rootRouteChildren: RootRouteChildren = {
   AuthStepUpRoute: AuthStepUpRoute,
   ClarificationsIdRoute: ClarificationsIdRoute,
   HelpPassageIdRoute: HelpPassageIdRoute,
+  NoticesActionIdRoute: NoticesActionIdRoute,
   AccessIndexRoute: AccessIndexRoute,
   ClarificationsIndexRoute: ClarificationsIndexRoute,
   DeclarationsIndexRoute: DeclarationsIndexRoute,
   HelpIndexRoute: HelpIndexRoute,
+  NoticesIndexRoute: NoticesIndexRoute,
   AccessNoticesIdRoute: AccessNoticesIdRoute,
   AccessRequestsIdRoute: AccessRequestsIdRoute,
   AccessRequestsNewRoute: AccessRequestsNewRoute,

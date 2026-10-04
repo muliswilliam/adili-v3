@@ -76,7 +76,8 @@ const { cyclesToOpen, openCyclePage, recordCycleOpened } = proxyActivities<Cycle
  *
  * It does not continue as new (ADR-003 §5): its history is bounded whatever the obligation's
  * life (one load, at most three status changes, one activity per reminder offset, a few
- * signals), a few dozen events. The escalation ladder (spec 08) is where that changes.
+ * signals), a few dozen events. The administrative action ladder is not here: review's
+ * `EnforcementWorkflow` runs it once the obligation is announced overdue (ADR-003 decision 8).
  */
 export async function filingObligation({
   obligationId,

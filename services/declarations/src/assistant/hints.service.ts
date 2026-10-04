@@ -23,7 +23,6 @@ import type { CompletenessHints, HintsQuery } from './representation.js';
 import { assistantHintCache } from './schema.js';
 
 /** Hints written for a plan (none when nothing is left to complete), or why there are none. */
-/** Hints written for a plan (none when nothing is left to complete), or why there are none. */
 type Written =
   | { status: 'ready'; hints: string[]; label: AiLabel | null }
   | { status: 'pending' | 'unavailable' };
