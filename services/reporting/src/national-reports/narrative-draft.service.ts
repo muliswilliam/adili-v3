@@ -3,7 +3,7 @@ import { type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { EACC_TENANT } from '@adili/roles';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { v5 as uuidv5, v7 as uuidv7 } from 'uuid';
 
 import { requireEacc } from '../access.js';
@@ -30,7 +30,8 @@ import {
   NARRATE_PROMPT_VERSION,
   narrateInput,
   nationalReportSubjectRef,
-  needsCandidates,
+  draftJobSections,
+  draftOutcomeOf,
   outcomeOf,
 } from './narrative-draft.js';
 import {
@@ -47,6 +48,7 @@ import {
 } from './national-report-store.js';
 import type { NarrativeDraftRow, NationalReportRow, NationalReportView } from './representation.js';
 import {
+  type DraftJob,
   type DraftScope,
   nationalReportAggregates,
   nationalReportNarrativeDrafts,
@@ -88,14 +90,16 @@ export class NarrativeDraftService {
   /**
    * Drafts the narrative (an `Idempotency-Key` at the controller): the ai-gateway's
    * `narrate-compliance-report` task gets the year's figures and pattern candidates only, and the
-   * request waits up to `MAX_TASK_WAIT_SECONDS` for it. A draft ready by then is inserted at once
+   * request waits up to `MAX_TASK_WAIT_SECONDS` for it. The task drafts findings only from a
+   * candidate: in a year with none, `all` is a call for the overview and one for the
+   * recommendations, side by side (`draftJobSections`), and findings are left as they are. A draft ready by then is inserted at once
    * (`insertDraft`: AI-draft paragraphs citing their aggregate keys, replacing only paragraphs
    * still AI drafts unless `replaceAll`), the requester becomes a contributor and
    * `ncr.narrative-drafted.v1` is recorded; one not ready is answered `drafting` (202) and
    * inserted when the report is next read (`settlePending`). A draft that failed inserts nothing:
    * 409 `narrative-validation` when it cited a figure not in the input, `ai-not-enabled` when the
    * gateway's gate refuses EACC's data, 502 `narrative-draft-failed` otherwise. 404 before the
-   * first build; 409 `ncr-approved` once approved, `no-pattern-candidates` for findings with no
+   * first build; 409 `ncr-approved` once approved, `no-pattern-candidates` for `findings` with no
    * candidate to narrate; 503 while the gateway cannot be reached. A retry with the same key
    * reads the same job: a draft is inserted once.
    */
@@ -107,11 +111,12 @@ export class NarrativeDraftService {
   ): Promise<DraftAnswer> {
     requireEacc(principal, EACC_ONLY);
     const context = eaccContext(principal.subject);
-    const { report, builtAt, input } = await withTenant(this.db, context, async (tx) => {
+    const { report, builtAt, inputs } = await withTenant(this.db, context, async (tx) => {
       const found = await reportOf(tx, fy);
       if (found.status === 'approved') throw approvedConflict();
       const { figures, candidates, builtAt: at } = await narrativeInputOf(tx, fy);
-      if (needsCandidates(request.section) && candidates.length === 0) {
+      const sections = draftJobSections(request.section, candidates);
+      if (!sections) {
         throw conflict(
           'no-pattern-candidates',
           'The year has no notable patterns for findings to narrate. Draft the overview or the recommendations instead.',
@@ -120,33 +125,43 @@ export class NarrativeDraftService {
       return {
         report: found,
         builtAt: at,
-        input: narrateInput(figures, candidates, request.section),
+        inputs: sections.map((section) => ({
+          section,
+          input: narrateInput(figures, candidates, section),
+        })),
       };
     });
 
-    const jobKey = uuidv5(
-      [
-        report.id,
-        idempotencyKey,
-        request.section,
-        String(request.replaceAll),
-        builtAt.toISOString(),
-      ].join('|'),
-      DRAFT_NAMESPACE,
-    );
-    let job: AiJob;
+    // One task call per section asked of the gateway, side by side.
+    let ran: { section: DraftScope; job: AiJob }[];
     try {
-      job = await this.ai.runTask(
-        'narrate-compliance-report',
-        {
-          tenant: EACC_TENANT,
-          dataClass: NARRATE_DATA_CLASS,
-          subjectRef: nationalReportSubjectRef(report.id),
-          promptVersion: NARRATE_PROMPT_VERSION,
-          input,
-        },
-        jobKey,
-        { waitSeconds: MAX_TASK_WAIT_SECONDS },
+      ran = await Promise.all(
+        inputs.map(async ({ section, input }) => ({
+          section,
+          job: await this.ai.runTask(
+            'narrate-compliance-report',
+            {
+              tenant: EACC_TENANT,
+              dataClass: NARRATE_DATA_CLASS,
+              subjectRef: nationalReportSubjectRef(report.id),
+              promptVersion: NARRATE_PROMPT_VERSION,
+              input,
+            },
+            uuidv5(
+              [
+                report.id,
+                idempotencyKey,
+                request.section,
+                String(request.replaceAll),
+                builtAt.toISOString(),
+                // The one call of a draft keeps the key it had before drafts took two.
+                ...(section === request.section ? [] : [section]),
+              ].join('|'),
+              DRAFT_NAMESPACE,
+            ),
+            { waitSeconds: MAX_TASK_WAIT_SECONDS },
+          ),
+        })),
       );
     } catch (error) {
       if (error instanceof AiGatewayUnavailable) throw aiGatewayUnavailable();
@@ -154,16 +169,17 @@ export class NarrativeDraftService {
       throw error;
     }
 
-    const outcome = outcomeOf(job);
+    const jobs: DraftJob[] = ran.map(({ section, job }) => ({ section, jobId: job.id }));
+    const outcome = draftOutcomeOf(ran.map(({ job }) => outcomeOf(job)));
     const { view, draft } = await withTenant(this.db, context, async (tx) => {
       const locked = await lockedUnapprovedReport(tx, fy);
       const existing = await draftOf(tx, locked.id);
       // A retry of a draft a read of the report has settled since: answered as it ended.
-      if (existing?.jobId === job.id && existing.status !== 'drafting') {
+      if (existing && sameJobs(existing.jobs, jobs) && existing.status !== 'drafting') {
         return { view: await reportView(tx, locked), draft: existing };
       }
       const values = {
-        jobId: job.id,
+        jobs,
         section: request.section,
         replaceAll: request.replaceAll,
         status: 'drafting' as const,
@@ -187,10 +203,11 @@ export class NarrativeDraftService {
   }
 
   /**
-   * Polls the year's narrative draft still being written, if any: its job is looked up at the
-   * ai-gateway and, once ended, the draft inserted (or recorded as failed). Reading the report is
-   * how a 202 draft is polled. While the gateway cannot be reached the draft stays `drafting`.
-   * 404 before the first build.
+   * Polls the year's narrative draft still being written, if any: its jobs are looked up at the
+   * ai-gateway and, once all ended, the draft inserted (or recorded as failed) under the report's
+   * lock, with `ncr.narrative-drafted.v1`. Reading the report is how a 202 draft is polled, so a
+   * GET of the report writes (reporting.yaml `getNationalReport`). While the gateway cannot be
+   * reached the draft stays `drafting`. 404 before the first build.
    */
   async settlePending(principal: Principal, fy: number): Promise<void> {
     requireEacc(principal, EACC_ONLY);
@@ -199,17 +216,20 @@ export class NarrativeDraftService {
       draftOf(tx, (await reportOf(tx, fy)).id),
     );
     if (draft?.status !== 'drafting') return;
-    const job = await this.ai.getJob(EACC_TENANT, draft.jobId).catch((error: unknown) => {
-      if (error instanceof AiGatewayUnavailable) return undefined;
+    let found: (AiJob | null)[];
+    try {
+      found = await Promise.all(draft.jobs.map(({ jobId }) => this.ai.getJob(EACC_TENANT, jobId)));
+    } catch (error) {
+      if (error instanceof AiGatewayUnavailable) return;
       throw error;
-    });
-    const outcome = job === undefined ? null : outcomeOf(job);
-    if (!outcome || outcome.status === 'drafting') return;
+    }
+    const outcome = draftOutcomeOf(found.map((job) => outcomeOf(job)));
+    if (outcome.status === 'drafting') return;
     await withTenant(this.db, context, async (tx) => {
       const report = await lockedReport(tx, fy);
       const current = await draftOf(tx, report.id);
       // Settled meanwhile by another read or a retry, or replaced by a new draft.
-      if (current?.jobId !== draft.jobId || current.status !== 'drafting') return;
+      if (!current || !sameJobs(current.jobs, draft.jobs) || current.status !== 'drafting') return;
       await this.settle(tx, report, current, outcome);
     });
   }
@@ -241,7 +261,12 @@ export class NarrativeDraftService {
       return { report, draft: await failed(DRAFT_FAILURES.aggregatesRebuilt) };
     }
     const stored = await paragraphsOf(tx, report.id);
-    const saved = insertDraft(stored, outcome.paragraphs, draft.section, draft.replaceAll, uuidv7);
+    // Each job's section(s) in turn: an `all` of two calls leaves findings as they are.
+    const saved = draft.jobs.reduce(
+      (paragraphs, job) =>
+        insertDraft(paragraphs, outcome.paragraphs, job.section, draft.replaceAll, uuidv7),
+      stored,
+    );
     await replaceParagraphs(tx, report.id, stored, saved, draft.requestedBy);
     const updated = await touch(tx, report, draft.requestedBy);
     const inserted = await finishDraft(tx, draft, 'inserted', null, this.clock.now());
@@ -253,7 +278,7 @@ export class NarrativeDraftService {
         nationalReportId: updated.id,
         fy: updated.fy,
         section: draft.section,
-        jobId: draft.jobId,
+        jobIds: draft.jobs.map((job) => job.jobId),
       },
     });
     return { report: updated, draft: inserted };
@@ -274,12 +299,21 @@ async function finishDraft(
     .where(
       and(
         eq(nationalReportNarrativeDrafts.nationalReportId, draft.nationalReportId),
-        eq(nationalReportNarrativeDrafts.jobId, draft.jobId),
+        sql`${nationalReportNarrativeDrafts.jobs} = ${JSON.stringify(draft.jobs)}::jsonb`,
       ),
     )
     .returning();
-  if (!finished) throw new Error(`Narrative draft ${draft.jobId} vanished while it was settled`);
+  if (!finished) {
+    throw new Error(`Narrative draft of ${draft.nationalReportId} vanished while it was settled`);
+  }
   return finished;
+}
+
+/** Whether two drafts are of the same gateway jobs. */
+function sameJobs(a: readonly DraftJob[], b: readonly DraftJob[]): boolean {
+  const key = (jobs: readonly DraftJob[]) =>
+    jobs.map((job) => `${job.section}:${job.jobId}`).join(',');
+  return key(a) === key(b);
 }
 
 /** The problem a failed draft answers, by why it failed; nothing was inserted. */

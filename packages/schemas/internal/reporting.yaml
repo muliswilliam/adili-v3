@@ -485,10 +485,14 @@ paths:
         `byCommission` (per Commission slug: name, status, report id and reference, and its
         numbers once reported). Narrative paragraphs cite figures in `aggregateRefs` by aggregate
         key in the ai-gateway scheme, as `PatternCandidate.aggregateKeys` does, not by dot path
-        into `aggregates`. Reading the report is how a narrative draft answered 202 is polled: a
-        `narrativeDraft` still `drafting` is looked up at the ai-gateway first and, once its job
-        has ended, inserted (`inserted`) or discarded (`failed` with its reason). While the
-        gateway cannot be reached the report is answered with the draft still `drafting`.
+        into `aggregates`. Reading the report is how a narrative draft answered 202 is polled, so
+        this GET can write: a `narrativeDraft` still `drafting` is looked up at the ai-gateway
+        first (a call per job) and, once its jobs have ended, settled under the report's lock
+        before the report is answered: inserted (`inserted`: its AI-draft paragraphs written into
+        the narrative, the requester made a contributor, `ncr.narrative-drafted.v1` emitted) or
+        discarded (`failed` with its reason). Settled once, whichever read or retry gets there
+        first. While the gateway cannot be reached the report is answered with the draft still
+        `drafting`, unchanged.
       responses:
         '200':
           description: NCR
@@ -667,7 +671,10 @@ paths:
         eacc-analyst and eacc-supervisor; anyone else 403. The ai-gateway's
         `narrate-compliance-report` task gets the year's figures (national totals and rates, the
         per-Commission table, prior years) and pattern candidates only, data class `restricted`,
-        and the request waits up to 20 s for it. Ready by then: its paragraphs are inserted with
+        and the request waits up to 20 s for it. A draft of `findings`, or of `all`, needs at least
+        one pattern candidate (the task narrates a finding only from one): with none, `all` drafts
+        the overview and the recommendations (a task call each, findings left as they are), and
+        `findings` is 409 `no-pattern-candidates`. Ready by then: its paragraphs are inserted with
         `aiDraft: true`, their `aggregateRefs` and `candidateIds` (200). Not ready: 202 with
         `narrativeDraft.status` `drafting`; poll `getNationalReport`, which inserts it once the job
         has ended. In each section drafted, the new paragraphs replace those still marked as AI
@@ -675,7 +682,7 @@ paths:
         `replaceAll` replaces the whole section. Editing a paragraph through
         `updateNationalReportNarrative` clears its `aiDraft`. The requester becomes a contributor
         (who cannot approve) and `ncr.narrative-drafted.v1` is emitted (report id, year, section,
-        job id; no figures). A new request replaces a draft still being written, whose job is then
+        job ids; no figures). A new request replaces a draft still being written, whose job is then
         never inserted; a draft that ends after the aggregates were rebuilt is discarded. A retry
         with the same Idempotency-Key reads the same job, and inserts it once.
       parameters:
@@ -722,7 +729,7 @@ paths:
             Nothing inserted. Problem code `ncr-approved` (the report no longer changes),
             `narrative-validation` (the draft cited a figure not in the input and was discarded),
             `ai-not-enabled` (the ai-gateway's gate does not let EACC's data be sent),
-            `no-pattern-candidates` (findings, or all, with no candidate to narrate) or
+            `no-pattern-candidates` (findings with no candidate to narrate) or
             `aggregates-rebuilt` (the report was rebuilt while the draft was written)
           content:
             application/problem+json:
@@ -1944,12 +1951,24 @@ components:
             type: string
     NarrativeDraft:
       type: object
-      required: [jobId, section, replaceAll, status, failureReason, requestedAt, finishedAt]
+      required: [jobs, section, replaceAll, status, failureReason, requestedAt, finishedAt]
       properties:
-        jobId:
-          type: string
-          format: uuid
-          description: The ai-gateway job writing the draft
+        jobs:
+          type: array
+          minItems: 1
+          description: >-
+            The ai-gateway jobs writing the draft, each with the section it asks for: one, or for
+            `all` in a year with no pattern candidates, the overview's and the recommendations'
+          items:
+            type: object
+            required: [section, jobId]
+            properties:
+              section:
+                type: string
+                enum: [overview, findings, recommendations, all]
+              jobId:
+                type: string
+                format: uuid
         section:
           type: string
           enum: [overview, findings, recommendations, all]

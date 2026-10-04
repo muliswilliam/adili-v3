@@ -128,6 +128,12 @@ export const nationalReportParagraphs = pgTable(
 export const DRAFT_SCOPES = [...NARRATIVE_SECTIONS, 'all'] as const;
 export type DraftScope = (typeof DRAFT_SCOPES)[number];
 
+/** reporting.yaml `NarrativeDraft.jobs[]`: an ai-gateway job and the section(s) it drafts. */
+export interface DraftJob {
+  section: DraftScope;
+  jobId: string;
+}
+
 /** reporting.yaml `NarrativeDraft.status`. */
 export const NARRATIVE_DRAFT_STATUSES = ['drafting', 'inserted', 'failed'] as const;
 export type NarrativeDraftStatus = (typeof NARRATIVE_DRAFT_STATUSES)[number];
@@ -144,8 +150,12 @@ export const nationalReportNarrativeDrafts = pgTable('national_report_narrative_
   nationalReportId: uuid()
     .primaryKey()
     .references(() => nationalReports.id, { onDelete: 'cascade' }),
-  /** The ai-gateway job. */
-  jobId: uuid().notNull(),
+  /**
+   * The ai-gateway jobs writing it, each with the section it drafts: one, or for `all` in a year
+   * with no pattern candidates, the overview's and the recommendations' (the task drafts findings
+   * only from a candidate).
+   */
+  jobs: jsonb().$type<DraftJob[]>().notNull(),
   section: text().$type<DraftScope>().notNull(),
   /** Replace every paragraph of the section(s), not only those still AI drafts. */
   replaceAll: boolean().notNull(),

@@ -11,6 +11,7 @@ import { parse } from 'yaml';
 
 import { complianceReports, nationalReports, reportReceipts } from '../../src/db/schema.js';
 import { contractErrors, okResponse } from '../support/contract.js';
+import { reportCounts, section } from '../support/receipts.js';
 import type { FakeJobAnswer } from '../support/fakes.js';
 import { SUPERVISOR } from '../support/form-m-facts.js';
 import {
@@ -166,7 +167,9 @@ describe('NCR narrative draft (S2, S3)', () => {
 
   function jobIdOf(body: NationalReportBody): string {
     if (!body.narrativeDraft) throw new Error('No narrative draft');
-    return body.narrativeDraft.jobId;
+    const [job] = body.narrativeDraft.jobs;
+    if (!job) throw new Error('No narrative draft job');
+    return job.jobId;
   }
 
   const paragraphsOf = (body: NationalReportBody) =>
@@ -254,8 +257,9 @@ describe('NCR narrative draft (S2, S3)', () => {
       findings: `${FINDING_TSC.text}\n\n${FINDING_NLC.text}`,
       recommendations: RECOMMENDATION.text,
     });
-    const jobId = body.narrativeDraft?.jobId;
+    const jobId = jobIdOf(body);
     expect(body.narrativeDraft).toMatchObject({
+      jobs: [{ section: 'all', jobId }],
       section: 'all',
       replaceAll: false,
       status: 'inserted',
@@ -271,8 +275,98 @@ describe('NCR narrative draft (S2, S3)', () => {
       nationalReportId: before.id,
       fy: 2027,
       section: 'all',
-      jobId,
+      jobIds: [jobId],
     });
+  });
+
+  it('S2: in a year with no pattern candidates, `all` drafts the overview and the recommendations, a call each; `findings` alone is 409', async () => {
+    // FY 2030: every Commission reported on time, alike, and no prior year is built.
+    await api.asPlatform(async (tx) => {
+      for (const { slug: tenant } of HISTORY_COMMISSIONS) {
+        const reportId = uuidv7();
+        const counts = reportCounts({
+          initial: section(0, 0),
+          biennial: { ...section(1000, 980), noCycleInPeriod: false },
+          final: section(0, 0),
+          clarifications: 10,
+        });
+        const report = {
+          tenant,
+          fy: 2030,
+          reference: `RPT-${tenant.toUpperCase()}-2031-0000001-X`,
+          source: 'hosted' as const,
+          submittedAt: new Date('2031-07-20T07:00:00Z'),
+          late: false,
+        };
+        await tx
+          .insert(complianceReports)
+          .values({ id: reportId, status: 'submitted', counts, ...report });
+        await tx.insert(reportReceipts).values({ reportId, counts, ...report });
+      }
+    });
+    await build(2030, '2031-08-20T07:00:00.000Z');
+    const FY2030 = '/v1/eacc/national-reports/2030';
+    const candidates = await api.get(`${FY2030}/candidates`, ANALYST);
+    expect(candidates.json(), candidates.body).toEqual([]);
+    const draft2030 = (scope: string) =>
+      api.send(
+        'POST',
+        `${FY2030}/narrative/draft`,
+        ANALYST,
+        { section: scope, replaceAll: false },
+        { 'idempotency-key': randomUUID() },
+      );
+
+    const findings = await draft2030('findings');
+    expect(findings.statusCode, findings.body).toBe(409);
+    expect(findings.json()).toMatchObject({ code: 'no-pattern-candidates' });
+    expect(api.ai.requests).toEqual([]);
+
+    const overview = { ...OVERVIEW, aggregateRefs: ['national.commissionsReported'] };
+    const recommendation = {
+      section: 'recommendations',
+      text: 'Keep chasing the Commissions that file late.',
+      aggregateRefs: ['national.commissionsReported'],
+      candidateIds: [],
+    };
+    api.ai.answer(succeeded(overview), succeeded(recommendation));
+    const response = await draft2030('all');
+
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<NationalReportBody>();
+    expect(contractErrors(okResponse(DRAFT, 'post'), body)).toEqual([]);
+    // What the gateway accepts: a section each, no candidates, never findings.
+    expect(api.ai.requests.map((call) => call.request.input.section)).toEqual([
+      'overview',
+      'recommendations',
+    ]);
+    for (const { request } of api.ai.requests) {
+      const { tenant, ...sent } = request;
+      expect(tenant).toBe('eacc');
+      expect(request.input.candidates).toEqual([]);
+      expect(
+        validTaskRequest({ ...sent, waitSeconds: 20 }),
+        JSON.stringify(validTaskRequest.errors),
+      ).toBe(true);
+    }
+    expect(body.narrativeDraft).toMatchObject({
+      section: 'all',
+      status: 'inserted',
+      jobs: [{ section: 'overview' }, { section: 'recommendations' }],
+    });
+    expect(paragraphsOf(body)).toEqual([
+      { ...overview, aiDraft: true },
+      { ...recommendation, aiDraft: true },
+    ]);
+    const events = await api.events('ncr.narrative-drafted.v1');
+    expect(events.map((event) => event.data)).toEqual([
+      {
+        nationalReportId: body.id,
+        fy: 2030,
+        section: 'all',
+        jobIds: body.narrativeDraft?.jobs.map((job) => job.jobId),
+      },
+    ]);
   });
 
   it('S2: a draft that failed validation returns the reason and inserts nothing', async () => {
@@ -314,7 +408,10 @@ describe('NCR narrative draft (S2, S3)', () => {
 
     api.ai.finish(jobId, succeeded(FINDING_TSC, FINDING_NLC));
     const polled = await report();
-    expect(polled.narrativeDraft).toMatchObject({ jobId, status: 'inserted' });
+    expect(polled.narrativeDraft).toMatchObject({
+      jobs: [{ section: 'findings', jobId }],
+      status: 'inserted',
+    });
     expect(paragraphsOf(polled)).toEqual([
       { ...FINDING_TSC, aiDraft: true },
       { ...FINDING_NLC, aiDraft: true },
@@ -511,7 +608,7 @@ interface NationalReportBody {
   narrative: Record<string, string>;
   narrativeParagraphs: ParagraphBody[];
   narrativeDraft: {
-    jobId: string;
+    jobs: { section: string; jobId: string }[];
     section: string;
     replaceAll: boolean;
     status: string;

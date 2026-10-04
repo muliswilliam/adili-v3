@@ -28,9 +28,33 @@ export function nationalReportSubjectRef(nationalReportId: string): string {
   return `national-report:${nationalReportId}`;
 }
 
-/** Sections whose draft narrates findings: the task needs at least one candidate for them. */
-export function needsCandidates(scope: DraftScope): boolean {
-  return scope === 'findings' || scope === 'all';
+/**
+ * The task calls a draft of `scope` takes, by the section each asks for: the gateway drafts
+ * findings, alone or in `all`, only from at least one pattern candidate. With none, `all` is the
+ * overview and the recommendations, a call each, and `findings` cannot be drafted (null).
+ */
+export function draftJobSections(
+  scope: DraftScope,
+  candidates: readonly PatternCandidate[],
+): DraftScope[] | null {
+  if (candidates.length > 0 || scope === 'overview' || scope === 'recommendations') return [scope];
+  return scope === 'all' ? ['overview', 'recommendations'] : null;
+}
+
+/**
+ * How a draft's jobs ended together: failed as the first that failed, still drafting while any
+ * is, else succeeded with every job's paragraphs, in job order.
+ */
+export function draftOutcomeOf(outcomes: readonly DraftOutcome[]): DraftOutcome {
+  const failed = outcomes.find((outcome) => outcome.status === 'failed');
+  if (failed) return failed;
+  if (outcomes.some((outcome) => outcome.status === 'drafting')) return { status: 'drafting' };
+  return {
+    status: 'succeeded',
+    paragraphs: outcomes.flatMap((outcome) =>
+      outcome.status === 'succeeded' ? outcome.paragraphs : [],
+    ),
+  };
 }
 
 /** The task input: the figures as `narrativeFigures` built them, the candidates and the scope. */

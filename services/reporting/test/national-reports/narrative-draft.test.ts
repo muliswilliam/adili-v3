@@ -6,7 +6,13 @@ import {
   insertDraft,
   type Paragraph,
 } from '../../src/national-reports/narrative.js';
-import { outcomeOf } from '../../src/national-reports/narrative-draft.js';
+import type { PatternCandidate } from '../../src/national-reports/candidates.js';
+import {
+  draftJobSections,
+  type DraftOutcome,
+  draftOutcomeOf,
+  outcomeOf,
+} from '../../src/national-reports/narrative-draft.js';
 import type { NarrativeSection } from '../../src/national-reports/schema.js';
 
 /**
@@ -222,4 +228,43 @@ describe('NCR narrative draft outcome', () => {
   function drafted(section: NarrativeSection, text: string): DraftedParagraph {
     return { section, text, aggregateRefs: ['national.filed'], candidateIds: [] };
   }
+});
+
+describe('NCR narrative draft jobs (S2)', () => {
+  const drafted = (section: NarrativeSection, text: string): DraftedParagraph => ({
+    section,
+    text,
+    aggregateRefs: ['national.filed'],
+    candidateIds: [],
+  });
+  const candidate = { id: 'non-reporting:nlc:reported' } as PatternCandidate;
+
+  it('asks the gateway for findings only with a candidate: with none, all is the overview and the recommendations', () => {
+    expect(draftJobSections('all', [candidate])).toEqual(['all']);
+    expect(draftJobSections('findings', [candidate])).toEqual(['findings']);
+    expect(draftJobSections('all', [])).toEqual(['overview', 'recommendations']);
+    expect(draftJobSections('overview', [])).toEqual(['overview']);
+    expect(draftJobSections('recommendations', [])).toEqual(['recommendations']);
+    expect(draftJobSections('findings', [])).toBeNull();
+  });
+
+  it('ends as its jobs do together: the first failure, drafting while any is, else every paragraph', () => {
+    const overview = drafted('overview', 'Overview.');
+    const recommendation = drafted('recommendations', 'Do.');
+    const done = (paragraph: DraftedParagraph): DraftOutcome => ({
+      status: 'succeeded',
+      paragraphs: [paragraph],
+    });
+
+    expect(draftOutcomeOf([done(overview), done(recommendation)])).toEqual({
+      status: 'succeeded',
+      paragraphs: [overview, recommendation],
+    });
+    expect(draftOutcomeOf([done(overview), { status: 'drafting' }])).toEqual({
+      status: 'drafting',
+    });
+    expect(
+      draftOutcomeOf([{ status: 'drafting' }, { status: 'failed', reason: 'validation' }]),
+    ).toEqual({ status: 'failed', reason: 'validation' });
+  });
 });

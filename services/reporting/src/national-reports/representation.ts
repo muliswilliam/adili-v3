@@ -3,6 +3,7 @@ import type { NationalAggregates } from './aggregates.js';
 import { type Narrative, narrativeOf, type Paragraph } from './narrative.js';
 import type { DraftFailureReason } from './narrative-draft.js';
 import type {
+  DraftJob,
   DraftScope,
   NarrativeDraftStatus,
   nationalReportAggregates,
@@ -19,7 +20,7 @@ export type NarrativeDraftRow = typeof nationalReportNarrativeDrafts.$inferSelec
 
 /** reporting.yaml `NarrativeDraft`: the report's latest AI narrative draft. */
 export interface NarrativeDraftView {
-  jobId: string;
+  jobs: DraftJob[];
   section: DraftScope;
   replaceAll: boolean;
   status: NarrativeDraftStatus;
@@ -91,7 +92,7 @@ export function nationalReportView(
 
 function narrativeDraftView(draft: NarrativeDraftRow): NarrativeDraftView {
   return {
-    jobId: draft.jobId,
+    jobs: draft.jobs.map((job) => ({ ...job })),
     section: draft.section,
     replaceAll: draft.replaceAll,
     status: draft.status,
