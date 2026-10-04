@@ -448,6 +448,11 @@ describe('feedback (S8)', () => {
     expect(response.json()).toMatchObject({ type: 'assistant-unavailable' });
     const resumed = await opened(draft.id);
     expect(resumed.messages.find((message) => message.id === answer.id)?.rating).toBeNull();
+    expect(await eventsOf('assistant.feedback.recorded.v1')).toEqual([]);
+    const [row] = await api.asPerson(ACHIENG, (tx) =>
+      tx.select().from(assistantMessages).where(eq(assistantMessages.id, answer.id)),
+    );
+    expect(row).toMatchObject({ rating: null, feedbackCiphertext: null, feedbackEnvelope: null });
   });
 
   it("answers 404 for a question, an unknown message and another person's answer", async () => {
