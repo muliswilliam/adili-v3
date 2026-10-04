@@ -87,6 +87,9 @@ export class WorkflowTestEnvironment {
         workflow,
         this.startOptions(taskQueue, options),
       );
+      if (this.runWorkflow) {
+        throw new Error('WorkflowTestEnvironment.run drives one workflow at a time');
+      }
       this.runWorkflow = handle;
       try {
         return await body(handle);
@@ -138,6 +141,12 @@ export class WorkflowTestEnvironment {
    * on a loaded machine, cancelled a timer that had fired meanwhile. So the skip waits for the
    * workflow to settle before it starts and after it ends, and goes on past any timer due within
    * `TIMER_GUARD_MS`, a few milliseconds more of test time.
+   *
+   * Limits in `run`: a skip can go past its target by up to `TIMER_GUARD_MS` per timer it skips
+   * past (at most `MAX_GUARD_SKIPS` of them), so a test cannot assert that a timer has not fired
+   * yet when it is due within `TIMER_GUARD_MS` of where the skip lands. An activity waiting
+   * between retries counts as running, so a skip while one is in its backoff waits for it, and
+   * fails after `SETTLE_TIMEOUT_MS` if the backoff is longer.
    */
   async skipTime(to: { ms: number } | { until: Date }): Promise<void> {
     const ms = 'ms' in to ? to.ms : to.until.getTime() - (await this.env.currentTimeMs());
