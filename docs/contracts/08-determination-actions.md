@@ -45,6 +45,7 @@ Schemas changed:
 - `AdministrativeAction`: `proposer`, `declinedBy`, `declinedAt`, `declineNote`, `issuedAt` (#206).
 - `Ladder`: `closingCause` (`filed`, `clarification-responded`, `clarification-resolved`, `obligation-cancelled`, `clarification-withdrawn`), so a ladder that ended without compliance reads apart from one that complied (#206, #209).
 - `DeclarantNotice.response`: a closed object with `text`, `attachments` and `submittedAt` required (#206).
+- `DeclarantNotice`: `ladderId` (the notices of one subject share it), `subject` (`kind`, `reference`: the cycle key or the CLR number, and `dueAt`: when the clarification's response was due, null for an obligation) and `windowDays` (from issue to `actBy`), so the portal groups notices by ladder and names what failed (#205).
 - `Referral`: `caseId` (the case it was proposed from, or whose clarification went unanswered; null for two missed cycles), `cycleYear`, `approvedAt`, `declinedBy`, `declinedAt`, `declineNote`, `evidence` (on `getReferral` only: kind and reference of each included item), `package.manifest` items as the named `ReferralManifestItem` (#212); `icmsCaseNumber`, `icmsRegisteredAt` (#237).
 - `ReferralInput`: `flagIds` 1 to 100, `clarificationIds` up to 50 (#212).
 - New: `DeterminationLetterPayload`, `ActionLetterPayload`, `ReferralPackagePayload`, `ReferralManifestItem`, `ReferralManifestKind`, `ReferralIcmsPayload`, `FurtherActionLink`, `ApprovalReassignment`.
