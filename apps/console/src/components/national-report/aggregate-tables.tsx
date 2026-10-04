@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@adili/ui';
+import type { ReactNode, Ref } from 'react';
 
 import type {
   CommissionAggregate,
@@ -25,13 +26,82 @@ const SECTIONS = ['initial', 'biennial', 'final'] as const;
 /** Commissions per page of the per-Commission table, as the prototype pages it. */
 export const COMMISSIONS_PER_PAGE = 10;
 
-function CardHeading({ id, children }: { id: string; children: string }) {
+/** A national report card's heading, with what follows it on the line (a count, a tip). */
+export function CardHeading({
+  id,
+  children,
+  extra,
+  ref,
+}: {
+  id: string;
+  children: string;
+  extra?: ReactNode;
+  /** The heading, e.g. to take focus after a retry (it is focusable from script only). */
+  ref?: Ref<HTMLHeadingElement>;
+}) {
   return (
-    <div className="border-b px-5 py-4">
-      <h3 id={id} className="text-[15.5px] font-semibold tracking-[-0.01em]">
+    <div className="flex items-center gap-2 border-b px-5 py-4">
+      <h3
+        id={id}
+        ref={ref}
+        tabIndex={ref ? -1 : undefined}
+        className="text-[15.5px] font-semibold tracking-[-0.01em] outline-none"
+      >
         {children}
       </h3>
+      {extra}
     </div>
+  );
+}
+
+/** The index of the first item on `page` (from 1), `perPage` to a page. */
+const firstOnPage = (page: number, perPage: number) => (page - 1) * perPage;
+
+/** The page (from 1) the item at `index` is on, `perPage` to a page: `pageOf`'s pages. */
+export const pageContaining = (index: number, perPage: number) => Math.floor(index / perPage) + 1;
+
+/** The page of `items` shown, `perPage` to a page, `page` kept within the pages there are. */
+export function pageOf<T>(items: readonly T[], page: number, perPage: number) {
+  const pages = Math.max(1, Math.ceil(items.length / perPage));
+  const current = Math.min(Math.max(1, page), pages);
+  const from = firstOnPage(current, perPage);
+  return { pages, current, from, shown: items.slice(from, from + perPage) };
+}
+
+/** Previous and Next under a card paged in the browser, with the range shown; none for one page. */
+export function CardPager({
+  paged,
+  total,
+  labels,
+  onPageChange,
+}: {
+  paged: ReturnType<typeof pageOf>;
+  total: number;
+  labels: { pagination: string; pageRows: (count: number) => string };
+  onPageChange: (page: number) => void;
+}) {
+  const { pages, current, from, shown } = paged;
+  if (pages <= 1) return null;
+  return (
+    <CursorPager
+      labels={{
+        pagination: labels.pagination,
+        pageRange: (start, end) => m.pageRange(start, end, total),
+        pageRows: labels.pageRows,
+        previousPage: m.previousPage,
+        nextPage: m.nextPage,
+      }}
+      range={{ from: from + 1, to: from + shown.length }}
+      rows={shown.length}
+      hasPrevious={current > 1}
+      hasNext={current < pages}
+      onPrevious={() => {
+        onPageChange(current - 1);
+      }}
+      onNext={() => {
+        onPageChange(current + 1);
+      }}
+    />
   );
 }
 
@@ -61,7 +131,7 @@ export function NationalTotals({ aggregates }: { aggregates: NationalAggregates 
         </TableHeader>
         <TableBody>
           {rows.map((row) => (
-            <TableRow key={row.key}>
+            <TableRow key={row.key} id={`ncr-total-${row.key}`}>
               <TableHead
                 scope="row"
                 className={cn(
@@ -135,10 +205,8 @@ export function CommissionsTable({
   onPageChange: (page: number) => void;
 }) {
   const rows = commissionRows(aggregates);
-  const pages = Math.max(1, Math.ceil(rows.length / COMMISSIONS_PER_PAGE));
-  const current = Math.min(Math.max(1, page), pages);
-  const from = (current - 1) * COMMISSIONS_PER_PAGE;
-  const shown = rows.slice(from, from + COMMISSIONS_PER_PAGE);
+  const paged = pageOf(rows, page, COMMISSIONS_PER_PAGE);
+  const { shown } = paged;
   return (
     <Card role="region" aria-labelledby="ncr-per" className="overflow-hidden p-0 sm:p-0">
       <CardHeading id="ncr-per">{m.byCommissionTitle}</CardHeading>
@@ -173,27 +241,12 @@ export function CommissionsTable({
           ))}
         </TableBody>
       </Table>
-      {pages > 1 ? (
-        <CursorPager
-          labels={{
-            pagination: m.pagination,
-            pageRange: (start, end) => m.pageRange(start, end, rows.length),
-            pageRows: m.pageRows,
-            previousPage: m.previousPage,
-            nextPage: m.nextPage,
-          }}
-          range={{ from: from + 1, to: from + shown.length }}
-          rows={shown.length}
-          hasPrevious={current > 1}
-          hasNext={current < pages}
-          onPrevious={() => {
-            onPageChange(current - 1);
-          }}
-          onNext={() => {
-            onPageChange(current + 1);
-          }}
-        />
-      ) : null}
+      <CardPager
+        paged={paged}
+        total={rows.length}
+        labels={{ pagination: m.pagination, pageRows: m.pageRows }}
+        onPageChange={onPageChange}
+      />
     </Card>
   );
 }

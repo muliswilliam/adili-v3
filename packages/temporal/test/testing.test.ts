@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { WorkflowTestEnvironment } from '../src/testing.js';
-import { awaitNudge, greet, lastNudge, nudge } from './fixtures/workflows.js';
+import { awaitNudge, countNudges, greet, lastNudge, nudge } from './fixtures/workflows.js';
 
 // One spy for every importer: the factory may run once per module graph.
 const bundleWorkflowCode = vi.hoisted(() => vi.fn());
@@ -72,5 +72,26 @@ describe('WorkflowTestEnvironment', () => {
     expect((await env.now()).getTime() - before.getTime()).toBeGreaterThanOrEqual(
       3 * 24 * 60 * 60 * 1000,
     );
+  });
+
+  // Each skip ends as the workflow's hourly timer falls due. Sent then, a signal's workflow task
+  // cancels a timer that fires while the task is with the worker; the time-skipping server
+  // refuses that completion ("invalid history builder state", temporalio/sdk-java#3088) and the
+  // run is stranded: without the settling in `skipTime`, the result never comes.
+  it('signals sent as a skip ends on a due timer reach the workflow', async () => {
+    const signals = 40;
+    const result = await env.run(
+      countNudges,
+      { workflowsPath, activities: {}, args: [signals] },
+      async (handle) => {
+        for (let sent = 0; sent < signals; sent++) {
+          await env.skipTime({ ms: 60 * 60 * 1000 });
+          await handle.signal(nudge, 'wake up');
+        }
+        return handle.result();
+      },
+    );
+
+    expect(result).toBe(signals);
   });
 });

@@ -73,6 +73,9 @@ export type SubmittedReport = Omit<Schemas['SubmittedComplianceReport'], 'docume
   document: FormMV1;
 };
 
+/** reporting.yaml `PatternCandidate`: a notable pattern the service computed for the year. */
+export type PatternCandidate = Schemas['PatternCandidate'];
+
 /** EACC's referrals intake (spec 09 S12). */
 export type ReferralIntakeItem = Schemas['ReferralIntakeItem'];
 export type ReferralIntakePage = Schemas['ReferralIntakePage'];
