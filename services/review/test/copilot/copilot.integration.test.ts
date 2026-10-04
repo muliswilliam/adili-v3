@@ -171,17 +171,28 @@ describe('review copilot', () => {
     return { caseId: created.id, row };
   };
 
-  /** Completes the latest request's jobs and waits for the copilot to be ready. */
+  /**
+   * Completes the latest request's jobs and waits for the copilot to be ready, then for the jobs'
+   * workflows to end: on a loaded runner a job's activity can run again after the copilot reads
+   * ready (see the output-purged test below), and its pull of the job from the gateway would
+   * take an outage the test arms next.
+   */
   const completeJobs = async (caseId: string, overview = OVERVIEW) => {
     const row = await copilotRow(caseId);
     if (!row?.requestedSummaryJobId) throw new Error('no summarize job');
+    const jobIds = [row.requestedSummaryJobId];
     await deliver(api.ai.succeed(row.requestedSummaryJobId, summaryOutput(overview)));
     if (row.requestedExplanationsJobId) {
+      jobIds.push(row.requestedExplanationsJobId);
       await deliver(
         api.ai.succeed(row.requestedExplanationsJobId, explanationsOutput(await flagIdsOf(caseId))),
       );
     }
-    return untilStatus(caseId, 'ready');
+    const ready = await untilStatus(caseId, 'ready');
+    for (const jobId of jobIds) {
+      await temporalOf(api).workflow.getHandle(copilotJobWorkflowId(jobId)).result();
+    }
+    return ready;
   };
 
   const assign = (caseId: string, assignee: string) =>
