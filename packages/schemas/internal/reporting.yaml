@@ -817,7 +817,7 @@ paths:
                   default: snapshot
                   description: A mid-year snapshot, or a corrected annual release once the published one is withdrawn
       responses:
-        '202':
+        '201':
           description: Built as a preview
           content:
             application/json:

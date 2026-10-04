@@ -91,7 +91,7 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
 
   async function snapshotBuilt(caller: Caller = ANALYST): Promise<OpenDataReleaseView> {
     const response = await buildSnapshot(caller);
-    expect(response.statusCode, response.body).toBe(202);
+    expect(response.statusCode, response.body).toBe(201);
     return response.json<OpenDataReleaseView>();
   }
 
@@ -107,7 +107,7 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
 
     const release = await snapshotBuilt(ANALYST);
 
-    expect(contractErrors(okResponse(RELEASES, 'post', 202), release)).toEqual([]);
+    expect(contractErrors(okResponse(RELEASES, 'post', 201), release)).toEqual([]);
     expect(release).toMatchObject({
       fy: RELEASE_FY,
       kind: 'snapshot',
@@ -295,10 +295,10 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
     const first = await buildSnapshot(ANALYST, key);
     const again = await buildSnapshot(ANALYST, key);
 
-    expect(again.statusCode, again.body).toBe(202);
+    expect(again.statusCode, again.body).toBe(201);
     expect(again.json()).toEqual(first.json());
     expect(await api.events(OPEN_DATA_RELEASE_BUILT)).toHaveLength(1);
-    expect((await buildSnapshot(ANALYST, undefined, RELEASE_FY)).statusCode).toBe(202);
+    expect((await buildSnapshot(ANALYST, undefined, RELEASE_FY)).statusCode).toBe(201);
     const missingKey = await api.send('POST', RELEASES, ANALYST, { fy: RELEASE_FY });
     expect(missingKey.statusCode).toBe(400);
   });
@@ -367,7 +367,7 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
 
     const release = await snapshotBuilt(SUPERVISOR);
 
-    expect(contractErrors(okResponse(RELEASES, 'post', 202), release)).toEqual([]);
+    expect(contractErrors(okResponse(RELEASES, 'post', 201), release)).toEqual([]);
     expect(release).toMatchObject({
       fy: RELEASE_FY,
       kind: 'snapshot',

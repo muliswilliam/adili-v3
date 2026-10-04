@@ -83,7 +83,7 @@ describe('Commission open-data preview (S6)', () => {
       { fy: RELEASE_FY },
       { 'idempotency-key': randomUUID() },
     );
-    expect(response.statusCode, response.body).toBe(202);
+    expect(response.statusCode, response.body).toBe(201);
     return response.json<OpenDataReleaseView>();
   }
 

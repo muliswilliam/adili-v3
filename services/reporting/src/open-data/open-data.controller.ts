@@ -1,5 +1,11 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   ApiProblemResponse,
   CurrentPrincipal,
@@ -58,14 +64,14 @@ export class OpenDataController {
   }
 
   @Post()
-  @HttpCode(HttpStatus.ACCEPTED)
+  @HttpCode(HttpStatus.CREATED)
   @RequireIdempotencyKey()
   @ApiOperation({
     operationId: 'buildOpenDataRelease',
     summary:
       'Build a snapshot, or a corrected annual release, for a financial year as a preview (EACC analyst or supervisor)',
   })
-  @ApiOkResponse({ description: 'Built as a preview' })
+  @ApiCreatedResponse({ description: 'Built as a preview' })
   @ApiProblemResponse(400, 'Body failed validation, or Idempotency-Key missing')
   @ApiProblemResponse(403, EACC_ONLY)
   @ApiProblemResponse(

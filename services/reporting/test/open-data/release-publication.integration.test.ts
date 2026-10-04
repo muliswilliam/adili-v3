@@ -96,7 +96,7 @@ describe('Open-data release publication (S5, S6, S7)', () => {
       { fy: RELEASE_FY },
       { 'idempotency-key': randomUUID() },
     );
-    expect(response.statusCode, response.body).toBe(202);
+    expect(response.statusCode, response.body).toBe(201);
     return response.json<OpenDataReleaseView>();
   }
 
@@ -495,9 +495,9 @@ describe('Open-data release publication (S5, S6, S7)', () => {
     // An analyst builds the corrected annual release: a preview, the next annual version.
     api.clock.set('2028-09-03T09:00:00.000Z');
     const response = await build(ANALYST, { fy: RELEASE_FY, kind: 'annual' });
-    expect(response.statusCode, response.body).toBe(202);
+    expect(response.statusCode, response.body).toBe(201);
     const corrected = response.json<OpenDataReleaseView>();
-    expect(contractErrors(okResponse(RELEASES, 'post', 202), corrected)).toEqual([]);
+    expect(contractErrors(okResponse(RELEASES, 'post', 201), corrected)).toEqual([]);
     expect(corrected).toMatchObject({
       fy: RELEASE_FY,
       kind: 'annual',
@@ -588,7 +588,7 @@ describe('Open-data release publication (S5, S6, S7)', () => {
     expect(await releases()).toEqual([]);
 
     const snapshot = await build(ANALYST, { fy: RELEASE_FY, kind: 'snapshot' });
-    expect(snapshot.statusCode).toBe(202);
+    expect(snapshot.statusCode).toBe(201);
     expect(snapshot.json()).toMatchObject({ kind: 'snapshot', version: 1 });
 
     for (const caller of [COMMISSION_ADMIN, SUPERVISOR_OF_PSC]) {
