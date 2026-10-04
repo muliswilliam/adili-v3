@@ -141,7 +141,7 @@ export async function enforcement(input: EnforcementInput): Promise<EnforcementR
 /**
  * Records the closing of the ladder (open steps complied or cancelled), then reinstates a stopped
  * salary and tells the declarant, whatever the cause: compliance, or the subject going away (an
- * obligation cancelled, a clarification withdrawn). A salary is never left stopped.
+ * obligation cancelled, a clarification withdrawn). Closing never leaves a salary stopped.
  */
 async function close(ladder: LadderRef, cause: ClosingCause): Promise<EnforcementResult> {
   await closeLadder({ ...ladder, cause });

@@ -354,8 +354,8 @@ sequenceDiagram
     INT->>PAY: stop salary pending compliance
     PAY-->>INT: acknowledgement
     EW->>REV: draft disciplinary referral (supervisor approves)
-    Note over EW: Compliance (filed, responded, resolved) sends resume_salary (ADM ref plus -R)
-    RS->>REV: daily: 2 consecutive cycles → propose RFL referral to EACC / ICMS (Reg 20(2))
+    Note over EW: Compliance (filed, responded, resolved) or the subject going away (cancelled, withdrawn) ends the ladder and sends resume_salary (ADM ref plus -R)
+    RS->>REV: daily: 2 consecutive cycles (Reg 20(2)) or an unanswered clarification → propose RFL referral to EACC / ICMS
 ```
 
 ### 5.5 Form M and national consolidation
