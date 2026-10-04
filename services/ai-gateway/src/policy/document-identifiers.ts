@@ -180,9 +180,20 @@ const CURRENCIES: ReadonlySet<string> = new Set([
   'ugx',
 ]);
 
-/** Words that join two parties, in any case: "and", "or", Swahili "na", "aka", "alias". */
+/**
+ * Words that join two parties, in any case: "and", "or", "and/or", "together" (with), Swahili
+ * "na", "aka".
+ */
 const JOINER_WORDS = new Set([
-  ...['and', 'or', 'and/or', 'together', 'na', 'pia', 'pamoja', 'aka', 'alias'],
+  'and',
+  'or',
+  'and/or',
+  'together',
+  'na',
+  'pia',
+  'pamoja',
+  'aka',
+  'alias',
 ]);
 /** Lowercase particles inside a name: "Ali bin Hassan", "Kamau wa Ngengi", "Maria de Souza". */
 const PARTICLES = new Set([
@@ -358,15 +369,20 @@ export function recurrenceOf(word: string): 'any' | 'written' | 'exact' {
 }
 
 /**
- * Whether a name word found again, with `rest` the text after it, is an address's word
- * instead: "Box" before a number ("Postal: Box 99") is not the name "Box".
+ * Whether a name word found again, with `rest` the text after it, is another word there: "Box"
+ * before a number is an address's ("Postal: Box 99"), and a field word before a colon is the
+ * field's label ("Ward: Kilimani" after "Mary Ward"), not the name.
  */
-export function addressesAt(word: string, rest: string): boolean {
-  return ADDRESS_WORDS.has(word.toLowerCase()) && ADDRESS_NUMBER.test(rest);
+export function namesNoOneAt(word: string, rest: string): boolean {
+  const text = word.toLowerCase();
+  if (ADDRESS_WORDS.has(text) && ADDRESS_NUMBER.test(rest)) return true;
+  return FIELD_LEADS.has(text) && LABEL_COLON.test(rest);
 }
 
 /** A number after spaces, as an address's box number follows "Box". */
 const ADDRESS_NUMBER = /^[ \t]*\p{N}/u;
+/** A colon after spaces, as a field's label has one. */
+const LABEL_COLON = /^[ \t]*:/u;
 
 const lower = (word: string) => word.toLowerCase();
 const isOrganisationWord = (word: string | undefined) =>
@@ -453,7 +469,10 @@ function fieldWordEnds(tokens: readonly Token[], index: number): boolean {
   const word = tokens[index];
   if (word?.kind !== 'word') return false;
   const text = lower(word.text);
-  if (NAME_FIELDS.has(text)) return valueAfter(tokens, index);
+  // A shape after one is another field's value ("Mary Ward ID 12345678"), not the ward's.
+  if (NAME_FIELDS.has(text)) {
+    return valueAfter(tokens, index) && !isMark(tokens[nextToken(tokens, index)], BLANK);
+  }
   if (!ORGANISATION_WORDS.has(text) && !ORGANISATION_FIELDS.has(text)) return true;
   let at = index + 1;
   while (tokens[at]?.kind === 'space') at++;
@@ -495,7 +514,8 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
   const nextNameEnd = (joiner: number): number => {
     const next = pastFiller(tokens, nextToken(tokens, joiner), end);
     if (isMark(tokens[next], BLANK) || fieldValueAt(tokens, next, end) > 0) return -1;
-    return nameRunOf(tokens, next, end)?.next ?? 0;
+    const run = readWordRun(tokens, next, end);
+    return run.kind === 'name' ? run.next : 0;
   };
   for (let at = from; at < end && words < MAX_WORDS && parties.length <= MAX_PARTIES; at++) {
     const token = tokens[at];
@@ -546,7 +566,8 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
       // A field before the name is skipped ("Proprietor: ID 12345678 John Kamau"); a member's
       // number the span opens on is followed by a name or ends it ("Member No. 3310 Mary
       // Wanjiru", not "... Stima Sacco").
-      const numberFirst = words === 0 && LABEL_TAILS.has(lower(word));
+      const numberFirst =
+        words === 0 && (LABEL_TAILS.has(lower(word)) || CODE_LEADS.has(lower(word)));
       if (words === 0 && !numberFirst) {
         at = value - 1;
         continue;
@@ -568,42 +589,53 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
   return parties.filter((party) => party.length > 0);
 }
 
-/** A run of name words after a value: how many, where it ends, and whether an address word ends it. */
-interface NameRun {
+/**
+ * A run of capitalised words a span reads (after a label's value, or after a joiner there): a
+ * person's name, an address, or neither (an organisation, a field, an item).
+ */
+interface WordRun {
+  kind: 'name' | 'address' | 'other';
+  /** Name words in the run. */
   names: number;
   /** The token after the run. */
   next: number;
-  /** Whether a word that is also an address's ends the run ("Riverside Drive", "Mary Park"). */
+  /** Whether a word that is also an address's is in the run ("Riverside Drive", "Mary Park"). */
   addressWord: boolean;
 }
 
 /**
- * The run of name words at `at`: capitalised words and particles, up to a known word (a field,
- * heading, office, vehicle model, currency or a field's label), a month before a number ("May
- * 2023"), an uncapitalised word or a mark. Null when the run is an organisation's or an address's:
- * a company word ("Equity Bank"), an address word that is no surname ("Runda Estate", "Kileleshwa
- * Road"), places alone ("Nairobi"), or an address word that is a surname after places alone
- * ("Westlands Park"; a name may start with a place: "Kericho Langat").
+ * The run of words at `at`, read as a name: capitalised words and particles, up to a known word (a
+ * field, heading, office, vehicle model, currency or a field's label), a month before a number
+ * ("May 2023"), an uncapitalised word or a mark. It is an address when it holds an address word
+ * that is no surname ("Runda Estate", "Kileleshwa Road"), is places alone ("Nairobi"), or holds an
+ * address word that is a surname after places alone ("Westlands Park"; a name may start with a
+ * place: "Kericho Langat"). It is neither when it holds a company word ("Equity Bank") or no name.
  */
-function nameRunOf(tokens: readonly Token[], at: number, end: number): NameRun | null {
+function readWordRun(tokens: readonly Token[], at: number, end: number): WordRun {
   let names = 0;
   let places = 0;
   let addressWord = false;
   let next = at;
+  const address = (): WordRun => ({
+    kind: 'address',
+    names: 0,
+    next: addressEnd(tokens, at, end),
+    addressWord: true,
+  });
   for (; next < end; next++) {
     const token = tokens[next];
     if (token?.kind === 'space') continue;
     if (token?.kind !== 'word') break;
     if (PARTICLES.has(token.text) && names > 0) continue;
     const word = lower(token.text);
-    if (isOrganisationWord(word)) return null;
+    if (isOrganisationWord(word)) return { kind: 'other', names, next, addressWord };
     if (!isCapitalised(token.text)) break;
     if (MONTHS.has(word) && tokens[nextToken(tokens, next)]?.kind === 'number') break;
     // A field's label ends the name ("Peter Otieno Staff No. 12").
     if (CODE_LEADS.has(word) || LABEL_TAILS.has(word)) break;
-    if (ADDRESS_WORDS_NO_NAME.has(word)) return null;
+    if (ADDRESS_WORDS_NO_NAME.has(word)) return address();
     if (ADDRESS_TAIL_WORDS.has(word)) {
-      if (names === places) return null;
+      if (names === places) return address();
       addressWord = true;
     }
     // A field word that is also a name is one when no value follows it ("Mary Ward").
@@ -623,39 +655,56 @@ function nameRunOf(tokens: readonly Token[], at: number, end: number): NameRun |
     if (startsLabel(tokens, next) || labelsAField(tokens, next)) break;
     names++;
   }
-  return names > places ? { names, next, addressWord } : null;
+  if (names > 0 && names === places) return address();
+  return { kind: names > places ? 'name' : 'other', names, next, addressWord };
+}
+
+/** The token after an address's words from `at`: up to a joiner, a lowercase word or a mark. */
+function addressEnd(tokens: readonly Token[], at: number, end: number): number {
+  let next = at;
+  for (; next < end; next++) {
+    const token = tokens[next];
+    if (token?.kind === 'space' || isMark(token, '.')) continue;
+    if (token?.kind !== 'word' || !isCapitalised(token.text)) break;
+  }
+  return next;
 }
 
 /**
- * The person's name that starts at `at`, if one does, after a value ("... ID 12345678 Mary Wanjiru", "... and
- * Mary Park"). A run an address word ends is the address's when a comma parts it from the value
- * ("ID 12345678, Riverside Drive") or a place follows it ("Kakuzi Court, Nairobi").
+ * The run of words at `at` after a value (a shape or a field's number), as a person's name or an
+ * address. A name with a word that is also an address's ("Mary Park", "Riverside Drive") is the
+ * address when a comma parts it from the value ("ID 12345678, Riverside Drive") or a place
+ * follows it ("Kakuzi Court, Nairobi"), unless a value follows it in turn ("ID 12345678, Mary
+ * Park ID 23456789").
  */
-function nameRunAt(
+function runAfterValue(
   tokens: readonly Token[],
   at: number,
   end: number,
   afterComma: boolean,
-): NameRun | null {
-  const run = nameRunOf(tokens, at, end);
-  if (!run?.addressWord) return run;
-  const mark = nextToken(tokens, run.next - 1);
+): WordRun {
+  const run = readWordRun(tokens, at, end);
+  if (run.kind !== 'name' || !run.addressWord) return run;
+  let mark = nextToken(tokens, run.next - 1);
   const placeAfter =
     tokens[mark]?.kind === 'joiner' && PLACES.has(lower(wordAt(tokens, nextToken(tokens, mark))));
-  return afterComma || placeAfter ? null : run;
+  if (tokens[mark]?.kind === 'joiner') mark = nextToken(tokens, mark);
+  const valueAfterRun = isMark(tokens[mark], BLANK) || fieldValueAt(tokens, mark, end) > 0;
+  if (valueAfterRun || !(afterComma || placeAfter)) return run;
+  return { ...run, kind: 'address', next: addressEnd(tokens, at, end) };
 }
 
 /**
- * The person's name that follows a member's number at `at`, if one does ("Member No. 3310 Mary Wanjiru KES
- * 5,000"): any run of name words, unless it is one word that prose follows ("Approved by the
- * Board") or the statement's fields come first ("Statement Period:", "Opening Balance 20,000").
+ * The run of words at `at` after a member's number ("Member No. 3310 Mary Wanjiru KES 5,000"): a
+ * name unless it is one word that prose follows ("Approved by the Board") or the statement's
+ * fields come first ("Statement Period:", "Opening Balance 20,000").
  */
-function memberNameAt(tokens: readonly Token[], at: number, end: number): NameRun | null {
-  const run = nameRunOf(tokens, at, end);
-  if (!run) return null;
+function runAfterMemberNumber(tokens: readonly Token[], at: number, end: number): WordRun {
+  const run = readWordRun(tokens, at, end);
+  if (run.kind !== 'name') return run;
   const after = tokens[nextToken(tokens, run.next - 1)];
   const prose = after?.kind === 'word' && !isCapitalised(after.text) && !PARTICLES.has(after.text);
-  return run.names === 1 && prose ? null : run;
+  return run.names === 1 && prose ? { ...run, kind: 'other' } : run;
 }
 
 /** The word at `at`, or an empty string. */
@@ -679,7 +728,7 @@ const ADDRESS_WORDS_NO_NAME: ReadonlySet<string> = new Set([
   ...['road', 'rd', 'street', 'avenue', 'highway', 'town', 'city', 'estate', 'building'],
   ...['floor', 'county', 'centre', 'apartments', 'apartment', 'gardens', 'flats'],
 ]);
-/** Words of an address's tail after its box or before its town ("Westlands Road", "Plot No. 45"). */
+/** Words of an address's tail, after its box or before its town ("Westlands Road", "Plot 45"). */
 const ADDRESS_TAIL_WORDS: ReadonlySet<string> = new Set([
   ...ADDRESS_WORDS_NO_NAME,
   // Address words that are also surnames ("Mary Park", "Peter Close").
@@ -725,6 +774,9 @@ function fieldValueAt(tokens: readonly Token[], at: number, end: number, opening
     if (token?.kind === 'space' || token?.kind === 'colon' || isMark(token, '.')) continue;
     if (token?.kind !== 'word') break;
     const word = lower(token.text);
+    // A field word that is also a name, before a shape, is a name ("Mary Ward ID 12345678").
+    if (fields === 0 && NAME_FIELDS.has(word) && isMark(tokens[nextToken(tokens, next)], BLANK))
+      break;
     if (FIELD_LEADS.has(word)) fields++;
     else if (CODE_LEADS.has(word) && fields === 0 && !numbered) codes++;
     else if ((fields + codes > 0 || opening) && LABEL_TAILS.has(word)) numbered = true;
@@ -737,11 +789,11 @@ function fieldValueAt(tokens: readonly Token[], at: number, end: number, opening
 }
 
 /**
- * Where the span goes on after a value at `at` (a shape, or a field's number) that follows a name:
- * past the value, its address's tail, joiners and any more fields and values, at a person's name
- * ("... ID 12345678 of Nakuru and Mary Wanjiru", "... 0712345678 Mary Wanjiru"); -1 when an item,
- * an organisation or a place follows instead ("... ID 12345678 Toyota Premio", "... Equity Bank",
- * "... ID 12345678, Runda Estate, Nairobi").
+ * The person's name the span goes on to after a value at `at` (a shape, or a field's number)
+ * that follows a name, past the value, its address's tail, addresses, joiners and any more fields
+ * and values: "... ID 12345678 of Nakuru and Mary Wanjiru", "... 0712345678 Mary Wanjiru", "...
+ * ID 12345678, Riverside Drive, Nairobi and Mary Wanjiru". Null, ending the span, when an item, an
+ * organisation or nothing follows instead ("... ID 12345678 Toyota Premio", "... Equity Bank").
  */
 function partyAfterValue(
   tokens: readonly Token[],
@@ -757,27 +809,34 @@ function partyAfterValue(
     const value = fieldValueAt(tokens, next, end);
     const after = tokens[next];
     const word = after?.kind === 'word' && JOINER_WORDS.has(lower(after.text));
-    if (value > 0) {
-      next = addressTail(tokens, value, end);
+    if (value > 0 || isMark(after, BLANK)) {
+      next = addressTail(tokens, value > 0 ? value : next, end);
       afterComma = false;
-    } else if (after?.kind === 'joiner' || word) {
+      continue;
+    }
+    if (after?.kind === 'joiner' || word) {
       // A comma or semicolon parts; "&" and "/" join, as "and" does.
       afterComma = after.kind === 'joiner' && (after.text === ',' || after.text === ';');
       next = pastFiller(tokens, nextToken(tokens, next), end);
-    } else break;
+      continue;
+    }
+    const run = memberNumber
+      ? runAfterMemberNumber(tokens, next, end)
+      : runAfterValue(tokens, next, end, afterComma);
+    if (run.kind === 'name') return { start: next, next: run.next };
+    // An address is skipped: a joiner and a name may follow it.
+    if (run.kind !== 'address' || run.next <= next) return null;
+    next = run.next;
+    afterComma = false;
   }
-  if (next >= end) return null;
-  const run = memberNumber
-    ? memberNameAt(tokens, next, end)
-    : nameRunAt(tokens, next, end, afterComma);
-  return run ? { start: next, next: run.next } : null;
+  return null;
 }
 
 /** Words between a joiner and the name it joins ("and the Late Mary", "and his wife Mary"). */
 const FILLER_WORDS: ReadonlySet<string> = new Set([
   ...['the', 'late', 'his', 'her', 'their', 'wife', 'husband', 'spouse', 'son', 'daughter'],
   ...['marehemu', 'mke', 'mume', 'wake', 'mr', 'mrs', 'ms', 'miss', 'dr'],
-  ...['said', 'one', 'nominee', 'together', 'with'],
+  ...['said', 'one', 'nominee', 'with'],
 ]);
 
 /** The first token from `at` past filler words, their dots and spaces. */
@@ -832,7 +891,10 @@ function wrapsName(tokens: readonly Token[]): boolean {
   );
 }
 
-/** A list entry's marker: its kind, the number it gives, how far it is indented, and where the entry starts. */
+/**
+ * A list entry's marker: its kind, the number it gives, how far it is indented, and where the
+ * entry starts.
+ */
 interface Marker {
   kind: 'digit' | 'letter' | 'roman' | 'bullet';
   value: number;
@@ -1147,7 +1209,7 @@ function wrapsFrom(tokens: readonly Token[], line: string): boolean {
 /** A line at least this long may have been broken by the page's width. */
 const WRAPPED_LINE_LENGTH = 40;
 
-/** Whether a line's last word, past spaces, is a capitalised name word: a name may wrap after it. */
+/** Whether a line's last word, past spaces, is a capitalised name word a name may wrap after. */
 function endsWithName(tokens: readonly Token[]): boolean {
   for (let at = tokens.length - 1; at >= 0; at--) {
     const token = tokens[at];
