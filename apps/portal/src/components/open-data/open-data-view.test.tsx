@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadOpenDataPage, type OpenDataPage } from '../../server/open-data.server';
 import type { ReleaseSelection } from '../../server/open-data.server';
 import { mockOpenDataFetch } from '../../server/reporting/mock.server';
-import type { paths } from '../../server/reporting/schema';
+import type { paths } from '../../server/reporting/schema.gen';
 import { navigate } from '../declaration/testing-mocks';
 import { OpenDataView, type OpenDataViewProps } from './open-data-view';
 

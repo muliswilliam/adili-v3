@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { loadOpenDataFile, loadOpenDataPage } from './open-data.server';
 import { mockOpenDataFetch, setOpenDataMockState } from './reporting/mock.server';
-import type { paths } from './reporting/schema';
+import type { paths } from './reporting/schema.gen';
 
 function client() {
   return mockableClient<paths>({

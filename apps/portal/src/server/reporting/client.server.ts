@@ -3,7 +3,7 @@ import { mockableClient } from '@adili/api-kit/client';
 import { env } from '../env.server';
 import { releaseStatusCap } from './cache-policy';
 import { publicCache } from './public-cache';
-import type { paths } from './schema';
+import type { paths } from './schema.gen';
 
 // One cache for the server's lifetime, shared by every visitor (see `publicCache`).
 const cachedFetch = publicCache((request, init) => fetch(request, init), {

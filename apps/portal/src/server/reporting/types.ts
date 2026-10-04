@@ -1,4 +1,4 @@
-import type { components, operations } from './schema';
+import type { components } from './schema.gen';
 
 type Schemas = components['schemas'];
 
@@ -6,9 +6,8 @@ export type OpenDataRelease = Schemas['PublicOpenDataRelease'];
 export type OpenDataTableName = Schemas['OpenDataTable'];
 export type ReleaseKind = OpenDataRelease['kind'];
 export type ProblemDetails = Schemas['ProblemDetails'];
-/** `getOpenDataTable` as JSON (inline in the contract). */
-export type OpenDataTableBody =
-  operations['getOpenDataTable']['responses'][200]['content']['application/json'];
+/** `getOpenDataTable` as JSON. */
+export type OpenDataTableBody = Schemas['OpenDataTableFile'];
 
 /** The six tables of a release, in the order the API and the page list them. */
 export const OPEN_DATA_TABLES = [
