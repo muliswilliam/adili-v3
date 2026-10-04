@@ -22,3 +22,12 @@ export function currentPage(): string {
 export function goToSignIn(returnTo: string = currentPage()): void {
   window.location.assign(signInUrl(returnTo));
 }
+
+/**
+ * Sends the browser to confirm the officer's identity with a fresh one-time code (spec 06
+ * step-up), then back to `returnTo` with `stepUp=done`, or `stepUp=failed` when it did not go
+ * through. `/auth/step-up` is a server route, so it is always a full page load.
+ */
+export function goToStepUp(returnTo: string = currentPage()): void {
+  window.location.assign(`/auth/step-up?returnTo=${encodeURIComponent(returnTo)}`);
+}

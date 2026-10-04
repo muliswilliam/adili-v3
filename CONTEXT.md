@@ -234,7 +234,7 @@ What the completeness check still reports on a draft: the section, the rule and 
 _Avoid_: error, missing field, gap
 
 **Hint**:
-A one-line plain-language rephrasing of a completeness residual on the summary page, linked to its field. It sits above the deterministic text, which stays.
+A one-line plain-language rephrasing of a completeness residual on the summary page, linked to its field. It sits beneath the deterministic text, which stays.
 _Avoid_: tip, suggestion
 
 **Decline**:

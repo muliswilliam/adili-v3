@@ -18,7 +18,10 @@ import {
 import {
   AlertCircleIcon,
   ArrowRight01Icon,
+  BanIcon,
+  BanknoteIcon,
   Clock01Icon,
+  LegalHammerIcon,
   Notification01Icon,
   RefreshIcon,
   SentIcon,
@@ -45,9 +48,12 @@ import {
   urgentNotice,
   windowOf,
 } from '../../notices/view';
+import { noticeClosed, salaryOnTop } from '../../notices/salary';
 import type { MyNoticesResult } from '../../server/notices.server';
 import type { ActionStatus, DeclarantNotice } from '../../server/review/types';
 import { Pager } from '../my-declarations/pager';
+import { ComplyLink } from './comply-link';
+import { SalaryBanner } from './salary-parts';
 
 /**
  * The declarant's Notices (spec 08 FE-7, S17): the notice to act on soonest on top with the way
@@ -82,19 +88,39 @@ const STATUS_ICONS: Record<ActionStatus, IconProps['icon']> = {
 };
 
 /** A warning (and the later steps) reads red; a notice to comply amber. */
-function toneOf(notice: DeclarantNotice): 'warning' | 'destructive' | 'success' {
-  if (isClosed(notice)) return 'success';
+function toneOf(
+  notice: DeclarantNotice,
+  all: readonly DeclarantNotice[],
+): 'warning' | 'destructive' | 'success' {
+  if (noticeClosed(notice, all)) return 'success';
   return notice.step === 'notice-to-comply' ? 'warning' : 'destructive';
 }
 
-export function NoticeStatusBadge({ notice }: { notice: DeclarantNotice }) {
-  const stopped = notice.salaryStoppedAt !== null && notice.salaryReinstatedAt === null;
+export function NoticeStatusBadge({
+  notice,
+  all,
+}: {
+  notice: DeclarantNotice;
+  all: readonly DeclarantNotice[];
+}) {
+  // A referral its ladder's reinstatement closed asks nothing more: neutral, "Closed" (#208).
+  if (!isClosed(notice) && noticeClosed(notice, all)) {
+    return (
+      <Badge variant="default">
+        <Icon icon={Tick02Icon} />
+        {STATUS_LABELS.cancelled.en}
+      </Badge>
+    );
+  }
+  // Stopped until the declarant complies; once they have, the reinstatement is on its way.
+  const stopped =
+    notice.salaryStoppedAt !== null && notice.salaryReinstatedAt === null && !isClosed(notice);
   // An issued warning (or later step) reads red, as its row's icon does.
   const pastNotice = notice.status === 'issued' && notice.step !== 'notice-to-comply';
   const variant = stopped || pastNotice ? 'destructive' : STATUS_TONES[notice.status];
   return (
     <Badge variant={variant}>
-      <Icon icon={pastNotice ? AlertCircleIcon : STATUS_ICONS[notice.status]} />
+      <Icon icon={stopped ? BanIcon : pastNotice ? AlertCircleIcon : STATUS_ICONS[notice.status]} />
       {stopped ? SALARY_STOPPED.en : STATUS_LABELS[notice.status].en}
     </Badge>
   );
@@ -144,12 +170,16 @@ function NoticeRow({
           'flex items-start gap-3.5 px-5 py-[18px] transition-colors hover:bg-muted/40 sm:px-6',
         )}
       >
-        <IconTile tone={toneOf(notice)} size="lg">
+        <IconTile tone={toneOf(notice, all)} size="lg">
           <Icon
             icon={
-              isClosed(notice) || notice.step === 'notice-to-comply'
+              noticeClosed(notice, all) || notice.step === 'notice-to-comply'
                 ? Notification01Icon
-                : AlertCircleIcon
+                : notice.step === 'salary-stoppage'
+                  ? BanknoteIcon
+                  : notice.step === 'disciplinary-referral'
+                    ? LegalHammerIcon
+                    : AlertCircleIcon
             }
           />
         </IconTile>
@@ -165,12 +195,12 @@ function NoticeRow({
             <span className="whitespace-nowrap">{COPY.issuedOn(formatDate(notice.issuedAt))}</span>
           </p>
           <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <NoticeStatusBadge notice={notice} />
+            <NoticeStatusBadge notice={notice} all={all} />
             {next ? (
               <span className="text-[13.5px] text-muted-foreground">
                 {COPY.followedBy(next.step)}
               </span>
-            ) : isClosed(notice) ? null : (
+            ) : noticeClosed(notice, all) ? null : (
               <ActBy notice={notice} now={now} />
             )}
           </div>
@@ -245,24 +275,6 @@ export function LadderStrip({
         </li>
       ))}
     </ol>
-  );
-}
-
-/** Where to go to comply: the dashboard's obligations, or the clarifications. */
-export function ComplyLink({
-  notice,
-  variant = 'default',
-}: {
-  notice: DeclarantNotice;
-  variant?: 'default' | 'secondary';
-}) {
-  return (
-    <Button asChild size="sm" variant={variant}>
-      <Link to={notice.whatToDo === 'file-declaration' ? '/' : '/clarifications'}>
-        {COPY.cta[notice.whatToDo]}
-        <Icon icon={ArrowRight01Icon} />
-      </Link>
-    </Button>
   );
 }
 
@@ -357,6 +369,7 @@ function Notices({
   page: number;
   onPage: (page: number) => void;
 }) {
+  const salary = salaryOnTop(notices);
   const urgent = urgentNotice(notices, now);
   const listRef = useRef<HTMLDivElement>(null);
   const pages = Math.max(1, Math.ceil(notices.length / NOTICES_PAGE_SIZE));
@@ -364,10 +377,12 @@ function Notices({
   const shown = notices.slice((current - 1) * NOTICES_PAGE_SIZE, current * NOTICES_PAGE_SIZE);
   const allComplied = notices.every(isClosed);
   // The ladder of the notice on top, or of the latest one once everything has closed.
-  const stripFor = urgent ?? (allComplied ? (notices[0] ?? null) : null);
+  const stripFor = salary?.notice ?? urgent ?? (allComplied ? (notices[0] ?? null) : null);
   return (
     <div className="mt-6 grid gap-4">
-      {urgent?.actBy ? (
+      {salary ? (
+        <SalaryBanner standing={salary} />
+      ) : urgent?.actBy ? (
         <Alert
           variant={urgent.step === 'notice-to-comply' ? 'warning' : 'destructive'}
           role="status"

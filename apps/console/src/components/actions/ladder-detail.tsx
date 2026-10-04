@@ -30,7 +30,9 @@ import {
 import { type ReactNode, useId, useState } from 'react';
 
 import {
+  approvedNotIssued,
   canDecideAs,
+  isGraveStep,
   LADDER_STEPS,
   ladderSteps,
   type LadderStepView,
@@ -44,8 +46,12 @@ import type { FailureText } from '../dialog-parts';
 import { downloadFrom, pendingTab } from '../download';
 import { Page } from '../page';
 import { closingCauseLabel, en as m, ladderStatusLabel, stepLabel } from './messages';
-import { ActionStatusBadge } from './status-badge';
+import { StepBadge } from './status-badge';
+import { acknowledgedAt, reinstatedAtOf, salaryStopped } from '../../actions/payroll';
+import { PayrollInstruction, payrollInstructionsOf, payrollLine } from './payroll-instruction';
+import { stepsBefore } from './prior-steps';
 import { ApproveStepDialog, DeclineStepDialog, RestartLadderDialog } from './step-dialogs';
+import { stoppageCopy as stoppage } from './stoppage-messages';
 
 /** The decisions on a ladder, as the route makes them for the signed-in officer. */
 export interface LadderDecisions {
@@ -105,6 +111,7 @@ export function LadderDetailView({
 }: LadderDetailProps) {
   const subject = subjectOf(ladder);
   const steps = ladderSteps(ladder);
+  const reinstatedAt = reinstatedAtOf(ladder.steps);
   const declined =
     ladder.status === 'declined'
       ? (ladder.steps.findLast((action) => action.status === 'declined') ?? null)
@@ -149,7 +156,12 @@ export function LadderDetailView({
                 ),
               )}
             </AlertTitle>
-            <AlertDescription>{m.compliedBody}</AlertDescription>
+            <AlertDescription>
+              {m.compliedBody}
+              {reinstatedAt ? (
+                <span className="block">{stoppage.reinstatementAcknowledged(reinstatedAt)}</span>
+              ) : null}
+            </AlertDescription>
           </Alert>
         ) : null}
         {ladder.status === 'ended' && ladder.endedAt ? (
@@ -163,7 +175,12 @@ export function LadderDetailView({
                   : m.ended.toLowerCase(),
               )}
             </AlertTitle>
-            <AlertDescription>{m.endedBody}</AlertDescription>
+            <AlertDescription>
+              {m.endedBody}
+              {reinstatedAt ? (
+                <span className="block">{stoppage.reinstatementAcknowledged(reinstatedAt)}</span>
+              ) : null}
+            </AlertDescription>
           </Alert>
         ) : null}
 
@@ -213,8 +230,31 @@ function LadderStatusBadge({ status }: { status: Ladder['status'] }) {
 
 /** The stepper's line for a step: its date, the window, the response. */
 function stepperStep({ step, status, action }: LadderStepView): LadderStepperStep {
-  const base: LadderStepperStep = { id: step, label: stepLabel(step), status };
+  // A step the ladder ended before says only that it was not needed.
+  if (status === 'skipped') return { id: step, label: stepLabel(step), status };
+  const payroll = action ? payrollLine(action) : undefined;
+  const base: LadderStepperStep = {
+    id: step,
+    label: stepLabel(step),
+    status,
+    ...(payroll ? { payroll } : {}),
+  };
   if (!action) return base;
+  // Approved: waiting for payroll, or for its letter to be issued (the payroll line says which).
+  if (approvedNotIssued(action) && action.approvedAt) {
+    return { ...base, detail: m.stepDetail.approved(formatDate(action.approvedAt)) };
+  }
+  // A stoppage the disciplinary referral passed: done, its salary still stopped.
+  const stoppedAt = acknowledgedAt(action.payrollStop);
+  if (status === 'done' && salaryStopped(action) && stoppedAt) {
+    // The detail says it all: no payroll line repeating the same date.
+    return {
+      id: step,
+      label: stepLabel(step),
+      status,
+      detail: stoppage.stepper.salaryStopped(stoppedAt),
+    };
+  }
   const running = status === 'current' || status === 'stopped';
   const responded = action.response
     ? { response: m.stepDetail.respondedOn(formatDate(action.response.submittedAt)) }
@@ -294,7 +334,7 @@ function StepCard({
         <h2 id={headingId} className="text-[16px] font-semibold">
           {stepLabel(action.step)}
         </h2>
-        <ActionStatusBadge status={action.status} />
+        <StepBadge action={action} ladderStatus={ladder.status} />
         <span className="ml-auto">
           {action.reference ? (
             <span className="rounded-md bg-muted px-2 py-1 font-mono text-[12.5px] font-semibold">
@@ -331,7 +371,7 @@ function StepCard({
         {action.issuedAt ? <Fact term={m.facts.issued}>{formatDate(action.issuedAt)}</Fact> : null}
         {action.windowEndsAt ? (
           <Fact
-            term={m.facts.actBy}
+            term={action.step === 'salary-stoppage' ? stoppage.stoppageWindowEnds : m.facts.actBy}
             sub={
               action.status === 'issued' || action.status === 'responded'
                 ? m.inDays(daysBetween(now, action.windowEndsAt))
@@ -363,6 +403,12 @@ function StepCard({
       ) : action.status === 'approved' ? (
         <p className="px-5 pb-4 text-sm text-muted-foreground">{m.issuingLetter}</p>
       ) : null}
+
+      {payrollInstructionsOf(action).map((instruction) => (
+        <div key={instruction.action} className="px-5 pb-4">
+          <PayrollInstruction {...instruction} />
+        </div>
+      ))}
 
       {action.response ? (
         <div className="px-5 pb-5">
@@ -491,12 +537,16 @@ function Decision({
         step={action.step}
         declarantName={ladder.declarantName}
         subjectTitle={subjectOf(ladder).title}
+        personnelFileNumber={ladder.personnelFileNumber}
         now={now}
+        {...(isGraveStep(action.step)
+          ? { earlier: { state: 'ok' as const, steps: stepsBefore(ladder, action.id) } }
+          : {})}
         onSubmit={async () =>
           settle(await decisions.approve(action.id, approveKey.keyFor(action.id)), (approved) => {
             toast({
               title: m.approved(approved.step, approved.reference),
-              description: m.approvedDetail,
+              description: stoppage.approvedDetail[approved.step] ?? m.approvedDetail,
             });
           })
         }

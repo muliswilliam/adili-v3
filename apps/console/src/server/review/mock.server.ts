@@ -68,6 +68,7 @@ import {
   resetActionsMock,
 } from './actions-mock.server';
 import type { paths } from './api.gen';
+import { type ClosuresMockOptions, closuresRoute, resetClosuresMock } from './closures-mock.server';
 import { mockComparison } from './compare-mock.server';
 import {
   copilotRoute,
@@ -89,6 +90,13 @@ import {
 } from './determinations-mock.server';
 import { reviewClock } from './mock-clock.server';
 import { MOCK_CALLER, type MockCases } from './mock-parts.server';
+import {
+  mockReferralPackageTitle,
+  referralApprovals,
+  type ReferralCases,
+  referralsRoute,
+  resetReferralsMock,
+} from './referrals-mock.server';
 import type {
   Assignee,
   CaseDetail,
@@ -529,9 +537,13 @@ export function mockReviewClient(subject: string, name: string, roles?: readonly
 /** Seeds the fixtures with "now" at `now` (tests pass a fixed time). */
 export function resetReviewMock(
   now: number = Date.now(),
-  { copilot = 'ready' }: { copilot?: Env['REVIEW_MOCK_COPILOT'] } = {},
+  {
+    copilot = 'ready',
+    closures = {},
+  }: { copilot?: Env['REVIEW_MOCK_COPILOT']; closures?: ClosuresMockOptions } = {},
 ) {
   reviewClock.startAt(now);
+  resetClosuresMock(now, closures);
   resetActionsMock(now);
   cases.clear();
   clarifications.clear();
@@ -789,6 +801,19 @@ export function resetReviewMock(
     ],
     { notEnabled: copilot === 'not-enabled' },
   );
+
+  resetReferralsMock(
+    now,
+    {
+      peters: C.peters,
+      awaitingOld: C.awaitingOld,
+      awaitingOfRecord: C.awaitingOfRecord,
+      awaitingFurther: C.awaitingFurther,
+      returned: C.returned,
+    },
+    referralCases(MOCK_CALLER),
+    { issuer: 'TSC', officers: { peter: PETER, mercy: MERCY, lucy: LUCY } },
+  );
 }
 
 /** The spec 08 cases (see `MOCK_CASE_IDS`), each with its declarant, holder and who held it. */
@@ -906,7 +931,11 @@ function seedDeterminationCases(now: number) {
   }
   // First: the determinations seed their reassignments into it.
   resetApprovalsMock({
-    sources: { determination: determinationApprovals, action: actionApprovals },
+    sources: {
+      determination: determinationApprovals,
+      action: actionApprovals,
+      referral: referralApprovals(referralCases),
+    },
     staff: [
       { ...PETER, supervisor: false },
       { ...MERCY, supervisor: false },
@@ -1030,6 +1059,19 @@ function mockCases(caller: Assignee): MockCases {
   };
 }
 
+/** The cases as the referrals mock reads them, for `caller`. */
+function referralCases(caller: Assignee): ReferralCases {
+  return {
+    find: (caseId) => {
+      const found = mockCases(caller).find(caseId);
+      const stored = cases.get(caseId);
+      return found && stored
+        ? { ...found, flags: stored.flags, clarifications: ofCase(caseId) }
+        : null;
+    },
+  };
+}
+
 /** A bearer token the mock reads `sub`, `name` and the realm roles from (tests; unsigned). */
 export function mockToken(
   subject: string,
@@ -1148,7 +1190,10 @@ function ensureSeeded() {
   if (cases.size > 0) return;
   // Read here, not through env(): the mock seeds itself in tests that set no service URLs.
   const copilot = envSchema.shape.REVIEW_MOCK_COPILOT.parse(process.env.REVIEW_MOCK_COPILOT);
-  resetReviewMock(reviewClock.now(), { copilot });
+  const failAtChunk = envSchema.shape.REVIEW_MOCK_CLOSURES_FAIL_AT_CHUNK.parse(
+    process.env.REVIEW_MOCK_CLOSURES_FAIL_AT_CHUNK,
+  );
+  resetReviewMock(reviewClock.now(), { copilot, closures: { failAtChunk } });
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {
@@ -1181,7 +1226,7 @@ function documentAttachments(document: Record<string, unknown> | null): Map<stri
 /** What the placeholder file route names: a letter's clarification, or an attachment. */
 export function mockFileTitle(id: string): string | null {
   ensureSeeded();
-  const decision = mockDecisionLetterTitle(id);
+  const decision = mockDecisionLetterTitle(id) ?? mockReferralPackageTitle(id);
   if (decision) return decision;
   for (const each of clarifications.values()) {
     if (each.letter?.documentId === id) return `Clarification letter ${each.reference ?? ''}`;
@@ -1210,6 +1255,8 @@ async function route(request: Request): Promise<Response> {
     return json(200, mockTenantAiStatus(aiStatus[1]));
   }
 
+  const closures = await closuresRoute(request, mockCallerOf(request));
+  if (closures) return closures;
   const actions = await actionsRoute(request, mockCallerOf(request));
   if (actions) return actions;
 
@@ -1250,6 +1297,9 @@ async function route(request: Request): Promise<Response> {
     (await determinationsRoute(request, approver, mockCases(caller))) ??
     (await approvalsRoute(request, approver, mockCases(caller)));
   if (decided) return decided;
+
+  const referred = await referralsRoute(request, { ...caller, roles }, referralCases(caller));
+  if (referred) return referred;
 
   const copilot = await copilotRoute(request, caller, (caseId) => {
     const stored = cases.get(caseId);
@@ -1699,14 +1749,17 @@ function issueDraft(id: string, caller: Assignee): Promise<Response> {
 }
 
 /**
- * The documents service's download of a decision letter the mock issued (spec 08), for the
- * console's letter link under REVIEW_MOCK: a link to the placeholder file route.
+ * The documents service's download of a decision letter or referral evidence package the mock
+ * issued (spec 08), for the console's links under REVIEW_MOCK: a link to the placeholder file
+ * route.
  */
 export function mockLetterFetch(request: Request): Promise<Response> {
   ensureSeeded();
   const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(request.url).pathname);
   const documentId = match?.[1];
-  if (request.method !== 'GET' || !documentId || !mockDecisionLetterTitle(documentId)) {
+  const known =
+    documentId && (mockDecisionLetterTitle(documentId) ?? mockReferralPackageTitle(documentId));
+  if (request.method !== 'GET' || !known) {
     return Promise.resolve(problem(404, 'Not found'));
   }
   return Promise.resolve(

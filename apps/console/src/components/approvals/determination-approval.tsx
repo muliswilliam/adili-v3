@@ -36,9 +36,15 @@ import { approveCaseDetermination, returnCaseDetermination } from '../../server/
 import { type DeterminationRefusal, refusalProblem } from '../../determination/refusals';
 import type { DeterminationResult } from '../../server/determinations.server';
 import type { Determination } from '../../server/review/types';
-import type { ServiceError } from '../../server/service-call';
+import { isDecisionRefusal, type ServiceError } from '../../server/service-call';
 import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
-import { decidedNotice, proposerName, ReassignActions } from './approval-parts';
+import {
+  decidedNotice,
+  decisionNotice,
+  proposerName,
+  ReassignActions,
+  type RefusedCopy,
+} from './approval-parts';
 import { messages as t } from './determination-messages';
 import type { ApprovalNotice, InboxKindView, ItemOf, KindApprovalProps } from './kind';
 import { messages as m } from './messages';
@@ -91,6 +97,7 @@ export function DeterminationApproval({
   async function settle(
     result: DeterminationResult<Determination>,
     success: (data: Determination) => string,
+    refusedCopy: RefusedCopy,
   ): Promise<FailureText | null> {
     if (result.ok) {
       setDialog(null);
@@ -99,7 +106,7 @@ export function DeterminationApproval({
     }
     if (result.refusal) {
       setDialog(null);
-      await onSettled({ kind: 'notice', notice: noticeOf(result.refusal) });
+      await onSettled({ kind: 'notice', notice: noticeOf(result.refusal, refusedCopy) });
       return null;
     }
     return failureOf(result.error);
@@ -111,14 +118,14 @@ export function DeterminationApproval({
       data: { determinationId: item.subjectId, idempotencyKey: approvalKey.current },
     });
     if (result.ok || result.refusal) approvalKey.current = null;
-    return settle(result, (data) => t.toasts.approved(data.reference));
+    return settle(result, (data) => t.toasts.approved(data.reference), t.refused);
   }
 
   async function returnTo(reason: string): Promise<FailureText | null> {
     const result = await returnCaseDetermination({
       data: { determinationId: item.subjectId, reason },
     });
-    return settle(result, () => t.toasts.returned);
+    return settle(result, () => t.toasts.returned, t.returnRefused);
   }
 
   return (
@@ -191,26 +198,14 @@ export function DeterminationApproval({
   );
 }
 
-/** What a refusal of approve or return means for the supervisor (403, 409). */
-export function noticeOf(refusal: DeterminationRefusal): ApprovalNotice {
-  const problem = refusalProblem(refusal);
-  if (refusal.kind === 'separation-of-duties') {
-    return {
-      title: t.refused.title,
-      failure: { title: t.refused[refusal.reason], problem },
-      after: t.refused.separationAfter,
-      offerReassign: true,
-    };
-  }
-  if (refusal.kind === 'supervisor-required') {
-    return {
-      title: t.refused.title,
-      failure: { title: t.refused.role, problem },
-      after: t.refused.roleAfter,
-      offerReassign: false,
-    };
-  }
-  return decidedNotice();
+/**
+ * What a refusal of approve or return means for the supervisor (403, 409), in `copy`'s words.
+ * Proposing's refusals do not answer a decision; read one as decided already.
+ */
+export function noticeOf(refusal: DeterminationRefusal, copy: RefusedCopy): ApprovalNotice {
+  return isDecisionRefusal(refusal)
+    ? decisionNotice(refusal, refusalProblem(refusal), copy)
+    : decidedNotice();
 }
 
 /** A failed call, in the open dialog. */

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { LADDER_STEPS } from '../actions/ladder';
+import { REFERRAL_GROUNDS } from '../referral/view';
 import type { ApprovalKind } from '../server/review/types';
 
 /**
@@ -18,7 +19,11 @@ export const APPROVAL_KINDS = [
 ] as const satisfies readonly ApprovalKind[];
 
 /** The kinds the inbox shows so far, in tab order; the first is the default tab. */
-export const INBOX_KINDS = ['determination', 'action'] as const satisfies readonly ApprovalKind[];
+export const INBOX_KINDS = [
+  'determination',
+  'action',
+  'referral',
+] as const satisfies readonly ApprovalKind[];
 
 export type InboxKind = (typeof INBOX_KINDS)[number];
 
@@ -64,16 +69,38 @@ const actionSummary = z.object({
 });
 export type ActionSummary = z.infer<typeof actionSummary>;
 
+/**
+ * A referral's summary (services/review `ReferralApprovals`): the grounds, the declarant, the
+ * narrative's start and how much evidence it rests on. `caseId` is null for two missed cycles.
+ */
+const referralSummary = z.object({
+  grounds: z.enum(REFERRAL_GROUNDS),
+  caseId: z.uuid().nullable(),
+  cycleYear: z.number().int(),
+  declarantName: z.string(),
+  personnelFileNumber: z.string(),
+  narrativeExcerpt: z.string(),
+  evidence: z.object({
+    flags: z.number().int().nonnegative(),
+    clarifications: z.number().int().nonnegative(),
+    obligations: z.number().int().nonnegative(),
+    actions: z.number().int().nonnegative(),
+  }),
+});
+export type ReferralSummary = z.infer<typeof referralSummary>;
+
 /** Each shown kind's summary, as its schema reads it. */
 export interface Summaries {
   determination: DeterminationSummary;
   action: ActionSummary;
+  referral: ReferralSummary;
 }
 
 /** The summary schema of each kind the inbox shows. */
 export const SUMMARIES: { [K in InboxKind]: z.ZodType<Summaries[K]> } = {
   determination: determinationSummary,
   action: actionSummary,
+  referral: referralSummary,
 };
 
 export function isInboxKind(kind: string): kind is InboxKind {

@@ -48,13 +48,16 @@ import {
   RESPONSE_MAX_FILES,
 } from '../../clarification/response-form';
 import { COPY, STEP_TITLES } from '../../notices/copy';
+import { noticeClosed, salaryStandingOf } from '../../notices/salary';
 import { canRespond, isClosed, ladderNotices, ladderOf, windowOf } from '../../notices/view';
 import { respondToMyNotice } from '../../server/notices';
 import type { DeclarantNotice } from '../../server/review/types';
 import { useResponseUploads } from '../response-uploads';
 import { ATTACHMENT_ACCEPT, ATTACHMENT_MAX_BYTES } from '../declaration/attachments';
 import { loginHref } from '../sign-in';
-import { ComplyLink, LadderStrip, NoticeStatusBadge } from './notices-view';
+import { ComplyLink } from './comply-link';
+import { LadderStrip, NoticeStatusBadge } from './notices-view';
+import { SalaryBanner, SalaryCard } from './salary-parts';
 
 /**
  * A notice to comply or a warning as the declarant sees it (spec 08 FE-7, S9, S17): by when to
@@ -101,7 +104,7 @@ export function NoticePage(props: NoticePageProps) {
           <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-[13px] font-semibold text-foreground">
             {notice.reference}
           </span>
-          <NoticeStatusBadge notice={notice} />
+          <NoticeStatusBadge notice={notice} all={all} />
           <span className="inline-flex items-center gap-1.5">
             <Icon icon={Calendar03Icon} className="size-4" />
             {COPY.issuedOn(formatDate(notice.issuedAt))}
@@ -111,11 +114,12 @@ export function NoticePage(props: NoticePageProps) {
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid min-w-0 content-start gap-4">
-          <Banner notice={notice} now={props.now} />
+          <Banner notice={notice} all={all} now={props.now} />
           <Card className="p-0 sm:p-0">
             <h2 className="border-b px-5 py-4 text-base font-semibold">{COPY.whatHappened}</h2>
             <p className="px-5 py-4">{COPY.happened(notice.subject)}</p>
           </Card>
+          <SalaryCard notice={notice} />
           {canRespond(notice) ? (
             <RespondForm
               notice={notice}
@@ -138,33 +142,24 @@ export function NoticePage(props: NoticePageProps) {
   );
 }
 
-function Banner({ notice, now }: { notice: DeclarantNotice; now: string }) {
-  if (notice.salaryReinstatedAt) {
-    return (
-      <Alert variant="success" role="status">
-        <Icon icon={Tick02Icon} />
-        <AlertTitle>{COPY.salaryReinstated(formatDate(notice.salaryReinstatedAt))}</AlertTitle>
-      </Alert>
-    );
-  }
-  if (isClosed(notice)) {
+function Banner({
+  notice,
+  all,
+  now,
+}: {
+  notice: DeclarantNotice;
+  all: readonly DeclarantNotice[];
+  now: string;
+}) {
+  const salary = salaryStandingOf(notice, all);
+  if (salary) return <SalaryBanner standing={salary} />;
+  if (noticeClosed(notice, all)) {
     return (
       <Alert variant="success" role="status">
         <Icon icon={Tick02Icon} />
         <AlertTitle>
           {notice.status === 'complied' ? COPY.compliedBanner : COPY.closedBanner}
         </AlertTitle>
-      </Alert>
-    );
-  }
-  if (notice.salaryStoppedAt) {
-    return (
-      <Alert variant="destructive" role="status">
-        <Icon icon={AlertCircleIcon} />
-        <AlertTitle>{COPY.salaryStopped}</AlertTitle>
-        <AlertDescription className="mt-2.5">
-          <ComplyLink notice={notice} />
-        </AlertDescription>
       </Alert>
     );
   }

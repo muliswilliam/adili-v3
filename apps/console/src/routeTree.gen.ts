@@ -20,6 +20,7 @@ import { Route as HelpRouteRouteImport } from './routes/help/route'
 import { Route as LeaRouteRouteImport } from './routes/lea/route'
 import { Route as ObligationsRouteRouteImport } from './routes/obligations/route'
 import { Route as PlatformRouteRouteImport } from './routes/platform/route'
+import { Route as ReferralsRouteRouteImport } from './routes/referrals/route'
 import { Route as ReviewRouteRouteImport } from './routes/review/route'
 import { Route as RosterRouteRouteImport } from './routes/roster/route'
 import { Route as AccessIndexRouteImport } from './routes/access/index'
@@ -30,12 +31,16 @@ import { Route as ActionsIndexRouteImport } from './routes/actions/index'
 import { Route as ActionsLadderIdRouteImport } from './routes/actions/$ladderId'
 import { Route as AiPolicyIndexRouteImport } from './routes/ai-policy/index'
 import { Route as ApprovalsIndexRouteImport } from './routes/approvals/index'
+import { Route as ApprovalsBulkClosureRouteImport } from './routes/approvals_/bulk-closure'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
+import { Route as AuthStepUpRouteImport } from './routes/auth/step-up'
 import { Route as CommissionsIndexRouteImport } from './routes/commissions/index'
 import { Route as CommissionsSlugRouteRouteImport } from './routes/commissions/$slug/route'
 import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
+import { Route as EaccReferralsRouteRouteImport } from './routes/eacc/referrals/route'
+import { Route as EaccReportsRouteRouteImport } from './routes/eacc/reports/route'
 import { Route as FormMIndexRouteImport } from './routes/form-m/index'
 import { Route as HelpIndexRouteImport } from './routes/help/index'
 import { Route as HelpCorpusRouteImport } from './routes/help/corpus'
@@ -48,6 +53,8 @@ import { Route as ObligationsNationalRouteRouteImport } from './routes/obligatio
 import { Route as PlatformIndexRouteImport } from './routes/platform/index'
 import { Route as PlatformIntegrationsRouteImport } from './routes/platform/integrations'
 import { Route as PlatformLawEnforcementRouteRouteImport } from './routes/platform/law-enforcement/route'
+import { Route as ReferralsIndexRouteImport } from './routes/referrals/index'
+import { Route as ReferralsReferralIdRouteImport } from './routes/referrals/$referralId'
 import { Route as ReviewQueueRouteImport } from './routes/review/_queue'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
 import { Route as RosterApiAccessRouteRouteImport } from './routes/roster/api-access/route'
@@ -69,6 +76,10 @@ import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.
 import { Route as CommissionsSlugIndexRouteImport } from './routes/commissions/$slug/index'
 import { Route as CommissionsSlugObligationsRouteRouteImport } from './routes/commissions/$slug/obligations/route'
 import { Route as CommissionsSlugRecordsRouteRouteImport } from './routes/commissions/$slug/records/route'
+import { Route as EaccReferralsIndexRouteImport } from './routes/eacc/referrals/index'
+import { Route as EaccReportsIndexRouteImport } from './routes/eacc/reports/index'
+import { Route as EaccReportsReportIdRouteImport } from './routes/eacc/reports/$reportId'
+import { Route as EaccReportsNcrRouteImport } from './routes/eacc/reports/ncr'
 import { Route as HelpArticlesArticleIdRouteImport } from './routes/help/articles/$articleId'
 import { Route as HelpArticlesNewRouteImport } from './routes/help/articles/new'
 import { Route as LeaRequestsIndexRouteImport } from './routes/lea/requests/index'
@@ -153,6 +164,11 @@ const PlatformRouteRoute = PlatformRouteRouteImport.update({
   path: '/platform',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReferralsRouteRoute = ReferralsRouteRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReviewRouteRoute = ReviewRouteRouteImport.update({
   id: '/review',
   path: '/review',
@@ -204,6 +220,11 @@ const ApprovalsIndexRoute = ApprovalsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ApprovalsRouteRoute,
 } as any)
+const ApprovalsBulkClosureRoute = ApprovalsBulkClosureRouteImport.update({
+  id: '/approvals_/bulk-closure',
+  path: '/approvals/bulk-closure',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
@@ -217,6 +238,11 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
 const AuthLogoutRoute = AuthLogoutRouteImport.update({
   id: '/auth/logout',
   path: '/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthStepUpRoute = AuthStepUpRouteImport.update({
+  id: '/auth/step-up',
+  path: '/auth/step-up',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommissionsIndexRoute = CommissionsIndexRouteImport.update({
@@ -233,6 +259,16 @@ const CommissionsNewRoute = CommissionsNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => CommissionsRouteRoute,
+} as any)
+const EaccReferralsRouteRoute = EaccReferralsRouteRouteImport.update({
+  id: '/eacc/referrals',
+  path: '/eacc/referrals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EaccReportsRouteRoute = EaccReportsRouteRouteImport.update({
+  id: '/eacc/reports',
+  path: '/eacc/reports',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const FormMIndexRoute = FormMIndexRouteImport.update({
   id: '/',
@@ -296,6 +332,16 @@ const PlatformLawEnforcementRouteRoute =
     path: '/law-enforcement',
     getParentRoute: () => PlatformRouteRoute,
   } as any)
+const ReferralsIndexRoute = ReferralsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ReferralsRouteRoute,
+} as any)
+const ReferralsReferralIdRoute = ReferralsReferralIdRouteImport.update({
+  id: '/$referralId',
+  path: '/$referralId',
+  getParentRoute: () => ReferralsRouteRoute,
+} as any)
 const ReviewQueueRoute = ReviewQueueRouteImport.update({
   id: '/_queue',
   getParentRoute: () => ReviewRouteRoute,
@@ -407,6 +453,26 @@ const CommissionsSlugRecordsRouteRoute =
     path: '/records',
     getParentRoute: () => CommissionsSlugRouteRoute,
   } as any)
+const EaccReferralsIndexRoute = EaccReferralsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EaccReferralsRouteRoute,
+} as any)
+const EaccReportsIndexRoute = EaccReportsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EaccReportsRouteRoute,
+} as any)
+const EaccReportsReportIdRoute = EaccReportsReportIdRouteImport.update({
+  id: '/$reportId',
+  path: '/$reportId',
+  getParentRoute: () => EaccReportsRouteRoute,
+} as any)
+const EaccReportsNcrRoute = EaccReportsNcrRouteImport.update({
+  id: '/ncr',
+  path: '/ncr',
+  getParentRoute: () => EaccReportsRouteRoute,
+} as any)
 const HelpArticlesArticleIdRoute = HelpArticlesArticleIdRouteImport.update({
   id: '/articles/$articleId',
   path: '/articles/$articleId',
@@ -576,12 +642,15 @@ export interface FileRoutesByFullPath {
   '/lea': typeof LeaRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
   '/platform': typeof PlatformRouteRouteWithChildren
+  '/referrals': typeof ReferralsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
   '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
   '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
   '/access/requests': typeof AccessRequestsRouteRouteWithChildren
   '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
+  '/eacc/referrals': typeof EaccReferralsRouteRouteWithChildren
+  '/eacc/reports': typeof EaccReportsRouteRouteWithChildren
   '/lea/requests': typeof LeaRequestsRouteRouteWithChildren
   '/obligations/national': typeof ObligationsNationalRouteRouteWithChildren
   '/platform/law-enforcement': typeof PlatformLawEnforcementRouteRouteWithChildren
@@ -589,14 +658,17 @@ export interface FileRoutesByFullPath {
   '/roster/imports': typeof RosterImportsRouteRouteWithChildren
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
   '/actions/$ladderId': typeof ActionsLadderIdRoute
+  '/approvals/bulk-closure': typeof ApprovalsBulkClosureRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
+  '/auth/step-up': typeof AuthStepUpRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/help/corpus': typeof HelpCorpusRoute
   '/help/themes': typeof HelpThemesRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/referrals/$referralId': typeof ReferralsReferralIdRoute
   '/roster/coverage': typeof RosterCoverageRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
@@ -611,6 +683,7 @@ export interface FileRoutesByFullPath {
   '/lea/': typeof LeaIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
   '/platform/': typeof PlatformIndexRoute
+  '/referrals/': typeof ReferralsIndexRoute
   '/roster/': typeof RosterIndexRoute
   '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
   '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
@@ -620,6 +693,8 @@ export interface FileRoutesByFullPath {
   '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
+  '/eacc/reports/$reportId': typeof EaccReportsReportIdRoute
+  '/eacc/reports/ncr': typeof EaccReportsNcrRoute
   '/help/articles/$articleId': typeof HelpArticlesArticleIdRoute
   '/help/articles/new': typeof HelpArticlesNewRoute
   '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
@@ -631,6 +706,8 @@ export interface FileRoutesByFullPath {
   '/access/lea-requests/': typeof AccessLeaRequestsIndexRoute
   '/access/requests/': typeof AccessRequestsIndexRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
+  '/eacc/referrals/': typeof EaccReferralsIndexRoute
+  '/eacc/reports/': typeof EaccReportsIndexRoute
   '/lea/requests/': typeof LeaRequestsIndexRoute
   '/obligations/national/': typeof ObligationsNationalIndexRoute
   '/platform/law-enforcement/': typeof PlatformLawEnforcementIndexRoute
@@ -657,14 +734,17 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/review': typeof ReviewQueueIndexRoute
   '/actions/$ladderId': typeof ActionsLadderIdRoute
+  '/approvals/bulk-closure': typeof ApprovalsBulkClosureRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
+  '/auth/step-up': typeof AuthStepUpRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/help/corpus': typeof HelpCorpusRoute
   '/help/themes': typeof HelpThemesRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/referrals/$referralId': typeof ReferralsReferralIdRoute
   '/roster/coverage': typeof RosterCoverageRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
@@ -679,11 +759,14 @@ export interface FileRoutesByTo {
   '/lea': typeof LeaIndexRoute
   '/obligations': typeof ObligationsIndexRoute
   '/platform': typeof PlatformIndexRoute
+  '/referrals': typeof ReferralsIndexRoute
   '/roster': typeof RosterIndexRoute
   '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
   '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
+  '/eacc/reports/$reportId': typeof EaccReportsReportIdRoute
+  '/eacc/reports/ncr': typeof EaccReportsNcrRoute
   '/help/articles/$articleId': typeof HelpArticlesArticleIdRoute
   '/help/articles/new': typeof HelpArticlesNewRoute
   '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
@@ -695,6 +778,8 @@ export interface FileRoutesByTo {
   '/access/lea-requests': typeof AccessLeaRequestsIndexRoute
   '/access/requests': typeof AccessRequestsIndexRoute
   '/commissions/$slug': typeof CommissionsSlugIndexRoute
+  '/eacc/referrals': typeof EaccReferralsIndexRoute
+  '/eacc/reports': typeof EaccReportsIndexRoute
   '/lea/requests': typeof LeaRequestsIndexRoute
   '/obligations/national': typeof ObligationsNationalIndexRoute
   '/platform/law-enforcement': typeof PlatformLawEnforcementIndexRoute
@@ -729,12 +814,15 @@ export interface FileRoutesById {
   '/lea': typeof LeaRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
   '/platform': typeof PlatformRouteRouteWithChildren
+  '/referrals': typeof ReferralsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
   '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
   '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
   '/access/requests': typeof AccessRequestsRouteRouteWithChildren
   '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
+  '/eacc/referrals': typeof EaccReferralsRouteRouteWithChildren
+  '/eacc/reports': typeof EaccReportsRouteRouteWithChildren
   '/lea/requests': typeof LeaRequestsRouteRouteWithChildren
   '/obligations_/national': typeof ObligationsNationalRouteRouteWithChildren
   '/platform/law-enforcement': typeof PlatformLawEnforcementRouteRouteWithChildren
@@ -742,14 +830,17 @@ export interface FileRoutesById {
   '/roster/imports': typeof RosterImportsRouteRouteWithChildren
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
   '/actions/$ladderId': typeof ActionsLadderIdRoute
+  '/approvals_/bulk-closure': typeof ApprovalsBulkClosureRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
+  '/auth/step-up': typeof AuthStepUpRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/help/corpus': typeof HelpCorpusRoute
   '/help/themes': typeof HelpThemesRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/referrals/$referralId': typeof ReferralsReferralIdRoute
   '/review/_queue': typeof ReviewQueueRouteWithChildren
   '/roster/coverage': typeof RosterCoverageRoute
   '/roster/flagged': typeof RosterFlaggedRoute
@@ -765,6 +856,7 @@ export interface FileRoutesById {
   '/lea/': typeof LeaIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
   '/platform/': typeof PlatformIndexRoute
+  '/referrals/': typeof ReferralsIndexRoute
   '/roster/': typeof RosterIndexRoute
   '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
   '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
@@ -774,6 +866,8 @@ export interface FileRoutesById {
   '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
+  '/eacc/reports/$reportId': typeof EaccReportsReportIdRoute
+  '/eacc/reports/ncr': typeof EaccReportsNcrRoute
   '/help/articles/$articleId': typeof HelpArticlesArticleIdRoute
   '/help/articles/new': typeof HelpArticlesNewRoute
   '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
@@ -785,6 +879,8 @@ export interface FileRoutesById {
   '/access/lea-requests/': typeof AccessLeaRequestsIndexRoute
   '/access/requests/': typeof AccessRequestsIndexRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
+  '/eacc/referrals/': typeof EaccReferralsIndexRoute
+  '/eacc/reports/': typeof EaccReportsIndexRoute
   '/lea/requests/': typeof LeaRequestsIndexRoute
   '/obligations_/national/': typeof ObligationsNationalIndexRoute
   '/platform/law-enforcement/': typeof PlatformLawEnforcementIndexRoute
@@ -821,12 +917,15 @@ export interface FileRouteTypes {
     | '/lea'
     | '/obligations'
     | '/platform'
+    | '/referrals'
     | '/review'
     | '/roster'
     | '/access/certified-copies'
     | '/access/lea-requests'
     | '/access/requests'
     | '/commissions/$slug'
+    | '/eacc/referrals'
+    | '/eacc/reports'
     | '/lea/requests'
     | '/obligations/national'
     | '/platform/law-enforcement'
@@ -834,14 +933,17 @@ export interface FileRouteTypes {
     | '/roster/imports'
     | '/roster/records'
     | '/actions/$ladderId'
+    | '/approvals/bulk-closure'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
+    | '/auth/step-up'
     | '/commissions/new'
     | '/help/corpus'
     | '/help/themes'
     | '/obligations/policy'
     | '/platform/integrations'
+    | '/referrals/$referralId'
     | '/roster/coverage'
     | '/roster/flagged'
     | '/roster/import'
@@ -856,6 +958,7 @@ export interface FileRouteTypes {
     | '/lea/'
     | '/obligations/'
     | '/platform/'
+    | '/referrals/'
     | '/roster/'
     | '/access/lea-requests/$leaRequestId'
     | '/access/requests/$requestId'
@@ -865,6 +968,8 @@ export interface FileRouteTypes {
     | '/access/certified-copies/new'
     | '/api/mock-files/$id'
     | '/api/mock-uploads/$id'
+    | '/eacc/reports/$reportId'
+    | '/eacc/reports/ncr'
     | '/help/articles/$articleId'
     | '/help/articles/new'
     | '/lea/requests/$leaRequestId'
@@ -876,6 +981,8 @@ export interface FileRouteTypes {
     | '/access/lea-requests/'
     | '/access/requests/'
     | '/commissions/$slug/'
+    | '/eacc/referrals/'
+    | '/eacc/reports/'
     | '/lea/requests/'
     | '/obligations/national/'
     | '/platform/law-enforcement/'
@@ -902,14 +1009,17 @@ export interface FileRouteTypes {
     | '/'
     | '/review'
     | '/actions/$ladderId'
+    | '/approvals/bulk-closure'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
+    | '/auth/step-up'
     | '/commissions/new'
     | '/help/corpus'
     | '/help/themes'
     | '/obligations/policy'
     | '/platform/integrations'
+    | '/referrals/$referralId'
     | '/roster/coverage'
     | '/roster/flagged'
     | '/roster/import'
@@ -924,11 +1034,14 @@ export interface FileRouteTypes {
     | '/lea'
     | '/obligations'
     | '/platform'
+    | '/referrals'
     | '/roster'
     | '/access/certified-copies/$applicationId'
     | '/access/certified-copies/new'
     | '/api/mock-files/$id'
     | '/api/mock-uploads/$id'
+    | '/eacc/reports/$reportId'
+    | '/eacc/reports/ncr'
     | '/help/articles/$articleId'
     | '/help/articles/new'
     | '/lea/requests/$leaRequestId'
@@ -940,6 +1053,8 @@ export interface FileRouteTypes {
     | '/access/lea-requests'
     | '/access/requests'
     | '/commissions/$slug'
+    | '/eacc/referrals'
+    | '/eacc/reports'
     | '/lea/requests'
     | '/obligations/national'
     | '/platform/law-enforcement'
@@ -973,12 +1088,15 @@ export interface FileRouteTypes {
     | '/lea'
     | '/obligations'
     | '/platform'
+    | '/referrals'
     | '/review'
     | '/roster'
     | '/access/certified-copies'
     | '/access/lea-requests'
     | '/access/requests'
     | '/commissions/$slug'
+    | '/eacc/referrals'
+    | '/eacc/reports'
     | '/lea/requests'
     | '/obligations_/national'
     | '/platform/law-enforcement'
@@ -986,14 +1104,17 @@ export interface FileRouteTypes {
     | '/roster/imports'
     | '/roster/records'
     | '/actions/$ladderId'
+    | '/approvals_/bulk-closure'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
+    | '/auth/step-up'
     | '/commissions/new'
     | '/help/corpus'
     | '/help/themes'
     | '/obligations/policy'
     | '/platform/integrations'
+    | '/referrals/$referralId'
     | '/review/_queue'
     | '/roster/coverage'
     | '/roster/flagged'
@@ -1009,6 +1130,7 @@ export interface FileRouteTypes {
     | '/lea/'
     | '/obligations/'
     | '/platform/'
+    | '/referrals/'
     | '/roster/'
     | '/access/lea-requests/$leaRequestId'
     | '/access/requests/$requestId'
@@ -1018,6 +1140,8 @@ export interface FileRouteTypes {
     | '/access/certified-copies/new'
     | '/api/mock-files/$id'
     | '/api/mock-uploads/$id'
+    | '/eacc/reports/$reportId'
+    | '/eacc/reports/ncr'
     | '/help/articles/$articleId'
     | '/help/articles/new'
     | '/lea/requests/$leaRequestId'
@@ -1029,6 +1153,8 @@ export interface FileRouteTypes {
     | '/access/lea-requests/'
     | '/access/requests/'
     | '/commissions/$slug/'
+    | '/eacc/referrals/'
+    | '/eacc/reports/'
     | '/lea/requests/'
     | '/obligations_/national/'
     | '/platform/law-enforcement/'
@@ -1064,12 +1190,17 @@ export interface RootRouteChildren {
   LeaRouteRoute: typeof LeaRouteRouteWithChildren
   ObligationsRouteRoute: typeof ObligationsRouteRouteWithChildren
   PlatformRouteRoute: typeof PlatformRouteRouteWithChildren
+  ReferralsRouteRoute: typeof ReferralsRouteRouteWithChildren
   ReviewRouteRoute: typeof ReviewRouteRouteWithChildren
   RosterRouteRoute: typeof RosterRouteRouteWithChildren
+  EaccReferralsRouteRoute: typeof EaccReferralsRouteRouteWithChildren
+  EaccReportsRouteRoute: typeof EaccReportsRouteRouteWithChildren
   ObligationsNationalRouteRoute: typeof ObligationsNationalRouteRouteWithChildren
+  ApprovalsBulkClosureRoute: typeof ApprovalsBulkClosureRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
+  AuthStepUpRoute: typeof AuthStepUpRoute
   ApiMockFilesIdRoute: typeof ApiMockFilesIdRoute
   ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
 }
@@ -1153,6 +1284,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/referrals': {
+      id: '/referrals'
+      path: '/referrals'
+      fullPath: '/referrals'
+      preLoaderRoute: typeof ReferralsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/review': {
       id: '/review'
       path: '/review'
@@ -1223,6 +1361,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApprovalsIndexRouteImport
       parentRoute: typeof ApprovalsRouteRoute
     }
+    '/approvals_/bulk-closure': {
+      id: '/approvals_/bulk-closure'
+      path: '/approvals/bulk-closure'
+      fullPath: '/approvals/bulk-closure'
+      preLoaderRoute: typeof ApprovalsBulkClosureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/auth/callback'
@@ -1242,6 +1387,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/logout'
       fullPath: '/auth/logout'
       preLoaderRoute: typeof AuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/step-up': {
+      id: '/auth/step-up'
+      path: '/auth/step-up'
+      fullPath: '/auth/step-up'
+      preLoaderRoute: typeof AuthStepUpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/commissions/': {
@@ -1264,6 +1416,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/commissions/new'
       preLoaderRoute: typeof CommissionsNewRouteImport
       parentRoute: typeof CommissionsRouteRoute
+    }
+    '/eacc/referrals': {
+      id: '/eacc/referrals'
+      path: '/eacc/referrals'
+      fullPath: '/eacc/referrals'
+      preLoaderRoute: typeof EaccReferralsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/eacc/reports': {
+      id: '/eacc/reports'
+      path: '/eacc/reports'
+      fullPath: '/eacc/reports'
+      preLoaderRoute: typeof EaccReportsRouteRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/form-m/': {
       id: '/form-m/'
@@ -1348,6 +1514,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/platform/law-enforcement'
       preLoaderRoute: typeof PlatformLawEnforcementRouteRouteImport
       parentRoute: typeof PlatformRouteRoute
+    }
+    '/referrals/': {
+      id: '/referrals/'
+      path: '/'
+      fullPath: '/referrals/'
+      preLoaderRoute: typeof ReferralsIndexRouteImport
+      parentRoute: typeof ReferralsRouteRoute
+    }
+    '/referrals/$referralId': {
+      id: '/referrals/$referralId'
+      path: '/$referralId'
+      fullPath: '/referrals/$referralId'
+      preLoaderRoute: typeof ReferralsReferralIdRouteImport
+      parentRoute: typeof ReferralsRouteRoute
     }
     '/review/_queue': {
       id: '/review/_queue'
@@ -1495,6 +1675,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/commissions/$slug/records'
       preLoaderRoute: typeof CommissionsSlugRecordsRouteRouteImport
       parentRoute: typeof CommissionsSlugRouteRoute
+    }
+    '/eacc/referrals/': {
+      id: '/eacc/referrals/'
+      path: '/'
+      fullPath: '/eacc/referrals/'
+      preLoaderRoute: typeof EaccReferralsIndexRouteImport
+      parentRoute: typeof EaccReferralsRouteRoute
+    }
+    '/eacc/reports/': {
+      id: '/eacc/reports/'
+      path: '/'
+      fullPath: '/eacc/reports/'
+      preLoaderRoute: typeof EaccReportsIndexRouteImport
+      parentRoute: typeof EaccReportsRouteRoute
+    }
+    '/eacc/reports/$reportId': {
+      id: '/eacc/reports/$reportId'
+      path: '/$reportId'
+      fullPath: '/eacc/reports/$reportId'
+      preLoaderRoute: typeof EaccReportsReportIdRouteImport
+      parentRoute: typeof EaccReportsRouteRoute
+    }
+    '/eacc/reports/ncr': {
+      id: '/eacc/reports/ncr'
+      path: '/ncr'
+      fullPath: '/eacc/reports/ncr'
+      preLoaderRoute: typeof EaccReportsNcrRouteImport
+      parentRoute: typeof EaccReportsRouteRoute
     }
     '/help/articles/$articleId': {
       id: '/help/articles/$articleId'
@@ -2011,6 +2219,20 @@ const PlatformRouteRouteWithChildren = PlatformRouteRoute._addFileChildren(
   PlatformRouteRouteChildren,
 )
 
+interface ReferralsRouteRouteChildren {
+  ReferralsReferralIdRoute: typeof ReferralsReferralIdRoute
+  ReferralsIndexRoute: typeof ReferralsIndexRoute
+}
+
+const ReferralsRouteRouteChildren: ReferralsRouteRouteChildren = {
+  ReferralsReferralIdRoute: ReferralsReferralIdRoute,
+  ReferralsIndexRoute: ReferralsIndexRoute,
+}
+
+const ReferralsRouteRouteWithChildren = ReferralsRouteRoute._addFileChildren(
+  ReferralsRouteRouteChildren,
+)
+
 interface ReviewQueueRouteChildren {
   ReviewQueueIndexRoute: typeof ReviewQueueIndexRoute
 }
@@ -2110,6 +2332,32 @@ const RosterRouteRouteWithChildren = RosterRouteRoute._addFileChildren(
   RosterRouteRouteChildren,
 )
 
+interface EaccReferralsRouteRouteChildren {
+  EaccReferralsIndexRoute: typeof EaccReferralsIndexRoute
+}
+
+const EaccReferralsRouteRouteChildren: EaccReferralsRouteRouteChildren = {
+  EaccReferralsIndexRoute: EaccReferralsIndexRoute,
+}
+
+const EaccReferralsRouteRouteWithChildren =
+  EaccReferralsRouteRoute._addFileChildren(EaccReferralsRouteRouteChildren)
+
+interface EaccReportsRouteRouteChildren {
+  EaccReportsReportIdRoute: typeof EaccReportsReportIdRoute
+  EaccReportsNcrRoute: typeof EaccReportsNcrRoute
+  EaccReportsIndexRoute: typeof EaccReportsIndexRoute
+}
+
+const EaccReportsRouteRouteChildren: EaccReportsRouteRouteChildren = {
+  EaccReportsReportIdRoute: EaccReportsReportIdRoute,
+  EaccReportsNcrRoute: EaccReportsNcrRoute,
+  EaccReportsIndexRoute: EaccReportsIndexRoute,
+}
+
+const EaccReportsRouteRouteWithChildren =
+  EaccReportsRouteRoute._addFileChildren(EaccReportsRouteRouteChildren)
+
 interface ObligationsNationalRouteRouteChildren {
   ObligationsNationalIndexRoute: typeof ObligationsNationalIndexRoute
 }
@@ -2136,12 +2384,17 @@ const rootRouteChildren: RootRouteChildren = {
   LeaRouteRoute: LeaRouteRouteWithChildren,
   ObligationsRouteRoute: ObligationsRouteRouteWithChildren,
   PlatformRouteRoute: PlatformRouteRouteWithChildren,
+  ReferralsRouteRoute: ReferralsRouteRouteWithChildren,
   ReviewRouteRoute: ReviewRouteRouteWithChildren,
   RosterRouteRoute: RosterRouteRouteWithChildren,
+  EaccReferralsRouteRoute: EaccReferralsRouteRouteWithChildren,
+  EaccReportsRouteRoute: EaccReportsRouteRouteWithChildren,
   ObligationsNationalRouteRoute: ObligationsNationalRouteRouteWithChildren,
+  ApprovalsBulkClosureRoute: ApprovalsBulkClosureRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
+  AuthStepUpRoute: AuthStepUpRoute,
   ApiMockFilesIdRoute: ApiMockFilesIdRoute,
   ApiMockUploadsIdRoute: ApiMockUploadsIdRoute,
 }

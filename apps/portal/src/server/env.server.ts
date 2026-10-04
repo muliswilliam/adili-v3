@@ -43,11 +43,6 @@ export const envSchema = bffEnvSchema.extend({
    */
   ASSISTANT_MOCK: z.stringbool().default(false),
   /**
-   * Show the rating control under Ask Adili answers. The declarations service builds the rating
-   * endpoint with #339; until then it is on only with ASSISTANT_MOCK, which answers it.
-   */
-  ASSISTANT_FEEDBACK: z.stringbool().default(false),
-  /**
    * How the Ask Adili mock's gateway behaves, to see the panel's other states: `unavailable`
    * (help search), `fail-midway` (an answer that stops part-way), `rate-limited` (429).
    */
@@ -59,6 +54,14 @@ export const envSchema = bffEnvSchema.extend({
    * DECLARATIONS_MOCK too. Honoured in `vite dev` and tests only, like the other mocks.
    */
   REVIEW_MOCK: z.stringbool().default(false),
+  /**
+   * With REVIEW_MOCK, how far the mock's clarification ladder has gone with the declarant's
+   * salary (spec 08, #208): `none` stops at the warning; `stopped`, `disciplinary`,
+   * `reinstating` and `reinstated` show the salary stoppage notices.
+   */
+  REVIEW_MOCK_SALARY: z
+    .enum(['none', 'stopped', 'disciplinary', 'reinstating', 'reinstated'])
+    .default('none'),
   ACCESS_API_URL: z.url(),
   /**
    * Serve the applicant's access requests (Form K, My requests, withdraw) and the Commissions

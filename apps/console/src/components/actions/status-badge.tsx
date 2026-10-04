@@ -1,5 +1,6 @@
 import { Badge, type BadgeProps, Icon, type IconProps } from '@adili/ui';
 import {
+  BanIcon,
   BubbleChatIcon,
   Cancel01Icon,
   Clock01Icon,
@@ -8,8 +9,10 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 
-import type { ActionStatus } from '../../server/actions.server';
-import { statusLabel } from './messages';
+import { salaryStopped } from '../../actions/payroll';
+import type { ActionStatus, AdministrativeAction, Ladder } from '../../server/actions.server';
+import { stoppageCopy as c } from './stoppage-messages';
+import { ladderStatusLabel, statusLabel } from './messages';
 
 const LOOK: Record<
   ActionStatus,
@@ -35,4 +38,38 @@ export function ActionStatusBadge({ status }: { status: ActionStatus }) {
       {statusLabel(status)}
     </Badge>
   );
+}
+
+/** "Salary stopped", in red, for a stoppage in force (the prototype's step badge). */
+function SalaryStoppedBadge() {
+  return (
+    <Badge variant="destructive">
+      <Icon icon={BanIcon} />
+      {c.salaryStopped}
+    </Badge>
+  );
+}
+
+/**
+ * A step's badge, as the stepper reads it: "Salary stopped" for a stoppage in force (from
+ * payroll's acknowledgements, whatever its status); "Ended" for a step a ladder that ended
+ * without compliance left issued; else its status.
+ */
+export function StepBadge({
+  action,
+  ladderStatus,
+}: {
+  action: AdministrativeAction;
+  ladderStatus: Ladder['status'];
+}) {
+  if (salaryStopped(action)) return <SalaryStoppedBadge />;
+  if (ladderStatus === 'ended' && (action.status === 'issued' || action.status === 'responded')) {
+    return (
+      <Badge variant="default">
+        <Icon icon={MinusSignIcon} />
+        {ladderStatusLabel('ended')}
+      </Badge>
+    );
+  }
+  return <ActionStatusBadge status={action.status} />;
 }

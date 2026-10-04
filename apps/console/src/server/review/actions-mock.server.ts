@@ -12,6 +12,12 @@
  *   signed-in officer held the clarification's case, so the rule refuses them.
  * - `warningIssued`: notice done, the warning's window runs 9 more days.
  * - `stoppageProposed`: notice and warning issued, the salary stoppage drafted (supervisors only).
+ * - `payrollPending` (#208): the salary stoppage approved yesterday; payroll has not acknowledged
+ *   the stop-salary instruction, so it is `approved-pending-payroll` and has no letter yet.
+ * - `disciplinaryProposed` (#208): an unanswered clarification; the salary stopped (payroll
+ *   acknowledged) and its window over, the disciplinary referral drafted (supervisors only).
+ * - `reinstated` (#208): the declarant filed while the salary was stopped; payroll acknowledged
+ *   the reinstatement.
  * - `declined`: the notice declined with a note, so a supervisor may restart the ladder.
  * - `complied`: the declarant filed while the notice ran.
  * - `ended`: the clarification was withdrawn, so its ladder ended without compliance.
@@ -56,6 +62,9 @@ export const MOCK_LADDER_IDS = {
   declined: '1add0000-0000-4000-8000-000000000006',
   complied: '1add0000-0000-4000-8000-000000000007',
   ended: '1add0000-0000-4000-8000-000000000008',
+  payrollPending: '1add0000-0000-4000-8000-000000000009',
+  disciplinaryProposed: '1add0000-0000-4000-8000-00000000000a',
+  reinstated: '1add0000-0000-4000-8000-00000000000b',
 } as const;
 
 export const MOCK_LADDER_OFFICERS = {
@@ -64,7 +73,7 @@ export const MOCK_LADDER_OFFICERS = {
   peter: { subject: 'f7a0c1de-0000-4000-8000-000000000009', name: 'Peter Mwangi' },
   kevin: { subject: 'f7a0c1de-0000-4000-8000-000000000022', name: 'Kevin Omondi' },
 } as const satisfies Record<string, Assignee>;
-const { mercy: MERCY, peter: PETER, kevin: KEVIN } = MOCK_LADDER_OFFICERS;
+const { samuel: SAMUEL, mercy: MERCY, peter: PETER, kevin: KEVIN } = MOCK_LADDER_OFFICERS;
 
 /** Stands for "whoever is signed in" among a ladder's reviewers of record. */
 const CALLER = '(caller)';
@@ -152,6 +161,32 @@ function issued(
     windowEndsAt: window === null ? null : iso(issuedAt + window * DAY),
     reference,
     letter: letterOf(id, reference, step),
+  };
+}
+
+/** Payroll's acknowledgement of an instruction, received at `receivedAt` (ms). */
+function acknowledged(
+  instructionReference: string,
+  action: 'stop_salary' | 'resume_salary',
+  payrollReference: string,
+  receivedAt: number,
+): NonNullable<Action['payrollStop']> {
+  return {
+    instructionReference,
+    action,
+    status: 'accepted',
+    payrollReference,
+    receivedAt: iso(receivedAt),
+  };
+}
+
+/** An issued salary stoppage whose stop-salary instruction payroll acknowledged on issue. */
+function stopped(action: Action, payrollReference: string): Action {
+  const { reference, issuedAt } = action;
+  if (!reference || !issuedAt) return action;
+  return {
+    ...action,
+    payrollStop: acknowledged(reference, 'stop_salary', payrollReference, Date.parse(issuedAt)),
   };
 }
 
@@ -246,6 +281,7 @@ export function resetActionsMock(seededAt: number = Date.now()) {
     base,
   );
   attachments.set('a77a0000-0000-4000-8000-000000000101', 'Reply to clarification.pdf');
+  attachments.set('a77a0000-0000-4000-8000-000000000103', 'KNH discharge summary.pdf');
   attachments.set(
     'a77a0000-0000-4000-8000-000000000102',
     'Equity Bank statements Jan-Jun 2026.pdf',
@@ -334,12 +370,137 @@ export function resetActionsMock(seededAt: number = Date.now()) {
       },
       [
         issued(actionId(5, 1), ids.stoppageProposed, 'notice-to-comply', 45, 44, MERCY, base),
-        issued(actionId(5, 2), ids.stoppageProposed, 'warning', 30, 29, PETER, base),
+        {
+          // Answered, but not complied: the supervisor reads it before stopping the salary.
+          ...issued(actionId(5, 2), ids.stoppageProposed, 'warning', 30, 29, PETER, base),
+          status: 'responded',
+          response: {
+            text: 'I was admitted at Kenyatta National Hospital from 2 to 18 September and could not reach the portal. I will submit my declaration by the end of the month. My discharge summary is attached.',
+            attachments: [
+              {
+                uploadId: 'a77a0000-0000-4000-8000-000000000103',
+                fileName: 'KNH discharge summary.pdf',
+              },
+            ],
+            submittedAt: iso(base - 21 * DAY),
+          },
+        },
         blank(actionId(5, 3), ids.stoppageProposed, 'salary-stoppage', base - 2 * DAY),
       ],
       base,
     ),
   );
+
+  // The stoppage approved yesterday; payroll has not acknowledged the instruction.
+  const pendingStoppage = issued(
+    actionId(9, 3),
+    ids.payrollPending,
+    'salary-stoppage',
+    3,
+    1,
+    SAMUEL,
+    base,
+  );
+  store(
+    ladderOf(
+      {
+        id: ids.payrollPending,
+        subjectKind: 'obligation',
+        subjectReference: 'biennial:2026',
+        declarantName: 'Hellen Atieno Ochieng',
+        personnelFileNumber: '20090554',
+        startedDaysAgo: 34,
+      },
+      [
+        issued(actionId(9, 1), ids.payrollPending, 'notice-to-comply', 34, 33, MERCY, base),
+        issued(actionId(9, 2), ids.payrollPending, 'warning', 19, 18, PETER, base),
+        {
+          ...pendingStoppage,
+          status: 'approved-pending-payroll',
+          issuedAt: null,
+          windowEndsAt: null,
+          letter: null,
+        },
+      ],
+      base,
+    ),
+  );
+
+  // The salary stopped 33 days ago and its window over: the disciplinary referral drafted.
+  store(
+    ladderOf(
+      {
+        id: ids.disciplinaryProposed,
+        subjectKind: 'clarification',
+        subjectReference: 'CLR-TSC-2026-0000519-L',
+        declarantName: 'Stephen Kiprotich Kosgei',
+        personnelFileNumber: '19987702',
+        startedDaysAgo: 66,
+      },
+      [
+        issued(actionId(10, 1), ids.disciplinaryProposed, 'notice-to-comply', 66, 65, MERCY, base),
+        issued(actionId(10, 2), ids.disciplinaryProposed, 'warning', 50, 49, KEVIN, base),
+        stopped(
+          issued(
+            actionId(10, 3),
+            ids.disciplinaryProposed,
+            'salary-stoppage',
+            35,
+            33,
+            SAMUEL,
+            base,
+          ),
+          'PAY-ACK-2026-0091822',
+        ),
+        blank(actionId(10, 4), ids.disciplinaryProposed, 'disciplinary-referral', base - 3 * DAY),
+      ],
+      base,
+    ),
+    [PETER.subject],
+  );
+
+  // Filed while the salary was stopped: payroll acknowledged the reinstatement.
+  const reinstatedStoppage = stopped(
+    issued(actionId(11, 3), ids.reinstated, 'salary-stoppage', 24, 22, SAMUEL, base),
+    'PAY-ACK-2026-0090417',
+  );
+  const reinstatedLadder = ladderOf(
+    {
+      id: ids.reinstated,
+      subjectKind: 'obligation',
+      subjectReference: 'biennial:2026',
+      declarantName: 'Grace Wanjiru Kariuki',
+      personnelFileNumber: '20030011',
+      startedDaysAgo: 55,
+    },
+    [
+      {
+        ...issued(actionId(11, 1), ids.reinstated, 'notice-to-comply', 55, 54, MERCY, base),
+        status: 'complied',
+      },
+      {
+        ...issued(actionId(11, 2), ids.reinstated, 'warning', 40, 39, PETER, base),
+        status: 'complied',
+      },
+      {
+        ...reinstatedStoppage,
+        status: 'reinstated',
+        payrollResume: acknowledged(
+          `${reinstatedStoppage.reference ?? ''}-R`,
+          'resume_salary',
+          'PAY-ACK-2026-0093310',
+          base - 5 * DAY + 2 * 3_600_000,
+        ),
+      },
+    ],
+    base,
+  );
+  store({
+    ...reinstatedLadder,
+    status: 'complied',
+    closingCause: 'filed',
+    endedAt: iso(base - 5 * DAY),
+  });
 
   const declinedLadder = ladderOf(
     {
@@ -577,6 +738,8 @@ export const actionApprovals: MockApprovalSource<'action'> = {
       roles: [...caller.roles],
       // The inbox's approver carries no tenant; approving an action does not depend on one.
       tenant: null,
+      acr: null,
+      authTime: null,
     };
     return [...ladders.values()].flatMap((stored) => {
       const { ladder } = stored;
@@ -691,6 +854,17 @@ function approve(caller: MockCaller, id: string): Response {
     reference,
     letter: letterOf(action.id, reference, action.step),
   };
+  // The mock's payroll acknowledges a stop-salary instruction at once (the service sends it
+  // first and issues the letter once payroll acknowledges).
+  if (action.step === 'salary-stoppage') {
+    sequence += 1;
+    approved.payrollStop = acknowledged(
+      reference,
+      'stop_salary',
+      `PAY-ACK-${String(new Date(at).getUTCFullYear())}-${String(sequence).padStart(7, '0')}`,
+      at,
+    );
+  }
   replace(stored, approved);
   // The service answers the approval itself; the workflow issues the letter a moment later.
   return json(200, {

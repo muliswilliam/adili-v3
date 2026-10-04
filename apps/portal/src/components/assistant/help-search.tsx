@@ -1,13 +1,26 @@
-import { Alert, AlertDescription, Button, Icon, Input, Skeleton, Spinner } from '@adili/ui';
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  cn,
+  focusRing,
+  Icon,
+  Input,
+  Skeleton,
+  Spinner,
+} from '@adili/ui';
 import {
   HelpCircleIcon,
   JusticeScale01Icon,
   Search01Icon,
   WifiDisconnected02Icon,
 } from '@hugeicons/core-free-icons';
+import { Link } from '@tanstack/react-router';
 import { useEffect, useId, useRef, useState } from 'react';
 
-import type { AskCopy, AskLanguage } from '../../assistant/copy';
+import type { AskCopy } from '../../assistant/copy';
+import type { Language } from '../../language';
 import { searchAssistantHelp } from '../../server/assistant';
 import { getDeclarationSummary } from '../../server/declarations';
 import type { CompletenessIssue, HelpPassage } from '../../server/declarations/types';
@@ -36,7 +49,7 @@ export function HelpSearch({
   onFix,
 }: {
   copy: AskCopy;
-  language: AskLanguage;
+  language: Language;
   sectionKey: string | null;
   initialQuery: string;
   /** What to search for before anything is typed: the section's name. */
@@ -135,7 +148,7 @@ export function HelpSearch({
             : copy.forSection}
           {search.status === 'searching' ? <Spinner className="size-3" /> : null}
         </h3>
-        <Results search={search} copy={copy} />
+        <Results search={search} copy={copy} language={language} />
       </section>
       {declarationId ? (
         <StillMissing declarationId={declarationId} copy={copy} onFix={onFix} />
@@ -221,7 +234,15 @@ function StillMissing({
   );
 }
 
-function Results({ search, copy }: { search: Search; copy: AskCopy }) {
+function Results({
+  search,
+  copy,
+  language,
+}: {
+  search: Search;
+  copy: AskCopy;
+  language: Language;
+}) {
   if (search.status === 'failed') {
     return <p className="text-sm text-muted-foreground">{copy.searchFailed}</p>;
   }
@@ -239,19 +260,26 @@ function Results({ search, copy }: { search: Search; copy: AskCopy }) {
   return (
     <ul className="grid gap-2">
       {search.passages.map((passage) => (
-        <li
-          key={passage.id}
-          lang={passage.language}
-          className="grid justify-items-start gap-1.5 rounded-item bg-card px-3 py-2.5 shadow-card"
-        >
-          <span className="inline-flex h-[22px] items-center gap-[5px] rounded-md bg-muted px-2 text-[12px] font-medium text-secondary-foreground [&_svg]:size-3">
-            <Icon icon={passage.source === 'help' ? HelpCircleIcon : JusticeScale01Icon} />
-            {passage.citation}
-          </span>
-          <b className="text-sm font-semibold">{passage.title}</b>
-          <p className="line-clamp-3 text-[13px] leading-[1.45] text-secondary-foreground">
-            {passage.snippet}
-          </p>
+        <li key={passage.id} lang={passage.language}>
+          {/* Each hit opens its help page, where the whole passage is. */}
+          <Link
+            to="/help/$passageId"
+            params={{ passageId: passage.id }}
+            search={{ lang: language }}
+            className={cn(
+              focusRing,
+              'grid justify-items-start gap-1.5 rounded-item bg-card px-3 py-2.5 text-foreground no-underline shadow-card hover:bg-background',
+            )}
+          >
+            <Badge size="tag">
+              <Icon icon={passage.source === 'help' ? HelpCircleIcon : JusticeScale01Icon} />
+              {passage.citation}
+            </Badge>
+            <b className="text-sm font-semibold">{passage.title}</b>
+            <p className="line-clamp-3 text-[13px] leading-[1.45] text-secondary-foreground">
+              {passage.snippet}
+            </p>
+          </Link>
         </li>
       ))}
     </ul>

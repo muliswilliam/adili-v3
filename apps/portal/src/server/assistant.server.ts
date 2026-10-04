@@ -1,10 +1,11 @@
 import type { Feedback } from '@adili/ui';
 
+import type { Language } from '../language';
 import type { DeclarationsClient } from './declarations/client.server';
 import type {
   AssistantConversation,
   AssistantItemType,
-  AssistantLanguage,
+  CompletenessHints,
   HelpPassage,
 } from './declarations/types';
 import { attempt, type NotFound, notFound, type Unavailable, unavailable } from './results';
@@ -20,7 +21,7 @@ export type OpenResult =
 
 export function openConversation(
   client: DeclarationsClient,
-  body: { declarationId: string | null; language: AssistantLanguage },
+  body: { declarationId: string | null; language: Language },
 ): Promise<OpenResult> {
   return attempt(async () => {
     const { data, response } = await client.POST('/v1/me/assistant/conversations', { body });
@@ -112,7 +113,13 @@ export type HelpSearchResult = { status: 'ok'; passages: HelpPassage[] } | Unava
 
 export function searchHelp(
   client: DeclarationsClient,
-  query: { q: string; language: AssistantLanguage; sectionKey: string | null },
+  query: {
+    q: string;
+    language: Language;
+    sectionKey: string | null;
+    /** How many passages, best first: the service gives 8 unless asked (at most 20). */
+    limit?: number;
+  },
 ): Promise<HelpSearchResult> {
   return attempt(async (): Promise<HelpSearchResult> => {
     const { data } = await client.GET('/v1/help/search', {
@@ -121,9 +128,31 @@ export function searchHelp(
           q: query.q,
           language: query.language,
           ...(query.sectionKey ? { sectionKey: query.sectionKey } : {}),
+          ...(query.limit === undefined ? {} : { limit: query.limit }),
         },
       },
     });
     return data ? { status: 'ok', passages: data } : unavailable;
+  });
+}
+
+export type HintsResult = { status: 'ok'; hints: CompletenessHints } | NotFound | Unavailable;
+
+/**
+ * The summary's residuals with their AI-assisted hints (spec 11 S5). The service waits up to
+ * 10 s for the gateway; `hints.status` says whether they are `ready`, still `pending` (ask
+ * again) or `unavailable` (the deterministic text only).
+ */
+export function getCompletenessHints(
+  client: DeclarationsClient,
+  declarationId: string,
+  language: Language,
+): Promise<HintsResult> {
+  return attempt(async (): Promise<HintsResult> => {
+    const { data, response } = await client.GET('/v1/declarations/{declarationId}/hints', {
+      params: { path: { declarationId }, query: { language } },
+    });
+    if (data) return { status: 'ok', hints: data };
+    return response.status === 404 ? notFound : unavailable;
   });
 }

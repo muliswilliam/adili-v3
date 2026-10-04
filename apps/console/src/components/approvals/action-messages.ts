@@ -1,5 +1,3 @@
-import { formatDate } from '@adili/ui';
-
 import { declineKeepsLadderOpen } from '../../actions/ladder';
 
 import type { ActionStep } from '../../server/actions.server';
@@ -10,18 +8,9 @@ export const messages = {
   tab: 'Actions',
   openLadder: 'Open ladder',
   approve: 'Approve',
+  approveStoppage: 'Approve stoppage',
   decline: 'Decline',
   fileNumber: (n: string) => `File ${n}`,
-  firstStep: 'First step: nothing was issued before it.',
-  prior: (step: ActionStep, reference: string | null, issuedAt: string | null) =>
-    `${stepLabel(step)}${reference ? ` ${reference}` : ''}${issuedAt ? `, issued ${formatDate(issuedAt)}` : ''}`,
-  noResponse: 'No response from the declarant.',
-  responded: (date: string, attachments: number) =>
-    `Responded ${formatDate(date)}${
-      attachments > 0
-        ? ` with ${String(attachments)} ${attachments === 1 ? 'document' : 'documents'}`
-        : ''
-    }:`,
   /** 403 from approve or decline, after the inbox said the viewer could. */
   refused: {
     title: 'You cannot approve this',

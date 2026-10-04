@@ -23,6 +23,7 @@ import { orUnavailable } from '../components/dashboard/obligations';
 import { ObligationsSection } from '../components/dashboard/obligations-view';
 import { DISCARDED_TOAST } from '../components/declaration/discard-dialog';
 import { SignOutButton } from '../components/sign-out-button';
+import { HelpLink } from '../components/help/parts';
 import { getMyClarifications, type MyClarificationsLoad } from '../server/clarifications';
 import { getMyNotices, type MyNoticesLoad } from '../server/notices';
 import { getMyDecisionLetter, getMyDecisions, type MyDecisionsLoad } from '../server/decisions';
@@ -232,6 +233,8 @@ function Dashboard({
             <span className="hidden text-sm text-muted-foreground sm:inline">
               {viewer.user.name}
             </span>
+            {/* Help search is for declarants: an applicant's Commission is not known yet. */}
+            {viewer.declarant.status === 'onboarded' ? <HelpLink /> : null}
             <SignOutButton />
           </>
         }

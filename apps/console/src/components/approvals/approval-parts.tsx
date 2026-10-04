@@ -4,7 +4,7 @@ import { ArrowDataTransferHorizontalIcon } from '@hugeicons/core-free-icons';
 import { SYSTEM_PROPOSER } from '../../review-case/labels';
 import type { InboxItem } from '../../server/approvals.server';
 import type { Assignee } from '../../server/review/types';
-import { problemLabel } from '../../server/service-call';
+import { type DecisionRefusal, problemLabel } from '../../server/service-call';
 import type { ApprovalNotice } from './kind';
 import { messages as m } from './messages';
 
@@ -50,6 +50,47 @@ export function decidedNotice(): ApprovalNotice {
     after: m.decided.after,
     offerReassign: false,
   };
+}
+
+/** A kind's words for a refused decision (its messages' `refused`). */
+export interface RefusedCopy {
+  title: string;
+  proposer: string;
+  'reviewer-of-record': string;
+  role: string;
+  /** Under a separation-of-duties refusal: why another supervisor must decide it. */
+  separationAfter: string;
+  /** Under a supervisor-required refusal. */
+  roleAfter: string;
+}
+
+/**
+ * What a refused decision means for the supervisor, for any kind: separation of duties (with
+ * Reassign), supervisor required, or decided already. `problem` is the status and code printed;
+ * `copy` is in the words of the decision that was refused (approve, return, decline).
+ */
+export function decisionNotice(
+  refusal: DecisionRefusal,
+  problem: string,
+  copy: RefusedCopy,
+): ApprovalNotice {
+  if (refusal.kind === 'separation-of-duties') {
+    return {
+      title: copy.title,
+      failure: { title: copy[refusal.reason], problem },
+      after: copy.separationAfter,
+      offerReassign: true,
+    };
+  }
+  if (refusal.kind === 'supervisor-required') {
+    return {
+      title: copy.title,
+      failure: { title: copy.role, problem },
+      after: copy.roleAfter,
+      offerReassign: false,
+    };
+  }
+  return decidedNotice();
 }
 
 /** Who proposed an approval, by name, or "the system": always inside a sentence. */

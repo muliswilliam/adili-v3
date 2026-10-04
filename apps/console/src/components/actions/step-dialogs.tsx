@@ -2,9 +2,11 @@ import {
   addDays,
   Alert,
   AlertDescription,
+  AlertTitle,
   ApprovalConsequences,
   type ApprovalConsequence,
   Button,
+  Checkbox,
   Dialog,
   DialogBody,
   DialogClose,
@@ -19,12 +21,13 @@ import {
 } from '@adili/ui';
 import {
   BanIcon,
+  BanknoteIcon,
+  Building03Icon,
   Calendar03Icon,
   Cancel01Icon,
   File01Icon,
   HashtagIcon,
   InformationCircleIcon,
-  Mail01Icon,
   Notification01Icon,
   RefreshIcon,
 } from '@hugeicons/core-free-icons';
@@ -32,9 +35,11 @@ import { useId, useState } from 'react';
 
 import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
 
-import { LADDER_WINDOW_DAYS } from '../../actions/ladder';
+import { isGraveStep, LADDER_WINDOW_DAYS } from '../../actions/ladder';
 import type { ActionStep } from '../../server/actions.server';
 import { en as m } from './messages';
+import { type EarlierSteps, STEP_ICONS, WhatCameBefore } from './prior-steps';
+import { stoppageCopy as stoppage } from './stoppage-messages';
 
 /**
  * Approve, Decline and Restart for a ladder's step (spec 08 FE-5), as controlled dialogs. Each
@@ -68,7 +73,38 @@ export function consequencesOf(
   step: ActionStep,
   declarantName: string,
   now: string,
+  personnelFileNumber?: string,
 ): ApprovalConsequence[] {
+  const a = stoppage.approve;
+  if (step === 'salary-stoppage') {
+    return [
+      { icon: HashtagIcon, title: a.adm, detail: a.admPayroll },
+      {
+        icon: BanknoteIcon,
+        title: a.payroll,
+        ...(personnelFileNumber ? { detail: a.payrollDetail(personnelFileNumber) } : {}),
+        grave: true,
+      },
+      { icon: File01Icon, title: a.stoppageLetter, detail: a.letterDetail },
+      {
+        icon: Notification01Icon,
+        title: m.consequences.notified(declarantName),
+        detail: a.reinstatedDetail,
+      },
+    ];
+  }
+  if (step === 'disciplinary-referral') {
+    return [
+      { icon: HashtagIcon, title: m.consequences.reference },
+      { icon: File01Icon, title: a.disciplinaryLetter, detail: a.disciplinaryLetterDetail },
+      {
+        icon: Building03Icon,
+        title: a.reportingEntity,
+        detail: a.reportingEntityDetail,
+        grave: true,
+      },
+    ];
+  }
   const days = LADDER_WINDOW_DAYS[step];
   return [
     { icon: HashtagIcon, title: m.consequences.reference },
@@ -86,26 +122,6 @@ export function consequencesOf(
             detail: m.consequences.actByDetail(days),
           },
         ]),
-    ...(step === 'salary-stoppage'
-      ? [
-          {
-            icon: BanIcon,
-            title: m.consequences.salaryStopped,
-            detail: m.consequences.salaryStoppedDetail,
-            grave: true,
-          },
-        ]
-      : []),
-    ...(step === 'disciplinary-referral'
-      ? [
-          {
-            icon: BanIcon,
-            title: m.consequences.disciplinary,
-            detail: m.consequences.disciplinaryDetail,
-            grave: true,
-          },
-        ]
-      : []),
     {
       icon: Notification01Icon,
       title: m.consequences.notified(declarantName),
@@ -114,13 +130,22 @@ export function consequencesOf(
   ];
 }
 
+/**
+ * Approve a drafted step, its consequences stated first. A salary stoppage or disciplinary
+ * referral (#208, US 13) also shows what came before it in full (`earlier`: the earlier steps,
+ * the declarant's responses, the stoppage's payroll acknowledgement) and cannot be approved until
+ * that has loaded; a salary stoppage says first that it stops a salary, and the supervisor
+ * confirms having read the notice, the warning and any responses.
+ */
 export function ApproveStepDialog({
   open,
   onOpenChange,
   step,
   declarantName,
   subjectTitle,
+  personnelFileNumber,
   now,
+  earlier,
   onSubmit,
 }: {
   open: boolean;
@@ -128,35 +153,76 @@ export function ApproveStepDialog({
   step: ActionStep;
   declarantName: string;
   subjectTitle: string;
+  personnelFileNumber?: string;
   now: string;
+  /** The steps before this one, for a grave step; unset for a notice or warning. */
+  earlier?: EarlierSteps;
   onSubmit: () => Promise<FailureText | null>;
 }) {
   const state = useSubmit(onSubmit);
+  const [read, setRead] = useState(false);
+  const readId = useId();
+  const salary = step === 'salary-stoppage';
+  const loaded = earlier === undefined || earlier.state === 'ok';
+  const ready = loaded && (!salary || read);
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) state.reset();
+        if (!next) {
+          state.reset();
+          setRead(false);
+        }
         onOpenChange(next);
       }}
     >
-      <DialogContent busy={state.busy}>
+      <DialogContent busy={state.busy} className={earlier ? 'sm:max-w-[680px]' : undefined}>
         <DialogHeading
-          icon={Mail01Icon}
+          icon={salary ? BanknoteIcon : STEP_ICONS[step]}
+          tone={isGraveStep(step) ? 'destructive' : undefined}
           title={m.approveTitle(step)}
           description={`${declarantName} · ${subjectTitle}`}
         />
         <DialogBody className="grid gap-4">
-          <ApprovalConsequences items={consequencesOf(step, declarantName, now)} headingLevel={3} />
+          {salary ? (
+            <Alert variant="destructive" role="note">
+              <Icon icon={BanknoteIcon} />
+              <AlertTitle>{stoppage.approve.payrollCallout(declarantName)}</AlertTitle>
+            </Alert>
+          ) : null}
+          {earlier ? <WhatCameBefore earlier={earlier} /> : null}
+          <ApprovalConsequences
+            items={consequencesOf(step, declarantName, now, personnelFileNumber)}
+            headingLevel={3}
+          />
+          {salary ? (
+            <div className="flex items-start gap-2.5">
+              <Checkbox
+                id={readId}
+                checked={read}
+                disabled={!loaded || state.busy}
+                onChange={(event) => {
+                  setRead(event.target.checked);
+                }}
+              />
+              <Label htmlFor={readId} className="font-normal">
+                {stoppage.approve.read}
+              </Label>
+            </div>
+          ) : null}
           <DialogFailure failure={state.failure} />
         </DialogBody>
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="secondary">{m.cancel}</Button>
           </DialogClose>
-          <Button disabled={state.busy} onClick={() => void state.run()}>
-            {state.busy ? <Spinner /> : null}
-            {m.approveAndIssue}
+          <Button
+            variant={salary ? 'destructive' : 'default'}
+            disabled={state.busy || !ready}
+            onClick={() => void state.run()}
+          >
+            {state.busy ? <Spinner /> : salary ? <Icon icon={BanIcon} /> : null}
+            {salary ? stoppage.approve.confirmStoppage : m.approveAndIssue}
           </Button>
         </DialogFooter>
       </DialogContent>

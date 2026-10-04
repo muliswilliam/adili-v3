@@ -10,8 +10,9 @@ import { vi } from 'vitest';
  *     (await import('./testing-mocks')).serverMock(),
  *   );
  *
- * Screens with the submit flow also mock `../../server/submission` (`submissionMock`) and
- * `../../server/step-up` (`stepUpMock`); the success page mocks `../../server/submission` and
+ * Screens with the submit flow also mock `../../server/submission` (`submissionMock`),
+ * `../../server/step-up` (`stepUpMock`) and, for the summary's hints, `../../server/assistant`
+ * (`assistantMock`); the success page mocks `../../server/submission` and
  * `../download` (`downloadMock`); My declarations mocks `../../server/my-declarations`
  * (`myDeclarationsMock`).
  */
@@ -97,4 +98,9 @@ export function downloadMock() {
 
 export function stepUpMock() {
   return { getStepUpStatus: vi.fn() };
+}
+
+/** The summary's hints (`../../server/assistant`): none, as without AI, unless a test says. */
+export function assistantMock() {
+  return { getSummaryHints: vi.fn(() => Promise.resolve({ status: 'unavailable' })) };
 }

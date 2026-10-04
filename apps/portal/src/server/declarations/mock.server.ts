@@ -60,7 +60,7 @@
  * (`setLookupDelay(0)`) or play a Commission without AI (`setExtractionEnabled(false)`).
  *
  * Ask Adili (spec 11) lives in `./mock/assistant.ts`: conversations, canned streamed answers,
- * declines, feedback and help search; `setAssistantMode` (or ASSISTANT_MOCK_MODE) plays the
+ * declines, feedback, help search and pages, and summary hints; `setAssistantMode` (or ASSISTANT_MOCK_MODE) plays the
  * gateway down, failing part-way or refusing a declarant who asks too often.
  *
  * This file routes; each part lives in `./mock/`: `fixtures.ts`, the store and its views
@@ -72,6 +72,8 @@ import { resetAcknowledgementMock } from './mock/acknowledgement';
 import {
   ask,
   type AssistantMode,
+  completenessHints,
+  getHelpPassage,
   openConversation,
   rate,
   resetAssistantMock,
@@ -190,8 +192,20 @@ async function route(
   }
   const claims = bearerClaims(request);
   const caller = claims?.person_id ?? null;
-  if (path.startsWith('/v1/me/assistant/') || path === '/v1/help/search') {
+  if (
+    path.startsWith('/v1/me/assistant/') ||
+    path === '/v1/help/search' ||
+    path.startsWith('/v1/help/passages/')
+  ) {
     return parts.assistant ? assistant(request, url, path, caller) : real(request);
+  }
+  // Hints are the assistant's, on the summary the mocked (or real) drafts give.
+  const hints = /^\/v1\/declarations\/([^/]+)\/hints$/.exec(path);
+  if (method === 'GET' && hints?.[1]) {
+    if (!parts.assistant) return real(request);
+    const summaryUrl = new URL(`/v1/declarations/${hints[1]}/summary`, url);
+    const summary = await route(new Request(summaryUrl, { headers: request.headers }), parts, real);
+    return completenessHints(url, summary);
   }
   if (!parts.declarations) return real(request);
   if (method === 'GET' && path === '/v1/me/declarations') return myDeclarations(caller);
@@ -296,6 +310,8 @@ function assistant(
 ): Promise<Response> | Response {
   const { method } = request;
   if (method === 'GET' && path === '/v1/help/search') return searchHelp(url, caller);
+  const helpPassage = /^\/v1\/help\/passages\/([^/]+)$/.exec(path);
+  if (method === 'GET' && helpPassage?.[1]) return getHelpPassage(url, caller, helpPassage[1]);
   if (method === 'POST' && path === '/v1/me/assistant/conversations') {
     return openConversation(request, caller);
   }

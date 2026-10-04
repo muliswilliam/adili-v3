@@ -5,15 +5,21 @@ import { opensOwnPolicy, readsCommissionPolicy, workspaceFor, workspacesFor } fr
 const ids = (roles: string[]) => workspacesFor(roles).map((workspace) => workspace.id);
 
 describe('workspacesFor', () => {
-  it('gives reviewers the review queue, actions and obligations', () => {
-    expect(ids(['reviewer', 'default-roles-adili'])).toEqual(['review', 'actions', 'obligations']);
+  it('gives reviewers the review queue, actions, referrals and obligations', () => {
+    expect(ids(['reviewer', 'default-roles-adili'])).toEqual([
+      'review',
+      'actions',
+      'referrals',
+      'obligations',
+    ]);
   });
 
-  it('gives supervisors review, approvals, actions, access requests, obligations and Form M, once each', () => {
+  it('gives supervisors review, approvals, actions, referrals, access requests, obligations and Form M, once each', () => {
     expect(ids(['supervisor', 'reviewer'])).toEqual([
       'review',
       'approvals',
       'actions',
+      'referrals',
       'access',
       'obligations',
       'form-m',
@@ -33,7 +39,12 @@ describe('workspacesFor', () => {
   });
 
   it('gives EACC analysts Commissions, national obligations and compliance reports but not the review queue', () => {
-    expect(ids(['eacc-analyst'])).toEqual(['commissions', 'national-obligations', 'compliance']);
+    expect(ids(['eacc-analyst'])).toEqual([
+      'commissions',
+      'national-obligations',
+      'compliance',
+      'referrals-intake',
+    ]);
   });
 
   it('gives declarants nothing in the console', () => {
@@ -105,6 +116,13 @@ describe('S18 Commissions workspace', () => {
   it('leaves workspaces that are not built yet without a link', () => {
     expect(workspaceFor(['auditor'], 'audit')).toMatchObject({ readOnly: false });
     expect(workspaceFor(['auditor'], 'audit')?.href).toBeUndefined();
+  });
+
+  it('opens Referrals for reviewers and supervisors of the Commission (spec 08)', () => {
+    expect(workspaceFor(['reviewer'], 'referrals')).toMatchObject({ href: '/referrals' });
+    expect(workspaceFor(['supervisor'], 'referrals')).toMatchObject({ href: '/referrals' });
+    expect(workspaceFor(['commission-admin'], 'referrals')).toBeUndefined();
+    expect(workspaceFor(['eacc-analyst'], 'referrals')).toBeUndefined();
   });
 
   it('opens Approvals for supervisors only (spec 08)', () => {
@@ -265,6 +283,22 @@ describe("the policy card on a Commission's page (spec 04 FE-4)", () => {
   );
 });
 
+describe('S15 Compliance reports workspace (EACC intake)', () => {
+  it.each(['eacc-analyst', 'eacc-supervisor'])('opens for %s', (role) => {
+    expect(workspaceFor([role], 'compliance')).toMatchObject({
+      href: '/eacc/reports',
+      readOnly: false,
+    });
+  });
+
+  it.each(['platform-admin', 'supervisor', 'commission-admin', 'reporting-officer', 'reviewer'])(
+    'stays closed for %s',
+    (role) => {
+      expect(workspaceFor([role], 'compliance')).toBeUndefined();
+    },
+  );
+});
+
 describe('S16 National obligations workspace', () => {
   it.each(['platform-admin', 'eacc-analyst', 'eacc-supervisor'])('opens for %s', (role) => {
     expect(workspaceFor([role], 'national-obligations')).toEqual({
@@ -303,4 +337,28 @@ describe('S16 AI policy workspace', () => {
   ])('stays closed for %s', (role) => {
     expect(workspaceFor([role], 'ai-policy')).toBeUndefined();
   });
+});
+
+describe('S12 referrals received (EACC intake)', () => {
+  it('opens for EACC analysts, who push to ICMS', () => {
+    expect(workspaceFor(['eacc-analyst'], 'referrals-intake')).toMatchObject({
+      title: 'Referrals received',
+      href: '/eacc/referrals',
+      readOnly: false,
+    });
+  });
+
+  it('opens read-only for EACC supervisors (spec 09 FE access table)', () => {
+    expect(workspaceFor(['eacc-supervisor'], 'referrals-intake')).toMatchObject({
+      href: '/eacc/referrals',
+      readOnly: true,
+    });
+  });
+
+  it.each(['supervisor', 'reviewer', 'commission-admin', 'platform-admin', 'auditor'])(
+    'stays closed for %s',
+    (role) => {
+      expect(workspaceFor([role], 'referrals-intake')).toBeUndefined();
+    },
+  );
 });
