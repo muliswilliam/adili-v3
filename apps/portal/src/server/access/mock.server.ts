@@ -929,7 +929,7 @@ function hasRole(request: Request, role: string): boolean {
 }
 
 export async function mockAccessFetch(request: Request): Promise<Response> {
-  if (!seeded) resetAccessMock();
+  if (!seeded) resetAccessMock(mockNow());
   const url = new URL(request.url);
   const path = url.pathname;
   const download = /^\/v1\/documents\/([^/]+)\/download$/.exec(path);
