@@ -107,14 +107,6 @@ export function aggregateFacts(
   };
 }
 
-/**
- * Section 5 from the Form K requests received in the year (decided on #239): (a) every one;
- * (b) full and partial grants; (c) denials and requests closed because the officer named could
- * not be identified; (d) a count per Regulation 24 ground cited on denials and partial grants,
- * and `other` per unidentified officer. A denial citing several grounds counts once under each,
- * so the reasons may add up to more than (c). Outcomes count in the year the request was
- * received, so (b) and (c) never exceed (a); a withdrawn request counts in (a) only.
- */
 /** How each way a Form K request ends counts in section 5: (b) or (c), and its (d) reasons. */
 const OUTCOME_COUNTS: Record<
   AccessRequestFactOutcome,
@@ -126,6 +118,14 @@ const OUTCOME_COUNTS: Record<
   'cannot-identify': { as: 'declined', reasons: 'other' },
 };
 
+/**
+ * Section 5 from the Form K requests received in the year (decided on #239): (a) every one;
+ * (b) full and partial grants; (c) denials and requests closed because the officer named could
+ * not be identified; (d) a count per Regulation 24 ground cited on denials and partial grants,
+ * and `other` per unidentified officer. A denial citing several grounds counts once under each,
+ * so the reasons may add up to more than (c). Outcomes count in the year the request was
+ * received, so (b) and (c) never exceed (a); a withdrawn request counts in (a) only.
+ */
 function accessSection(requests: readonly AccessRequestFactRow[]): {
   counts: ReportCounts['accessRequests'];
   declineReasons: Aggregate['declineReasons'];
