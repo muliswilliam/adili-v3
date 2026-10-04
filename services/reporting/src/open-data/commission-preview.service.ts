@@ -1,11 +1,11 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
-import { type Principal, ProblemException } from '@adili/api-kit';
+import { Injectable } from '@nestjs/common';
+import { type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { desc, eq, inArray } from 'drizzle-orm';
 
 import { formMTenant, requireCommissionAdmin } from '../access.js';
 import type { ReportingSchema } from '../db/schema.js';
-import { notFound } from '../problems.js';
+import { notFound, storageUnavailable } from '../problems.js';
 import { PLATFORM_TENANT, systemContext } from '../system-context.js';
 import { OpenDataFiles, OpenDataStorageUnavailable } from './open-data-files.js';
 import { type OpenDataReleaseView, openDataReleaseView } from './representation.js';
@@ -90,12 +90,7 @@ export class CommissionOpenDataPreviewService {
       return JSON.parse(Buffer.from(body).toString('utf8')) as OpenDataTable;
     } catch (error) {
       if (error instanceof OpenDataStorageUnavailable) {
-        throw new ProblemException({
-          type: 'storage-unavailable',
-          title: 'Upstream service unavailable',
-          status: HttpStatus.SERVICE_UNAVAILABLE,
-          detail: 'The release files could not be read just now. Try again shortly.',
-        });
+        throw storageUnavailable();
       }
       throw error;
     }

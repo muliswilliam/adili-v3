@@ -24,6 +24,7 @@ import { insertDraft } from './narrative.js';
 import {
   DRAFT_FAILURES,
   type DraftFailureReason,
+  GATEWAY_FAILURES,
   type DraftOutcome,
   NARRATE_DATA_CLASS,
   NARRATE_PROMPT_VERSION,
@@ -284,12 +285,12 @@ async function finishDraft(
 /** The problem a failed draft answers, by why it failed; nothing was inserted. */
 function draftProblem(reason: DraftFailureReason | null) {
   switch (reason) {
-    case 'validation':
+    case GATEWAY_FAILURES.validation:
       return conflict(
         'narrative-validation',
         'The draft cited a figure that is not in the report and was discarded. Nothing was inserted.',
       );
-    case 'policy':
+    case GATEWAY_FAILURES.policy:
       return conflict('ai-not-enabled', 'AI assistance is not enabled for EACC.');
     case DRAFT_FAILURES.aggregatesRebuilt:
       return conflict(

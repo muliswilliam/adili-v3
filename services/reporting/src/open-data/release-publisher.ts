@@ -12,7 +12,7 @@ import { DocumentsClient } from '../documents/documents-client.js';
 import { fyLabel } from '../financial-year.js';
 import { nationalReports } from '../national-reports/schema.js';
 import type { Officer } from '../officer.js';
-import { PLATFORM_TENANT } from '../system-context.js';
+import { PLATFORM_TENANT, SYSTEM_SUBJECT } from '../system-context.js';
 import type { ReleaseManifest } from './contract.js';
 import {
   OPEN_DATA_RELEASE_PUBLISHED,
@@ -238,7 +238,7 @@ export class OpenDataReleasePublisher {
 
   /** Releases are EACC's: read and written as the platform, which also serves the public API. */
   private asPlatform<T>(work: (tx: ReportingTransaction) => Promise<T>): Promise<T> {
-    return withTenant(this.db, { tenant: PLATFORM_TENANT, subject: 'system:reporting' }, work);
+    return withTenant(this.db, { tenant: PLATFORM_TENANT, subject: SYSTEM_SUBJECT }, work);
   }
 
   private async json<T>(key: string): Promise<T> {

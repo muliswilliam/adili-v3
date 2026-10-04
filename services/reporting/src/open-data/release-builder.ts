@@ -22,7 +22,7 @@ import {
   obligationFacts,
   referralFacts,
 } from '../projections/schema.js';
-import { PLATFORM_TENANT } from '../system-context.js';
+import { PLATFORM_TENANT, SYSTEM_SUBJECT } from '../system-context.js';
 import { OPEN_DATA_RELEASE_BUILT, type OpenDataReleaseBuiltData } from './events.js';
 import { CONTENT_TYPES, datasetFiles, objectKeyOf, type ReleaseSourceName } from './files.js';
 import { OpenDataFiles } from './open-data-files.js';
@@ -143,7 +143,7 @@ export class OpenDataReleaseBuilder {
   async build(request: BuildReleaseRequest): Promise<OpenDataReleaseView> {
     const { fy, kind, builtBy } = request;
     const releaseId = request.releaseId ?? uuidv7();
-    const context = { tenant: PLATFORM_TENANT, subject: builtBy ?? 'system:reporting' };
+    const context = { tenant: PLATFORM_TENANT, subject: builtBy ?? SYSTEM_SUBJECT };
     // A snapshot of a year without an NCR is of the live projections, over the directory's
     // Commissions, asked outside the transaction. An NCR is never removed, so one not found now
     // is the only way the transaction finds none.

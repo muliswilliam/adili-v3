@@ -50,11 +50,15 @@ export function notFound(
   });
 }
 
-/** 409 `code`: the resource's state refuses the change. */
-export function conflict(code: string, detail: string): ProblemException {
+/** 409 `code`: the resource's state refuses the change; `extensions` say how. */
+export function conflict(
+  code: string,
+  detail: string,
+  extensions: Record<string, unknown> = {},
+): ProblemException {
   return new ProblemException(
     { type: 'about:blank', title: 'Conflict', status: HttpStatus.CONFLICT, detail },
-    { code },
+    { code, ...extensions },
   );
 }
 
@@ -77,6 +81,16 @@ export function directoryUnavailable(): ProblemException {
     title: 'Upstream service unavailable',
     status: HttpStatus.SERVICE_UNAVAILABLE,
     detail: 'The Commission directory cannot be reached. Try again shortly.',
+  });
+}
+
+/** 503 `storage-unavailable`: object storage (the open-data bucket) cannot be reached. */
+export function storageUnavailable(): ProblemException {
+  return new ProblemException({
+    type: 'storage-unavailable',
+    title: 'Upstream service unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The release files could not be reached just now. Try again shortly.',
   });
 }
 

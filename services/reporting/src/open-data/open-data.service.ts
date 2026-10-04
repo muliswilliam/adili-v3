@@ -9,7 +9,13 @@ import { DirectoryUnavailable } from '../directory/directory-client.js';
 import { DocumentsUnavailable } from '../documents/documents-client.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { officerOf } from '../officer.js';
-import { badGateway, conflict, directoryUnavailable, notFound } from '../problems.js';
+import {
+  badGateway,
+  conflict,
+  directoryUnavailable,
+  notFound,
+  storageUnavailable,
+} from '../problems.js';
 import { eaccContext } from '../system-context.js';
 import { OpenDataStorageUnavailable } from './open-data-files.js';
 import {
@@ -110,15 +116,10 @@ export class OpenDataService {
       }
       if (error instanceof AnnualReleasePublished) throw annualReleasePublished();
       if (error instanceof ReconciliationFailed) {
-        throw new ProblemException(
-          {
-            type: 'about:blank',
-            title: 'Conflict',
-            status: HttpStatus.CONFLICT,
-            detail:
-              'The release tables do not reconcile with the national totals they were built from, so nothing was built. Report this fault to the platform team.',
-          },
-          { code: 'reconciliation-failed', mismatches: [...error.mismatches] },
+        throw conflict(
+          'reconciliation-failed',
+          'The release tables do not reconcile with the national totals they were built from, so nothing was built. Report this fault to the platform team.',
+          { mismatches: [...error.mismatches] },
         );
       }
       if (error instanceof OpenDataStorageUnavailable) throw storageUnavailable();
@@ -214,14 +215,5 @@ function documentsUnavailable(what: string): ProblemException {
     title: 'Upstream service unavailable',
     status: HttpStatus.SERVICE_UNAVAILABLE,
     detail: `${what} Try again shortly.`,
-  });
-}
-
-function storageUnavailable(): ProblemException {
-  return new ProblemException({
-    type: 'storage-unavailable',
-    title: 'Upstream service unavailable',
-    status: HttpStatus.SERVICE_UNAVAILABLE,
-    detail: 'The release files could not be reached just now. Try again shortly.',
   });
 }

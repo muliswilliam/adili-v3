@@ -30,7 +30,7 @@ import { z } from 'zod';
 
 import { OPEN_DATA_RATE_LIMIT } from '../config.js';
 import { FIRST_FINANCIAL_YEAR } from '../financial-year.js';
-import { notFound } from '../problems.js';
+import { notFound, storageUnavailable } from '../problems.js';
 import { CONTENT_TYPES, type FileFormat } from './files.js';
 import { OpenDataStorageUnavailable } from './open-data-files.js';
 import {
@@ -230,14 +230,5 @@ function notAcceptable(): ProblemException {
     title: 'Not Acceptable',
     status: HttpStatus.NOT_ACCEPTABLE,
     detail: 'A table is served as application/json or text/csv.',
-  });
-}
-
-function storageUnavailable(): ProblemException {
-  return new ProblemException({
-    type: 'storage-unavailable',
-    title: 'Upstream service unavailable',
-    status: HttpStatus.SERVICE_UNAVAILABLE,
-    detail: 'The release files could not be reached just now. Try again shortly.',
   });
 }

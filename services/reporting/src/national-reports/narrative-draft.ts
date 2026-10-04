@@ -83,6 +83,12 @@ export const DRAFT_FAILURES = {
   approved: 'ncr-approved',
 } as const;
 
+/** The gateway's job reasons (ai-gateway.yaml `JobReason`) a failed draft is answered by itself. */
+export const GATEWAY_FAILURES = {
+  validation: 'validation',
+  policy: 'policy',
+} as const satisfies Record<string, AiJobReason>;
+
 /**
  * Why a draft failed, as recorded (`national_report_narrative_drafts.failure_reason`) and
  * answered: the gateway job's reason (ai-gateway.yaml `JobReason`), its ended status when it gave
