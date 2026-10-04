@@ -1,9 +1,9 @@
-# Drafted operations of the declarations API for specs not implemented yet: document
-# extraction, the assistant and help. `pnpm --filter @adili/declarations contracts` merges them into
-# packages/schemas/internal/declarations.yaml, where they may reference the implemented
-# components (e.g. `#/components/schemas/Obligation`, `CommissionRef`, `ObligationType`,
-# `ProblemDetails`). When an operation or component is implemented, delete it here: the export
-# fails while both define it.
+# Drafted operations of the declarations API not implemented yet: document extraction (spec
+# 05b) and suggested questions (spec 11, #544). `pnpm --filter @adili/declarations contracts`
+# merges them into packages/schemas/internal/declarations.yaml, where they may reference the
+# implemented components (e.g. `#/components/schemas/Obligation`, `CommissionRef`,
+# `ObligationType`, `ProblemDetails`). When an operation or component is implemented, delete it
+# here: the export fails while both define it.
 paths:
   /v1/declarations/{declarationId}/attachments/{attachmentId}/extract:
     parameters:
