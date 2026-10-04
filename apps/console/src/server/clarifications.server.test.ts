@@ -253,7 +253,7 @@ describe('issueDraft (S12)', () => {
     });
 
     it('issues as of when the mock was seeded, not the wall clock', async () => {
-      // Seeded as of NOW, but run a month later: the case's window has closed by the wall clock.
+      // Seeded as of NOW, but run a day after the case's 30-day window closed by the wall clock.
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(NOW_MS + 31 * 86_400_000);
       resetReviewMock(NOW_MS);
