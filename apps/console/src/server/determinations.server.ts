@@ -2,7 +2,12 @@ import type { DocumentsClient } from './documents/client';
 import type { ReviewClient } from './review/client.server';
 import type { Determination, DeterminationInput, LetterDownload } from './review/types';
 import { type DeterminationRefusal, REFUSAL_STATUS } from '../determination/refusals';
-import { callService, type ServiceError, type ServiceResult } from './service-call';
+import {
+  callService,
+  callWithRefusals,
+  type RefusalResult,
+  type ServiceResult,
+} from './service-call';
 
 /**
  * The review service's determination endpoints (spec 08, S1 and S2): propose on a case, approve,
@@ -11,38 +16,12 @@ import { callService, type ServiceError, type ServiceResult } from './service-ca
  * caller injects the client (see `determinations.ts` for the server functions).
  */
 
-export type DeterminationResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; refusal: DeterminationRefusal }
-  | { ok: false; refusal: null; error: ServiceError };
+export type DeterminationResult<T> = RefusalResult<T, DeterminationRefusal>;
 
-function isRefusalKind(value: unknown): value is DeterminationRefusal['kind'] {
-  return typeof value === 'string' && Object.hasOwn(REFUSAL_STATUS, value);
-}
-
-/** The refusal a 403 or 409 problem names, or null for any other answer. */
-export function refusalOf(error: ServiceError): DeterminationRefusal | null {
-  if (error.kind !== 'problem') return null;
-  const problem: { status: number; type: string; code?: unknown; reason?: unknown } = error.problem;
-  if (problem.status !== 403 && problem.status !== 409) return null;
-  const code = isRefusalKind(problem.code) ? problem.code : problem.type;
-  if (!isRefusalKind(code)) return null;
-  if (code === 'separation-of-duties') {
-    return {
-      kind: code,
-      reason: problem.reason === 'proposer' ? 'proposer' : 'reviewer-of-record',
-    };
-  }
-  return { kind: code };
-}
-
-async function settle<T>(
+function settle<T>(
   call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<DeterminationResult<T>> {
-  const result = await callService(call);
-  if (result.ok) return result;
-  const refusal = refusalOf(result.error);
-  return refusal ? { ok: false, refusal } : { ok: false, refusal: null, error: result.error };
+  return callWithRefusals(call, REFUSAL_STATUS);
 }
 
 /**

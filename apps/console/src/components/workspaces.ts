@@ -34,6 +34,7 @@ export type WorkspaceHref =
   | '/review'
   | '/approvals'
   | '/actions'
+  | '/referrals'
   | '/access/requests'
   | '/lea/requests'
   | '/platform/law-enforcement'
@@ -147,6 +148,13 @@ const WORKSPACES: WorkspaceDefinition[] = [
     description:
       'Approve the notices and warnings drafted for overdue declarations and clarifications.',
     href: '/actions',
+    roles: [REVIEWER, SUPERVISOR],
+  },
+  {
+    id: 'referrals',
+    title: 'Referrals',
+    description: 'Referrals to EACC proposed by reviewers and the system, and where each stands.',
+    href: '/referrals',
     roles: [REVIEWER, SUPERVISOR],
   },
   {
