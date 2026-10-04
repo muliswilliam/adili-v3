@@ -217,7 +217,6 @@ export function resetActionsMock(seededAt: number = Date.now()) {
   letters.clear();
   attachments.clear();
   sequence = 400;
-  reviewClock.startAt(seededAt);
   const base = seededAt;
   const ids = MOCK_LADDER_IDS;
 
