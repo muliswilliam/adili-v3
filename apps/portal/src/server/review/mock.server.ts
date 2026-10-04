@@ -27,11 +27,11 @@
  * Tests can reseed at a given time (`resetReviewMock`) and make the next response fail as if the
  * service were down (`failNextResponse`), or the next decision letter (`failNextDecisionLetter`).
  */
-import { createMockClock } from '@adili/api-kit/client';
 import { addDays } from '@adili/ui';
 
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
+import { reviewClock } from './mock-clock.server';
 import { noticeInStore, noticesRoute, resetNoticesMock } from './notices-mock.server';
 import type { DeclarantClarification, DeclarantDecision } from './types';
 
@@ -108,8 +108,6 @@ let issueDelayMs = MOCK_LETTER_ISSUE_MS;
 /** First answer by Idempotency-Key, replayed on retry. */
 const answered = new Map<string, Response>();
 let failNext = false;
-/** Runs from the instant the fixtures were last seeded as of (`resetReviewMock`). */
-const clock = createMockClock();
 
 function at(now: number, days: number): string {
   return addDays(new Date(now).toISOString(), days);
@@ -192,7 +190,7 @@ export function resetReviewMock(
     noNotices = false,
   }: { letterIssueMs?: number; noNotices?: boolean } = {},
 ) {
-  clock.startAt(now);
+  reviewClock.startAt(now);
   resetNoticesMock(now, { empty: noNotices });
   issueDelayMs = letterIssueMs;
   decisions.clear();
@@ -348,7 +346,7 @@ export function mockNotice(actionId: string) {
 }
 
 function ensureSeeded() {
-  if (clarifications.size === 0) resetReviewMock(clock.now());
+  if (clarifications.size === 0) resetReviewMock(reviewClock.now());
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {
@@ -444,7 +442,7 @@ async function respond(request: Request, id: string): Promise<Response> {
     answers.push({ index: item.index, text: item.text, attachments: files });
   }
 
-  const now = new Date(clock.now()).toISOString();
+  const now = new Date(reviewClock.now()).toISOString();
   const updated: DeclarantClarification = {
     ...found,
     status: 'responded',

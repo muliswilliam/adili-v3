@@ -35,6 +35,7 @@ import { stepLabel } from '../../components/actions/messages';
 import { isRecord, json, type MockCaller, problem, readJson } from '../mock-http';
 import type { components } from './api.gen';
 import type { MockApprovalSource } from './approvals-mock.server';
+import { reviewClock } from './mock-clock.server';
 
 type Schemas = components['schemas'];
 type Ladder = Schemas['Ladder'];
@@ -81,11 +82,9 @@ const replies = new Map<string, Response>();
 const letters = new Map<string, string>();
 const attachments = new Map<string, string>();
 let sequence = 400;
-let clock = { seeded: 0, real: 0 };
-
-/** The mock's "now": the seeded time, moving on with the real clock. */
+/** The mock's "now": the review mocks' clock, started at the seeded time. */
 function now(): number {
-  return clock.seeded + (Date.now() - clock.real);
+  return reviewClock.now();
 }
 
 function iso(ms: number): string {
@@ -223,7 +222,7 @@ export function resetActionsMock(seededAt: number = Date.now()) {
   letters.clear();
   attachments.clear();
   sequence = 400;
-  clock = { seeded: seededAt, real: Date.now() };
+  reviewClock.startAt(seededAt);
   const base = seededAt;
   const ids = MOCK_LADDER_IDS;
 
@@ -478,7 +477,7 @@ export function resetActionsMock(seededAt: number = Date.now()) {
 }
 
 function ensureSeeded() {
-  if (ladders.size === 0) resetActionsMock();
+  if (ladders.size === 0) resetActionsMock(now());
 }
 
 /** A ladder as the mock holds it (tests). */
@@ -819,7 +818,7 @@ export function mockActionDocumentsFetch(request: Request): Promise<Response> {
     return Promise.resolve(
       json(200, {
         downloadUrl: `/api/mock-files/${download[1]}`,
-        expiresAt: iso(Date.now() + 5 * 60_000),
+        expiresAt: iso(now() + 5 * 60_000),
         sha256: 'b5d4045c3f466fa91fe2cc6abe79232a1a57cdf104f7a26e716e0a1e2789df78',
       }),
     );

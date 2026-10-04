@@ -1023,11 +1023,15 @@ function mockCases(caller: Assignee): MockCases {
       if (!stored) return;
       stored.item = { ...stored.item, status };
       stored.timeline.push(
-        entry('status-changed', actor, new Date().toISOString(), summary, status),
+        entry('status-changed', actor, new Date(reviewClock.now()).toISOString(), summary, status),
       );
     },
     record: (caseId, kind, actor, summary, ref) => {
-      cases.get(caseId)?.timeline.push(entry(kind, actor, new Date().toISOString(), summary, ref));
+      cases
+        .get(caseId)
+        ?.timeline.push(
+          entry(kind, actor, new Date(reviewClock.now()).toISOString(), summary, ref),
+        );
     },
   };
 }
@@ -1714,7 +1718,7 @@ export function mockLetterFetch(request: Request): Promise<Response> {
   return Promise.resolve(
     json(200, {
       downloadUrl: `/api/mock-files/${documentId}`,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      expiresAt: new Date(reviewClock.now() + 5 * 60_000).toISOString(),
     }),
   );
 }
