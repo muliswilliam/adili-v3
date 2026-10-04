@@ -7,7 +7,12 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { complianceReportWorkflowId } from '../../src/compliance-reports/contract.js';
 import { complianceReports } from '../../src/db/schema.js';
 import { contractErrors, okResponse } from '../support/contract.js';
-import { accessEvent, declarationSubmitted, obligationCreated } from '../support/events.js';
+import {
+  accessEvent,
+  declarationSubmitted,
+  leaEvent,
+  obligationCreated,
+} from '../support/events.js';
 import {
   COMMISSION_ADMIN,
   compiledReport,
@@ -324,6 +329,7 @@ describe('Form M compile (S2, S3, S4)', () => {
     const open = randomUUID();
     const lateDecided = randomUUID();
     const lastYear = randomUUID();
+    const leaRequest = randomUUID();
     const events = [
       // FY 2027 (1 July 2027 to 30 June 2028, Nairobi time).
       accessEvent('psc', 'received', { requestId: granted, at: '2027-08-02T08:00:00Z' }),
@@ -363,6 +369,14 @@ describe('Form M compile (S2, S3, S4)', () => {
       accessEvent('psc', 'decided', { requestId: lastYear, at: '2027-07-10T08:00:00Z' }),
       // Another Commission's request.
       accessEvent('tsc', 'received', { requestId: randomUUID(), at: '2027-08-02T08:00:00Z' }),
+      // A law enforcement request (s.36(2)): not counted.
+      leaEvent('psc', 'received', { requestId: leaRequest, at: '2027-08-05T08:00:00Z' }),
+      leaEvent('psc', 'decided', {
+        requestId: leaRequest,
+        at: '2027-08-15T08:00:00Z',
+        outcome: 'deny',
+        grounds: ['prejudice-proceeding'],
+      }),
     ];
     for (const event of events) await api.deliver(event);
     api.declarations.given('psc');

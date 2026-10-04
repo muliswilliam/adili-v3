@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
+import { PATTERN_METADATA } from '@nestjs/microservices/constants';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
@@ -91,7 +92,10 @@ export interface ReportingApi {
   events(type?: string): Promise<RecordedEvent[]>;
   /** Terminates the workflows with these ids (one not running is fine), then waits out their activities. */
   endWorkflows(ids: readonly string[]): Promise<void>;
-  /** Delivers an event to its consumer as the RabbitMQ transport would; false for a redelivery. */
+  /**
+   * Delivers an event to its consumer as the RabbitMQ transport would; false for a redelivery, or
+   * for a type the service binds no consumer to (the exchange never routes it to the service).
+   */
   deliver(event: EventEnvelope): Promise<boolean>;
   get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
   /** A request with a JSON body (when given) and extra headers as `caller`. */
@@ -115,32 +119,19 @@ export interface RecordedEvent {
   data: Record<string, unknown>;
 }
 
-/** The consumer method of each projected event type. */
-const HANDLERS: Record<string, keyof ProjectionsConsumer> = {
-  'obligation.created.v1': 'obligationCreated',
-  'obligation.status-changed.v1': 'obligationStatusChanged',
-  'declaration.submitted.v1': 'declarationSubmitted',
-  'clarification.issued.v1': 'clarificationIssued',
-  'clarification.responded.v1': 'clarificationResponded',
-  'clarification.resolved.v1': 'clarificationResolved',
-  'clarification.overdue.v1': 'clarificationOverdue',
-  'clarification.withdrawn.v1': 'clarificationWithdrawn',
-  'action.proposed.v1': 'actionProposed',
-  'action.approved.v1': 'actionApproved',
-  'action.declined.v1': 'actionDeclined',
-  'action.issued.v1': 'actionIssued',
-  'action.responded.v1': 'actionResponded',
-  'action.complied.v1': 'actionComplied',
-  'action.cancelled.v1': 'actionCancelled',
-  'determination.approved.v1': 'determinationApproved',
-  'referral.sent.v1': 'referralSent',
-  'review.copilot.updated.v1': 'copilotUpdated',
-  'ai.feedback.recorded.v1': 'aiFeedbackRecorded',
-  'access.request.received.v1': 'accessRequestReceived',
-  'access.request.decided.v1': 'accessRequestDecided',
-  'access.request.cannot-identify.v1': 'accessRequestCannotIdentify',
-  'access.request.withdrawn.v1': 'accessRequestWithdrawn',
-};
+/**
+ * The consumer method of each event type, from its `@OnEvent` binding: the service's queue is
+ * bound to these types and no others (`eventsServerOptions`).
+ */
+const HANDLERS = new Map<string, keyof ProjectionsConsumer>(
+  Object.entries(Object.getOwnPropertyDescriptors(ProjectionsConsumer.prototype)).flatMap(
+    ([method, descriptor]) =>
+      (
+        (Reflect.getMetadata(PATTERN_METADATA, descriptor.value as object) as
+          string[] | undefined) ?? []
+      ).map((type) => [type, method as keyof ProjectionsConsumer] as const),
+  ),
+);
 
 /**
  * The reporting service over HTTP and at its event inbox, against a real Postgres
@@ -242,8 +233,8 @@ export async function startReportingApi(): Promise<ReportingApi> {
       await untilActivitiesDrained(app.get(TemporalWorkerReadinessCheck));
     },
     deliver(event) {
-      const handler = HANDLERS[event.type];
-      if (!handler) throw new Error(`No consumer for ${event.type}`);
+      const handler = HANDLERS.get(event.type);
+      if (!handler) return Promise.resolve(false);
       return consumer[handler].call(consumer, event);
     },
     async get(path, caller) {

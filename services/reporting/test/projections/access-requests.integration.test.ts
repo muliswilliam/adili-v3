@@ -8,7 +8,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { accessRequestFacts } from '../../src/db/schema.js';
 import { ProjectionsConsumer } from '../../src/projections/projections.consumer.js';
-import { accessEvent } from '../support/events.js';
+import { accessEvent, leaEvent } from '../support/events.js';
 import { type ReportingApi, startReportingApi } from '../support/reporting-api.js';
 
 /**
@@ -41,6 +41,26 @@ describe('access request projections (Form M section 5)', () => {
       'access.request.received.v1',
       'access.request.withdrawn.v1',
     ]);
+  });
+
+  it('leaves a law enforcement request out, received and decided', async () => {
+    const requestId = randomUUID();
+
+    expect(
+      await api.deliver(leaEvent('psc', 'received', { requestId, at: '2028-01-10T08:00:00Z' })),
+    ).toBe(false);
+    expect(
+      await api.deliver(
+        leaEvent('psc', 'decided', {
+          requestId,
+          at: '2028-01-20T08:00:00Z',
+          outcome: 'deny',
+          grounds: ['prejudice-proceeding'],
+        }),
+      ),
+    ).toBe(false);
+
+    expect(await api.asPlatform((tx) => tx.select().from(accessRequestFacts))).toEqual([]);
   });
 
   it('keeps a request in the year it was received, with the outcome and grounds of its later decision, each event once', async () => {
