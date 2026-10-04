@@ -484,7 +484,7 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
     // before the name is skipped ("Proprietor: ID 12345678 John Kamau").
     if (token?.kind === 'other' && token.text === BLANK) {
       if (words === 0) continue;
-      const next = partyAfterValue(tokens, at);
+      const next = partyAfterValue(tokens, at, end);
       if (next < 0) break;
       nextParty();
       at = next - 1;
@@ -504,7 +504,7 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
     // A place after "of" is where a party lives, no name ("John Kamau of Nakuru").
     if (lower(word) === 'of') {
       nextParty();
-      at = addressTail(tokens, at) - 1;
+      at = addressTail(tokens, at, end) - 1;
       continue;
     }
     if (CURRENCIES.has(lower(word))) break;
@@ -514,15 +514,15 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
     }
     // A field whose value is a shape or a number ends a party as a shape does ("John Kamau KRA
     // PIN A123456789Z and Mary Wanjiru", "Mary Wanjiru, Member No. 3310, and Peter Otieno").
-    const opening = fieldValueAt(tokens, at, words === 0);
-    const value = opening > 0 ? opening : fieldValueAt(tokens, at);
+    const opening = fieldValueAt(tokens, at, end, words === 0);
+    const value = opening > 0 ? opening : fieldValueAt(tokens, at, end);
     if (value > 0) {
       // A field before the name is skipped ("Proprietor: ID 12345678 John Kamau"); a member's
       // number the span opens on is followed by a name or ends it ("Member No. 3310 Mary
       // Wanjiru", not "... Stima Sacco").
       const numberFirst = words === 0 && LABEL_TAILS.has(lower(word));
       const next =
-        words === 0 && !numberFirst ? value : partyAfterValue(tokens, value, numberFirst);
+        words === 0 && !numberFirst ? value : partyAfterValue(tokens, value, end, numberFirst);
       if (next < 0) break;
       nextParty();
       at = next - 1;
@@ -551,13 +551,13 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
  * ("Statement Period:", "Monthly Contribution KES 5,000", "Approved by the Board", "Opening
  * Balance 20,000").
  */
-function nameRunAt(tokens: readonly Token[], at: number, strict = false): boolean {
+function nameRunAt(tokens: readonly Token[], at: number, end: number, strict = false): boolean {
   let names = 0;
   let places = 0;
   let next = at;
   // What ends the run: the token after it, and whether it is a field word.
   let field = false;
-  for (; next < tokens.length; next++) {
+  for (; next < end; next++) {
     const token = tokens[next];
     if (token?.kind === 'space') continue;
     if (token?.kind !== 'word') break;
@@ -626,9 +626,9 @@ const ADDRESS_TAIL_WORDS: ReadonlySet<string> = new Set([
  * places and address words ("of Nakuru", "Nakuru Town", "Westlands Road", "Plot No. 45"). After a
  * shape, the tail is the address's, not a party.
  */
-function addressTail(tokens: readonly Token[], at: number): number {
+function addressTail(tokens: readonly Token[], at: number, end: number): number {
   let next = at;
-  for (; next < tokens.length; next++) {
+  for (; next < end; next++) {
     const token = tokens[next];
     if (token?.kind === 'joiner') break;
     if (token?.kind !== 'word') continue;
@@ -648,12 +648,12 @@ const CODE_LEADS = new Set(['member', 'membership', 'payroll', 'staff', 'policy'
  * When `opening`, the label may be the number word alone, as a span opens on it after a label
  * ("Member No. 3310": the span after "Member" is "No. 3310").
  */
-function fieldValueAt(tokens: readonly Token[], at: number, opening = false): number {
+function fieldValueAt(tokens: readonly Token[], at: number, end: number, opening = false): number {
   let next = at;
   let fields = 0;
   let codes = 0;
   let numbered = false;
-  for (; next < tokens.length; next++) {
+  for (; next < end; next++) {
     const token = tokens[next];
     if (token?.kind === 'space' || token?.kind === 'colon' || isMark(token, '.')) continue;
     if (token?.kind !== 'word') break;
@@ -676,18 +676,25 @@ function fieldValueAt(tokens: readonly Token[], at: number, opening = false): nu
  * an organisation or a place follows instead ("... ID 12345678 Toyota Premio", "... Equity Bank",
  * "... ID 12345678, Runda Estate, Nairobi").
  */
-function partyAfterValue(tokens: readonly Token[], at: number, strict = false): number {
-  let next = addressTail(tokens, at);
-  for (;;) {
-    const value = fieldValueAt(tokens, next);
+function partyAfterValue(
+  tokens: readonly Token[],
+  at: number,
+  end: number,
+  strict = false,
+): number {
+  let next = addressTail(tokens, at, end);
+  // Within the span's tokens, so each label reads a bounded run (F115).
+  while (next < end) {
+    const value = fieldValueAt(tokens, next, end);
     const after = tokens[next];
     const joins =
       after?.kind === 'joiner' || (after?.kind === 'word' && JOINER_WORDS.has(lower(after.text)));
-    if (value > 0) next = addressTail(tokens, value);
-    else if (joins) next = pastFiller(tokens, nextToken(tokens, next));
+    if (value > 0) next = addressTail(tokens, value, end);
+    else if (joins) next = pastFiller(tokens, nextToken(tokens, next), end);
     else break;
   }
-  return nameRunAt(tokens, next, strict) ? next : -1;
+  if (next >= end) return -1;
+  return nameRunAt(tokens, next, end, strict) ? next : -1;
 }
 
 /** Words between a joiner and the name it joins ("and the Late Mary", "and his wife Mary"). */
@@ -697,9 +704,9 @@ const FILLER_WORDS: ReadonlySet<string> = new Set([
 ]);
 
 /** The first token from `at` past filler words, their dots and spaces. */
-function pastFiller(tokens: readonly Token[], at: number): number {
+function pastFiller(tokens: readonly Token[], at: number, end: number): number {
   let next = at;
-  for (; next < tokens.length; next++) {
+  for (; next < end; next++) {
     const token = tokens[next];
     if (token?.kind === 'space' || isMark(token, '.')) continue;
     if (token?.kind !== 'word' || !FILLER_WORDS.has(lower(token.text))) break;

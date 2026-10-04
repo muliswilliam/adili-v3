@@ -608,6 +608,8 @@ describe('minimise a text layer in linear time', () => {
     ['100,000 capitals', 'KRA '.repeat(25_000)],
     // Capitals joined by slashes, which a parcel's blocks may be (F111).
     ['100,000 capitals and slashes', 'KSM/BLOCK '.repeat(10_000)],
+    // Member numbers, each a label's value a name may follow (F115).
+    ['100,000 of member numbers', 'Member No. 1 '.repeat(7_700)],
   ])('reads %s quickly', (_name, text) => {
     const started = performance.now();
     minimise({ textLayer: text });
