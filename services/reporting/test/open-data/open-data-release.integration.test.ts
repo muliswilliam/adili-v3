@@ -204,45 +204,56 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
     ).toEqual([
       'commission,commissionName,received,granted,declined,_suppressed',
       'jsc,Judicial Service Commission,,,,false',
-      'nlc,NLC Commission,,,,false',
+      'nlc,NLC Commission,,,,true',
     ]);
   });
 
-  it('S4: access requests and entity types are published as not collected: null or no rows, named in notCollected', async () => {
+  it('S4: access requests are published as the Form Ms filed them, suppressed with each Commission; entity types are not collected', async () => {
     await givenTheYear();
-    await ncrBuilt();
+    const aggregates = await ncrBuilt();
 
     const release = await snapshotBuilt();
 
     const access = JSON.parse(
       stored(release.id, 'access-requests.json').toString('utf8'),
     ) as OpenDataTable;
-    expect(access.notCollected).toEqual(['received', 'granted', 'declined']);
-    expect(access.suppression.cellsSuppressed).toBe(0);
-    // psc filed 3 received, 2 granted, 1 declined on its Form M: placeholders, not data.
+    expect(access.notCollected).toEqual([]);
+    // nlc and wrc are hidden, as in compliance-by-commission: 2 rows x 3 figures.
+    expect(access.suppression.cellsSuppressed).toBe(6);
     expect(access.rows.find((row) => row.commission === 'psc')).toEqual({
       commission: 'psc',
       commissionName: 'Public Service Commission',
-      received: null,
-      granted: null,
-      declined: null,
+      received: 3,
+      granted: 2,
+      declined: 1,
       suppressed: false,
     });
-    expect(stored(release.id, 'access-requests.csv').toString('utf8').split('\r\n')).toContain(
-      'psc,Public Service Commission,,,,false',
+    expect(stored(release.id, 'access-requests.csv').toString('utf8').split('\r\n')).toEqual(
+      expect.arrayContaining([
+        'psc,Public Service Commission,3,2,1,false',
+        'wrc,WRC Commission,,,,true',
+      ]),
     );
     const totals = JSON.parse(
       stored(release.id, 'national-totals.json').toString('utf8'),
     ) as OpenDataTable;
-    expect(totals.notCollected).toEqual([
-      'accessRequestsReceived',
-      'accessRequestsGranted',
-      'accessRequestsDeclined',
-    ]);
-    expect(totals.rows.filter((row) => totals.notCollected.includes(String(row.measure)))).toEqual([
-      { measure: 'accessRequestsReceived', value: null, suppressed: false },
-      { measure: 'accessRequestsGranted', value: null, suppressed: false },
-      { measure: 'accessRequestsDeclined', value: null, suppressed: false },
+    expect(totals.notCollected).toEqual([]);
+    expect(totals.rows.filter((row) => String(row.measure).startsWith('accessRequests'))).toEqual([
+      {
+        measure: 'accessRequestsReceived',
+        value: aggregates.national.accessRequests.received,
+        suppressed: false,
+      },
+      {
+        measure: 'accessRequestsGranted',
+        value: aggregates.national.accessRequests.granted,
+        suppressed: false,
+      },
+      {
+        measure: 'accessRequestsDeclined',
+        value: aggregates.national.accessRequests.declined,
+        suppressed: false,
+      },
     ]);
     const filing = JSON.parse(
       stored(release.id, 'filing-by-commission.json').toString('utf8'),
@@ -360,8 +371,8 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
     expect(value('nonFilers')).toBe(aggregates.national.all.notDeclared);
     expect(value('filingRate')).toBe(aggregates.national.all.rate);
     expect(value('clarificationsIssued')).toBe(aggregates.national.clarifications);
-    // Not collected yet: null, whatever the Form Ms carry.
-    expect(value('accessRequestsReceived')).toBeNull();
+    expect(value('accessRequestsReceived')).toBe(aggregates.national.accessRequests.received);
+    expect(value('accessRequestsDeclined')).toBe(aggregates.national.accessRequests.declined);
     expect(value('commissionsReportedLate')).toBe(aggregates.reporting.late);
   });
 
@@ -390,8 +401,9 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
     expect(row?.nationalReportId).toBeNull();
 
     // The tables are those of every Commission's Form M as it would compile now: the
-    // obligations and clarifications of the year (cancelled and other years' aside), over the
-    // directory's Commissions, none reported yet; jsc has no obligations, so zeros.
+    // obligations, clarifications and Form K requests of the year (cancelled and other years'
+    // aside), over the directory's Commissions, none reported yet; jsc has no obligations, so
+    // zeros.
     const jsc: ReportCounts = {
       initial: section(0, 0),
       biennial: { ...section(0, 0), noCycleInPeriod: true },

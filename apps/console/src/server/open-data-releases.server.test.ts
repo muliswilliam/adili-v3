@@ -258,11 +258,18 @@ describe('S6 loadOpenDataRelease', () => {
     expect(tables['filing-by-commission'].suppression.cellsSuppressed).toBeGreaterThan(0);
   });
 
-  it('marks access requests as not collected, never as zero', async () => {
+  it('counts access requests as the Form Ms would, suppressed with the Commission', async () => {
     const { tables } = await preview2026();
+    const rows = tables['access-requests'].rows;
 
-    expect(tables['access-requests'].notCollected).toEqual(['received', 'granted', 'declined']);
-    expect(tables['access-requests'].rows[0]).toMatchObject({ received: null, suppressed: false });
+    expect(tables['access-requests'].notCollected).toEqual([]);
+    // No request is projected for FY 2026/2027 yet: zeros, or nothing for a hidden Commission.
+    for (const row of rows) {
+      expect(row, row.commission).toMatchObject(
+        row.suppressed ? { received: null } : { received: 0, granted: 0, declined: 0 },
+      );
+    }
+    expect(rows.length).toBeGreaterThan(0);
   });
 
   it("gives the national totals the reconciliation line reads: 2026's filed of expected", async () => {

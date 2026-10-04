@@ -19,6 +19,6 @@ actionsWarning,1,false
 actionsSalaryStoppage,1,false
 actionsDisciplinaryReferral,0,false
 referrals,1,false
-accessRequestsReceived,,false
-accessRequestsGranted,,false
-accessRequestsDeclined,,false
+accessRequestsReceived,5,false
+accessRequestsGranted,3,false
+accessRequestsDeclined,2,false

@@ -438,22 +438,22 @@
         "received": null,
         "granted": null,
         "declined": null,
-        "suppressed": false
+        "suppressed": true
       },
       {
         "commission": "psc",
         "commissionName": "PSC",
-        "received": null,
-        "granted": null,
-        "declined": null,
+        "received": 3,
+        "granted": 2,
+        "declined": 1,
         "suppressed": false
       },
       {
         "commission": "tsc",
         "commissionName": "TSC",
-        "received": null,
-        "granted": null,
-        "declined": null,
+        "received": 1,
+        "granted": 1,
+        "declined": 0,
         "suppressed": false
       },
       {
@@ -462,18 +462,14 @@
         "received": null,
         "granted": null,
         "declined": null,
-        "suppressed": false
+        "suppressed": true
       }
     ],
     "suppression": {
       "threshold": 10,
-      "cellsSuppressed": 0
+      "cellsSuppressed": 6
     },
-    "notCollected": [
-      "received",
-      "granted",
-      "declined"
-    ]
+    "notCollected": []
   },
   "national-totals": {
     "table": "national-totals",
@@ -585,17 +581,17 @@
       },
       {
         "measure": "accessRequestsReceived",
-        "value": null,
+        "value": 5,
         "suppressed": false
       },
       {
         "measure": "accessRequestsGranted",
-        "value": null,
+        "value": 3,
         "suppressed": false
       },
       {
         "measure": "accessRequestsDeclined",
-        "value": null,
+        "value": 2,
         "suppressed": false
       }
     ],
@@ -603,10 +599,6 @@
       "threshold": 10,
       "cellsSuppressed": 0
     },
-    "notCollected": [
-      "accessRequestsReceived",
-      "accessRequestsGranted",
-      "accessRequestsDeclined"
-    ]
+    "notCollected": []
   }
 }

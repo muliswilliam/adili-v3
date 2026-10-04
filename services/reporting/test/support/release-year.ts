@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
+import { ACCESS_GROUNDS } from '@adili/events/contracts';
 import { v7 as uuidv7 } from 'uuid';
 
 import type { ReportCounts } from '../../src/compliance-reports/schema.js';
 import {
+  accessRequestFacts,
   actionFacts,
   clarificationFacts,
   complianceReports,
@@ -153,9 +155,10 @@ async function givenFacts(
 
 /**
  * FY 2027 in progress, as the live projections hold it (no report submitted yet): each
- * Commission's filing obligations and clarifications as its Form M would compile to the counts it
- * reports (`RELEASE_COUNTS`; a late filer and an unfiled obligation are both non-filers), plus a
- * cancelled obligation and another year's, which count nowhere; and the compliance facts.
+ * Commission's filing obligations, clarifications and Form K requests as its Form M would compile
+ * to the counts it reports (`RELEASE_COUNTS`; a late filer and an unfiled obligation are both
+ * non-filers; a request neither granted nor declined is still open), plus a cancelled obligation
+ * and another year's obligation and request, which count nowhere; and the compliance facts.
  */
 export async function givenProjectedYear(api: ReportingApi): Promise<void> {
   const at = new Date('2027-11-15T09:00:00.000Z');
@@ -201,6 +204,24 @@ export async function givenProjectedYear(api: ReportingApi): Promise<void> {
           statusAt: at,
         });
       }
+      const { received, granted, declined } = counts.accessRequests;
+      const request = (fy: number, outcome: 'grant' | 'deny' | null) => ({
+        requestId: randomUUID(),
+        tenant,
+        fy,
+        receivedAt: at,
+        outcome,
+        grounds: outcome === 'deny' ? [ACCESS_GROUNDS[0]] : [],
+        closedAt: outcome === null ? null : at,
+      });
+      await tx
+        .insert(accessRequestFacts)
+        .values([
+          ...Array.from({ length: granted }, () => request(RELEASE_FY, 'grant')),
+          ...Array.from({ length: declined }, () => request(RELEASE_FY, 'deny')),
+          ...Array.from({ length: received - granted - declined }, () => request(RELEASE_FY, null)),
+          request(RELEASE_FY - 1, 'grant'),
+        ]);
     });
   }
   for (const [tenant, counts] of Object.entries(RELEASE_COMPLIANCE)) {

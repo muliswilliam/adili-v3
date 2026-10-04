@@ -162,29 +162,34 @@ describe('open data release tables (S4)', () => {
     expect(suppressed).toEqual(['nlc', 'wrc']);
   });
 
-  it('publishes access requests as not collected: null, unsuppressed, named in notCollected', () => {
-    // The Form M zeros (and psc's 3 received) are placeholders until spec 10 projects them.
-    expect(tables['access-requests'].notCollected).toEqual(['received', 'granted', 'declined']);
-    for (const row of tables['access-requests'].rows) {
-      expect(row).toMatchObject({
-        received: null,
-        granted: null,
-        declined: null,
-        suppressed: false,
-      });
-    }
-    expect(tables['national-totals'].notCollected).toEqual([
-      'accessRequestsReceived',
-      'accessRequestsGranted',
-      'accessRequestsDeclined',
+  it('publishes access requests as each Commission filed them, suppressed with its other counts', () => {
+    // Form M section 5 as filed (projected from the access events): psc 3/2/1, tsc 1/1/0; nlc
+    // and wrc hidden as in compliance-by-commission; jsc has not reported.
+    expect(tables['access-requests'].notCollected).toEqual([]);
+    expect(tables['access-requests'].rows).toEqual([
+      ...['jsc', 'nlc', 'psc', 'tsc', 'wrc'].map((commission) => ({
+        commission,
+        commissionName: commission.toUpperCase(),
+        ...{
+          jsc: { received: null, granted: null, declined: null, suppressed: false },
+          nlc: { received: null, granted: null, declined: null, suppressed: true },
+          psc: { received: 3, granted: 2, declined: 1, suppressed: false },
+          tsc: { received: 1, granted: 1, declined: 0, suppressed: false },
+          wrc: { received: null, granted: null, declined: null, suppressed: true },
+        }[commission],
+      })),
     ]);
-    expect(national('accessRequestsReceived')).toEqual({
-      measure: 'accessRequestsReceived',
-      value: null,
-      suppressed: false,
-    });
+    // The national totals count every Commission that reported, the suppressed ones included.
+    expect(tables['national-totals'].notCollected).toEqual([]);
+    expect(
+      ['accessRequestsReceived', 'accessRequestsGranted', 'accessRequestsDeclined'].map(national),
+    ).toEqual([
+      { measure: 'accessRequestsReceived', value: 5, suppressed: false },
+      { measure: 'accessRequestsGranted', value: 3, suppressed: false },
+      { measure: 'accessRequestsDeclined', value: 2, suppressed: false },
+    ]);
     for (const name of OPEN_DATA_TABLES) {
-      if (['access-requests', 'national-totals', 'by-entity-type'].includes(name)) continue;
+      if (name === 'by-entity-type') continue;
       expect(tables[name].notCollected, name).toEqual([]);
     }
   });
@@ -199,7 +204,8 @@ describe('open data release tables (S4)', () => {
       'compliance-by-commission': { threshold: 10, cellsSuppressed: 20 },
       'by-entity-type': { threshold: 10, cellsSuppressed: 0 },
       'by-cycle': { threshold: 10, cellsSuppressed: 0 },
-      'access-requests': { threshold: 10, cellsSuppressed: 0 },
+      // nlc and wrc (2 rows x 3).
+      'access-requests': { threshold: 10, cellsSuppressed: 6 },
       'national-totals': { threshold: 10, cellsSuppressed: 0 },
     });
   });
@@ -245,15 +251,15 @@ describe('open data files', () => {
     ]);
   });
 
-  it('writes figures not collected as empty cells, unsuppressed', () => {
+  it('writes access requests with empty suppressed and not-reported cells', () => {
     const csv = tableCsv(tables['access-requests']).toString('utf8').split('\r\n');
     expect(csv).toEqual([
       'commission,commissionName,received,granted,declined,_suppressed',
       'jsc,JSC,,,,false',
-      'nlc,NLC,,,,false',
-      'psc,PSC,,,,false',
-      'tsc,TSC,,,,false',
-      'wrc,WRC,,,,false',
+      'nlc,NLC,,,,true',
+      'psc,PSC,3,2,1,false',
+      'tsc,TSC,1,1,0,false',
+      'wrc,WRC,,,,true',
       '',
     ]);
   });
@@ -328,7 +334,7 @@ describe('open data reconciliation (S9)', () => {
     });
   });
 
-  it('names every national total that differs from the NCR; access requests, not collected, are not compared', () => {
+  it('names every national total that differs from the NCR, access requests included', () => {
     const ncr = structuredClone(aggregates);
     ncr.national.initial.declared += 1;
     ncr.national.all.declared += 1;
@@ -338,6 +344,7 @@ describe('open data reconciliation (S9)', () => {
       'reporting.late',
       'national.initial.declared',
       'national.all.declared',
+      'national.accessRequests.received',
     ]);
   });
 });

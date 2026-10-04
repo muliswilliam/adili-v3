@@ -170,9 +170,9 @@ describe('Commission open-data preview (S6)', () => {
     expect(wrc.tables['compliance-by-commission']).toEqual([
       expect.objectContaining({ suppressed: true }),
     ]);
-    // Access requests are not collected yet: null, not suppressed.
+    // Access requests are suppressed with the Commission's other counts.
     expect(wrc.tables['access-requests']).toEqual([
-      expect.objectContaining({ received: null, suppressed: false }),
+      expect.objectContaining({ received: null, suppressed: true }),
     ]);
   });
 

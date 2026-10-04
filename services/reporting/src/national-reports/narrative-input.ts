@@ -1,6 +1,6 @@
 import { rateOf } from '../compliance-reports/intake.js';
 import { referencePeriodOf } from '../financial-year.js';
-import type { NationalAggregates, SectionAggregate } from './aggregates.js';
+import type { AccessAggregate, NationalAggregates, SectionAggregate } from './aggregates.js';
 
 /**
  * The NCR aggregates as the ai-gateway's `narrate-compliance-report` task takes them (spec 09b):
@@ -165,7 +165,7 @@ export function narrativeYear(aggregates: NationalAggregates): NarrativeYear {
           reportedLate: row.status === 'submitted-late' ? 1 : 0,
           ...sectionCounts(sections),
           clarifications,
-          ...accessCounts(accessRequests),
+          ...(accessRequests ? accessCounts(accessRequests) : UNKNOWN_ACCESS_COUNTS),
           ...sectionRates(sections),
           clarificationRatio: clarifications === null ? null : rateOf(clarifications, all.declared),
         },
@@ -240,16 +240,21 @@ function sectionCounts(sections: Sections) {
   };
 }
 
-/** Form M section 5's counts, by figure name; a count the aggregates lack is 0. */
-function accessCounts(
-  access: Partial<NationalAggregates['national']['accessRequests']> | null | undefined,
-) {
+/** Form M section 5's counts, by figure name. */
+function accessCounts(access: AccessAggregate) {
   return {
-    accessRequestsReceived: access?.received ?? 0,
-    accessRequestsGranted: access?.granted ?? 0,
-    accessRequestsDeclined: access?.declined ?? 0,
+    accessRequestsReceived: access.received,
+    accessRequestsGranted: access.granted,
+    accessRequestsDeclined: access.declined,
   };
 }
+
+/** A Commission's section 5 counts the aggregates lack: unknown, never 0. */
+const UNKNOWN_ACCESS_COUNTS = {
+  accessRequestsReceived: null,
+  accessRequestsGranted: null,
+  accessRequestsDeclined: null,
+} as const;
 
 function sectionRates(sections: Sections) {
   return {

@@ -185,7 +185,37 @@ describe('NCR narrative input', () => {
       initialFilingRate: null,
       clarificationRatio: 0.0301,
     });
-    expect(Object.keys(year.totals)).not.toContain('accessRequestsReceived');
+  });
+
+  it('sends Form M section 5, nationally and per Commission, as the reports filed it', () => {
+    const filed = {
+      ...aggregates,
+      national: {
+        ...aggregates.national,
+        accessRequests: { received: 9, granted: 6, declined: 2 },
+      },
+    };
+    const psc = aggregates.byCommission.psc;
+    if (!psc) throw new Error('fixture lacks psc');
+    filed.byCommission = {
+      ...aggregates.byCommission,
+      psc: { ...psc, accessRequests: { received: 4, granted: 3, declined: 1 } },
+    };
+    const year = narrativeYear(filed);
+    expect(year.totals).toMatchObject({
+      accessRequestsReceived: 9,
+      accessRequestsGranted: 6,
+      accessRequestsDeclined: 2,
+    });
+    expect(year.commissionTable.find((row) => row.code === 'psc')?.figures).toMatchObject({
+      accessRequestsReceived: 4,
+      accessRequestsGranted: 3,
+      accessRequestsDeclined: 1,
+    });
+    // A Commission that has not reported has none.
+    expect(year.commissionTable.find((row) => row.code === 'nlc')?.figures).toMatchObject({
+      accessRequestsReceived: null,
+    });
   });
 
   it('gives a row per Commission by slug; one that did not report has only `reported`', () => {
