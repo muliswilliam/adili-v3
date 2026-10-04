@@ -133,7 +133,7 @@ export const MissingValuesOnLine: Story = {
 export const EmptyData: Story = { args: { data: [], showTable: true } };
 
 /** No categories: the axis and grid still draw, with no line, point or year label. */
-export const EmptyLine: Story = { args: { ...Line.args, data: [], showTable: true } };
+export const EmptyDataOnLine: Story = { args: { ...Line.args, data: [], showTable: true } };
 
 /** A long line labels at most four years, always the latest. */
 export const LongLine: Story = {
