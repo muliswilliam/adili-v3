@@ -184,7 +184,7 @@ describe('open data release tables (S4)', () => {
       suppressed: false,
     });
     for (const name of OPEN_DATA_TABLES) {
-      if (name === 'access-requests' || name === 'national-totals') continue;
+      if (['access-requests', 'national-totals', 'by-entity-type'].includes(name)) continue;
       expect(tables[name].notCollected, name).toEqual([]);
     }
   });
@@ -204,7 +204,7 @@ describe('open data release tables (S4)', () => {
     });
   });
 
-  it('builds by-entity-type with its columns and no rows: no entity types exist yet', () => {
+  it('builds by-entity-type with its columns, no rows and its figures not collected: no entity types exist yet', () => {
     expect(tables['by-entity-type']).toEqual({
       table: 'by-entity-type',
       columns: [
@@ -218,7 +218,7 @@ describe('open data release tables (S4)', () => {
       ],
       rows: [],
       suppression: { threshold: 10, cellsSuppressed: 0 },
-      notCollected: [],
+      notCollected: ['expected', 'filed', 'nonFilers', 'filingRate'],
     });
   });
 

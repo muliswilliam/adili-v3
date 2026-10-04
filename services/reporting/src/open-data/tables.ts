@@ -30,7 +30,9 @@ import { type ReleasedCell, SUPPRESSION_THRESHOLD, suppressTable } from './suppr
  * Access requests are not collected yet (spec 10 projects them): the `access-requests` figures
  * and the national `accessRequests*` measures are `null`, unsuppressed, and named in the table's
  * `notCollected`, so a consumer never reads "no requests" from a count nobody kept. A Form M's
- * access-request zeros are a placeholder, not data.
+ * access-request zeros are a placeholder, not data. Reporting entity types are not collected
+ * either (the directory carries none): `by-entity-type` has no rows and names its filing figures
+ * in `notCollected`, so it reads "not collected", not "no officers".
  */
 
 export const OPEN_DATA_TABLES = [
@@ -105,7 +107,7 @@ export interface ComplianceByCommissionRow extends TableRow {
 
 /**
  * `by-entity-type`: filing per reporting entity type and cycle. No entity types exist in the
- * directory yet, so the table has its columns and no rows.
+ * directory yet, so the table has its columns, no rows, and its figures named in `notCollected`.
  */
 export interface ByEntityTypeRow extends FilingFigures {
   entityType: string;
@@ -232,7 +234,8 @@ export function emptyComplianceCounts(): ComplianceCounts {
   };
 }
 
-const FILING_COLUMNS = ['expected', 'filed', 'nonFilers', 'filingRate', 'suppressed'] as const;
+const FILING_FIGURES = ['expected', 'filed', 'nonFilers', 'filingRate'] as const;
+const FILING_COLUMNS = [...FILING_FIGURES, 'suppressed'] as const;
 
 const COMPLIANCE_MEASURES = [
   'determinationsCompliant',
@@ -466,6 +469,7 @@ export function buildReleaseTables(
       ['entityType', 'cycle', ...FILING_COLUMNS],
       [],
       threshold,
+      FILING_FIGURES,
     ),
     'by-cycle': tableOf('by-cycle', ['cycle', ...FILING_COLUMNS], byCycleRows, threshold),
     'access-requests': tableOf(

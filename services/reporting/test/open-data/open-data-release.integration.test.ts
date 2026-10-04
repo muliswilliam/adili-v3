@@ -203,7 +203,7 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
     ]);
   });
 
-  it('S4: access requests are published as not collected: null, unsuppressed, named in notCollected', async () => {
+  it('S4: access requests and entity types are published as not collected: null or no rows, named in notCollected', async () => {
     await givenTheYear();
     await ncrBuilt();
 
@@ -243,6 +243,14 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
       stored(release.id, 'filing-by-commission.json').toString('utf8'),
     ) as OpenDataTable;
     expect(filing.notCollected).toEqual([]);
+    // No reporting entity types exist yet: no rows, and its figures read "not collected".
+    const byEntityType = JSON.parse(
+      stored(release.id, 'by-entity-type.json').toString('utf8'),
+    ) as OpenDataTable;
+    expect(byEntityType).toMatchObject({
+      rows: [],
+      notCollected: ['expected', 'filed', 'nonFilers', 'filingRate'],
+    });
     expect(
       contractErrors(
         okResponse('/open-data/v1/releases/{fy}/{kind}/{version}/tables/{table}', 'get'),

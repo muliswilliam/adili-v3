@@ -356,7 +356,12 @@
       "threshold": 10,
       "cellsSuppressed": 0
     },
-    "notCollected": []
+    "notCollected": [
+      "expected",
+      "filed",
+      "nonFilers",
+      "filingRate"
+    ]
   },
   "by-cycle": {
     "table": "by-cycle",
