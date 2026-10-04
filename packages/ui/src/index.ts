@@ -174,6 +174,7 @@ export {
   diffDelta,
   type DiffGroup,
   type DiffKind,
+  diffHighlighted,
   diffKind,
   diffPercent,
   type DiffRow,
@@ -482,6 +483,7 @@ export {
   type SuggestionMessages,
   type SuggestionStatus,
 } from './components/suggestion-card';
+export { Switch, type SwitchProps } from './components/switch';
 export {
   Table,
   TableBody,

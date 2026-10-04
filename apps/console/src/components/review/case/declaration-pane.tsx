@@ -65,6 +65,8 @@ export interface DeclarationPaneProps {
   /** "Version 2 of 2". */
   version: string;
   versionNumber: number;
+  /** Controls on the title bar's right: the Compare switch. */
+  tools?: ReactNode;
   /** Open flags by item id, for the pins. */
   pins: Map<string, CaseFlag[]>;
   /**
@@ -84,6 +86,7 @@ export function DeclarationPane({
   view,
   version,
   versionNumber,
+  tools,
   pins,
   sectionPins = new Map(),
   onOpenFlag,
@@ -94,7 +97,7 @@ export function DeclarationPane({
     <FlagPin flags={sectionPins.get(key) ?? []} section onOpenFlag={onOpenFlag} />
   );
   return (
-    <DeclarationCard version={version}>
+    <DeclarationCard version={version} tools={tools}>
       {view.statements.length > 0 ? <Totals view={view} /> : null}
       <Section
         id={declarationAnchorId({ kind: 'section', section: 'personal' })}
@@ -218,17 +221,23 @@ export function DeclarationPane({
 
 /** The pane's card with its sticky title bar. */
 export function DeclarationCard({
+  title = t.declaration.title,
   version,
+  tools,
   children,
 }: {
+  title?: string;
   version: string | null;
+  /** On the title bar's right. */
+  tools?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="rounded-2xl bg-card shadow-card">
       <div className="sticky top-14 z-[4] flex min-h-[57px] flex-wrap items-center gap-2.5 rounded-t-2xl border-b bg-card/95 px-4 py-3 backdrop-blur-sm">
-        <h2 className="text-[14.5px] font-semibold">{t.declaration.title}</h2>
+        <h2 className="text-[14.5px] font-semibold">{title}</h2>
         {version ? <Badge>{version}</Badge> : null}
+        {tools ? <div className="ml-auto flex items-center">{tools}</div> : null}
       </div>
       {children}
     </div>
@@ -330,7 +339,7 @@ const AVATAR_TONES: Record<Relation, string> = {
 };
 
 /** A household member's initials, tinted by their place in the household. */
-function PersonAvatar({ name, relation }: { name: string; relation: Relation }) {
+export function PersonAvatar({ name, relation }: { name: string; relation: Relation }) {
   return (
     <span
       aria-hidden="true"
