@@ -132,12 +132,13 @@ export async function startAccessApi(): Promise<AccessApi> {
   const url = new URL(baseUrl);
   url.searchParams.set('options', `-c search_path=${pgSchema}`);
 
+  const step = startupStep(baseUrl);
   const admin = createDatabase({ url: baseUrl, schema: {}, applicationName: 'access-test' });
-  await admin.execute(sql.raw(`create schema ${pgSchema}`));
+  await step('creating the schema', admin.execute(sql.raw(`create schema ${pgSchema}`)));
   await admin.$client.end();
 
   const db = createDatabase({ url: url.toString(), schema, applicationName: 'access-test' });
-  await applyMigrations(db);
+  await step('applying the migrations', applyMigrations(db));
 
   const { signer, jwk } = await tokenSigner();
   const directory = new FakeDirectory();
@@ -174,7 +175,7 @@ export async function startAccessApi(): Promise<AccessApi> {
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
     logger: ['fatal'],
   });
-  await app.init();
+  await step('starting the app', app.init());
   await app.getHttpAdapter().getInstance().ready();
   // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
   await untilWorkerPolling(app.get(TemporalWorkerReadinessCheck));
@@ -296,6 +297,60 @@ async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<stri
       .setExpirationTime('5m')
       .sign(privateKey);
   return { signer, jwk };
+}
+
+/** Longer than any start step takes on a loaded runner, and well inside the 60 s hook timeout. */
+const STARTUP_STEP_TIMEOUT_MS = 30_000;
+
+/**
+ * Runs a step of the harness's start, failing it after `STARTUP_STEP_TIMEOUT_MS` with the step's
+ * name and what Postgres' other sessions were waiting on, instead of an anonymous hook timeout:
+ * once in CI the start hung (#534) and nothing said where.
+ */
+function startupStep(baseUrl: string) {
+  return async <T>(name: string, work: Promise<T>): Promise<T> => {
+    let timer: NodeJS.Timeout | undefined;
+    const stalled = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        void Promise.race([
+          postgresWaits(baseUrl),
+          new Promise<string>((resolve) =>
+            setTimeout(() => {
+              resolve('unknown (the probe itself did not answer within 5 s)');
+            }, 5_000),
+          ),
+        ])
+          .catch((error: unknown) => `unknown (${String(error)})`)
+          .then((waits) => {
+            reject(
+              new Error(
+                `startAccessApi: ${name} took over ${String(STARTUP_STEP_TIMEOUT_MS)} ms; Postgres sessions waiting: ${waits}`,
+              ),
+            );
+          });
+      }, STARTUP_STEP_TIMEOUT_MS);
+    });
+    try {
+      return await Promise.race([work, stalled]);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+
+/** The test database's sessions that wait on something, with what they run (best effort). */
+async function postgresWaits(baseUrl: string): Promise<string> {
+  const probe = createDatabase({ url: baseUrl, schema: {}, applicationName: 'access-test-probe' });
+  try {
+    const { rows } = await probe.execute(
+      sql`select pid, application_name, state, wait_event_type, wait_event, pg_blocking_pids(pid) as blocked_by, left(query, 200) as query from pg_stat_activity where datname = current_database() and wait_event_type is not null and state <> 'idle'`,
+    );
+    return JSON.stringify(rows);
+  } catch (error) {
+    return `unknown (${error instanceof Error ? error.message : String(error)})`;
+  } finally {
+    await probe.$client.end().catch(() => undefined);
+  }
 }
 
 function requireEnv(name: string): string {
