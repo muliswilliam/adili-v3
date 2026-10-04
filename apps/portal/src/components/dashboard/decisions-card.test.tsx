@@ -75,7 +75,7 @@ describe('DecisionsCard (spec 08 FE-7, S17)', () => {
     await vi.waitFor(() => {
       expect(download).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/mock-letters\//));
     });
-    expect(within(noIssues).getByText('Download decision letter')).toBeTruthy();
+    expect(await within(noIssues).findByText('Download decision letter')).toBeTruthy();
   });
 
   it('says when the letter could not be prepared, and lets the declarant try again', async () => {
