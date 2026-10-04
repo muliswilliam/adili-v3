@@ -841,7 +841,7 @@ function withdraw(id: string, key: string | null): Response {
   if (!found) return problem(404, 'No such request of the applicant');
   if (decideOnWithdraw.has(id)) {
     decideOnWithdraw.delete(id);
-    const decidedAt = new Date(accessClock.now()).toISOString();
+    const decidedAt = accessClock.isoNow();
     found.status = 'denied';
     found.decision = {
       outcome: 'deny',
@@ -856,7 +856,7 @@ function withdraw(id: string, key: string | null): Response {
   if (DECIDED_ACCESS_STATUSES.has(found.status))
     return problem(409, 'A decision is final', 'request-decided');
   if (CLOSED.has(found.status)) return problem(409, 'The request is closed', 'request-closed');
-  const at = new Date(accessClock.now()).toISOString();
+  const at = accessClock.isoNow();
   found.status = 'withdrawn';
   found.timeline.push(
     entry('withdrawn', at, found.reference, 'Withdrawn by the applicant', found.formK.partI.name),
