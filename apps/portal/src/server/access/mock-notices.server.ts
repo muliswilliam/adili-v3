@@ -24,6 +24,7 @@ import { ARQ, format, LEA } from '@adili/numbering/references';
 
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
+import { mockNow, setMockClock } from './mock-clock.server';
 import type {
   Decision,
   DeclarantNotice,
@@ -289,12 +290,13 @@ function seed(now: number) {
 
 /** Clears the store and seeds it again as of `now`; for tests. */
 export function resetNoticesMock(now = Date.now()) {
+  setMockClock(now);
   seed(now);
 }
 
 /** Every notice, latest notified first, as the service lists them. */
 function list(): DeclarantNotice[] {
-  if (!seeded) seed(Date.now());
+  if (!seeded) seed(mockNow());
   return [...notices.values()].sort((a, b) => b.notifiedAt.localeCompare(a.notifiedAt));
 }
 
@@ -325,7 +327,7 @@ function save(id: string, body: unknown, key: string | null): Response {
     });
   }
   if (body.text.includes('Unavailable')) return problem(503, 'The key service is unavailable');
-  const now = new Date();
+  const now = new Date(mockNow());
   if (closeOnSave.has(id) || !found.canRespond) {
     found.canRespond = false;
     found.status = 'under-decision';
@@ -368,7 +370,7 @@ export async function mockNoticesFetch(
   path: string,
   settle: () => Promise<unknown>,
 ): Promise<Response> {
-  if (!seeded) seed(Date.now());
+  if (!seeded) seed(mockNow());
   if (request.method === 'GET' && path === '/v1/me/access-notices') return json(200, list());
   const representing = /^\/v1\/me\/access-notices\/([^/]+)\/representations$/.exec(path);
   if (request.method === 'PUT' && representing?.[1]) {

@@ -50,6 +50,7 @@ import { ARQ, format } from '@adili/numbering/references';
 
 import { json, problem, readJson } from '../mock-http';
 import { placeholderPdf } from '../mock-pdf';
+import { mockNow, setMockClock } from './mock-clock.server';
 import {
   isHistoryPath,
   mockCopyDownload,
@@ -120,12 +121,6 @@ const closeOnDownload = new Set<string>();
 const failFirstDownload = new Set<string>();
 let failNext = false;
 let seeded = false;
-/**
- * The mock's clock runs from the instant it was seeded as of, so a store seeded as of a fixed
- * time (in tests) answers as of that time, not the wall clock; 0 when seeded as of now.
- */
-let clockOffsetMs = 0;
-const mockNow = () => Date.now() + clockOffsetMs;
 let latencyMs = 600;
 
 /** How long submit and withdraw take; 0 for tests. */
@@ -730,7 +725,7 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
 
 /** Clears the store and seeds it again as of `now`; for tests. */
 export function resetAccessMock(now = Date.now()) {
-  clockOffsetMs = now - Date.now();
+  setMockClock(now);
   requests.clear();
   sequences.clear();
   answered.clear();

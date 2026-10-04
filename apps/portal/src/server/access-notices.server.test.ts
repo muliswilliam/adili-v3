@@ -1,5 +1,5 @@
 import createClient from 'openapi-fetch';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { listNotices, loadNotice, saveRepresentations } from './access-notices.server';
 import {
@@ -153,6 +153,31 @@ describe('saveRepresentations (S4)', () => {
       key(),
     );
     expect(again).toEqual({ status: 'closed' });
+  });
+
+  describe('on a wall clock past the seeded windows', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('saves as of when the mock was seeded, not the wall clock', async () => {
+      // Seeded as of NOW, but run a month later: every seeded window has closed by the wall clock.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(NOW + 30 * 86_400_000);
+      resetAccessMock(NOW);
+      resetNoticesMock(NOW);
+      const saved = await saveRepresentations(
+        client(),
+        IDS.awaiting,
+        { stance: 'object', text: 'The plot is in court.', attachments: [] },
+        key(),
+      );
+      if (saved.status !== 'saved') throw new Error(saved.status);
+      expect(saved.notice.representations).toMatchObject({
+        submittedAt: '2026-10-02T07:00:00.000Z',
+        updatedAt: '2026-10-02T07:00:00.000Z',
+      });
+    });
   });
 
   it('replays the first answer for a retried key', async () => {

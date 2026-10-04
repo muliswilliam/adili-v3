@@ -31,6 +31,7 @@ import { bearerClaims } from '../declarations/mock/obligations';
 import { store } from '../declarations/mock/store';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import { placeholderPdf } from '../mock-pdf';
+import { mockNow, setMockClock } from './mock-clock.server';
 import { MOCK_NOTICE_IDS, mockNotices } from './mock-notices.server';
 import type { AccessHistoryEntry, CertifiedCopy, DeclarantNotice } from './types';
 
@@ -108,6 +109,7 @@ function seed(now: number) {
 
 /** Clears the copies and seeds them again as of `now`; for tests. */
 export function resetHistoryMock(now = Date.now()) {
+  setMockClock(now);
   seed(now);
 }
 
@@ -373,7 +375,7 @@ function history(now: number): AccessHistoryEntry[] {
 
 /** The issued copy whose document this is, if any. */
 function copyOfDocument(documentId: string): MockCopy | undefined {
-  return allCopies(Date.now()).find(
+  return allCopies(mockNow()).find(
     (copy) => copy.status === 'issued' && copy.documentId === documentId,
   );
 }
@@ -397,7 +399,7 @@ export function mockCopyDownload(documentId: string): Response | null {
   if (!copyOfDocument(documentId)) return null;
   return json(200, {
     downloadUrl: `/api/mock-packages/${documentId}`,
-    expiresAt: new Date(Date.now() + 5 * MINUTE).toISOString(),
+    expiresAt: new Date(mockNow() + 5 * MINUTE).toISOString(),
     sha256: '0'.repeat(64),
   });
 }
@@ -412,8 +414,8 @@ export async function mockHistoryFetch(
   path: string,
   wait: () => Promise<unknown>,
 ): Promise<Response> {
-  if (!seeded) seed(Date.now());
-  const now = Date.now();
+  if (!seeded) seed(mockNow());
+  const now = mockNow();
   if (request.method === 'GET' && path === '/v1/me/access-history') {
     return json(200, history(now));
   }
@@ -422,7 +424,7 @@ export async function mockHistoryFetch(
     if (request.method === 'POST') {
       const body = await readJson(request);
       await wait();
-      return requestCopy(request, body, Date.now());
+      return requestCopy(request, body, mockNow());
     }
   }
   const one = /^\/v1\/me\/certified-copies\/([^/]+)$/.exec(path);
