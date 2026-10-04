@@ -420,7 +420,8 @@ export class ExtractionService {
             eq(suggestionSets.status, 'pending'),
           ),
         );
-      // The winner took its reservation back (its reading could not be asked for): try again.
+      // The winner's set is no longer pending: taken back (refused for the file) or already
+      // ended (failed on a 503, not-enabled, cached, unreadable). Retryable.
       if (!first) throw readingConflict();
       return first.id;
     });

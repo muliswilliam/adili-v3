@@ -183,9 +183,9 @@ export function aiGatewayUnavailable(): ProblemException {
 }
 
 /**
- * 503: the reading this request was answered with was a concurrent request's reservation, taken
- * back when that request was refused for the file (spec 05b). Nothing was recorded; asking again
- * gets that refusal, or reads the file if the refusal no longer holds.
+ * 503: the reading this request was answered with was a concurrent request's reservation that is
+ * no longer pending: taken back when that request was refused for the file, or already ended
+ * (spec 05b). Retryable: asking again gets that refusal, that reading, or reads the file anew.
  */
 export function readingConflict(): ProblemException {
   return new ProblemException({
