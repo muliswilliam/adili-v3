@@ -8,6 +8,8 @@
  * encrypted in one activity, and answers with the report id and counts. Reminders, the submitted
  * report's documents and its notices likewise pass the report id and read the rest themselves.
  */
+import type { FormMV1 } from '@adili/forms';
+
 import type { ReportCounts } from './schema.js';
 
 /** Workflow type name, for starting by name (the worker bundles the code, not the caller). */
@@ -43,12 +45,15 @@ export interface ReportWorkflowInput {
 
 /**
  * The projections as at compile time: Form M's counts, the obligations of the officers who did
- * not declare on time per section, and the clarifications sought in the year. Ids only.
+ * not declare on time per section, the clarifications sought in the year, and the reasons access
+ * requests were declined. Ids and counts only.
  */
 export interface Aggregate {
   counts: ReportCounts;
   nonFilers: { initial: string[]; biennial: string[]; final: string[] };
   clarificationIds: string[];
+  /** Section 5(d): a count per reason cited, in Regulation 24 order, reasons none cited left out. */
+  declineReasons: FormMV1['partII']['accessRequests']['declineReasons'];
 }
 
 export interface CompileRequest extends ReportWorkflowInput {

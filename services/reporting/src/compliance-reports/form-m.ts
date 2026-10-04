@@ -1,8 +1,10 @@
-import type { FormMV1 } from '@adili/forms';
+import { type AccessGround, CANNOT_IDENTIFY_DECLINE_REASON } from '@adili/events/contracts';
+import { DECLINE_REASONS, type FormMV1 } from '@adili/forms';
 
 import type { OfficerDetails } from '../declarations/declarations-client.js';
 import { periodOf } from '../financial-year.js';
 import {
+  type AccessRequestFactOutcome,
   ACTION_STEPS,
   type ActionStatus,
   type ActionStep,
@@ -21,6 +23,7 @@ import type { ReportCounts, SectionCounts } from './schema.js';
 
 type NonFilerRow = FormMV1['partII']['initial']['nonFilers'][number];
 type ClarificationRow = FormMV1['partII']['clarifications']['items'][number];
+type DeclineReason = (typeof DECLINE_REASONS)[number];
 
 /** An obligation fact as the aggregate reads it. */
 export interface ObligationFactRow {
@@ -38,16 +41,24 @@ export interface ClarificationFactRow {
   issuedAt: Date | null;
 }
 
+/** A Form K request received in the year, as the aggregate reads it. */
+export interface AccessRequestFactRow {
+  outcome: AccessRequestFactOutcome | null;
+  grounds: readonly AccessGround[];
+  withdrawn: boolean;
+}
+
 /**
  * Counts per section and the officers who did not declare. Expected: the obligations the year
  * holds by statement date (appointed, in service, exited), cancelled ones aside. Declared: filed
  * on time. Everyone else is on the section's list, late filers included, so the report says
  * whether they complied. A year with no biennial obligation has no cycle (`noCycleInPeriod`).
- * Access requests are zeros until spec 10 projects them.
+ * Section 5 counts the Form K requests received in the year (`accessSection`).
  */
 export function aggregateFacts(
   obligations: readonly ObligationFactRow[],
   clarifications: readonly ClarificationFactRow[],
+  accessRequests: readonly AccessRequestFactRow[],
 ): Aggregate {
   const section = (type: ObligationType) => {
     const owed = obligations
@@ -75,12 +86,13 @@ export function aggregateFacts(
         a.clarificationId.localeCompare(b.clarificationId),
     )
     .map((row) => row.clarificationId);
+  const access = accessSection(accessRequests);
   const counts: ReportCounts = {
     initial: initial.counts,
     biennial: { ...biennial.counts, noCycleInPeriod: biennial.counts.expected === 0 },
     final: final.counts,
     clarifications: clarificationIds.length,
-    accessRequests: { received: 0, granted: 0, declined: 0 },
+    accessRequests: access.counts,
   };
   return {
     counts,
@@ -90,7 +102,48 @@ export function aggregateFacts(
       final: final.nonFilers,
     },
     clarificationIds,
+    declineReasons: access.declineReasons,
   };
+}
+
+/** How each way a Form K request ends counts in section 5: (b) or (c), and its (d) reasons. */
+const OUTCOME_COUNTS: Record<
+  AccessRequestFactOutcome,
+  { as: 'granted' | 'declined'; reasons: 'none' | 'grounds' | 'other' }
+> = {
+  grant: { as: 'granted', reasons: 'none' },
+  'partial-grant': { as: 'granted', reasons: 'grounds' },
+  deny: { as: 'declined', reasons: 'grounds' },
+  'cannot-identify': { as: 'declined', reasons: 'other' },
+};
+
+/**
+ * Section 5 from the Form K requests received in the year (decided on #239): (a) every one;
+ * (b) full and partial grants; (c) denials and requests closed because the officer named could
+ * not be identified; (d) a count per Regulation 24 ground cited on denials and partial grants,
+ * and `other` per unidentified officer. A denial citing several grounds counts once under each,
+ * so the reasons may add up to more than (c). Outcomes count in the year the request was
+ * received, so (b) and (c) never exceed (a); a withdrawn request counts in (a) only.
+ */
+function accessSection(requests: readonly AccessRequestFactRow[]): {
+  counts: ReportCounts['accessRequests'];
+  declineReasons: Aggregate['declineReasons'];
+} {
+  const counts = { received: requests.length, granted: 0, declined: 0 };
+  const reasons = new Map<DeclineReason, number>();
+  const cite = (reason: DeclineReason) => reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  for (const request of requests) {
+    if (request.withdrawn || request.outcome === null) continue;
+    const counted = OUTCOME_COUNTS[request.outcome];
+    counts[counted.as] += 1;
+    if (counted.reasons === 'grounds') for (const ground of new Set(request.grounds)) cite(ground);
+    if (counted.reasons === 'other') cite(CANNOT_IDENTIFY_DECLINE_REASON);
+  }
+  const declineReasons = DECLINE_REASONS.flatMap((reason) => {
+    const count = reasons.get(reason) ?? 0;
+    return count > 0 ? [{ reason, count }] : [];
+  });
+  return { counts, declineReasons };
 }
 
 function filed(row: ObligationFactRow): boolean {
@@ -260,9 +313,9 @@ export function assemble(input: AssembleInput): FormMV1 {
       clarifications: { items: input.aggregate.clarificationIds.map(clarification) },
       accessRequests: {
         ...counts.accessRequests,
-        declineReasons: [],
-        // Spec 10 projects access requests; until then section 5 is zeros with a note.
-        dataUnavailable: true,
+        declineReasons: input.aggregate.declineReasons,
+        // The platform captures every Form K request (spec 10), so the counts are the data.
+        dataUnavailable: false,
       },
       complaints: input.manual.complaints,
     },

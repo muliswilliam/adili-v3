@@ -23,6 +23,7 @@ import {
   type IntegrationGatewayClient,
   type IntegrationGatewayResult,
 } from './integration-gateway/client';
+import { reportingClient, type ReportingClient } from './reporting/client.server';
 import { reviewClient, type ReviewClient } from './review/client.server';
 import type { ServiceResult } from './service-call';
 
@@ -56,6 +57,16 @@ export function asAccessViewer<Result>(
   work: (client: AccessClient) => Promise<Result>,
 ): Promise<Result | Unauthenticated> {
   return withViewerClient(accessClient, work);
+}
+
+/**
+ * Runs `work` with a reporting client acting as the signed-in user: the supervisor,
+ * commission-admin or reporting officer of the Form M workspace.
+ */
+export function asReportingViewer<Result>(
+  work: (client: ReportingClient) => Promise<Result>,
+): Promise<Result | Unauthenticated> {
+  return withViewerClient(reportingClient, work);
 }
 
 /** Runs `work` with a directory client acting as the signed-in user. */
