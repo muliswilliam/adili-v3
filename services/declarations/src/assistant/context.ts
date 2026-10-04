@@ -37,16 +37,23 @@ export function residualsOf(
   const seen = new Set<string>();
   const residuals: Residual[] = [];
   for (const issue of issues) {
-    if (!RULE_ID.test(issue.code) || issue.code.length > 100) continue;
-    if (!FIELD_PATH.test(issue.path) || issue.path.length > 200) continue;
+    const residual = asResidual(issue);
+    if (!residual) continue;
     const at = `${issue.sectionKey} ${issue.path}`;
     if (seen.has(at)) continue;
     seen.add(at);
-    residuals.push({ sectionKey: issue.sectionKey, ruleId: issue.code, fieldPath: issue.path });
+    residuals.push(residual);
   }
   const current = residuals.filter((residual) => residual.sectionKey === currentSection);
   const others = residuals.filter((residual) => residual.sectionKey !== currentSection);
   return [...current, ...others].slice(0, MAX_RESIDUALS);
+}
+
+/** The issue as a residual; null when its code or path could carry a value. */
+export function asResidual(issue: DeclarationIssue): Residual | null {
+  if (!RULE_ID.test(issue.code) || issue.code.length > 100) return null;
+  if (!FIELD_PATH.test(issue.path) || issue.path.length > 200) return null;
+  return { sectionKey: issue.sectionKey, ruleId: issue.code, fieldPath: issue.path };
 }
 
 /** The household as counts, from the household section's clear metadata (never its contents). */

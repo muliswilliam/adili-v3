@@ -20,6 +20,12 @@ export type AnswerOutput = Omit<Schemas['AnswerDeclarantQuestionOutput'], 'label
 /** ai-gateway.yaml `JobReason`. */
 export type AiJobReason = Schemas['JobReason'];
 
+/** ai-gateway.yaml `JobStatus`. */
+export type AiJobStatus = Schemas['JobStatus'];
+
+/** ai-gateway.yaml `FeedbackInput`: a rating of a job's output, forwarded as the declarant gave it. */
+export type FeedbackInput = Schemas['FeedbackInput'];
+
 /** The task Ask Adili's answers come from. */
 export const ANSWER_TASK = 'answer-declarant-question';
 
@@ -51,6 +57,30 @@ export type AnswerFrame =
   | { event: 'error'; reason: AiJobReason };
 
 /**
+ * A summary hints job (ai-gateway.yaml `TaskRequest` for `runTask`, a `hints`-mode input of
+ * `answer-declarant-question`). `promptVersion` is pinned: it is part of what the hints cache
+ * is keyed by.
+ */
+export interface HintsRequest {
+  tenant: string;
+  /** `declaration:<id>`: the job's audit record and events carry it. */
+  subjectRef: string;
+  promptVersion: number;
+  input: AnswerInput;
+}
+
+/** A hints job as the gateway gives it, reduced to what the service reads. */
+export interface HintsJob {
+  id: string;
+  status: AiJobStatus;
+  /** The validated output, once the job succeeded; null before, and when it failed. */
+  output: AnswerOutput | null;
+}
+
+/** The longest the service waits for a hints job (spec 11: 10 s, then deterministic text only). */
+export const HINTS_WAIT_SECONDS = 10;
+
+/**
  * The gateway cannot answer now: unreachable, rate-limited, over budget, no provider, or it
  * answered outside its contract. The assistant answers 503 and the portal offers help search.
  */
@@ -78,4 +108,18 @@ export abstract class AiGatewayClient {
     idempotencyKey: string,
     signal: AbortSignal,
   ): Promise<AsyncIterable<AnswerFrame>>;
+
+  /**
+   * `runTask` for a hints input, waiting up to `HINTS_WAIT_SECONDS`: the job as it is once it
+   * ended or the wait ran out (queued or running). Idempotent by `idempotencyKey`. Throws
+   * `AiGatewayUnavailable` when the gateway does not take it, or refuses it.
+   */
+  abstract runHints(request: HintsRequest, idempotencyKey: string): Promise<HintsJob>;
+
+  /**
+   * `recordFeedback`: records (or replaces) the declarant's rating of the job's output. False
+   * when the gateway has no succeeded job with that id of the service's, for the tenant. Throws
+   * `AiGatewayUnavailable` when the gateway cannot take it.
+   */
+  abstract recordFeedback(tenant: string, jobId: string, feedback: FeedbackInput): Promise<boolean>;
 }
