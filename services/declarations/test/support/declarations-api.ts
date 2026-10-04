@@ -29,7 +29,7 @@ import { lastValueFrom } from 'rxjs';
 import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
 import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
-import { sql } from 'drizzle-orm';
+import { isNotNull, sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { v7 as uuidv7 } from 'uuid';
 import { inject } from 'vitest';
@@ -39,7 +39,13 @@ import { AiGatewayClient } from '../../src/ai-gateway/ai-gateway-client.js';
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
 import type { Transaction } from '../../src/db/transaction.js';
-import { type DeclarationsSchema, schema, tenantPolicyCache } from '../../src/db/schema.js';
+import {
+  type DeclarationsSchema,
+  schema,
+  suggestionConsents,
+  suggestionSets,
+  tenantPolicyCache,
+} from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';
 import { type CorpusFile, loadCorpus } from '../../src/help/corpus.js';
@@ -53,6 +59,10 @@ import {
 } from '../../src/obligations/workflow/cycle-opening-schedules.js';
 import { ObligationSteps } from '../../src/obligations/workflow/obligation-steps.js';
 import { ExtractionJobConsumer } from '../../src/suggestions/extraction-job.consumer.js';
+import {
+  documentReadingWorkflowId,
+  registryLookupsWorkflowId,
+} from '../../src/suggestions/workflow/contract.js';
 import { ObligationsSweep, SweepSchedule } from '../../src/obligations/workflow/sweep.js';
 import {
   type ObligationChanges,
@@ -438,6 +448,8 @@ export async function startDeclarationsApi({
       return app.inject({ method: 'GET', url: path });
     },
     async reset() {
+      // The suite's suggestion workflows end first, so none acts on the next test's rows.
+      await terminateSuggestionWorkflows(app.get<Client>(TEMPORAL_CLIENT), db);
       await truncateAll(db);
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
@@ -466,22 +478,71 @@ export async function startDeclarationsApi({
 }
 
 /**
- * Empties the tables. A workflow an earlier test started (a registry lookup, a document reading)
- * can still be running an activity on the suite's worker, and its transaction, holding a lock on
- * one table and waiting for another, deadlocks with the truncate taking them all: Postgres then
- * aborts one of the two. The truncate is tried again; the activity, finding its rows gone,
- * records nothing and its workflow ends.
+ * Terminates the workflows the suite's tests started that act on suggestion rows: every registry
+ * lookup (by consent) and document reading (by declaration and job). Left running, a reading
+ * keeps pulling the fake gateway for 15 minutes, taking worker slots and locking the next test's
+ * tables. One never started, or ended already, is skipped.
+ */
+async function terminateSuggestionWorkflows(
+  temporal: Client,
+  db: Database<DeclarationsSchema>,
+): Promise<void> {
+  // `FakeTemporal` (the `fake` mode) starts nothing to terminate.
+  if (!('getHandle' in temporal.workflow)) return;
+  const { consents, readings } = await withTenant(
+    db,
+    { tenant: 'platform', subject: 'test' },
+    async (tx) => ({
+      consents: await tx.select({ id: suggestionConsents.id }).from(suggestionConsents),
+      readings: await tx
+        .select({ declarationId: suggestionSets.declarationId, jobId: suggestionSets.aiJobId })
+        .from(suggestionSets)
+        .where(isNotNull(suggestionSets.aiJobId)),
+    }),
+  );
+  const ids = [
+    ...consents.map(({ id }) => registryLookupsWorkflowId(id)),
+    ...readings.flatMap(({ declarationId, jobId }) =>
+      jobId ? [documentReadingWorkflowId(declarationId, jobId)] : [],
+    ),
+  ];
+  for (const id of new Set(ids)) {
+    try {
+      await temporal.workflow.getHandle(id).terminate();
+    } catch {
+      // Never started, or ended already.
+    }
+  }
+}
+
+/** Truncates tried again on a lock conflict, a backstop to `terminateSuggestionWorkflows`. */
+const RESET_ATTEMPTS = 20;
+
+function isLockConflict(error: unknown): boolean {
+  const codeOf = (value: unknown) =>
+    typeof value === 'object' && value !== null && 'code' in value ? value.code : undefined;
+  const cause =
+    typeof error === 'object' && error !== null && 'cause' in error ? error.cause : undefined;
+  return [codeOf(error), codeOf(cause)].some((code) => code === '55P03' || code === '40P01');
+}
+
+/**
+ * Empties the tables. An activity of a workflow just terminated may still hold a lock: the
+ * truncate waits at most 2 s for it and, on a lock timeout or a deadlock Postgres broke by
+ * aborting the truncate, is tried again.
  */
 async function truncateAll(db: Database<DeclarationsSchema>): Promise<void> {
   for (let attempt = 1; ; attempt += 1) {
     try {
-      await db.execute(
-        sql`truncate help_articles, suggestions, suggestion_sets, suggestion_consents, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
-      );
+      await db.transaction(async (tx) => {
+        await tx.execute(sql`set local lock_timeout = '2s'`);
+        await tx.execute(
+          sql`truncate help_articles, suggestions, suggestion_sets, suggestion_consents, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
+        );
+      });
       return;
     } catch (error) {
-      const code = (error as { cause?: { code?: unknown } }).cause?.code;
-      if (code !== '40P01' || attempt >= 5) throw error;
+      if (attempt >= RESET_ATTEMPTS || !isLockConflict(error)) throw error;
     }
   }
 }
