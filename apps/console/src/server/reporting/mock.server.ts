@@ -178,6 +178,10 @@ const ACTIONS = ['compile', 'remarks', 'manual', 'reviewed', 'confirm'] as const
 type Action = (typeof ACTIONS)[number];
 
 export async function mockReportingFetch(input: Request): Promise<Response> {
+  // EACC's open-data releases (releases-mock.server.ts, #350).
+  if (new URL(input.url).pathname.startsWith('/v1/eacc/open-data/releases')) {
+    return (await import('./releases-mock.server')).mockReleasesFetch(input);
+  }
   // The national report's AI narrative drafts (#341).
   if (isNarrativeDraftPath(new URL(input.url).pathname)) return mockNarrativeDraftFetch(input);
   // EACC's intake and report viewer have their own Commissions (eacc-mock.server.ts).

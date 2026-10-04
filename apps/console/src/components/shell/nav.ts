@@ -79,6 +79,7 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
     items: [
       { workspace: 'compliance', icon: InboxIcon, section: '/eacc/reports' },
       { workspace: 'referrals-intake', icon: Flag02Icon },
+      { workspace: 'open-data', icon: ChartColumnIcon },
     ],
   },
   {

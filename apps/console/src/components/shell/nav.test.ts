@@ -10,7 +10,7 @@ describe('navFor', () => {
     for (const role of ['eacc-analyst', 'eacc-supervisor']) {
       expect(labels([role])).toEqual([
         ['Platform', ['Commissions', 'National obligations']],
-        ['EACC', ['Compliance reports', 'Referrals received']],
+        ['EACC', ['Compliance reports', 'Referrals received', 'Open data']],
       ]);
       expect(navFor([role])[1]?.items[1]?.to).toBe('/eacc/referrals');
     }
@@ -20,6 +20,14 @@ describe('navFor', () => {
     expect(navFor(['eacc-analyst'])[1]?.items[0]?.to).toBe('/eacc/reports');
     expect(activeNavHref(navFor(['eacc-analyst']), '/eacc/reports/0199c100')).toBe('/eacc/reports');
     expect(activeNavHref(navFor(['eacc-analyst']), '/eacc/reports/ncr')).toBe('/eacc/reports');
+  });
+
+  it('marks Open data on a release page too (#350)', () => {
+    const groups = navFor(['eacc-analyst']);
+    expect(groups[1]?.items.map((item) => item.to)).toContain('/eacc/open-data');
+    expect(activeNavHref(groups, '/eacc/open-data/0199c000-0000-7000-8000-000000000002')).toBe(
+      '/eacc/open-data',
+    );
   });
 
   it('adds Law enforcement, Integrations, AI policy and Help articles under Platform for platform admins only (specs 10, 07b, 07c, 11)', () => {

@@ -43,7 +43,8 @@ export type WorkspaceHref =
   | '/help'
   | '/form-m'
   | '/eacc/reports'
-  | '/eacc/referrals';
+  | '/eacc/referrals'
+  | '/eacc/open-data';
 
 interface WorkspaceDefinition {
   id: string;
@@ -251,6 +252,13 @@ const WORKSPACES: WorkspaceDefinition[] = [
     href: '/eacc/referrals',
     roles: EACC_ROLES,
     writeRoles: REFERRAL_PUSH_ROLES,
+  },
+  {
+    id: 'open-data',
+    title: 'Open data',
+    description: 'Build and preview the open-data releases, suppressed for privacy.',
+    href: '/eacc/open-data',
+    roles: EACC_ROLES,
   },
   {
     id: 'audit',
