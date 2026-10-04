@@ -100,6 +100,29 @@ Caddy terminates TLS with Let's Encrypt. Set `letsencrypt_email` in `terraform.t
 
 It does **not** re-seed, re-issue certificates, or `terraform apply`. The SSH host key is pinned in `infra/azure/known_hosts`.
 
+## Backups
+
+Dumps live in `/home/adili/adili-backups/<utc-stamp>/` (override with `ADILI_BACKUP_ROOT`). That path is outside `/opt/adili`, so the deploy rsync cannot delete them. Each directory has one custom-format dump per demo database plus `SHA256SUMS`. `adili_test` is not included.
+
+```sh
+./infra/azure/backup-databases.sh
+./infra/azure/verify-restore.sh          # restores each dump into a throwaway database, then drops it
+```
+
+A real replace of the live databases stops the apps first:
+
+```sh
+sudo systemctl stop adili-apps
+ADILI_RESTORE_CONFIRM=yes ./infra/azure/restore-databases.sh /home/adili/adili-backups/<stamp>
+sudo systemctl start adili-apps
+```
+
+Nightly, as `adili` (backup, then a restore check against the newest stamp; 7 days are kept):
+
+```cron
+15 2 * * * /opt/adili/infra/azure/backup-databases.sh && /opt/adili/infra/azure/verify-restore.sh
+```
+
 Repo secret (Actions -> Secrets):
 
 | Name | Value |
