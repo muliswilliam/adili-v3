@@ -12,7 +12,7 @@ import { type AnswerContext, asResidual, MAX_RESIDUALS, type Residual } from './
  * type, the household as counts and the residuals (rule ids and field paths) only; no statement
  * date, no passages, and every person key replaced by its place among the residuals (the first
  * spouse or child named is `...0001`), so two declarants with the same things left to complete
- * send the same request and share its hints (`hintsKey`).
+ * send the same request and share its hints (`HintsPlan.hash`).
  */
 
 /** The prompt version hints are written with; part of the cache key, so a bump writes them anew. */

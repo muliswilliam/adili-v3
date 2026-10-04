@@ -14,7 +14,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import type { AiLabel } from '../ai-gateway/ai-gateway-client.js';
+import type { AiLabel, FeedbackInput } from '../ai-gateway/ai-gateway-client.js';
 import { bytea, declarations } from '../declaration/schema.js';
 import { QUESTION_THEMES } from './themes.js';
 
@@ -34,6 +34,13 @@ export type AssistantLanguage = (typeof ASSISTANT_LANGUAGE_VALUES)[number];
 
 export const ASSISTANT_ROLE_VALUES = ['user', 'assistant'] as const;
 export type AssistantRole = (typeof ASSISTANT_ROLE_VALUES)[number];
+
+/** A declarant's rating of an answer: the ai-gateway's `FeedbackInput.rating`, forwarded. */
+export const ASSISTANT_RATING_VALUES = [
+  'helpful',
+  'not-helpful',
+] as const satisfies readonly FeedbackInput['rating'][];
+export type AssistantRating = (typeof ASSISTANT_RATING_VALUES)[number];
 
 export const assistantConversations = pgTable(
   'assistant_conversations',
@@ -106,13 +113,15 @@ export const assistantMessages = pgTable(
     /** The ai-gateway's AiLabel of an answer from the AI; null for a question or a decline made here. */
     label: jsonb().$type<AiLabel>(),
     /** The declarant's rating of an answer (#339); null until rated. */
-    rating: text({ enum: ['helpful', 'not-helpful'] }),
+    rating: text({ enum: ASSISTANT_RATING_VALUES }),
     /**
      * Why, and the declarant's note, encrypted like the text (`FeedbackPlaintext`, its own AAD
      * record id); null until rated.
      */
     feedbackCiphertext: bytea(),
     feedbackEnvelope: jsonb().$type<FieldEnvelope>(),
+    /** How many ratings were kept: a rating is kept only over the one it read (#339). */
+    feedbackVersion: integer().notNull().default(0),
     /** A question's theme (`themes.ts`), as counted; null for an answer. */
     theme: text({ enum: QUESTION_THEMES }),
     at: timestamp({ withTimezone: true }).notNull(),

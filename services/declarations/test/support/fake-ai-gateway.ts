@@ -17,6 +17,11 @@ import {
 export type ScriptedAnswer =
   | { kind: 'answer'; output: AnswerOutput; deltas?: string[] }
   | { kind: 'error'; reason: AiJobReason; deltas?: string[] }
+  /**
+   * The deltas, then nothing until the request is aborted (the declarant left), then the final
+   * all the same, as one already on its way would arrive.
+   */
+  | { kind: 'held'; output: AnswerOutput; deltas: string[] }
   | { kind: 'unavailable' };
 
 /** What the fake answers a hints job with. */
@@ -80,7 +85,16 @@ export function citingFirstPassage(input: AnswerInput): AnswerOutput {
  * citing the first passage and one hint per residual. A rating is recorded for a job it ran.
  */
 export class FakeAiGateway extends AiGatewayClient {
-  readonly requests: { request: AnswerRequest; idempotencyKey: string }[] = [];
+  /**
+   * Each request: what was sent, the signal it was sent with (aborted when the service cancels
+   * the job) and whether the service has closed the stream it got.
+   */
+  readonly requests: {
+    request: AnswerRequest;
+    idempotencyKey: string;
+    signal: AbortSignal;
+    closed: boolean;
+  }[] = [];
   readonly hintRequests: { request: HintsRequest; idempotencyKey: string }[] = [];
   readonly feedback: { tenant: string; jobId: string; feedback: FeedbackInput }[] = [];
   /** The jobs it ran (answers that ended, hints), by id: what it knows to rate. */
@@ -94,6 +108,8 @@ export class FakeAiGateway extends AiGatewayClient {
     output: writingHints(input),
   });
   private feedbackDown = false;
+  private heldFeedback: Promise<void> | null = null;
+  private feedbackHook: (() => Promise<void>) | null = null;
 
   /** Answers every following request with `script`. */
   answer(script: (input: AnswerInput) => ScriptedAnswer): void {
@@ -115,12 +131,39 @@ export class FakeAiGateway extends AiGatewayClient {
     this.feedbackDown = down;
   }
 
+  /**
+   * Holds the next rating's answer (it is recorded at once) until the returned function is
+   * called: a rating still on its way while another lands.
+   */
+  holdFeedback(): () => void {
+    let release = (): void => undefined;
+    this.heldFeedback = new Promise((resolve) => {
+      release = resolve;
+    });
+    return release;
+  }
+
+  /**
+   * Runs `hook` each time a rating is recorded, before the gateway answers: what happens
+   * elsewhere while a rating is on its way.
+   */
+  onFeedback(hook: () => Promise<void>): void {
+    this.feedbackHook = hook;
+  }
+
+  /** Forgets every job it ran, as a gateway that no longer knows them. */
+  forgetJobs(): void {
+    this.jobs.clear();
+  }
+
   reset(): void {
     this.requests.length = 0;
     this.hintRequests.length = 0;
     this.feedback.length = 0;
     this.jobs.clear();
     this.feedbackDown = false;
+    this.heldFeedback = null;
+    this.feedbackHook = null;
     this.answer((input) => ({ kind: 'answer', output: citingFirstPassage(input) }));
     this.hints((input) => ({ kind: 'succeeded', output: writingHints(input) }));
   }
@@ -139,13 +182,17 @@ export class FakeAiGateway extends AiGatewayClient {
     return Promise.resolve({ id, status: scripted.kind, output: null });
   }
 
-  recordFeedback(tenant: string, jobId: string, feedback: FeedbackInput): Promise<boolean> {
+  async recordFeedback(tenant: string, jobId: string, feedback: FeedbackInput): Promise<boolean> {
     if (this.feedbackDown) {
-      return Promise.reject(new AiGatewayUnavailable('The ai-gateway service did not answer'));
+      throw new AiGatewayUnavailable('The ai-gateway service did not answer');
     }
-    if (!this.jobs.has(jobId)) return Promise.resolve(false);
+    if (!this.jobs.has(jobId)) return false;
     this.feedback.push({ tenant, jobId, feedback: structuredClone(feedback) });
-    return Promise.resolve(true);
+    const held = this.heldFeedback;
+    this.heldFeedback = null;
+    if (held) await held;
+    if (this.feedbackHook) await this.feedbackHook();
+    return true;
   }
 
   streamAnswer(
@@ -153,26 +200,59 @@ export class FakeAiGateway extends AiGatewayClient {
     idempotencyKey: string,
     signal: AbortSignal,
   ): Promise<AsyncIterable<AnswerFrame>> {
-    this.requests.push({ request: structuredClone(request), idempotencyKey });
+    const sent = { request: structuredClone(request), idempotencyKey, signal, closed: false };
+    this.requests.push(sent);
     const scripted = this.script(request.input);
     if (scripted.kind === 'unavailable') {
       return Promise.reject(new AiGatewayUnavailable('The ai-gateway service answered 503'));
     }
-    const each = frames(scripted, signal, (id) => this.jobs.add(id));
+    const each =
+      scripted.kind === 'held'
+        ? held(scripted, signal)
+        : arriving(scripted, signal, (id) => this.jobs.add(id));
     return Promise.resolve(
       (async function* () {
-        // A stream arrives in turns, as over the network.
-        for (const frame of each) {
-          await Promise.resolve();
-          yield frame;
+        try {
+          yield* each;
+        } finally {
+          sent.closed = true;
         }
       })(),
     );
   }
 }
 
+/** The scripted frames, in turns, as over the network. */
+async function* arriving(
+  scripted: Extract<ScriptedAnswer, { kind: 'answer' | 'error' }>,
+  signal: AbortSignal,
+  ran: (jobId: string) => void,
+): AsyncIterable<AnswerFrame> {
+  for (const frame of frames(scripted, signal, ran)) {
+    await Promise.resolve();
+    yield frame;
+  }
+}
+
+/** The deltas in turns, then nothing until the request is aborted, then the final all the same. */
+async function* held(
+  scripted: Extract<ScriptedAnswer, { kind: 'held' }>,
+  signal: AbortSignal,
+): AsyncIterable<AnswerFrame> {
+  for (const text of scripted.deltas) {
+    await Promise.resolve();
+    yield { event: 'delta', text };
+  }
+  if (!signal.aborted) {
+    await new Promise((resolve) => {
+      signal.addEventListener('abort', resolve, { once: true });
+    });
+  }
+  yield { event: 'final', job: { id: randomUUID(), output: scripted.output } };
+}
+
 function* frames(
-  scripted: Exclude<ScriptedAnswer, { kind: 'unavailable' }>,
+  scripted: Extract<ScriptedAnswer, { kind: 'answer' | 'error' }>,
   signal: AbortSignal,
   ran: (jobId: string) => void,
 ): Iterable<AnswerFrame> {

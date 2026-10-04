@@ -19,14 +19,21 @@
  * withdrawn or resolved clarification is 409 `not-open`. Letters download from
  * `/api/mock-letters/{id}` (`routes/api/mock-letters.$id.ts`).
  *
+ * Decisions (spec 08, S17): `nonCompliant`, the 2024 biennial declaration's, decided a year ago
+ * with its letter; `noIssues`, a 2022 bulk closure ("compliant: no issues identified") whose letter
+ * is issued on its first request, after `MOCK_LETTER_ISSUE_MS`, as the service renders it then.
+ * Letters download from `/api/mock-letters/{documentId}` too.
+ *
  * Tests can reseed at a given time (`resetReviewMock`) and make the next response fail as if the
- * service were down (`failNextResponse`).
+ * service were down (`failNextResponse`), or the next decision letter (`failNextDecisionLetter`).
  */
 import { addDays } from '@adili/ui';
 
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
-import type { DeclarantClarification } from './types';
+import { reviewClock } from './mock-clock.server';
+import { noticeInStore, noticesRoute, resetNoticesMock } from './notices-mock.server';
+import type { DeclarantClarification, DeclarantDecision } from './types';
 
 const RESPONSE_DAYS = 30;
 
@@ -82,7 +89,22 @@ const VEHICLE: Item = {
   aiLanguage: null,
 };
 
+export const MOCK_DECISION_IDS = {
+  nonCompliant: 'de7e0000-0000-4000-8000-000000000101',
+  noIssues: 'de7e0000-0000-4000-8000-000000000102',
+} as const;
+
+/** How long a bulk closure's letter takes to issue on its first request. */
+export const MOCK_LETTER_ISSUE_MS = 1_500;
+
+interface StoredDecision extends DeclarantDecision {
+  documentId: string;
+}
+
 const clarifications = new Map<string, DeclarantClarification>();
+const decisions = new Map<string, StoredDecision>();
+let failNextLetter = false;
+let issueDelayMs = MOCK_LETTER_ISSUE_MS;
 /** First answer by Idempotency-Key, replayed on retry. */
 const answered = new Map<string, Response>();
 let failNext = false;
@@ -161,7 +183,38 @@ function attachment(fileName: string, k: number) {
 }
 
 /** Clears responses and seeds the fixtures with "now" at `now` (tests pass a fixed time). */
-export function resetReviewMock(now: number = Date.now()) {
+export function resetReviewMock(
+  now: number = Date.now(),
+  {
+    letterIssueMs = MOCK_LETTER_ISSUE_MS,
+    noNotices = false,
+  }: { letterIssueMs?: number; noNotices?: boolean } = {},
+) {
+  reviewClock.startAt(now);
+  resetNoticesMock(now, { empty: noNotices });
+  issueDelayMs = letterIssueMs;
+  decisions.clear();
+  failNextLetter = false;
+  decisions.set(MOCK_DECISION_IDS.nonCompliant, {
+    determinationId: MOCK_DECISION_IDS.nonCompliant,
+    declarationReference: BIENNIAL_REFERENCE,
+    commission: COMMISSION,
+    outcome: 'non-compliant',
+    decidedAt: at(now, -340),
+    reference: 'CMP-TSC-2024-0004102-U',
+    letterAvailable: true,
+    documentId: 'd0c00000-0000-4000-8000-000000000101',
+  });
+  decisions.set(MOCK_DECISION_IDS.noIssues, {
+    determinationId: MOCK_DECISION_IDS.noIssues,
+    declarationReference: 'DCB-TSC-2022-0000815-M',
+    commission: COMMISSION,
+    outcome: 'compliant-no-issues',
+    decidedAt: at(now, -1060),
+    reference: 'CMP-TSC-2023-0118204-M',
+    letterAvailable: false,
+    documentId: 'd0c00000-0000-4000-8000-000000000102',
+  });
   clarifications.clear();
   answered.clear();
   failNext = false;
@@ -245,6 +298,36 @@ export function resetReviewMock(now: number = Date.now()) {
   });
 }
 
+/** The next decision letter answers 502, as if documents could not issue it (tests). */
+export function failNextDecisionLetter() {
+  failNextLetter = true;
+}
+
+/** The decision a letter's document id belongs to (the letter route). */
+export function mockDecisionLetter(documentId: string): DeclarantDecision | undefined {
+  ensureSeeded();
+  return [...decisions.values()].find((each) => each.documentId === documentId);
+}
+
+async function decisionLetterOf(id: string): Promise<Response> {
+  const found = decisions.get(id);
+  if (!found) return problem(404, 'Not found');
+  if (failNextLetter) {
+    failNextLetter = false;
+    return problem(502, 'The documents service refused the letter');
+  }
+  if (!found.letterAvailable) {
+    // A bulk closure's letter is rendered on its first request.
+    await new Promise((resolve) => setTimeout(resolve, issueDelayMs));
+    found.letterAvailable = true;
+  }
+  return json(200, {
+    documentId: found.documentId,
+    verificationId: `V${found.documentId.slice(-8).toUpperCase()}`,
+    downloadUrl: `/api/mock-letters/${found.documentId}`,
+  });
+}
+
 /** The next response answers 503, as if the service were down (tests). */
 export function failNextResponse() {
   failNext = true;
@@ -256,8 +339,14 @@ export function mockClarification(id: string): DeclarantClarification | undefine
   return clarifications.get(id);
 }
 
+/** A notice as the mock holds it (the letter route and tests). */
+export function mockNotice(actionId: string) {
+  ensureSeeded();
+  return noticeInStore(actionId);
+}
+
 function ensureSeeded() {
-  if (clarifications.size === 0) resetReviewMock();
+  if (clarifications.size === 0) resetReviewMock(reviewClock.now());
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {
@@ -268,6 +357,26 @@ export function mockReviewFetch(request: Request): Promise<Response> {
 async function route(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
   const method = request.method;
+
+  const notices = await noticesRoute(request);
+  if (notices) return notices;
+  if (method === 'GET' && pathname === '/v1/me/decisions') {
+    return json(
+      200,
+      [...decisions.values()].map((each): DeclarantDecision => ({
+        determinationId: each.determinationId,
+        declarationReference: each.declarationReference,
+        commission: each.commission,
+        outcome: each.outcome,
+        decidedAt: each.decidedAt,
+        reference: each.reference,
+        letterAvailable: each.letterAvailable,
+      })),
+    );
+  }
+
+  const letter = /^\/v1\/review\/determinations\/([^/]+)\/letter$/.exec(pathname);
+  if (method === 'GET' && letter?.[1]) return decisionLetterOf(letter[1]);
 
   if (method === 'GET' && pathname === '/v1/me/clarifications') {
     const list = [...clarifications.values()]
@@ -333,7 +442,7 @@ async function respond(request: Request, id: string): Promise<Response> {
     answers.push({ index: item.index, text: item.text, attachments: files });
   }
 
-  const now = new Date().toISOString();
+  const now = reviewClock.isoNow();
   const updated: DeclarantClarification = {
     ...found,
     status: 'responded',

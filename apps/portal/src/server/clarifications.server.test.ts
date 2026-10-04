@@ -1,5 +1,6 @@
+import { addDays } from '@adili/ui';
 import createClient from 'openapi-fetch';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   loadClarificationPage,
@@ -134,6 +135,25 @@ describe('respondToClarification', () => {
       'boq.pdf',
       'loan.pdf',
     ]);
+  });
+
+  describe('on a wall clock past the seeded windows', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('responds as of when the mock was seeded, not the wall clock', async () => {
+      // Seeded as of NOW, but run a month later: the clarification is past due by the wall clock.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(Date.parse(addDays(new Date(NOW).toISOString(), 30)));
+      resetReviewMock(NOW);
+      const result = await respondToClarification(client(), IDS.open, answers(), KEY);
+      if (result.status !== 'responded') throw new Error(result.status);
+      expect(result.clarification).toMatchObject({
+        respondedAt: '2026-09-28T09:00:00.000Z',
+        responseLate: false,
+      });
+    });
   });
 
   it('replays the first answer for the same key, and refuses a second response (409)', async () => {

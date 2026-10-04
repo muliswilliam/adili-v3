@@ -27,7 +27,7 @@ import {
 import type { FastifyReply } from 'fastify';
 
 import { ASSISTANT_RATE_LIMIT } from '../config.js';
-import { AssistantService, unavailableFrame } from './assistant.service.js';
+import { type AssistantFrame, AssistantService, unavailableFrame } from './assistant.service.js';
 import type { AssistantConversation, AssistantMessage } from './representation.js';
 
 const NOT_VISIBLE = 'Not found, or not visible to the caller';
@@ -115,17 +115,14 @@ export class AssistantController {
     });
     if (raw.destroyed) left.abort();
     const ping = setInterval(() => raw.write(': ping\n\n'), HEARTBEAT_MS);
+    const write = (frame: AssistantFrame) =>
+      raw.write(`event: ${frame.event}\ndata: ${JSON.stringify(frame.data)}\n\n`);
     try {
-      for await (const frame of stream.frames(left.signal)) {
-        raw.write(`event: ${frame.event}\ndata: ${JSON.stringify(frame.data)}\n\n`);
-      }
+      for await (const frame of stream.frames(left.signal)) write(frame);
     } catch (error) {
       // Every ending the stream knows is a frame; this is a bug.
       this.logger.error({ err: error }, 'Answer stream failed');
-      if (!left.signal.aborted) {
-        const frame = unavailableFrame();
-        raw.write(`event: ${frame.event}\ndata: ${JSON.stringify(frame.data)}\n\n`);
-      }
+      if (!left.signal.aborted) write(unavailableFrame());
     } finally {
       clearInterval(ping);
       raw.end();
@@ -139,7 +136,7 @@ export class AssistantController {
     operationId: 'rateAssistantMessage',
     summary: 'Rate an answer, with why and a note',
     description:
-      "Declarants, on an answer in their own conversation. The rating and reason are forwarded to the ai-gateway job the answer came from, then kept on the answer with the note, reason and note encrypted (the note is never sent on); a decline made without asking the AI has no job and is kept only. A second rating replaces the first. Records `assistant.feedback.recorded.v1` (no reason, no note). 404 for a question, another person's message or a conversation gone with its draft.",
+      "Declarants, on an answer in their own conversation. The rating and reason are forwarded to the ai-gateway job the answer came from, then kept on the answer with the note, reason and note encrypted (the note is never sent on); a decline made without asking the AI has no job and is kept only. A second rating replaces the first; under a race the last one kept wins, which can be the earlier. Records `assistant.feedback.recorded.v1` (no reason, no note). 404 for a question, another person's message or a conversation gone with its draft. On 404 and 503 the rating is not kept on the answer, but the gateway may already hold it (a draft submitted or discarded while it was forwarded, ratings crossing, the gateway failing on a re-forward); the next rating brings the two together again.",
   })
   @ApiBody({ required: true, schema: schemaRef('RateAssistantMessageRequest') })
   @ApiOkResponse({ description: 'The answer, rated', schema: schemaRef('AssistantMessage') })
@@ -147,7 +144,7 @@ export class AssistantController {
   @ApiProblemResponse(404, NOT_VISIBLE)
   @ApiProblemResponse(
     503,
-    'Problem type `assistant-unavailable`: the ai-gateway cannot take the rating now; nothing was kept',
+    'Problem type `assistant-unavailable`: the ai-gateway cannot take the rating now, or ratings of the answer kept crossing; the rating is not kept on the answer',
   )
   rate(
     @CurrentPrincipal() principal: Principal,
