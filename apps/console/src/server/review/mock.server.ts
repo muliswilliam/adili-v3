@@ -87,6 +87,7 @@ import {
   mockDecisionLetterTitle,
   resetDeterminationsMock,
 } from './determinations-mock.server';
+import { reviewClock } from './mock-clock.server';
 import { MOCK_CALLER, type MockCases } from './mock-parts.server';
 import type {
   Assignee,
@@ -530,6 +531,7 @@ export function resetReviewMock(
   now: number = Date.now(),
   { copilot = 'ready' }: { copilot?: Env['REVIEW_MOCK_COPILOT'] } = {},
 ) {
+  reviewClock.startAt(now);
   resetActionsMock(now);
   cases.clear();
   clarifications.clear();
@@ -1020,12 +1022,10 @@ function mockCases(caller: Assignee): MockCases {
       const stored = cases.get(caseId);
       if (!stored) return;
       stored.item = { ...stored.item, status };
-      stored.timeline.push(
-        entry('status-changed', actor, new Date().toISOString(), summary, status),
-      );
+      stored.timeline.push(entry('status-changed', actor, reviewClock.isoNow(), summary, status));
     },
     record: (caseId, kind, actor, summary, ref) => {
-      cases.get(caseId)?.timeline.push(entry(kind, actor, new Date().toISOString(), summary, ref));
+      cases.get(caseId)?.timeline.push(entry(kind, actor, reviewClock.isoNow(), summary, ref));
     },
   };
 }
@@ -1056,7 +1056,7 @@ function holderOf(stored: StoredCase, caller: Assignee): Assignee | null {
 /** A clarification as read now: its letter `issued` once its delay has passed. */
 function current(found: Clarification): Clarification {
   const readyAt = letterReadyAt.get(found.id);
-  if (readyAt === undefined || Date.now() < readyAt || found.letter?.status !== 'pending') {
+  if (readyAt === undefined || reviewClock.now() < readyAt || found.letter?.status !== 'pending') {
     return found;
   }
   letterReadyAt.delete(found.id);
@@ -1117,7 +1117,7 @@ function refreshCase(stored: StoredCase, actor: Assignee | null = null) {
         ? 'awaiting-clarification'
         : 'ready-for-determination';
   if (actor && stored.item.status === 'awaiting-clarification' && status !== stored.item.status) {
-    const changedAt = new Date().toISOString();
+    const changedAt = reviewClock.isoNow();
     for (const [to, summary] of [
       ['clarified', 'Case clarified: no clarification open'],
       ['ready-for-determination', 'Case ready for determination'],
@@ -1148,7 +1148,7 @@ function ensureSeeded() {
   if (cases.size > 0) return;
   // Read here, not through env(): the mock seeds itself in tests that set no service URLs.
   const copilot = envSchema.shape.REVIEW_MOCK_COPILOT.parse(process.env.REVIEW_MOCK_COPILOT);
-  resetReviewMock(Date.now(), { copilot });
+  resetReviewMock(reviewClock.now(), { copilot });
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {
@@ -1230,7 +1230,7 @@ async function route(request: Request): Promise<Response> {
     if (!known) return problem(404, 'Not found');
     return json(200, {
       downloadUrl: `/api/mock-files/${attachment[2]}`,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      expiresAt: new Date(reviewClock.now() + 5 * 60_000).toISOString(),
     });
   }
 
@@ -1240,7 +1240,7 @@ async function route(request: Request): Promise<Response> {
     if (!documentId) return problem(404, 'Not found');
     return json(200, {
       downloadUrl: `/api/mock-files/${documentId}`,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      expiresAt: new Date(reviewClock.now() + 5 * 60_000).toISOString(),
     });
   }
 
@@ -1386,7 +1386,7 @@ async function assignmentOrNote(
   action: string,
   caller: Assignee,
 ): Promise<Response> {
-  const now = new Date().toISOString();
+  const now = reviewClock.isoNow();
   const holder = holderOf(stored, caller);
   const hand = (to: Assignee | null, summary: string) => {
     stored.holder = to;
@@ -1467,7 +1467,7 @@ async function markReviewed(
   }
   const note = await textField(request, 'note', 1000);
   if (note === null) return problem(400, 'A note of 1 to 1,000 characters is required');
-  const now = new Date().toISOString();
+  const now = reviewClock.isoNow();
   const updated: Flag = { ...flag, reviewed: { at: now, by: caller, note } };
   stored.flags[index] = updated;
   stored.timeline.push(
@@ -1498,7 +1498,12 @@ async function act(
     if (note === null) return problem(400, 'A note of 1 to 2,000 characters is required');
     return save(
       stored,
-      { ...found, status: 'resolved', resolvedAt: new Date().toISOString(), resolutionNote: note },
+      {
+        ...found,
+        status: 'resolved',
+        resolvedAt: reviewClock.isoNow(),
+        resolutionNote: note,
+      },
       caller,
     );
   }
@@ -1651,7 +1656,7 @@ function issueDraft(id: string, caller: Assignee): Promise<Response> {
     );
   }
   const { windowEndsAt } = stored.item;
-  const now = Date.now();
+  const now = reviewClock.now();
   if (now > Date.parse(windowEndsAt)) {
     return Promise.resolve(
       json(409, {
@@ -1707,7 +1712,7 @@ export function mockLetterFetch(request: Request): Promise<Response> {
   return Promise.resolve(
     json(200, {
       downloadUrl: `/api/mock-files/${documentId}`,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      expiresAt: new Date(reviewClock.now() + 5 * 60_000).toISOString(),
     }),
   );
 }
