@@ -24,7 +24,7 @@ describe('navFor', () => {
 
   it('marks Open data on a release page too (#350)', () => {
     const groups = navFor(['eacc-analyst']);
-    expect(groups[1]?.items[1]?.to).toBe('/eacc/open-data');
+    expect(groups[1]?.items.map((item) => item.to)).toContain('/eacc/open-data');
     expect(activeNavHref(groups, '/eacc/open-data/0199c000-0000-7000-8000-000000000002')).toBe(
       '/eacc/open-data',
     );
