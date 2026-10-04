@@ -297,10 +297,12 @@ export class AssistantService {
 
   /**
    * The declarant's rating of an answer (spec 11 S8), with why and a note: the rating and reason
-   * forwarded to the ai-gateway's job first (an answer from the AI), then kept on the answer, the
-   * reason and note encrypted (the note never leaves the messages table), with `assistant.feedback.recorded.v1`. A second rating replaces the first, in both
-   * places. A decline made without asking the AI has no job, so its rating is kept only. 400 for
-   * a bad body, 404 for anything but an answer in the caller's live conversation, 503 when the
+   * forwarded to the ai-gateway's job (an answer from the AI), then kept on the answer, the
+   * reason and note encrypted (the note never leaves the messages table), with
+   * `assistant.feedback.recorded.v1`. The answer is locked while its rating is forwarded and
+   * kept, so a second rating waits for the first and replaces it in both places, in the same
+   * order. A decline made without asking the AI has no job, so its rating is kept only. 400 for a
+   * bad body, 404 for anything but an answer in the caller's live conversation, 503 when the
    * gateway cannot take the rating (nothing is kept).
    */
   async rate(
@@ -311,10 +313,9 @@ export class AssistantService {
   ): Promise<AssistantMessage> {
     const person = personOf(principal);
     const request = parse(rateMessageRequestSchema, body);
-    const now = this.clock.now();
-    const found = await withPerson(this.db, person, async (tx) => {
+    const rated = await withPerson(this.db, person, async (tx) => {
       if (!isUuid(conversationId) || !isUuid(messageId)) return null;
-      const conversation = (await this.live(tx, conversationId, now))?.conversation;
+      const conversation = (await this.live(tx, conversationId, this.clock.now()))?.conversation;
       if (!conversation) return null;
       const [message] = await tx
         .select()
@@ -325,43 +326,17 @@ export class AssistantService {
             eq(assistantMessages.conversationId, conversation.id),
             eq(assistantMessages.role, 'assistant'),
           ),
-        );
-      return message ? { conversation, message } : null;
-    });
-    const { conversation, message } = notFoundIfInvisible(found);
+        )
+        .for('update');
+      if (!message) return null;
 
-    let forwarded = false;
-    if (message.jobId !== null) {
-      try {
-        forwarded = await this.gateway.recordFeedback(conversation.tenant, message.jobId, {
-          reviewerSubject: principal.subject,
-          block: null,
-          rating: request.rating,
-          reason: request.reason,
-          // The declarant's own words stay in the messages table (spec 11 S8).
-          note: null,
-        });
-      } catch (error) {
-        if (error instanceof AiGatewayUnavailable) {
-          this.logger.warn({ err: error }, 'The ai-gateway did not take a rating');
-          throw assistantUnavailable();
-        }
-        throw error;
-      }
-      if (!forwarded) {
-        this.logger.warn({ jobId: message.jobId }, 'The ai-gateway does not know the job rated');
-      }
-    }
-
-    const feedback: FeedbackPlaintext = { reason: request.reason, note: request.note };
-    const { ciphertext, envelope } = await this.cipher.encrypt({
-      tenant: conversation.tenant,
-      recordId: `${recordId(message.id)}/feedback`,
-      plaintext: JSON.stringify(feedback),
-    });
-    const updated = await withPerson(this.db, person, async (tx) => {
-      // Gone with its draft, or expired, while the rating was forwarded: nothing is kept.
-      if (!(await this.live(tx, conversation.id, this.clock.now()))) return null;
+      const forwarded = await this.forwardRating(principal, conversation.tenant, message, request);
+      const feedback: FeedbackPlaintext = { reason: request.reason, note: request.note };
+      const { ciphertext, envelope } = await this.cipher.encrypt({
+        tenant: conversation.tenant,
+        recordId: `${recordId(message.id)}/feedback`,
+        plaintext: JSON.stringify(feedback),
+      });
       const [row] = await tx
         .update(assistantMessages)
         .set({
@@ -383,9 +358,44 @@ export class AssistantService {
           forwarded,
         }),
       );
-      return row;
+      return { tenant: conversation.tenant, row };
     });
-    return this.toMessage(conversation.tenant, notFoundIfInvisible(updated));
+    const { tenant, row } = notFoundIfInvisible(rated);
+    return this.toMessage(tenant, row);
+  }
+
+  /**
+   * Forwards a rating to the answer's ai-gateway job; false when it has none or the gateway does
+   * not know it (logged: the rating is still kept). 503 when the gateway cannot take it.
+   */
+  private async forwardRating(
+    principal: Principal,
+    tenant: string,
+    message: MessageRow,
+    request: RateMessageRequest,
+  ): Promise<boolean> {
+    if (message.jobId === null) return false;
+    let forwarded: boolean;
+    try {
+      forwarded = await this.gateway.recordFeedback(tenant, message.jobId, {
+        reviewerSubject: principal.subject,
+        block: null,
+        rating: request.rating,
+        reason: request.reason,
+        // The declarant's own words stay in the messages table (spec 11 S8).
+        note: null,
+      });
+    } catch (error) {
+      if (error instanceof AiGatewayUnavailable) {
+        this.logger.warn({ err: error }, 'The ai-gateway did not take a rating');
+        throw assistantUnavailable();
+      }
+      throw error;
+    }
+    if (!forwarded) {
+      this.logger.warn({ jobId: message.jobId }, 'The ai-gateway does not know the job rated');
+    }
+    return forwarded;
   }
 
   /**

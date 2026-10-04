@@ -94,6 +94,7 @@ export class FakeAiGateway extends AiGatewayClient {
     output: writingHints(input),
   });
   private feedbackDown = false;
+  private heldFeedback: Promise<void> | null = null;
 
   /** Answers every following request with `script`. */
   answer(script: (input: AnswerInput) => ScriptedAnswer): void {
@@ -115,12 +116,25 @@ export class FakeAiGateway extends AiGatewayClient {
     this.feedbackDown = down;
   }
 
+  /**
+   * Holds the next rating's answer (it is recorded at once) until the returned function is
+   * called: a rating still on its way while another lands.
+   */
+  holdFeedback(): () => void {
+    let release = (): void => undefined;
+    this.heldFeedback = new Promise((resolve) => {
+      release = resolve;
+    });
+    return release;
+  }
+
   reset(): void {
     this.requests.length = 0;
     this.hintRequests.length = 0;
     this.feedback.length = 0;
     this.jobs.clear();
     this.feedbackDown = false;
+    this.heldFeedback = null;
     this.answer((input) => ({ kind: 'answer', output: citingFirstPassage(input) }));
     this.hints((input) => ({ kind: 'succeeded', output: writingHints(input) }));
   }
@@ -139,13 +153,16 @@ export class FakeAiGateway extends AiGatewayClient {
     return Promise.resolve({ id, status: scripted.kind, output: null });
   }
 
-  recordFeedback(tenant: string, jobId: string, feedback: FeedbackInput): Promise<boolean> {
+  async recordFeedback(tenant: string, jobId: string, feedback: FeedbackInput): Promise<boolean> {
     if (this.feedbackDown) {
-      return Promise.reject(new AiGatewayUnavailable('The ai-gateway service did not answer'));
+      throw new AiGatewayUnavailable('The ai-gateway service did not answer');
     }
-    if (!this.jobs.has(jobId)) return Promise.resolve(false);
+    if (!this.jobs.has(jobId)) return false;
     this.feedback.push({ tenant, jobId, feedback: structuredClone(feedback) });
-    return Promise.resolve(true);
+    const held = this.heldFeedback;
+    this.heldFeedback = null;
+    if (held) await held;
+    return true;
   }
 
   streamAnswer(

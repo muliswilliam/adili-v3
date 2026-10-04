@@ -383,6 +383,25 @@ describe('feedback (S8)', () => {
     ]);
   });
 
+  it('keeps the gateway and the answer on the same rating when two land at once', async () => {
+    const { draft, conversation, answer } = await answered();
+    const release = api.aiGateway.holdFeedback();
+    const first = rate(conversation.id, answer.id, { rating: 'not-helpful', reason: 'unclear' });
+    await expect.poll(() => api.aiGateway.feedback.length).toBe(1);
+
+    // The second waits for the first, so it cannot reach the gateway first and be overwritten.
+    const second = rate(conversation.id, answer.id, { rating: 'helpful', reason: null });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    release();
+    const responses = await Promise.all([first, second]);
+
+    expect(responses.map((response) => response.statusCode)).toEqual([200, 200]);
+    const ratings = api.aiGateway.feedback.map((each) => each.feedback.rating);
+    expect(ratings).toEqual(['not-helpful', 'helpful']);
+    const resumed = await opened(draft.id);
+    expect(resumed.messages.find((message) => message.id === answer.id)?.rating).toBe('helpful');
+  });
+
   it('keeps the rating of a decline made without the AI, with no job to forward it to', async () => {
     const { conversation, answer } = await answered(OFF_CORPUS_QUESTION);
     expect(answer.declined).toBe(true);
