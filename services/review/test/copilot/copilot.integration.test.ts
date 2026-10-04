@@ -190,7 +190,19 @@ describe('review copilot', () => {
     }
     const ready = await untilStatus(caseId, 'ready');
     for (const jobId of jobIds) {
-      await temporalOf(api).workflow.getHandle(copilotJobWorkflowId(jobId)).result();
+      const result = temporalOf(api).workflow.getHandle(copilotJobWorkflowId(jobId)).result();
+      let timer: NodeJS.Timeout | undefined;
+      const ended = await Promise.race([
+        result.then(() => true),
+        new Promise<false>((resolve) => {
+          timer = setTimeout(() => {
+            resolve(false);
+          }, 45_000);
+        }),
+      ]).finally(() => {
+        clearTimeout(timer);
+      });
+      if (!ended) throw new Error(`The copilot job workflow of ${jobId} did not end within 45 s`);
     }
     return ready;
   };
