@@ -1,7 +1,7 @@
 import {
   MOCK_ACCESS_REQUEST_IDS,
   mockAccessFetch,
-  resetAccessMock,
+  resetAccessMocks,
 } from '../../server/access/mock.server';
 import type { AccessRequest } from '../../server/access/types';
 
@@ -19,7 +19,7 @@ const APPLICANT_TOKEN = `e30.${Buffer.from(
 
 /** Every seeded request, latest first, as of NOW. */
 export async function seededRequests(): Promise<AccessRequest[]> {
-  resetAccessMock(NOW);
+  resetAccessMocks(NOW);
   const response = await mockAccessFetch(
     new Request('http://access.test/v1/access/requests', {
       headers: { authorization: `Bearer ${APPLICANT_TOKEN}` },

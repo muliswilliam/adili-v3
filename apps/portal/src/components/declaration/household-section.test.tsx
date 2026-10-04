@@ -471,3 +471,20 @@ describe('HouseholdSection', () => {
     expect(getMock).toHaveBeenCalledWith({ data: { declarationId: DECLARATION_ID } });
   });
 });
+
+describe('opening a list from Ask Adili', () => {
+  it('goes to the children when the answer links to them', async () => {
+    renderWorkspace(
+      <HouseholdSection
+        section={household()}
+        etag={'"1"'}
+        maritalStatus="married"
+        focusField="/children"
+      />,
+      { step: 'household' },
+    );
+    await waitFor(() => {
+      expect(document.activeElement?.id).toBe('children-heading');
+    });
+  });
+});

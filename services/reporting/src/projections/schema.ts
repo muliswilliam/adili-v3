@@ -1,3 +1,4 @@
+import type { AccessGround, AccessOutcome } from '@adili/events/contracts';
 import { boolean, date, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 /**
@@ -144,6 +145,36 @@ export const aiFeedbackFacts = pgTable(
   (table) => [index('ai_feedback_facts_tenant_fy_idx').on(table.tenant, table.fy)],
 );
 
+/**
+ * Form K requests for access to declarations and clarifications (spec 10 `access.request.*`, Act
+ * s.36(1)), for Form M section 5. One row per request, attributed to the financial year it was
+ * received in, so its outcome counts in that year whenever it is decided. The outcome and the
+ * Regulation 24 grounds only: never the applicant, the declarant or the reasons given. Law
+ * enforcement requests (`lea.request.*`) are not projected.
+ */
+export const accessRequestFacts = pgTable(
+  'access_request_facts',
+  {
+    requestId: uuid().primaryKey(),
+    tenant: text().notNull(),
+    /** Financial year of `receivedAt`; null until `access.request.received.v1` arrives. */
+    fy: integer(),
+    receivedAt: timestamp({ withTimezone: true }),
+    /** The decision, or `cannot-identify` for a request closed unidentified; null while open. */
+    outcome: text().$type<AccessRequestFactOutcome>(),
+    /** The Regulation 24 grounds a denial or partial grant cites; empty otherwise. */
+    grounds: text().array().$type<AccessGround[]>().notNull().default([]),
+    /** When the outcome was recorded. */
+    closedAt: timestamp({ withTimezone: true }),
+    /** When the applicant withdrew it; null otherwise. */
+    withdrawnAt: timestamp({ withTimezone: true }),
+  },
+  (table) => [index('access_request_facts_tenant_fy_idx').on(table.tenant, table.fy)],
+);
+
+/** How a Form K request ended: decided, or closed because the officer could not be identified. */
+export type AccessRequestFactOutcome = AccessOutcome | 'cannot-identify';
+
 export const OBLIGATION_TYPES = ['initial', 'biennial', 'final'] as const;
 export type ObligationType = (typeof OBLIGATION_TYPES)[number];
 
@@ -188,4 +219,5 @@ export const projectionsSchema = {
   referralFacts,
   copilotCaseFacts,
   aiFeedbackFacts,
+  accessRequestFacts,
 };

@@ -2,12 +2,11 @@ import { createServerFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
-import { nairobiToday } from '../components/form-m/financial-year';
+import { FIRST_FINANCIAL_YEAR } from '../components/form-m/financial-year';
 import { partIEmail } from '../components/form-m/manual-fields';
 import { asReportingViewer, type Unauthenticated, withViewerClient } from './as-viewer.server';
 import { getBff } from './bff.server';
 import { commissionSlug } from './commission-slug';
-import { env } from './env.server';
 import {
   compileReport,
   type FormMResult,
@@ -24,6 +23,7 @@ import {
   saveRemarks,
 } from './form-m-sign-off.server';
 import { reportingDocumentsClient } from './reporting/documents-client.server';
+import { reportingToday } from './reporting/today.server';
 import { type StepUpStatus, stepUpStatus } from './step-up.server';
 
 /**
@@ -32,24 +32,13 @@ import { type StepUpStatus, stepUpStatus } from './step-up.server';
  */
 
 /** A financial year (start year) reports exist for (reporting.yaml `FinancialYear`). */
-export const financialYear = z.int().min(2025).max(9999);
-
-/**
- * Today in Nairobi, the day the workspace counts days to the due date from; with the reporting
- * mock in development, the mock's day, so the page and the mock agree.
- */
-async function today(): Promise<string> {
-  if (import.meta.env.DEV && env().REPORTING_MOCK) {
-    return (await import('./reporting/mock.server')).mockReportingToday();
-  }
-  return nairobiToday();
-}
+export const financialYear = z.int().min(FIRST_FINANCIAL_YEAR).max(9999);
 
 export const getFormMWorkspace = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: commissionSlug, fy: financialYear.optional() }))
   .handler(({ data }): Promise<FormMResult<FormMWorkspace>> =>
     asReportingViewer(async (client) =>
-      loadWorkspace(client, data.slug, { fy: data.fy, today: await today() }),
+      loadWorkspace(client, data.slug, { fy: data.fy, today: await reportingToday() }),
     ),
   );
 

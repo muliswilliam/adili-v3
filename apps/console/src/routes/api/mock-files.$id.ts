@@ -5,9 +5,9 @@ import { env } from '../../server/env.server';
 /**
  * Stands in for object storage's presigned downloads while REVIEW_MOCK, ACCESS_MOCK or
  * REPORTING_MOCK is on: the review mock's letter and attachment links, the access mock's
- * representation attachments and the reporting mock's Form M PDFs and receipts point here, as do
- * the self-access mock's certified copies with `?inline`, served inline as
- * object storage serves issued PDFs. Serves a one-page placeholder PDF naming the file.
+ * representation attachments and the Form M workspace and EACC intake mocks' Form M PDFs and
+ * receipts point here, as do the self-access mock's certified copies with `?inline`, served
+ * inline as object storage serves issued PDFs. Serves a one-page placeholder PDF naming the file.
  * Development and tests only; everywhere else it is a 404.
  */
 async function file(id: string, inline: boolean): Promise<Response> {
@@ -39,6 +39,11 @@ const MOCK_FILES: readonly {
     on: (config) => config.REPORTING_MOCK,
     title: async (id) =>
       (await import('../../server/reporting/mock.server')).mockReportingFileTitle(id),
+  },
+  {
+    on: (config) => config.REPORTING_MOCK,
+    title: async (id) =>
+      (await import('../../server/reporting/eacc-mock.server')).mockReportingFileTitle(id),
   },
 ];
 

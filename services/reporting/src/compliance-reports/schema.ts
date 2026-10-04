@@ -35,7 +35,8 @@ export const REPORT_STATUSES = ['compiling', 'draft', 'reviewed', 'submitted'] a
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
 /** reporting.yaml `ReportSource`. */
-export type ReportSource = 'hosted' | 'federated';
+export const REPORT_SOURCES = ['hosted', 'federated'] as const;
+export type ReportSource = (typeof REPORT_SOURCES)[number];
 
 /** Headline counts per Form M section, kept in clear for lists and the EACC intake. */
 export interface ReportCounts extends Record<string, unknown> {

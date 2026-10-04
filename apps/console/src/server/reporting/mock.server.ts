@@ -30,8 +30,12 @@
  * `step-up`, `auth_time` at most five minutes old: 403 `step-up-required`) and an
  * Idempotency-Key, checked first as api-kit's interceptor does (a replay answers the same, another
  * request under the key is 422 `idempotency-key-reused`; the in-flight 409 is not simulated);
- * 400 `not-reviewed` or `incomplete` with the paths; 409 `report-compiling` or `report-submitted`. A confirmed report's PDF and receipt are issued
- * four seconds later.
+ * 400 `not-reviewed` or `incomplete` with the paths; 409 `report-compiling` or `report-submitted`.
+ * A confirmed report's PDF and receipt are issued four seconds later.
+ *
+ * The store and the day live in `mock-store.server.ts`, which the EACC intake mock
+ * (`eacc-mock.server.ts`) reads: psc is not reported there until it is submitted here;
+ * `submitMockReport` submits it on a day.
  */
 import { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS } from '@adili/api-kit/client';
 import { COMMISSION_ADMIN, FORM_M_ROLES, SUPERVISOR } from '@adili/roles';
@@ -41,11 +45,11 @@ import createClient from 'openapi-fetch';
 import {
   dueDateOf,
   finalCompileOf,
+  FIRST_FINANCIAL_YEAR,
   financialYearOf,
   nairobiToday,
   previewFromOf,
 } from '../../components/form-m/financial-year';
-import { env } from '../env.server';
 import {
   isRecord,
   json,
@@ -57,181 +61,47 @@ import {
 } from '../mock-http';
 import type { paths as DocumentsPaths } from '../documents/api.gen';
 import type { components, paths } from './api.gen';
-import type { ComplianceReport, Officer, ReportCounts, ReportPeriod, ReportStatus } from './types';
+import {
+  storedDocument,
+  formMDocumentIdOf,
+  fullDocument,
+  MOCK_PSC,
+  mockDay,
+  mockDocumentCorrupt,
+  noEdits,
+  previewDocument,
+  receiptDocumentIdOf,
+  type ReportingMockSeed,
+  resetReportingStore,
+  saveStoredReport,
+  storedReport,
+  storedReports,
+  type StoredReport,
+  storedYears,
+} from './mock-store.server';
+import type { ComplianceReport, Officer, ReportCounts, ReportPeriod } from './types';
 
-const PSC = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
-const FIRST_FINANCIAL_YEAR = 2025;
+export { type ReportingMockSeed, submitMockReport } from './mock-store.server';
+
 /** How long the mock's workflow takes to compile a draft. */
 const COMPILE_MS = 3000;
 /** How long after confirmation the mock's documents issue the PDF and the receipt. */
 const ISSUE_MS = 4000;
 
-type Signatory = FormMV1['partIII']['compiledBy'];
 type ManualFields = components['schemas']['ManualFields'];
-type Complaint = FormMV1['partII']['complaints']['items'][number];
 
-/** What the Commission's officers added to the compiled draft: kept across recompiles. */
-interface Edits {
-  /** The supervisor's remarks by obligation id. */
-  remarks: Map<string, string>;
-  contactDetails?: string;
-  physicalAddress?: string;
-  emailAddress?: string;
-  registerMaintained?: boolean | null;
-  complaints?: Complaint[];
-  /** Part III, filled on review and on confirmation. */
-  compiledBy: Signatory | null;
-  confirmedBy: Signatory | null;
-}
-
-interface Stored {
-  fy: number;
-  status: Exclude<ReportStatus, 'not-started'>;
-  source: 'hosted' | 'federated';
-  compiledAt: string | null;
-  /** While compiling: when the compile started. */
-  compileStartedAt: number | null;
-  submittedAt: string | null;
-  late: boolean | null;
-  reference: string | null;
-  reviewedBy: Officer | null;
-  confirmedBy: Officer | null;
-  /** The document as compiled, before the officers' edits. */
-  compiled: FormMV1 | null;
-  edits: Edits;
-  /** Once submitted: when the documents service issues the PDF and the receipt. */
-  issueAt: number | null;
-  formMDocumentId: string | null;
-  receiptDocumentId: string | null;
-}
-
-const SUPERVISOR_OFFICER: Officer = { subject: 'mock-supervisor', name: 'Samuel Njoroge' };
-const ADMIN_OFFICER: Officer = { subject: 'mock-commission-admin', name: 'Joyce Wanjiku' };
-const REVIEWER_DESIGNATION = 'Deputy Director, HRM';
-
-const noEdits = (): Edits => ({ remarks: new Map(), compiledBy: null, confirmedBy: null });
-
-/** Part I and Part B as the commission-admin fills them for the seeded reports. */
-function filled(edits: Edits): Edits {
-  return {
-    ...edits,
-    contactDetails: '+254 20 222 3901 / +254 720 101 010',
-    emailAddress: 'compliance@publicservice.go.ke',
-    registerMaintained: true,
-    complaints: [],
-  };
-}
-
-const reports = new Map<number, Stored>();
 /** Answers to confirmations by Idempotency-Key, for replays. */
 const confirmations = new Map<string, { fy: number; body: string; answer: ComplianceReport }>();
-let today = '';
 let latency = 1;
 let compileMs = COMPILE_MS;
 let issueMs = ISSUE_MS;
-let corruptDocument = false;
 let failingConfirms = 0;
-
-/** `date` plus `days`, as `YYYY-MM-DD`. */
-function plusDays(date: string, days: number): string {
-  const at = new Date(`${date}T00:00:00Z`);
-  at.setUTCDate(at.getUTCDate() + days);
-  return at.toISOString().slice(0, 10);
-}
-
-/** 06:00 in Nairobi on `date`, when the scheduled compile runs. */
-const sixAm = (date: string) => `${date}T03:00:00.000Z`;
-
-/** The ids of a year's Form M PDF and receipt in the mock's documents. */
-const formMDocumentIdOf = (fy: number) => `0199c000-0000-7000-8000-00010000${String(fy)}`;
-const receiptDocumentIdOf = (fy: number) => `0199c000-0000-7000-8000-00020000${String(fy)}`;
-
-export interface ReportingMockSeed {
-  /** The year-before's document is not form-m.v1 (contract drift). */
-  corruptDocument?: boolean;
-  /** The supervisor marked the year-before's draft reviewed two days ago. */
-  reviewed?: boolean;
-  /** The commission-admin filled Part I and Part B of the year-before's draft. */
-  filled?: boolean;
-  /**
-   * The year-before's report is submitted: confirmed `late` (57 days after 31 July) or `on-time`
-   * (today), or filed by the Commission's own system (`federated`, today).
-   */
-  submitted?: 'late' | 'on-time' | 'federated';
-  /** The PDF and receipt of a seeded submitted report are still being issued. */
-  issuing?: boolean;
-}
 
 /** Seeds the store as it stands on `day` (`YYYY-MM-DD`; today in Nairobi by default). */
 export function resetReportingMock(day: string = nairobiToday(), options: ReportingMockSeed = {}) {
-  today = day;
-  corruptDocument = options.corruptDocument ?? false;
   failingConfirms = 0;
-  reports.clear();
   confirmations.clear();
-  const current = financialYearOf(day);
-  const last = current - 1;
-  if (last < FIRST_FINANCIAL_YEAR) return;
-  const submitted = options.submitted ?? (day >= previewFromOf(current) ? 'late' : undefined);
-  if (submitted) {
-    const submittedOn = submitted === 'late' ? plusDays(dueDateOf(last), 57) : day;
-    const reviewedOn = plusDays(submittedOn, -1);
-    const federated = submitted === 'federated';
-    reports.set(last, {
-      fy: last,
-      status: 'submitted',
-      source: federated ? 'federated' : 'hosted',
-      compiledAt: sixAm(finalCompileOf(last)),
-      compileStartedAt: null,
-      submittedAt: `${submittedOn}T11:42:00.000Z`,
-      late: submittedOn > dueDateOf(last),
-      reference: `RPT-PSC-${String(last + 1)}-0000001-K`,
-      reviewedBy: SUPERVISOR_OFFICER,
-      confirmedBy: federated ? null : ADMIN_OFFICER,
-      compiled: fullDocument(last),
-      edits: filled({
-        ...noEdits(),
-        compiledBy: {
-          name: SUPERVISOR_OFFICER.name,
-          designation: REVIEWER_DESIGNATION,
-          date: reviewedOn,
-        },
-        confirmedBy: { name: ADMIN_OFFICER.name, designation: 'Secretary/CEO', date: submittedOn },
-      }),
-      issueAt: options.issuing ? Number.POSITIVE_INFINITY : null,
-      formMDocumentId: options.issuing ? null : formMDocumentIdOf(last),
-      receiptDocumentId: options.issuing ? null : receiptDocumentIdOf(last),
-    });
-    return;
-  }
-  const yearStart = finalCompileOf(last);
-  const compiledOn = plusDays(day, -11) < yearStart ? yearStart : plusDays(day, -11);
-  const reviewedOn = plusDays(day, -2);
-  const edits = noEdits();
-  if (options.reviewed) {
-    edits.compiledBy = {
-      name: SUPERVISOR_OFFICER.name,
-      designation: REVIEWER_DESIGNATION,
-      date: reviewedOn,
-    };
-  }
-  reports.set(last, {
-    fy: last,
-    status: options.reviewed ? 'reviewed' : 'draft',
-    source: 'hosted',
-    compiledAt: sixAm(compiledOn),
-    compileStartedAt: null,
-    submittedAt: null,
-    late: null,
-    reference: null,
-    reviewedBy: options.reviewed ? SUPERVISOR_OFFICER : null,
-    confirmedBy: null,
-    compiled: fullDocument(last),
-    edits: options.filled ? filled(edits) : edits,
-    issueAt: null,
-    formMDocumentId: null,
-    receiptDocumentId: null,
-  });
+  resetReportingStore(day, options);
 }
 
 /**
@@ -255,13 +125,7 @@ export function failNextReportingConfirms(count = 1) {
 
 /** The day the mock takes as today: REPORTING_MOCK_TODAY, else today in Nairobi. */
 export function mockReportingToday(): string {
-  ensureSeeded();
-  return today;
-}
-
-function ensureSeeded() {
-  // The dev server's first request: seed from REPORTING_MOCK_TODAY. Tests seed explicitly.
-  if (today === '') resetReportingMock(env().REPORTING_MOCK_TODAY);
+  return mockDay();
 }
 
 const delay = (ms: number) =>
@@ -307,7 +171,10 @@ const ACTIONS = ['compile', 'remarks', 'manual', 'reviewed', 'confirm'] as const
 type Action = (typeof ACTIONS)[number];
 
 export async function mockReportingFetch(input: Request): Promise<Response> {
-  ensureSeeded();
+  // EACC's intake and report viewer have their own Commissions (eacc-mock.server.ts).
+  if (new URL(input.url).pathname.startsWith('/v1/eacc/compliance-reports')) {
+    return (await import('./eacc-mock.server')).mockEaccIntakeFetch(input);
+  }
   await delay(250);
   const url = new URL(input.url);
   const match = /^\/v1\/commissions\/([^/]+)\/compliance-reports(?:\/(\d+)(?:\/([a-z]+))?)?$/.exec(
@@ -317,8 +184,8 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
   const [, slug, fyText, actionText] = match;
   const caller = mockCallerOf(input);
   const visible =
-    slug === PSC.slug &&
-    caller.tenant === PSC.slug &&
+    slug === MOCK_PSC.slug &&
+    caller.tenant === MOCK_PSC.slug &&
     caller.roles.some((role) => (FORM_M_ROLES as readonly string[]).includes(role));
   if (!visible) return notFound();
 
@@ -326,7 +193,7 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
     return input.method === 'GET' ? json(200, periods()) : notFound();
   }
   const fy = Number(fyText);
-  if (fy < FIRST_FINANCIAL_YEAR || fy > financialYearOf(today)) {
+  if (fy < FIRST_FINANCIAL_YEAR || fy > financialYearOf(mockDay())) {
     return problem(400, 'The financial year is not one reports exist for');
   }
   if (actionText !== undefined) {
@@ -337,7 +204,7 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
     return act(action, fy, input, caller);
   }
   if (input.method !== 'GET') return notFound();
-  const stored = reports.get(fy);
+  const stored = storedReport(fy);
   if (!stored) return notFound();
   advance(stored);
   return json(200, view(stored));
@@ -362,13 +229,13 @@ function act(action: Action, fy: number, input: Request, caller: MockCaller) {
 }
 
 function periods(): ReportPeriod[] {
-  const current = financialYearOf(today);
-  const years = new Set([current, current - 1, ...reports.keys()]);
+  const current = financialYearOf(mockDay());
+  const years = new Set([current, current - 1, ...storedYears()]);
   return [...years]
     .filter((fy) => fy >= FIRST_FINANCIAL_YEAR && fy <= current)
     .sort((a, b) => b - a)
     .map((fy) => {
-      const stored = reports.get(fy);
+      const stored = storedReport(fy);
       if (stored) advance(stored);
       return {
         fy,
@@ -377,18 +244,18 @@ function periods(): ReportPeriod[] {
         reference: stored?.reference ?? null,
         submittedAt: stored?.submittedAt ?? null,
         late: stored?.late ?? null,
-        previewAvailable: today >= previewFromOf(fy) && stored?.status !== 'submitted',
+        previewAvailable: mockDay() >= previewFromOf(fy) && stored?.status !== 'submitted',
       };
     });
 }
 
 function startCompile(fy: number): Response {
-  if (today < previewFromOf(fy)) {
+  if (mockDay() < previewFromOf(fy)) {
     return problem(409, 'A preview of Form M opens on 1 April', 'preview-not-available');
   }
-  const stored = reports.get(fy);
+  const stored = storedReport(fy);
   if (stored?.status === 'submitted') return reportSubmitted();
-  const next: Stored = stored ?? {
+  const next: StoredReport = stored ?? {
     fy,
     status: 'compiling',
     source: 'hosted',
@@ -407,12 +274,12 @@ function startCompile(fy: number): Response {
   };
   next.status = 'compiling';
   next.compileStartedAt = Date.now();
-  reports.set(fy, next);
+  saveStoredReport(next);
   return new Response(null, { status: 202 });
 }
 
 /** Runs the mock workflows: a compile finishes, or the PDF and receipt are issued, in time. */
-function advance(stored: Stored) {
+function advance(stored: StoredReport) {
   if (stored.issueAt !== null && Date.now() >= stored.issueAt) {
     stored.issueAt = null;
     stored.formMDocumentId = formMDocumentIdOf(stored.fy);
@@ -427,18 +294,18 @@ function advance(stored: Stored) {
   stored.edits.compiledBy = null;
   // As at now, on the mock's day (its clock may be set to another day).
   const time = new Date().toISOString().slice(10);
-  stored.compiledAt = `${today}${time}`;
+  stored.compiledAt = `${mockDay()}${time}`;
   // A year compiled before it ends is a preview of today's data.
   stored.compiled =
-    today < finalCompileOf(stored.fy) ? previewDocument(stored.fy) : fullDocument(stored.fy);
+    mockDay() < finalCompileOf(stored.fy) ? previewDocument(stored.fy) : fullDocument(stored.fy);
 }
 
 const reportSubmitted = () =>
   problem(409, 'The report is submitted and can no longer change', 'report-submitted');
 
 /** The report, if it can be edited: 404 without one, 409 once submitted or while compiling. */
-function editable(fy: number): Stored | Response {
-  const stored = reports.get(fy);
+function editable(fy: number): StoredReport | Response {
+  const stored = storedReport(fy);
   if (!stored) return notFound();
   advance(stored);
   if (stored.status === 'submitted') return reportSubmitted();
@@ -466,7 +333,7 @@ async function updateRemarks(fy: number, input: Request, caller: MockCaller) {
   const body = await readJson(input);
   const remarks = isRecord(body) && Array.isArray(body.remarks) ? body.remarks : null;
   if (!remarks || remarks.length === 0) return problem(400, 'Validation failed');
-  const listed = new Set(rowsOf(documentOf(stored)).map((row) => row.obligationId));
+  const listed = new Set(rowsOf(storedDocument(stored)).map((row) => row.obligationId));
   const errors = remarks.flatMap((remark: unknown, i) =>
     isRecord(remark) &&
     typeof remark.obligationId === 'string' &&
@@ -538,7 +405,11 @@ async function markReviewed(fy: number, input: Request, caller: MockCaller) {
   const officer = officerOf(caller);
   stored.status = 'reviewed';
   stored.reviewedBy = officer;
-  stored.edits.compiledBy = { name: officer.name, designation: designation.trim(), date: today };
+  stored.edits.compiledBy = {
+    name: officer.name,
+    designation: designation.trim(),
+    date: mockDay(),
+  };
   return json(200, view(stored));
 }
 
@@ -588,7 +459,7 @@ async function confirm(fy: number, input: Request, caller: MockCaller) {
   if (stored.status !== 'reviewed') {
     return problem(400, 'The draft must be reviewed before it is confirmed', 'not-reviewed');
   }
-  const missing = incompleteOf(documentOf(stored));
+  const missing = incompleteOf(storedDocument(stored));
   if (missing.length > 0) {
     return problemWith(
       400,
@@ -599,6 +470,7 @@ async function confirm(fy: number, input: Request, caller: MockCaller) {
   }
   const officer = officerOf(caller);
   stored.status = 'submitted';
+  const today = mockDay();
   stored.submittedAt = `${today}${new Date().toISOString().slice(10)}`;
   stored.late = today > dueDateOf(fy);
   stored.reference = `RPT-PSC-${String(fy + 1)}-0000001-K`;
@@ -628,46 +500,6 @@ function rowsOf(document: FormMV1) {
   return [...initial.nonFilers, ...biennial.nonFilers, ...final.nonFilers];
 }
 
-/** The compiled document with the officers' edits laid over it, as the service assembles it. */
-function documentOf(stored: Stored): FormMV1 {
-  const compiled = stored.compiled ?? fullDocument(stored.fy);
-  const { edits } = stored;
-  const remarked = (section: FormMV1['partII']['biennial']) => ({
-    ...section,
-    nonFilers: section.nonFilers.map((row) => {
-      const remark = row.obligationId ? edits.remarks.get(row.obligationId) : undefined;
-      return remark === undefined ? row : { ...row, remarks: remark };
-    }),
-  });
-  const { partI, partII, partIII } = compiled;
-  return {
-    ...compiled,
-    partI: {
-      ...partI,
-      contactDetails: edits.contactDetails ?? partI.contactDetails,
-      physicalAddress: edits.physicalAddress ?? partI.physicalAddress,
-      emailAddress: edits.emailAddress ?? partI.emailAddress,
-    },
-    partII: {
-      ...partII,
-      initial: remarked(partII.initial),
-      biennial: remarked(partII.biennial),
-      final: remarked(partII.final),
-      complaints: {
-        registerMaintained:
-          edits.registerMaintained === undefined
-            ? partII.complaints.registerMaintained
-            : edits.registerMaintained,
-        items: edits.complaints ?? partII.complaints.items,
-      },
-    },
-    partIII: {
-      compiledBy: edits.compiledBy ?? partIII.compiledBy,
-      confirmedBy: edits.confirmedBy ?? partIII.confirmedBy,
-    },
-  };
-}
-
 function countsOf(document: FormMV1): ReportCounts {
   const { initial, biennial, final, clarifications, accessRequests } = document.partII;
   const section = ({ expected, declared, notDeclared }: typeof initial) => ({
@@ -688,11 +520,12 @@ function countsOf(document: FormMV1): ReportCounts {
   };
 }
 
-function view(stored: Stored): ComplianceReport {
-  const document = stored.status === 'compiling' || !stored.compiled ? null : documentOf(stored);
+function view(stored: StoredReport): ComplianceReport {
+  const document =
+    stored.status === 'compiling' || !stored.compiled ? null : storedDocument(stored);
   return {
     id: `0199a000-0000-7000-8000-00000000${String(stored.fy)}`,
-    commission: PSC,
+    commission: MOCK_PSC,
     fy: stored.fy,
     status: stored.status,
     source: stored.source,
@@ -704,7 +537,7 @@ function view(stored: Stored): ComplianceReport {
     reference: stored.reference,
     dueDate: dueDateOf(stored.fy),
     document:
-      document && corruptDocument
+      document && mockDocumentCorrupt()
         ? ({ ...document, schemaVersion: 'form-m.v0' } as unknown as FormMV1)
         : document,
     counts: stored.compiled ? countsOf(stored.compiled) : {},
@@ -726,7 +559,7 @@ export function mockReportingDocumentsClient(roles: readonly string[], tenant = 
 
 /** The file name of a Form M PDF or receipt the mock issued, for `/api/mock-files`; else null. */
 export function mockReportingFileTitle(id: string): string | null {
-  for (const stored of reports.values()) {
+  for (const stored of storedReports()) {
     if (!stored.reference) continue;
     if (id === stored.formMDocumentId) return `Form M ${stored.reference}.pdf`;
     if (id === stored.receiptDocumentId) return `Receipt ${stored.reference}.pdf`;
@@ -739,13 +572,12 @@ export function mockReportingFileTitle(id: string): string | null {
  * the PDF and receipt of a report the mock issued, to the Commission's officers.
  */
 export async function mockReportingDocumentsFetch(input: Request): Promise<Response> {
-  ensureSeeded();
   await delay(150);
   const download = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(input.url).pathname);
   const id = download?.[1];
   const caller = mockCallerOf(input);
   const staff =
-    caller.tenant === PSC.slug &&
+    caller.tenant === MOCK_PSC.slug &&
     caller.roles.some((role) => (FORM_M_ROLES as readonly string[]).includes(role));
   if (input.method !== 'GET' || !id || !staff || !mockReportingFileTitle(id)) return notFound();
   return json(200, {
@@ -753,269 +585,3 @@ export async function mockReportingDocumentsFetch(input: Request): Promise<Respo
     expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
   });
 }
-
-type NonFiler = FormMV1['partII']['initial']['nonFilers'][number];
-
-const REMARKS: Record<NonFiler['actionTaken'], string> = {
-  none: 'No administrative action taken',
-  'notice-to-comply': 'Notice to comply issued',
-  warning: 'Warning issued',
-  'salary-stoppage': 'Salary stopped',
-  'disciplinary-referral': 'Referred for disciplinary action',
-  'referred-to-eacc': 'Referred to EACC',
-};
-
-function nonFiler(
-  obligation: number,
-  name: string,
-  designation: string,
-  identifier: string,
-  date: string,
-  actionTaken: NonFiler['actionTaken'],
-  complied: NonFiler['complied'],
-): NonFiler {
-  return {
-    obligationId: `0199b000-0000-7000-8000-${String(obligation).padStart(12, '0')}`,
-    name,
-    designation,
-    identifier,
-    date,
-    actionTaken,
-    complied,
-    remarks: REMARKS[actionTaken],
-  };
-}
-
-const UNSIGNED: FormMV1['partIII'] = {
-  compiledBy: { name: null, designation: null, date: null },
-  confirmedBy: { name: null, designation: null, date: null },
-};
-
-function partI(fy: number): FormMV1['partI'] {
-  return {
-    commissionName: PSC.name,
-    issuerCode: PSC.issuerCode,
-    contactDetails: '',
-    physicalAddress: 'Commission House, Harambee Avenue, Nairobi',
-    emailAddress: '',
-    period: { from: `${String(fy)}-07-01`, to: `${String(fy + 1)}-06-30`, financialYearStart: fy },
-  };
-}
-
-/** The year's draft as the scheduled compile assembles it (the prototype's PSC fixture). */
-function fullDocument(fy: number): FormMV1 {
-  const y = (offset: number) => String(fy + offset);
-  return {
-    schemaVersion: 'form-m.v1',
-    partI: partI(fy),
-    partII: {
-      initial: {
-        expected: 12,
-        declared: 10,
-        notDeclared: 2,
-        nonFilers: [
-          nonFiler(
-            101,
-            'Kevin Omondi Ochieng',
-            'Human Resource Officer II',
-            `PSC/${y(0)}/0418`,
-            `${y(0)}-09-01`,
-            'notice-to-comply',
-            'yes',
-          ),
-          nonFiler(
-            102,
-            'Mercy Chebet Rotich',
-            'Records Management Officer',
-            `PSC/${y(1)}/0032`,
-            `${y(1)}-05-18`,
-            'none',
-            'no',
-          ),
-        ],
-      },
-      biennial: {
-        expected: 100,
-        declared: 95,
-        notDeclared: 5,
-        noCycleInPeriod: false,
-        nonFilers: [
-          nonFiler(
-            201,
-            'Peter Mwangi Githinji',
-            'Principal Accountant',
-            'PSC/2011/0217',
-            '2011-03-01',
-            'salary-stoppage',
-            'pending',
-          ),
-          nonFiler(
-            202,
-            'Halima Abdi Hassan',
-            'Senior Legal Officer',
-            'PSC/2016/0098',
-            '2016-08-15',
-            'warning',
-            'pending',
-          ),
-          nonFiler(
-            203,
-            'Joseph Kiprono Langat',
-            'Driver III',
-            'PSC/2008/0544',
-            '2008-01-07',
-            'notice-to-comply',
-            'yes',
-          ),
-          nonFiler(
-            204,
-            'Esther Nyambura Wairimu',
-            'Office Administrator',
-            'PSC/2019/0310',
-            '2019-06-03',
-            'referred-to-eacc',
-            'no',
-          ),
-          nonFiler(
-            205,
-            'Collins Barasa Wekesa',
-            'ICT Officer I',
-            'PSC/2021/0127',
-            '2021-10-11',
-            'disciplinary-referral',
-            'no',
-          ),
-        ],
-      },
-      final: {
-        expected: 4,
-        declared: 3,
-        notDeclared: 1,
-        nonFilers: [
-          nonFiler(
-            301,
-            'Lucy Atieno Odhiambo',
-            'Deputy Director, Finance',
-            'PSC/2004/0061',
-            `${y(1)}-03-31`,
-            'notice-to-comply',
-            'pending',
-          ),
-        ],
-      },
-      clarifications: { items: CLARIFICATIONS.map((item) => ({ ...item })) },
-      accessRequests: {
-        received: 0,
-        granted: 0,
-        declined: 0,
-        declineReasons: [],
-        dataUnavailable: true,
-      },
-      complaints: { registerMaintained: null, items: [] },
-    },
-    partIII: UNSIGNED,
-  };
-}
-
-/** A preview of the year from today's data: no biennial cycle, access requests captured. */
-function previewDocument(fy: number): FormMV1 {
-  const y = (offset: number) => String(fy + offset);
-  const full = fullDocument(fy);
-  return {
-    ...full,
-    partII: {
-      ...full.partII,
-      initial: {
-        expected: 7,
-        declared: 5,
-        notDeclared: 2,
-        nonFilers: [
-          nonFiler(
-            401,
-            'Nelson Kibet Cheruiyot',
-            'Economist II',
-            `PSC/${y(0)}/0107`,
-            `${y(0)}-11-02`,
-            'notice-to-comply',
-            'pending',
-          ),
-          nonFiler(
-            402,
-            'Janet Moraa Nyakundi',
-            'Clerical Officer',
-            `PSC/${y(1)}/0004`,
-            `${y(1)}-02-15`,
-            'none',
-            'no',
-          ),
-        ],
-      },
-      biennial: { expected: 0, declared: 0, notDeclared: 0, nonFilers: [], noCycleInPeriod: true },
-      final: { expected: 2, declared: 2, notDeclared: 0, nonFilers: [] },
-      clarifications: {
-        items: CLARIFICATIONS.slice(0, 2).map((item) => ({
-          ...item,
-          statusOfCompliance: 'pending',
-        })),
-      },
-      accessRequests: {
-        received: 3,
-        granted: 2,
-        declined: 1,
-        declineReasons: [{ reason: 'frivolous-vexatious', count: 1 }],
-        dataUnavailable: false,
-      },
-    },
-  };
-}
-
-const CLARIFICATIONS: FormMV1['partII']['clarifications']['items'] = [
-  {
-    name: "Samuel Kariuki Ndung'u",
-    designation: 'Director, Establishment',
-    identifier: 'PSC/2002/0015',
-    natureInGeneralTerms: 'Supporting documents for an asset',
-    statusOfCompliance: 'resolved',
-    clarificationReference: 'CLR-PSC-2025-0000011-3',
-  },
-  {
-    name: 'Ann Wambui Mugo',
-    designation: 'Senior Economist',
-    identifier: 'PSC/2013/0205',
-    natureInGeneralTerms: 'Explanation of the source of funds for an asset',
-    statusOfCompliance: 'responded',
-    clarificationReference: 'CLR-PSC-2026-0000003-6',
-  },
-  {
-    name: 'Hassan Omar Mohamed',
-    designation: 'Principal Administrative Officer',
-    identifier: 'PSC/2009/0133',
-    natureInGeneralTerms: 'Missing liability details',
-    statusOfCompliance: 'pending',
-    clarificationReference: 'CLR-PSC-2026-0000009-T',
-  },
-  {
-    name: 'Beatrice Njeri Kimani',
-    designation: 'Accountant I',
-    identifier: 'PSC/2018/0276',
-    natureInGeneralTerms: "Incomplete spouse's financial statement",
-    statusOfCompliance: 'overdue',
-    clarificationReference: 'CLR-PSC-2026-0000014-Z',
-  },
-  {
-    name: 'Daniel Mutua Musyoka',
-    designation: 'Supply Chain Officer II',
-    identifier: 'PSC/2020/0391',
-    natureInGeneralTerms: 'Undisclosed directorship or membership',
-    statusOfCompliance: 'resolved',
-    clarificationReference: 'CLR-PSC-2026-0000017-T',
-  },
-  {
-    name: 'Rose Akinyi Otieno',
-    designation: 'Assistant Director, HRM',
-    identifier: 'PSC/2012/0188',
-    natureInGeneralTerms: 'Basis of valuation not stated',
-    statusOfCompliance: 'withdrawn',
-    clarificationReference: 'CLR-PSC-2026-0000021-2',
-  },
-];

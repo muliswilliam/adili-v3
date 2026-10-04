@@ -15,7 +15,13 @@ import { useState } from 'react';
 
 import { PERSON_FIELD_LABELS } from '../../declaration/field-labels';
 import type { LoadedSection } from '../../server/declarations.server';
-import { BIO_FIELD_ORDER, BIO_MESSAGES, type BioField, bioIssues } from '../../declaration/bio';
+import {
+  BIO_FIELD_ORDER,
+  BIO_FIELD_PATHS,
+  BIO_MESSAGES,
+  type BioField,
+  bioIssues,
+} from '../../declaration/bio';
 import {
   type Draft,
   type EmploymentNature,
@@ -31,13 +37,24 @@ import {
 import { HR_LABELS, HR_PLACEHOLDERS, ROSTER_HINT } from '../../declaration/copy';
 import { isFromRoster, type RosterField, rosterPrefill } from '../../declaration/roster-prefill';
 import { optionalLabel } from './optional-label';
-import { useFocusFirstError, useShownErrors } from './section-errors';
+import { useFocusFirstError, useFocusLinkedField, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 export const ROSTER_NOTE =
   "Wrong? Ask your Commission's reporting officer to correct the roster. Your name cannot be changed here.";
 
 const fieldId = (field: BioField) => `bio-${field}`;
+
+/** The field a pointer names, or the one it lies inside (`/birth/date` for `/birth`). */
+function linkedBioField(pointer: string | undefined): BioField | null {
+  if (!pointer) return null;
+  const fields = Object.entries(BIO_FIELD_PATHS) as [BioField, string][];
+  return (
+    fields.find(([, path]) => path === pointer)?.[0] ??
+    fields.find(([, path]) => path.startsWith(`${pointer}/`))?.[0] ??
+    null
+  );
+}
 
 /** Lines up the controls of side-by-side fields when only some of them show the roster hint. */
 const ALIGNED_FIELD = 'sm:row-span-2 sm:grid-rows-subgrid';
@@ -86,6 +103,8 @@ export interface BioSectionProps {
   etag: string;
   /** Show every missing answer at once, e.g. when arriving from the summary's list. */
   showErrors?: boolean;
+  /** A JSON pointer to focus, e.g. `/employment/nature` from an Ask Adili answer. */
+  focusField?: string;
 }
 
 /**
@@ -93,7 +112,7 @@ export interface BioSectionProps {
  * in. Autosaves the whole `officer` object. Missing answers show once a field has been left
  * (or all at once with `showErrors`); a date that is not real shows while typing.
  */
-export function BioSection({ section, etag, showErrors = false }: BioSectionProps) {
+export function BioSection({ section, etag, showErrors = false, focusField }: BioSectionProps) {
   const { declaration } = useWorkspace();
   const { value: officer, update } = useSectionAutosave<Draft<Officer>>(section, etag);
   const [appointmentInvalid, setAppointmentInvalid] = useState(false);
@@ -117,6 +136,10 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
   useFocusFirstError(showErrors, () => {
     const first = BIO_FIELD_ORDER.find((field) => issues[field]);
     return first ? fieldId(first) : null;
+  });
+  useFocusLinkedField(focusField, () => {
+    const field = linkedBioField(focusField);
+    return field ? document.getElementById(fieldId(field)) : null;
   });
 
   // The roster's values as this page load read them; kept while the declarant edits (S8).

@@ -8,8 +8,16 @@ const labels = (roles: string[]) =>
 describe('navFor', () => {
   it('shows Commissions and National obligations under Platform to platform admins and EACC staff', () => {
     for (const role of ['eacc-analyst', 'eacc-supervisor']) {
-      expect(labels([role])).toEqual([['Platform', ['Commissions', 'National obligations']]]);
+      expect(labels([role])).toEqual([
+        ['Platform', ['Commissions', 'National obligations']],
+        ['EACC', ['Compliance reports']],
+      ]);
     }
+  });
+
+  it('shows EACC staff the compliance reports intake under EACC (spec 09)', () => {
+    expect(navFor(['eacc-analyst'])[1]?.items[0]?.to).toBe('/eacc/reports');
+    expect(activeNavHref(navFor(['eacc-analyst']), '/eacc/reports/0199c100')).toBe('/eacc/reports');
   });
 
   it('adds Law enforcement, Integrations and AI policy under Platform for platform admins only (specs 10, 07b, 07c)', () => {
@@ -56,10 +64,10 @@ describe('navFor', () => {
     ]);
   });
 
-  it('shows reviewers Obligations and the review queue, leaving out what is not built yet', () => {
+  it('shows reviewers Obligations, the review queue and Actions, leaving out what is not built yet', () => {
     expect(labels(['reviewer'])).toEqual([
       ['Commission', ['Obligations']],
-      ['Review', ['Review queue']],
+      ['Review', ['Review queue', 'Actions', 'Referrals']],
     ]);
   });
 
@@ -68,7 +76,7 @@ describe('navFor', () => {
     expect(labels(['supervisor'])).toEqual([
       ['Access', ['Access requests']],
       ['Commission', ['Obligations']],
-      ['Review', ['Review queue']],
+      ['Review', ['Review queue', 'Approvals', 'Actions', 'Referrals']],
       ['Reporting', ['Form M']],
     ]);
     expect(navFor(['access-officer'])[0]?.items[0]?.to).toBe('/access/requests');

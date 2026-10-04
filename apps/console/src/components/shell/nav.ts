@@ -5,11 +5,15 @@ import {
   ChartColumnIcon,
   CheckListIcon,
   File01Icon,
+  Flag02Icon,
+  InboxIcon,
   Key01Icon,
+  Legal01Icon,
   PlugSocketIcon,
   Shield01Icon,
   SquareLock02Icon,
   SparklesIcon,
+  StampIcon,
   UserGroupIcon,
 } from '@hugeicons/core-free-icons';
 
@@ -68,6 +72,10 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
     ],
   },
   {
+    label: 'EACC',
+    items: [{ workspace: 'compliance', icon: InboxIcon }],
+  },
+  {
     label: 'Law enforcement',
     items: [{ workspace: 'lea', icon: Shield01Icon, label: 'Requests' }],
   },
@@ -93,7 +101,12 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
   },
   {
     label: 'Review',
-    items: [{ workspace: 'review', icon: CheckListIcon }],
+    items: [
+      { workspace: 'review', icon: CheckListIcon },
+      { workspace: 'approvals', icon: StampIcon },
+      { workspace: 'actions', icon: Legal01Icon },
+      { workspace: 'referrals', icon: Flag02Icon },
+    ],
   },
   {
     label: 'Reporting',

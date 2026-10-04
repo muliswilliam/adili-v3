@@ -12,14 +12,24 @@ import type { paths } from './api.gen';
  * holds the request while review pulls the declaration and waits up to 10 s for the ai-gateway
  * (which itself allows the call 12 s), so the console allows it well past that: giving up first
  * would show "AI service unavailable" for a draft still being written. A retry after a timeout
- * reuses the Idempotency-Key, so it answers the same draft.
+ * reuses the Idempotency-Key, so it answers the same draft. A bulk closure approval holds the
+ * request while review approves every chunk of 100 in turn; past two minutes the console stops
+ * waiting, and the screen sends the same key again while closures are still being approved (the
+ * service carries on under it), or shows the run stopped with Resume when they are not.
  */
-export const REVIEW_TIMEOUTS_MS = { default: 15_000, aiDraft: 25_000 } as const;
+export const REVIEW_TIMEOUTS_MS = {
+  default: 15_000,
+  aiDraft: 25_000,
+  bulkApproval: 120_000,
+} as const;
 
 /** The timeout of one review call, from its method and path. */
 export function reviewTimeoutMs(method: string, path: string): number {
   if (method === 'POST' && /\/v1\/review\/cases\/[^/]+\/copilot\/drafts$/.test(path)) {
     return REVIEW_TIMEOUTS_MS.aiDraft;
+  }
+  if (method === 'POST' && /^\/v1\/commissions\/[^/]+\/closures$/.test(path)) {
+    return REVIEW_TIMEOUTS_MS.bulkApproval;
   }
   return REVIEW_TIMEOUTS_MS.default;
 }

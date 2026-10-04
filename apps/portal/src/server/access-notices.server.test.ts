@@ -1,17 +1,18 @@
 import createClient from 'openapi-fetch';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { listNotices, loadNotice, saveRepresentations } from './access-notices.server';
 import {
   failNextAccessCall,
   mockAccessFetch,
-  resetAccessMock,
+  resetAccessMocks,
   setAccessMockLatency,
 } from './access/mock.server';
-import { MOCK_NOTICE_IDS as IDS, resetNoticesMock } from './access/mock-notices.server';
+import { MOCK_NOTICE_IDS as IDS } from './access/mock-notices.server';
 import type { paths } from './access/schema.gen';
 
 const NOW = Date.parse('2026-10-02T07:00:00Z');
+const DAY = 86_400_000;
 
 /** An unsigned token with these realm roles; the mock reads its claims without checking it. */
 function token(roles: string[]) {
@@ -40,9 +41,14 @@ const down = () => Promise.reject(new TypeError('fetch failed'));
 const key = () => crypto.randomUUID();
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(NOW);
   setAccessMockLatency(0);
-  resetAccessMock(NOW);
-  resetNoticesMock(NOW);
+  resetAccessMocks(NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('listNotices', () => {
@@ -153,6 +159,23 @@ describe('saveRepresentations (S4)', () => {
       key(),
     );
     expect(again).toEqual({ status: 'closed' });
+  });
+
+  it('saves as of when the mock was seeded, not the wall clock', async () => {
+    // Seeded as of NOW, but run a month later: every seeded window has closed by the wall clock.
+    vi.setSystemTime(NOW + 30 * DAY);
+    resetAccessMocks(NOW);
+    const saved = await saveRepresentations(
+      client(),
+      IDS.awaiting,
+      { stance: 'object', text: 'The plot is in court.', attachments: [] },
+      key(),
+    );
+    if (saved.status !== 'saved') throw new Error(saved.status);
+    expect(saved.notice.representations).toMatchObject({
+      submittedAt: '2026-10-02T07:00:00.000Z',
+      updatedAt: '2026-10-02T07:00:00.000Z',
+    });
   });
 
   it('replays the first answer for a retried key', async () => {

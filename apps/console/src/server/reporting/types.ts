@@ -29,3 +29,19 @@ export interface ReportingProblem {
   /** Field-level errors, e.g. the form-m.v1 paths an `incomplete` report has still to fill. */
   errors?: Schemas['ProblemDetails']['errors'];
 }
+
+/** reporting.yaml `Intake`: every Commission's report status for a financial year (EACC). */
+export type Intake = Schemas['Intake'];
+/** One Commission on the intake. */
+export type IntakeRow = Intake['commissions'][number];
+export type IntakeStatus = Schemas['IntakeStatus'];
+export type IntakeOutlier = IntakeRow['outliers'][number];
+export type ReportSource = Schemas['ReportSource'];
+
+/**
+ * reporting.yaml `SubmittedComplianceReport` (the report viewer), with its document typed as the
+ * frozen form-m.v1 it is.
+ */
+export type SubmittedReport = Omit<Schemas['SubmittedComplianceReport'], 'document'> & {
+  document: FormMV1;
+};
