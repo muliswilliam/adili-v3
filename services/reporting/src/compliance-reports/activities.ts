@@ -109,7 +109,6 @@ export class ComplianceReportActivities {
         .where(and(eq(clarificationFacts.tenant, tenant), eq(clarificationFacts.fy, fy)));
       const accessRequests = await tx
         .select({
-          requestId: accessRequestFacts.requestId,
           outcome: accessRequestFacts.outcome,
           grounds: accessRequestFacts.grounds,
           withdrawn: sql<boolean>`${accessRequestFacts.withdrawnAt} is not null`,

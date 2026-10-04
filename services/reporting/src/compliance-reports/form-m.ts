@@ -43,7 +43,6 @@ export interface ClarificationFactRow {
 
 /** A Form K request received in the year, as the aggregate reads it. */
 export interface AccessRequestFactRow {
-  requestId: string;
   outcome: AccessRequestFactOutcome | null;
   grounds: readonly AccessGround[];
   withdrawn: boolean;

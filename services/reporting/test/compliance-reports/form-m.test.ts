@@ -88,11 +88,7 @@ describe('aggregateFacts', () => {
 });
 
 describe('aggregateFacts: section 5, access to information (Form K requests)', () => {
-  const request = (
-    n: number,
-    overrides: Partial<AccessRequestFactRow> = {},
-  ): AccessRequestFactRow => ({
-    requestId: id(n),
+  const request = (overrides: Partial<AccessRequestFactRow> = {}): AccessRequestFactRow => ({
     outcome: null,
     grounds: [],
     withdrawn: false,
@@ -104,7 +100,7 @@ describe('aggregateFacts: section 5, access to information (Form K requests)', (
   };
 
   it('counts every request received in the year, still open ones included', () => {
-    expect(section5([request(1), request(2)])).toEqual({
+    expect(section5([request(), request()])).toEqual({
       received: 2,
       granted: 0,
       declined: 0,
@@ -115,8 +111,8 @@ describe('aggregateFacts: section 5, access to information (Form K requests)', (
   it('counts full and partial grants as granted; a partial grant cites its grounds as reasons', () => {
     expect(
       section5([
-        request(1, { outcome: 'grant' }),
-        request(2, { outcome: 'partial-grant', grounds: ['prejudice-proceeding'] }),
+        request({ outcome: 'grant' }),
+        request({ outcome: 'partial-grant', grounds: ['prejudice-proceeding'] }),
       ]),
     ).toEqual({
       received: 2,
@@ -129,8 +125,8 @@ describe('aggregateFacts: section 5, access to information (Form K requests)', (
   it('counts a denial citing several grounds once as declined and once under each ground', () => {
     expect(
       section5([
-        request(1, { outcome: 'deny', grounds: ['not-objectives', 'public-interest'] }),
-        request(2, { outcome: 'deny', grounds: ['public-interest'] }),
+        request({ outcome: 'deny', grounds: ['not-objectives', 'public-interest'] }),
+        request({ outcome: 'deny', grounds: ['public-interest'] }),
       ]),
     ).toEqual({
       received: 2,
@@ -145,7 +141,7 @@ describe('aggregateFacts: section 5, access to information (Form K requests)', (
   });
 
   it('counts a request closed because the officer cannot be identified as declined for reason other', () => {
-    expect(section5([request(1, { outcome: 'cannot-identify' })])).toEqual({
+    expect(section5([request({ outcome: 'cannot-identify' })])).toEqual({
       received: 1,
       granted: 0,
       declined: 1,
@@ -154,7 +150,7 @@ describe('aggregateFacts: section 5, access to information (Form K requests)', (
   });
 
   it('counts a withdrawn request as received only', () => {
-    expect(section5([request(1, { withdrawn: true })])).toEqual({
+    expect(section5([request({ withdrawn: true })])).toEqual({
       received: 1,
       granted: 0,
       declined: 0,
