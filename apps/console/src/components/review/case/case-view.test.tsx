@@ -7,6 +7,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import {
   addCaseNote,
   claimCase,
+  getCaseComparison,
   markCaseFlagReviewed,
   reassignCase,
   releaseCase,
@@ -109,6 +110,9 @@ vi.mock('../../../server/review-case', async () => {
           },
         ],
       }),
+    ),
+    getCaseComparison: vi.fn(({ data }: Data<{ caseId: string }>) =>
+      server.loadComparison(client(), data.caseId),
     ),
     getCaseRegistry: vi.fn(() => new Promise(() => undefined)),
     getCaseRegistryStatus: vi.fn(),
@@ -504,5 +508,133 @@ describe('CaseView: a supervisor', () => {
         'You are a reviewer of record, so another supervisor must approve the determination.',
       ),
     ).toBeTruthy();
+  });
+});
+
+describe('CaseView: version compare (S10, S19)', () => {
+  const compareSwitch = (name = /^Compare with/) => screen.getByRole('switch', { name });
+
+  async function turnOn(name?: RegExp) {
+    await clickAndSettle(() => {
+      fireEvent.click(compareSwitch(name));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
+
+  it('switches the declaration pane to a DiffTable per statement, read once when turned on', async () => {
+    await renderCase(CASES.mine);
+    const toggle = compareSwitch(/^Compare with version 1$/);
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    expect(getCaseComparison).not.toHaveBeenCalled();
+
+    await turnOn();
+    expect(compareSwitch().getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('heading', { level: 2, name: 'Version comparison' })).toBeTruthy();
+    expect(screen.getByText('8 matched')).toBeTruthy();
+    expect(screen.getByText('2 changed 25%+')).toBeTruthy();
+    expect(screen.getByText('3 in one version only')).toBeTruthy();
+
+    const officer = screen.getByRole('table', {
+      name: 'Changes for John Kennedy Otieno between version 1 and version 2',
+    });
+    const plot = within(officer).getByRole('rowheader', { name: /Plot Kisumu\/Manyatta\/1234/ });
+    const plotRow = within(plot.closest('tr') as HTMLElement);
+    expect(plotRow.getByText('1,800,000')).toBeTruthy();
+    expect(plotRow.getByText('4,500,000')).toBeTruthy();
+    expect(plotRow.getByText('Increase of KES 2,700,000')).toBeTruthy();
+    expect(plotRow.getByText('+150.0%')).toBeTruthy();
+    expect(plotRow.getByText('Not marked')).toBeTruthy();
+    // A decrease, with a true minus sign, read out in words.
+    const mortgage = within(officer).getByRole('rowheader', { name: /Mortgage from KCB Bank/ });
+    const mortgageRow = within(mortgage.closest('tr') as HTMLElement);
+    expect(mortgageRow.getByText('−500,000')).toBeTruthy();
+    expect(mortgageRow.getByText('Decrease of KES 500,000')).toBeTruthy();
+    expect(mortgageRow.getByText('−12.8%')).toBeTruthy();
+    expect(mortgageRow.getByText('Down 12.8 percent')).toBeTruthy();
+    // Unmatched on both sides.
+    const fund = within(officer).getByRole('rowheader', { name: /CIC Money Market Fund units/ });
+    expect(within(fund.closest('tr') as HTMLElement).getByText(/Only in version 2/)).toBeTruthy();
+    const car = within(officer).getByRole('rowheader', { name: /Toyota Probox KCA 123X/ });
+    expect(
+      within(car.closest('tr') as HTMLElement).getByText('Not in current version'),
+    ).toBeTruthy();
+    // A matched item whose previous value was nothing has no percentage.
+    const child = screen.getByRole('table', { name: /^Changes for Brenda Otieno/ });
+    expect(within(child).getByText('No percentage: the previous value was zero')).toBeTruthy();
+    // The declaration as filed is replaced, and comes back when Compare is turned off.
+    expect(screen.queryByRole('heading', { level: 2, name: 'Declaration as filed' })).toBeNull();
+
+    await turnOn();
+    expect(screen.getByRole('heading', { level: 2, name: 'Declaration as filed' })).toBeTruthy();
+    await turnOn();
+    expect(getCaseComparison).toHaveBeenCalledTimes(1);
+  });
+
+  it('turns Compare off to go to the item a flag concerns', async () => {
+    await renderCase(CASES.mine);
+    await turnOn();
+    await clickAndSettle(() => {
+      const [first] = screen.getAllByRole('button', { name: 'Go to item' });
+      if (first) fireEvent.click(first);
+    });
+    expect(compareSwitch().getAttribute('aria-checked')).toBe('false');
+    expect(screen.getByRole('heading', { level: 2, name: 'Declaration as filed' })).toBeTruthy();
+  });
+
+  it('compares a single version with the previous declaration', async () => {
+    await renderCase(CASES.peters);
+    await turnOn(/^Compare with previous declaration$/);
+    const table = screen.getByRole('table', {
+      name: 'Changes for Mary Achieng between the previous declaration and version 1',
+    });
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .slice(1, 3)
+        .map((th) => th.textContent),
+    ).toEqual(['Previous (KES)', 'Version 1 (KES)']);
+    expect(screen.getByText(/^Previous declaration → v1 /)).toBeTruthy();
+  });
+
+  it('cannot compare a first declaration on Adili, and says why', async () => {
+    await renderCase(CASES.unassigned);
+    const toggle = compareSwitch();
+    expect(toggle.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByText('First declaration on Adili: nothing to compare.')).toBeTruthy();
+    fireEvent.click(toggle);
+    expect(getCaseComparison).not.toHaveBeenCalled();
+  });
+
+  it('says there is nothing to compare when review finds no previous version (409)', async () => {
+    await renderCase(CASES.mine);
+    vi.mocked(getCaseComparison).mockResolvedValueOnce({ ok: true, data: null });
+    await turnOn();
+    expect(screen.getByText('Nothing to compare')).toBeTruthy();
+    expect(
+      screen.getByText('This is the first declaration on Adili for this person.'),
+    ).toBeTruthy();
+  });
+
+  it('offers Try again when the comparison could not be loaded', async () => {
+    await renderCase(CASES.mine);
+    vi.mocked(getCaseComparison).mockResolvedValueOnce({
+      ok: false,
+      error: { kind: 'unavailable', detail: null },
+    });
+    await turnOn();
+    expect(
+      screen
+        .getAllByRole('alert')
+        .some((alert) => alert.textContent.includes('The comparison could not be loaded.')),
+    ).toBe(true);
+    await clickAndSettle(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByText('8 matched')).toBeTruthy();
   });
 });

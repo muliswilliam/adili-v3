@@ -25,27 +25,27 @@ const SECTIONS = ['initial', 'biennial', 'final'] as const;
  */
 export function federatedRuleProblems(document: FormMV1, today: string): FormValidationError[] {
   const problems: FormValidationError[] = [];
-  const problem = (path: string, message: string) => problems.push({ path, message });
+  const fault = (path: string, message: string) => problems.push({ path, message });
 
   const { period } = document.partI;
   const fy = period.financialYearStart;
   const expected = periodOf(fy);
   if (period.from !== expected.from) {
-    problem(
+    fault(
       'partI.period.from',
       `must be ${expected.from}, the start of financial year ${String(fy)}`,
     );
   }
   if (period.to !== expected.to) {
-    problem('partI.period.to', `must be ${expected.to}, the end of financial year ${String(fy)}`);
+    fault('partI.period.to', `must be ${expected.to}, the end of financial year ${String(fy)}`);
   }
   if (fy < FIRST_FINANCIAL_YEAR) {
-    problem(
+    fault(
       'partI.period.financialYearStart',
       `reports exist from financial year ${String(FIRST_FINANCIAL_YEAR)}`,
     );
   } else if (today < previewFromOf(fy)) {
-    problem(
+    fault(
       'partI.period.financialYearStart',
       `reports for financial year ${String(fy)} open on ${previewFromOf(fy)}`,
     );
@@ -55,32 +55,32 @@ export function federatedRuleProblems(document: FormMV1, today: string): FormVal
     const section = document.partII[key];
     const at = `partII.${key}`;
     if (section.declared + section.notDeclared !== section.expected) {
-      problem(`${at}.declared`, 'declared and notDeclared must add up to expected');
+      fault(`${at}.declared`, 'declared and notDeclared must add up to expected');
     }
     if (section.nonFilers.length !== section.notDeclared) {
-      problem(
+      fault(
         `${at}.nonFilers`,
         `lists ${String(section.nonFilers.length)} officers; notDeclared is ${String(section.notDeclared)}`,
       );
     }
   }
   if (document.partII.biennial.noCycleInPeriod === true && document.partII.biennial.expected > 0) {
-    problem('partII.biennial.expected', 'must be 0 in a year without a biennial cycle');
+    fault('partII.biennial.expected', 'must be 0 in a year without a biennial cycle');
   }
 
   const access = document.partII.accessRequests;
   if (access.granted + access.declined > access.received) {
-    problem('partII.accessRequests.received', 'must be at least granted plus declined');
+    fault('partII.accessRequests.received', 'must be at least granted plus declined');
   }
   const reasons = access.declineReasons.reduce((sum, { count }) => sum + count, 0);
   if (reasons < access.declined) {
-    problem('partII.accessRequests.declineReasons', 'the counts must add up to at least declined');
+    fault('partII.accessRequests.declineReasons', 'the counts must add up to at least declined');
   }
 
   for (const role of ['compiledBy', 'confirmedBy'] as const) {
     const signatory = document.partIII[role];
     for (const field of ['name', 'date'] as const) {
-      if (!signatory[field]?.trim()) problem(`partIII.${role}.${field}`, 'is required');
+      if (!signatory[field]?.trim()) fault(`partIII.${role}.${field}`, 'is required');
     }
   }
   return problems;

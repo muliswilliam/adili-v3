@@ -52,11 +52,13 @@ import { useDraftWithAi } from '../draft-with-ai/use-draft-with-ai';
 import { ClarificationComposer } from '../composer/clarification-composer';
 import type { LetterCommission } from '../composer/letter-preview';
 import { CaseHeader } from './case-header';
+import { ComparePane, CompareSwitch } from './compare-pane';
 import { DeclarationPane, DeclarationUnavailable, DeclarationUnreadable } from './declaration-pane';
 import { FlagsTab } from './flags-tab';
 import { messages as t } from './messages';
 import { NotesTab } from './notes-tab';
 import { RegistryTab } from './registry-tab';
+import { useCaseComparison } from './use-case-comparison';
 import { useCaseRegistry, useCooldown } from './use-case-registry';
 
 /**
@@ -209,6 +211,7 @@ export function CaseView({
     refresh: () => router.invalidate(),
   });
   const recheck = recheckAccess(item, { subject: viewer.subject, supervisor });
+  const comparison = useCaseComparison(item.id, item.currentVersion);
 
   /** Shows how a call went; resolves to the error to show in place, or null. */
   async function settle<T>(
@@ -242,6 +245,8 @@ export function CaseView({
   }
 
   function goToItem(itemId: string) {
+    // The item is in the declaration as filed, not the comparison.
+    comparison.setOn(false);
     setPane('main');
     // The pane may have to show first on a narrow screen.
     requestAnimationFrame(() => {
@@ -270,13 +275,32 @@ export function CaseView({
   }
 
   const version = versionLine(detail);
+  const current = detail.versions.find((each) => each.version === item.currentVersion);
+  const compareSwitch = (
+    <CompareSwitch
+      checked={comparison.on}
+      onCheckedChange={comparison.setOn}
+      previousVersion={item.currentVersion > 1 ? item.currentVersion - 1 : null}
+      blocked={current?.firstOnAdili ?? false}
+    />
+  );
   const main = documentUnavailable ? (
     <DeclarationUnavailable onRetry={() => void retry()} retrying={retrying} />
+  ) : comparison.on ? (
+    <ComparePane
+      state={comparison.state}
+      version={version.text}
+      versions={detail.versions}
+      tools={compareSwitch}
+      onRetry={() => void comparison.retry()}
+      retrying={comparison.retrying}
+    />
   ) : view ? (
     <DeclarationPane
       view={view}
       version={version.text}
       versionNumber={item.currentVersion}
+      tools={compareSwitch}
       pins={pins}
       sectionPins={sectionPins}
       onOpenFlag={openFlag}
@@ -298,6 +322,13 @@ export function CaseView({
       explain={explain}
       onStatusChange={onStatusChange}
       selection={drafting.copilotSelection}
+      onOpenSource={(resolved) => {
+        // A source is in the declaration as filed, not the comparison.
+        comparison.setOn(false);
+        requestAnimationFrame(() => {
+          highlightInDeclaration(resolved.anchorId);
+        });
+      }}
       {...copilot}
     />
   );
