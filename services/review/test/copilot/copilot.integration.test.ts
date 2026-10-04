@@ -12,6 +12,7 @@ import type { CopilotView } from '../../src/copilot/copilot.service.js';
 import { copilotJobWorkflowId } from '../../src/copilot/contract.js';
 import { CopilotWorkflows } from '../../src/copilot/copilot-workflows.js';
 import { outbox, reviewCases, reviewCopilots, reviewFlags } from '../../src/db/schema.js';
+import { processingWorkflowId } from '../../src/processing/contract.js';
 import { asset, declaration, income, revalued, statement } from '../fixtures/declarations.js';
 import { processedFromInbox, twoVersions } from '../support/cases.js';
 import { temporalOf } from '../support/closures.js';
@@ -140,15 +141,21 @@ describe('review copilot', () => {
   };
 
   /** Waits until the case's copilot has `status` (the consumer's workflow runs on Temporal). */
-  const untilStatus = (caseId: string, status: string) =>
+  const untilStatus = (caseId: string, status: string, timeout = 45_000) =>
     vi.waitFor(
       async () => {
         const row = await copilotRow(caseId);
         if (row?.status !== status) throw new Error(`copilot is ${String(row?.status)}`);
         return row;
       },
-      { timeout: 45_000, interval: 250 },
+      { timeout, interval: 250 },
     );
+
+  /**
+   * How long `completeJobs` waits for the copilot to be ready and its job workflows to end, all
+   * told: well inside the 60 s test timeout, so a stuck job is named rather than timed out.
+   */
+  const COMPLETE_JOBS_DEADLINE_MS = 40_000;
 
   const view = async (caseId: string, caller: Caller = reviewerA) => {
     const response = await api.get(copilotPath(caseId), caller);
@@ -164,20 +171,64 @@ describe('review copilot', () => {
   const createdCase = async (version: StoredVersion) => {
     const created = await processedFromInbox(api, version);
     const row = await untilStatus(created.id, 'pending');
+    // The run's last step pulls the request's jobs that ended already (settleCopilot): a test
+    // that changes the record before it ran would have it record them over the change.
+    await temporalOf(api).workflow.getHandle(processingWorkflowId(version.versionId)).result();
     return { caseId: created.id, row };
   };
 
-  /** Completes the latest request's jobs and waits for the copilot to be ready. */
+  /**
+   * Completes the latest request's jobs and waits for the copilot to be ready, then for the jobs'
+   * workflows to end: on a loaded runner a job's activity can run again after the copilot reads
+   * ready (see the output-purged test below), and its pull of the job from the gateway would
+   * take an outage the test arms next.
+   */
   const completeJobs = async (caseId: string, overview = OVERVIEW) => {
     const row = await copilotRow(caseId);
     if (!row?.requestedSummaryJobId) throw new Error('no summarize job');
+    const jobIds = [row.requestedSummaryJobId];
     await deliver(api.ai.succeed(row.requestedSummaryJobId, summaryOutput(overview)));
     if (row.requestedExplanationsJobId) {
+      jobIds.push(row.requestedExplanationsJobId);
       await deliver(
         api.ai.succeed(row.requestedExplanationsJobId, explanationsOutput(await flagIdsOf(caseId))),
       );
     }
-    return untilStatus(caseId, 'ready');
+    const deadline = Date.now() + COMPLETE_JOBS_DEADLINE_MS;
+    const ready = await untilStatus(caseId, 'ready', COMPLETE_JOBS_DEADLINE_MS);
+    for (const jobId of jobIds) {
+      const result = temporalOf(api)
+        .workflow.getHandle(copilotJobWorkflowId(jobId))
+        .result()
+        .then(
+          () => true,
+          (error: unknown) => {
+            throw new Error(`The copilot job workflow of ${jobId} failed`, { cause: error });
+          },
+        );
+      // Settled either way, so no rejection goes unhandled when the deadline wins the race.
+      result.catch(() => undefined);
+      let timer: NodeJS.Timeout | undefined;
+      const ended = await Promise.race([
+        result,
+        new Promise<false>((resolve) => {
+          timer = setTimeout(
+            () => {
+              resolve(false);
+            },
+            Math.max(deadline - Date.now(), 0),
+          );
+        }),
+      ]).finally(() => {
+        clearTimeout(timer);
+      });
+      if (!ended) {
+        throw new Error(
+          `The copilot job workflow of ${jobId} did not end within ${String(COMPLETE_JOBS_DEADLINE_MS)} ms of the jobs completing`,
+        );
+      }
+    }
+    return ready;
   };
 
   const assign = (caseId: string, assignee: string) =>

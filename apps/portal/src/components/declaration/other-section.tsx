@@ -39,7 +39,7 @@ import {
   NO_MATERIAL_CHANGES,
 } from '../../declaration/other';
 import { personLabel, stepLink } from './steps';
-import { useFocusFirstError, useShownErrors } from './section-errors';
+import { useFocusFirstError, useFocusLinkedField, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 type Other = Draft<OtherInformation>;
@@ -244,6 +244,8 @@ export interface OtherSectionProps {
   etag: string;
   /** Show every missing answer at once, e.g. when arriving from the summary's list. */
   showErrors?: boolean;
+  /** A JSON pointer to focus, e.g. `/employment/nature` from an Ask Adili answer. */
+  focusField?: string;
 }
 
 /**
@@ -252,7 +254,7 @@ export interface OtherSectionProps {
  * Autosaves the section without the composed changes. Missing answers come from the service's
  * issues and show once a card or field has been left, or all at once with `showErrors`.
  */
-export function OtherSection({ section, etag, showErrors = false }: OtherSectionProps) {
+export function OtherSection({ section, etag, showErrors = false, focusField }: OtherSectionProps) {
   const { declaration } = useWorkspace();
   const [composed] = useState(() => (section.contents as Other).materialChanges ?? []);
   const [editable] = useState<LoadedSection>(() => {
@@ -286,6 +288,15 @@ export function OtherSection({ section, etag, showErrors = false }: OtherSection
   useFocusFirstError(showErrors, () => {
     const first = issues[0];
     return first ? idFor(first.path) : null;
+  });
+  // The pointer's element, or the nearest one it lies inside.
+  useFocusLinkedField(focusField, () => {
+    const parts = (focusField ?? '').split('/');
+    for (let end = parts.length; end > 1; end -= 1) {
+      const element = document.getElementById(idFor(parts.slice(0, end).join('/')));
+      if (element) return element;
+    }
+    return null;
   });
 
   const setInterests = (patch: (current: Interests) => Interests) => {

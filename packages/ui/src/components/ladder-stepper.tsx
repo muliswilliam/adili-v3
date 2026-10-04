@@ -13,11 +13,12 @@ import { Icon, type IconProps } from './icon';
 
 /**
  * Where one step of an administrative action ladder stands. `upcoming`: not reached yet.
- * `skipped`: the ladder ended before it (the declarant complied). `awaiting`: drafted and waiting
- * for approval, or approved and waiting for payroll. `current`: issued, its window running.
- * `declined`: the approver declined it. `stopped`: a salary stoppage in force. `done`: issued and
- * passed to a later step. `complied`: the declarant complied while it ran. `reinstated`: a
- * stopped salary was paid again.
+ * `skipped`: the ladder ended before it (the declarant complied, or its subject went).
+ * `awaiting`: drafted and waiting for approval. `current`: approved (its letter being issued, or
+ * waiting for payroll) or issued, its window running. `declined`: the approver declined it.
+ * `stopped`: a salary stoppage in force, from payroll's acknowledgement until it acknowledges the
+ * resume, whatever the step's status. `done`: issued and passed to a later step. `complied`: the
+ * declarant complied while it ran. `reinstated`: a stopped salary was paid again.
  */
 export type LadderStepStatus =
   | 'upcoming'
@@ -60,6 +61,11 @@ export interface LadderStepperStep {
   letter?: ReactNode;
   /** The declarant's response to the step, e.g. "Responded 9 Aug 2026". */
   response?: ReactNode;
+  /**
+   * Where the step stands with payroll (a salary stoppage's stop or reinstatement instruction),
+   * e.g. "Payroll acknowledged 20 Aug 2026" or "Waiting for payroll".
+   */
+  payroll?: ReactNode;
 }
 
 export interface LadderStepperMessages {
@@ -138,7 +144,8 @@ export type LadderStepperProps = Omit<ComponentProps<'ol'>, 'children'> & {
 /**
  * An administrative action ladder (notice to comply, warning, salary stoppage, disciplinary
  * referral) as one row of numbered steps: each with its name, a status line (`detail`, or the
- * status word), when its window ends, the letter it issued and the declarant's response. The
+ * status word), when its window ends, the letter it issued, the declarant's response and, for a
+ * salary stoppage, where its payroll instruction stands. The
  * number turns into a tick, a clock, a cross or a ban sign by status, and screen readers hear
  * "Status: {word}." with each step, so the status is never colour alone. The step the ladder is
  * on (`currentStepId`, or the last step awaiting, running, declined or stopped) carries
@@ -237,12 +244,15 @@ export function LadderStepper({
                   {(step.windowLabel ?? copy.windowEndsAt)(formatDate(step.windowEndsAt))}
                 </span>
               )}
-              {step.letter === undefined && step.response === undefined ? null : (
+              {step.letter === undefined &&
+              step.response === undefined &&
+              step.payroll === undefined ? null : (
                 <span className="grid gap-0.5 text-[12.5px] leading-[1.35] text-secondary-foreground">
                   {step.letter === undefined ? null : (
                     <span className="truncate font-mono">{step.letter}</span>
                   )}
                   {step.response === undefined ? null : <span>{step.response}</span>}
+                  {step.payroll === undefined ? null : <span>{step.payroll}</span>}
                 </span>
               )}
             </li>

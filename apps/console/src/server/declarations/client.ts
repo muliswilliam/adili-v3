@@ -1,5 +1,5 @@
 import type { Assert, MatchesObligationCopy } from '@adili/ui';
-import { mockableClient } from '@adili/api-kit/client';
+import { type MockFetch, mockableClient } from '@adili/api-kit/client';
 import type { Client } from 'openapi-fetch';
 
 import { callDirectory, type DirectoryResult } from '../directory/client';
@@ -29,6 +29,16 @@ export type ProgressCounts = Schemas['ProgressCounts'];
 export type ProgressRow = DeclarationProgress['reportingEntities'][number];
 export type ObligationPage =
   paths['/v1/commissions/{slug}/obligations']['get']['responses'][200]['content']['application/json'];
+export type HelpTag = Schemas['HelpTag'];
+export type HelpArticle = Schemas['HelpArticle'];
+export type HelpArticleInput = Schemas['HelpArticleInput'];
+export type HelpPassage = Schemas['HelpPassage'];
+export type HelpLanguage = Schemas['HelpLanguage'];
+export type CorpusPassage = Schemas['CorpusPassage'];
+export type CorpusPassageText = Schemas['CorpusPassageText'];
+export type CorpusImportResult = Schemas['CorpusImportResult'];
+export type QuestionTheme = Schemas['QuestionTheme'];
+export type QuestionThemeCount = Schemas['QuestionThemeCount'];
 export type ListObligationsQuery = NonNullable<
   paths['/v1/commissions/{slug}/obligations']['get']['parameters']['query']
 >;
@@ -50,12 +60,15 @@ export function createDeclarationsClient(options: {
   baseUrl: string;
   accessToken: string;
   fetch?: typeof fetch;
+  /** Answers instead of the service when set (development only; see `mockableClient`). */
+  mock?: MockFetch | null;
 }): DeclarationsClient {
   return mockableClient<paths>({
     baseUrl: options.baseUrl,
     headers: { authorization: `Bearer ${options.accessToken}` },
     timeoutMs: DECLARATIONS_TIMEOUT_MS,
     fetch: options.fetch,
+    mock: options.mock,
   });
 }
 

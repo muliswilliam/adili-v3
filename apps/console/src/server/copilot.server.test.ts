@@ -1,3 +1,4 @@
+import { addDays } from '@adili/ui';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadCopilot, rateOutput, readCopilotView, refreshCopilot } from './copilot.server';
@@ -79,6 +80,18 @@ describe('copilot endpoints (review mock)', () => {
     vi.setSystemTime(NOW_MS + MOCK_COPILOT_DELAY_MS);
     const later = await loadCopilot(client(), CASES.mine);
     expect(later.ok && later.data.status).toBe('ready');
+  });
+
+  it('generates as of when the mock was seeded, not the wall clock', async () => {
+    // Seeded as of NOW, but run a month later.
+    const later = Date.parse(addDays(new Date(NOW_MS).toISOString(), 30));
+    vi.setSystemTime(later);
+    resetReviewMock(NOW_MS);
+    await refreshCopilot(client(), CASES.mine);
+    vi.setSystemTime(later + MOCK_COPILOT_DELAY_MS);
+    const ready = await loadCopilot(client(), CASES.mine);
+    if (!ready.ok) throw new Error(JSON.stringify(ready.error));
+    expect(ready.data.generatedAt).toBe(new Date(NOW_MS + MOCK_COPILOT_DELAY_MS).toISOString());
   });
 
   it('refuses a refresh by someone not holding the case', async () => {

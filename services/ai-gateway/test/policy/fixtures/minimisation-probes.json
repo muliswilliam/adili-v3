@@ -4947,5 +4947,1394 @@
     "input": "Member No. 3310 Nyeri Branch Kenya Power Sacco",
     "mustHide": [],
     "mustKeep": ["Nyeri Branch"]
+  },
+  {
+    "id": "r23-std-1",
+    "input": "Proprietors: John Kamau ID 12345678 and the late Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-2",
+    "input": "Borrowers: Peter Otieno ID 12345678 and/or Grace Akinyi ID 23456789",
+    "mustHide": ["Peter", "Otieno", "Grace", "Akinyi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-3",
+    "input": "Proprietor: John Kamau ID 12345678 and his wife Mrs. Jane Njeri",
+    "mustHide": ["John", "Kamau", "Jane", "Njeri"],
+    "mustKeep": ["and his wife"]
+  },
+  {
+    "id": "r23-std-4",
+    "input": "Proprietors: John Kamau ID 12345678 and The Late Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-5",
+    "input": "Proprietor: John Kamau ID 12345678 and Mr. Peter Otieno",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-6",
+    "input": "Member: Member No. 3310 Statement Period: Jan 2023 to Dec 2023",
+    "mustHide": [],
+    "mustKeep": ["Statement Period:"]
+  },
+  {
+    "id": "r23-std-7",
+    "input": "Member No. 3310\nMonthly Contribution KES 5,000",
+    "mustHide": [],
+    "mustKeep": ["Monthly Contribution"]
+  },
+  {
+    "id": "r23-std-8",
+    "input": "Member No. 3310 Jane Wambui Opening Balance 20,000",
+    "mustHide": ["Jane", "Wambui"],
+    "mustKeep": ["Opening Balance"]
+  },
+  {
+    "id": "r23-std-9",
+    "input": "Member No. 3310 Approved by the Board",
+    "mustHide": [],
+    "mustKeep": ["Approved by the Board"]
+  },
+  {
+    "id": "r23-std-10",
+    "input": "Members of the Board\nChairman: Peter Otieno",
+    "mustHide": ["Peter", "Otieno"],
+    "mustKeep": ["Members of the Board"]
+  },
+  {
+    "id": "r23-std-11",
+    "input": "Member No. 3310 May Achieng",
+    "mustHide": ["May", "Achieng"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-12",
+    "input": "Member No. 3310 June Atieno",
+    "mustHide": ["June", "Atieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-13",
+    "input": "Member No. 3310 Mary Wanjiru of Nakuru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Nakuru"]
+  },
+  {
+    "id": "r23-std-14",
+    "input": "Member No. 3310 Mary Wanjiru: Shares 200",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Shares 200"]
+  },
+  {
+    "id": "r23-std-15",
+    "input": "Member No. 3310 Mary Wanjiru KES 12,500",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["KES"]
+  },
+  {
+    "id": "r23-std-16",
+    "input": "Member No. 3310 Wanjiru Balance 2,000",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Balance"]
+  },
+  {
+    "id": "r23-std-17",
+    "input": "Proprietor: Mary Park ID 12345678",
+    "mustHide": ["Mary", "Park"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-18",
+    "input": "Proprietor: Peter Close ID 12345678, Kileleshwa Road, Nairobi",
+    "mustHide": ["Peter", "Close"],
+    "mustKeep": ["Kileleshwa Road, Nairobi"]
+  },
+  {
+    "id": "r23-std-19",
+    "input": "Proprietor: John Kamau ID 12345678 Riverside Drive, Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Riverside Drive, Nairobi"]
+  },
+  {
+    "id": "r23-std-20",
+    "input": "Proprietor: John Kamau ID 12345678, Kakuzi Court, Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi Court, Nairobi"]
+  },
+  {
+    "id": "r23-std-21",
+    "input": "Proprietor: John Kamau ID 12345678 and Kakuzi Foods Limited",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi Foods Limited"]
+  },
+  {
+    "id": "r23-std-22",
+    "input": "Proprietor: John Kamau ID 12345678 and the Kakuzi Estate",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi Estate"]
+  },
+  {
+    "id": "r23-std-23",
+    "input": "Proprietor: John Kamau ID 12345678 and Daughter Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-24",
+    "input": "Proprietor: John Kamau ID 12345678 na mke wake Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-25",
+    "input": "Proprietor: John Kamau ID 12345678 and Westlands Park",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Westlands Park"]
+  },
+  {
+    "id": "r23-std-26",
+    "input": "Member No. 3310 Mary Wanjiru and Peter Otieno",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-27",
+    "input": "Proprietor: John Kamau ID 12345678 and Kamau Industries",
+    "mustHide": ["John"],
+    "mustKeep": ["Industries"]
+  },
+  {
+    "id": "r23-std-28",
+    "input": "Land: NAKURU/NJORO/1234 MEASURING 0.5 HA\nProprietor: John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["MEASURING 0.5 HA"]
+  },
+  {
+    "id": "r23-std-29",
+    "input": "Title No. NAIROBI/BLOCK 110/456 via eCITIZEN\nOwner: Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["via eCITIZEN"]
+  },
+  {
+    "id": "r23-std-30",
+    "input": "Proprietor: John Kamau ID 12345678 and the late",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["and the late"]
+  },
+  {
+    "id": "r23-spec-1",
+    "input": "Proprietor: John Kamau ID 12345678 Mary Park",
+    "mustHide": ["John", "Kamau", "Mary", "Park"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-2",
+    "input": "Proprietors: John Kamau ID 12345678 and Mary Park\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau", "Mary", "Park"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r23-spec-3",
+    "input": "Borrowers: John Kamau ID 12345678 and Peter Drive",
+    "mustHide": ["John", "Kamau", "Peter", "Drive"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-4",
+    "input": "Owners: John Kamau ID 12345678 and Grace Way\nMake: Toyota",
+    "mustHide": ["John", "Kamau", "Way"],
+    "mustKeep": ["Make: Toyota"]
+  },
+  {
+    "id": "r23-spec-5",
+    "input": "Shareholders: John Kamau ID 12345678 and Ann Court\nCompany: Twiga Foods Limited",
+    "mustHide": ["John", "Kamau", "Ann", "Court"],
+    "mustKeep": ["Company: Twiga Foods Limited"]
+  },
+  {
+    "id": "r23-spec-6",
+    "input": "Proprietors: John Kamau ID 12345678 and James House",
+    "mustHide": ["John", "Kamau", "James", "House"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-7",
+    "input": "Proprietor: John Kamau ID 12345678, Westlands Heights, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-8",
+    "input": "Proprietor: John Kamau ID 12345678, P.O. Box 1, Uhuru Park\nLocation: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Location: Nakuru"]
+  },
+  {
+    "id": "r23-spec-9",
+    "input": "Proprietor: John Kamau ID 12345678, Riverside Drive, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-10",
+    "input": "Proprietor: John Kamau ID 12345678, Westlands Park, Nairobi\nRegistration Section: Nairobi Block 2",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Registration Section: Nairobi Block 2"]
+  },
+  {
+    "id": "r23-spec-11",
+    "input": "Proprietor: John Kamau ID 12345678 of Kilimani Court, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-12",
+    "input": "Borrower: John Kamau ID 12345678, Court House, Nyeri\nBranch: Nyeri",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Branch: Nyeri"]
+  },
+  {
+    "id": "r23-spec-13",
+    "input": "Proprietor: John Kamau ID 12345678, Kenyatta Lane, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-14",
+    "input": "Proprietor: John Kamau ID 12345678, Nakuru Way\nLand Use: Agricultural",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Land Use: Agricultural"]
+  },
+  {
+    "id": "r23-spec-15",
+    "input": "Proprietors: John Kamau ID 12345678 and the said Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-16",
+    "input": "Proprietors: John Kamau ID 12345678 and Mrs. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-17",
+    "input": "Proprietors: John Kamau ID 12345678 and Mrs Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-18",
+    "input": "Proprietors: John Kamau ID 12345678 and one Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-19",
+    "input": "Proprietors: John Kamau ID 12345678 or her nominee Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-20",
+    "input": "Proprietors: John Kamau ID 12345678 together with Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-21",
+    "input": "Proprietors: John Kamau ID 12345678 and/or Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-22",
+    "input": "Proprietors: John Kamau ID 12345678 and his son Peter Kamau",
+    "mustHide": ["John", "Kamau", "Peter"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-23",
+    "input": "Proprietors: John Kamau ID 12345678 and the late Mary Wanjiru\nTenure: Freehold",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Tenure: Freehold"]
+  },
+  {
+    "id": "r23-spec-24",
+    "input": "Proprietors: John Kamau ID 12345678 and Dr. Mary Wanjiru\nCounty: Kiambu",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["County: Kiambu"]
+  },
+  {
+    "id": "r23-spec-25",
+    "input": "Proprietors: John Kamau ID 12345678 na mke wake Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-26",
+    "input": "Proprietors: John Kamau ID 12345678 and the Land Registrar\nCounty: Kiambu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Land Registrar", "County: Kiambu"]
+  },
+  {
+    "id": "r23-spec-27",
+    "input": "Proprietors: John Kamau ID 12345678 and the Equity Bank Limited\nBank: Equity Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bank: Equity Bank"]
+  },
+  {
+    "id": "r23-spec-28",
+    "input": "Member No: 3310\nName: Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["3310"]
+  },
+  {
+    "id": "r23-spec-29",
+    "input": "Member No. 3310 MARY WANJIRU",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-30",
+    "input": "Member No. 3310 - Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-31",
+    "input": "Member No. 3310 Mary Wanjiru Kamau Branch: Nyeri",
+    "mustHide": ["Mary", "Wanjiru", "Kamau"],
+    "mustKeep": ["Branch: Nyeri"]
+  },
+  {
+    "id": "r23-spec-32",
+    "input": "Member No: 3310 Payroll No: 7788 Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-33",
+    "input": "member no. 3310 mary wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-34",
+    "input": "Member No. 3310 Dear Mary,",
+    "mustHide": ["Mary"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-35",
+    "input": "Member No. 3310 Wanjiru Branch: Nyeri",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Branch: Nyeri"]
+  },
+  {
+    "id": "r23-spec-36",
+    "input": "Member No. 3310 Mary Wanjiru\nBranch: Nyeri",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Branch: Nyeri"]
+  },
+  {
+    "id": "r23-spec-37",
+    "input": "Member No. 3310 Mary Wanjiru Monthly Contribution KES 5,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r23-spec-38",
+    "input": "Member No. 3310 Mary Wanjiru KES 5,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["KES 5,000"]
+  },
+  {
+    "id": "r23-spec-39",
+    "input": "Member No. 3310 Mary Wanjiru: Statement",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-40",
+    "input": "Member No. 3310 Share Capital KES 20,000",
+    "mustHide": [],
+    "mustKeep": ["Share Capital KES 20,000"]
+  },
+  {
+    "id": "r23-spec-41",
+    "input": "Member No. 3310 Total Deposits 150,000",
+    "mustHide": [],
+    "mustKeep": ["Total Deposits 150,000"]
+  },
+  {
+    "id": "r23-spec-42",
+    "input": "Member No. 3310 Loan Balance KES 80,000",
+    "mustHide": [],
+    "mustKeep": ["Loan Balance KES 80,000"]
+  },
+  {
+    "id": "r23-spec-43",
+    "input": "Member No. 3310 Employer: Kenya Power",
+    "mustHide": [],
+    "mustKeep": ["Employer: Kenya Power"]
+  },
+  {
+    "id": "r23-spec-44",
+    "input": "Member No. 3310 Stima Sacco Society Ltd\nSacco: Stima Sacco",
+    "mustHide": [],
+    "mustKeep": ["Sacco: Stima Sacco"]
+  },
+  {
+    "id": "r23-spec-45",
+    "input": "Member No. 3310 Mwalimu National Sacco\nBranch: Nyeri",
+    "mustHide": [],
+    "mustKeep": ["Branch: Nyeri", "Mwalimu National"]
+  },
+  {
+    "id": "r23-spec-46",
+    "input": "Member No. 3310 Nyeri Branch",
+    "mustHide": [],
+    "mustKeep": ["Nyeri Branch"]
+  },
+  {
+    "id": "r23-spec-47",
+    "input": "Member No. 3310 31 December 2023",
+    "mustHide": [],
+    "mustKeep": ["31 December 2023"]
+  },
+  {
+    "id": "r23-spec-48",
+    "input": "Member No. 3310 Date: 31/12/2023",
+    "mustHide": [],
+    "mustKeep": ["Date: 31/12/2023"]
+  },
+  {
+    "id": "r23-spec-49",
+    "input": "Member No. 3310 Twiga Foods Limited\nEmployer: Twiga Foods Limited",
+    "mustHide": [],
+    "mustKeep": ["Employer: Twiga Foods Limited"]
+  },
+  {
+    "id": "r23-spec-50",
+    "input": "Member No. 3310 Bidco Industries\nEmployer: Bidco Industries",
+    "mustHide": [],
+    "mustKeep": ["Employer: Bidco Industries"]
+  },
+  {
+    "id": "r23-spec-51",
+    "input": "Member No. 3310 Safaricom\nEmployer: Safaricom",
+    "mustHide": [],
+    "mustKeep": ["Employer: Safaricom"]
+  },
+  {
+    "id": "r23-spec-52",
+    "input": "Member No. 3310 Mary Wanjiru and John Kamau",
+    "mustHide": ["Mary", "Wanjiru", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-53",
+    "input": "Member No. 3310 Mary Wanjiru Kamau, ID 12345678",
+    "mustHide": ["Mary", "Wanjiru", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-54",
+    "input": "Member No. 3310 Mary Wanjiru\nShares: 500 Ordinary Shares",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["500 Ordinary Shares"]
+  },
+  {
+    "id": "r23-spec-55",
+    "input": "Member No. 3310 Mary Wanjiru\nMember No. 3310 Mary Wanjiru Loan Balance KES 80,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Loan Balance KES 80,000"]
+  },
+  {
+    "id": "r23-spec-56",
+    "input": "Title No. NAKURU/NJORO/1234 Proprietor: Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Title No.", "Proprietor:"]
+  },
+  {
+    "id": "r23-spec-57",
+    "input": "Title Number: KISUMU/MUNICIPALITY BLOCK 7/412\nProprietor: Mary Wanjiru ID 12345678\nLand Use: Residential",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Land Use: Residential"]
+  },
+  {
+    "id": "r23-spec-58",
+    "input": "Proprietor: Mary Wanjiru ID 12345678 Title No. NAKURU/NJORO/1234\nArea: 0.5 Ha",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Area: 0.5 Ha"]
+  },
+  {
+    "id": "r23-spec-59",
+    "input": "Proprietor: MARY WANJIRU of P.O. Box 1, Nakuru\nParcel: NAKURU/NJORO/1234\nCounty: Nakuru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r23-spec-60",
+    "input": "Proprietor: John Kamau ID 12345678, Riverside Drive, Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Riverside Drive", "Nairobi"]
+  },
+  {
+    "id": "r23-spec-61",
+    "input": "Proprietor: John Kamau ID 12345678, Lenana Court, Kilimani\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-62",
+    "input": "Borrower: John Kamau ID 12345678, Mama Ngina Drive, Mombasa\nBranch: Mombasa",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Branch: Mombasa"]
+  },
+  {
+    "id": "r23-spec-63",
+    "input": "Proprietor: John Kamau ID 12345678, Kindaruma Lane, Nairobi\nLocation: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Location: Nairobi"]
+  },
+  {
+    "id": "r23-spec-64",
+    "input": "Proprietor: John Kamau ID 12345678 of Riverside Drive, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-65",
+    "input": "Proprietor: John Kamau ID 12345678, P.O. Box 1, Riverside Drive, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-66",
+    "input": "Member No. 3310 Mary Wanjiru Kamau KES 5,000",
+    "mustHide": ["Mary", "Wanjiru", "Kamau"],
+    "mustKeep": ["KES 5,000"]
+  },
+  {
+    "id": "r23-spec-67",
+    "input": "Member No. 3310 John Kamau Loan Balance KES 80,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Loan Balance KES 80,000"]
+  },
+  {
+    "id": "r23-spec-68",
+    "input": "Member No. 3310 Mary Wanjiru Deposits KES 150,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Deposits KES 150,000"]
+  },
+  {
+    "id": "r23-spec-69",
+    "input": "Member No. 3310 Mary Wanjiru Shares 500",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Shares 500"]
+  },
+  {
+    "id": "r23-spec-70",
+    "input": "Member No. 3310 Mary Wanjiru 0712345678",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-71",
+    "input": "Member No. 3310 Mary Wanjiru May 2023",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["2023"]
+  },
+  {
+    "id": "r23-spec-72",
+    "input": "Member No. 3310 Mary Wanjiru Branch: Nyeri Monthly Contribution KES 5,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Branch: Nyeri", "Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r23-spec-73",
+    "input": "Member No. 3310 Kamau Wanjiru Monthly Contribution KES 5,000",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r23-spec-74",
+    "input": "Member No. 3310 Mary Wanjiru, Monthly Contribution KES 5,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r24-std-1",
+    "input": "Member No. 3310\nMary Wanjiru",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-3",
+    "input": "Proprietor: John Kamau ID 12345678 and Mary Wanjiru ID 23456789",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Proprietor:"]
+  },
+  {
+    "id": "r24-std-4",
+    "input": "Member No. 3310 Mary Wanjiru and Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-5",
+    "input": "Member No. 3310 Mary Wanjiru & Peter Otieno Monthly Contribution KES 5,000",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r24-std-6",
+    "input": "Proprietor: John Kamau ID 12345678 together with Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["together with"]
+  },
+  {
+    "id": "r24-std-7",
+    "input": "Proprietor: John Kamau ID 12345678 & Mary Wanjiru ID 23456789",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-8",
+    "input": "Proprietor: John Kamau ID 12345678, Riverside Drive, Nairobi",
+    "mustHide": ["Kamau"],
+    "mustKeep": ["Riverside Drive, Nairobi"]
+  },
+  {
+    "id": "r24-std-9",
+    "input": "Proprietor: John Kamau ID 12345678 and Mary Park",
+    "mustHide": ["Kamau", "Park"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-10",
+    "input": "Member No. 3310 Mary Wanjiru Statement Period: Jan 2023",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Statement Period:", "Jan 2023"]
+  },
+  {
+    "id": "r24-std-11",
+    "input": "Member No. 3310 Mary Ward",
+    "mustHide": ["Wanjiru", "Ward"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-12",
+    "input": "Member No. 3310 Mary Wanjiru, Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-13",
+    "input": "Member No. 3310 Mary Wanjiru, Opening Balance KES 20,000",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Opening Balance KES 20,000"]
+  },
+  {
+    "id": "r24-std-14",
+    "input": "Proprietor: John Kamau ID 12345678 and the said Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-15",
+    "input": "Member No. 3310 Mary Wanjiru May 2023 Contribution KES 500",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["May 2023", "Contribution KES 500"]
+  },
+  {
+    "id": "r24-std-16",
+    "input": "Member No. 3310 May Wanjiru",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-17",
+    "input": "Proprietor: John Kamau ID 12345678 / Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-18",
+    "input": "Proprietor: John Kamau ID 12345678, Kakuzi Court, Nairobi and Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Kakuzi Court, Nairobi"]
+  },
+  {
+    "id": "r24-std-19",
+    "input": "Member No. 3310 Mary Wanjiru Received KES 1,000",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Received KES 1,000"]
+  },
+  {
+    "id": "r24-std-20",
+    "input": "Member No. 3310 Peter Product",
+    "mustHide": ["Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-21",
+    "input": "Proprietor: John Kamau ID 12345678 and Mary Wanjiru Closing Balance 20,000",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Closing Balance 20,000"]
+  },
+  {
+    "id": "r24-std-22",
+    "input": "Member No. 3310 Mary Wanjiru and Peter Otieno ID 23456789",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-23",
+    "input": "Member No. 3310 Mary Wanjiru Grace Akinyi",
+    "mustHide": ["Wanjiru", "Akinyi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-24",
+    "input": "Member No. 3310 Mary Wanjiru Monthly Contribution KES 5,000",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r24-std-25",
+    "input": "Member No. 3310 Mary Wanjiru and Peter Otieno Monthly Contribution KES 5,000",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r24-std-26",
+    "input": "Proprietor: John Kamau ID 12345678, Kakuzi Court, Nairobi; Mary Wanjiru ID 23456789",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Kakuzi Court, Nairobi"]
+  },
+  {
+    "id": "r24-std-27",
+    "input": "Proprietor: John Kamau ID 12345678 of Nakuru and Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Nakuru"]
+  },
+  {
+    "id": "r24-std-28",
+    "input": "Proprietor: John Kamau ID 12345678, Riverside Drive, Nairobi and Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Riverside Drive, Nairobi"]
+  },
+  {
+    "id": "r24-std-29",
+    "input": "Member No. 3310 Mary Wanjiru Deductions KES 200",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Deductions KES 200"]
+  },
+  {
+    "id": "r24-std-30",
+    "input": "Member: Member No. 3310 Mary Wanjiru Monthly Contribution KES 5,000",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r24-std-31",
+    "input": "Member No. 3310 Mary Wanjiru and Peter Otieno, Monthly Contribution KES 5,000",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r24-std-32",
+    "input": "Member No. 3310 Mary Wanjiru Opening Balance 20,000 Closing Balance 25,000",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Opening Balance 20,000 Closing Balance 25,000"]
+  },
+  {
+    "id": "r24-std-33",
+    "input": "Proprietor: John Kamau ID 12345678 and Mary Wanjiru ID 23456789 and Peter Otieno",
+    "mustHide": ["Kamau", "Wanjiru", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-34",
+    "input": "Member No. 3310 Mary Wanjiru Product: Savings",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Product: Savings"]
+  },
+  {
+    "id": "r24-std-35",
+    "input": "Proprietor: John Kamau ID 12345678 Riverside Drive, Nairobi and Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Riverside Drive, Nairobi"]
+  },
+  {
+    "id": "r24-std-36",
+    "input": "Proprietor: John Kamau ID 12345678, P.O. Box 1, Nakuru and Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-std-37",
+    "input": "Proprietor: John Kamau ID 12345678, Runda Estate, Nairobi and Mary Wanjiru ID 23456789",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Runda Estate, Nairobi"]
+  },
+  {
+    "id": "r24-spec-1",
+    "input": "Member No. 3310 Grace Monthly",
+    "mustHide": ["Grace", "Monthly"],
+    "mustKeep": ["Member No. 3310"]
+  },
+  {
+    "id": "r24-spec-2",
+    "input": "Proprietor: Peter Product ID 12345678",
+    "mustHide": ["Peter", "Product"],
+    "mustKeep": ["ID"]
+  },
+  {
+    "id": "r24-spec-3",
+    "input": "Borrower: Mary Period ID 12345678\nBank: Equity Bank",
+    "mustHide": ["Mary", "Period"],
+    "mustKeep": ["Equity Bank"]
+  },
+  {
+    "id": "r24-spec-4",
+    "input": "Shareholder: John Opening ID 12345678\nCompany: Kakuzi PLC",
+    "mustHide": ["John", "Opening"],
+    "mustKeep": ["Kakuzi PLC"]
+  },
+  {
+    "id": "r24-spec-5",
+    "input": "Proprietor: John Kamau ID 12345678 and Ann Closing ID 23456789",
+    "mustHide": ["John", "Kamau", "Ann", "Closing"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-6",
+    "input": "Member No. 3310 Joy Received",
+    "mustHide": ["Joy", "Received"],
+    "mustKeep": ["Member No. 3310"]
+  },
+  {
+    "id": "r24-spec-7",
+    "input": "Owners: John Kamau, Mary Ward",
+    "mustHide": ["John", "Kamau", "Mary", "Ward"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-8",
+    "input": "Name: Mary Ward Ward: 5",
+    "mustHide": ["Mary"],
+    "mustKeep": ["Ward: 5"]
+  },
+  {
+    "id": "r24-spec-9",
+    "input": "Name: Mary Ward\nWard: Kilimani",
+    "mustHide": ["Mary"],
+    "mustKeep": ["Ward: Kilimani"]
+  },
+  {
+    "id": "r24-spec-10",
+    "input": "Proprietor: Mary Ward ID 12345678",
+    "mustHide": ["Mary", "Ward"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-11",
+    "input": "Member No. 3310 Mary Ward Balance 2,000",
+    "mustHide": ["Mary", "Ward"],
+    "mustKeep": ["Balance 2,000"]
+  },
+  {
+    "id": "r24-spec-12",
+    "input": "Employee: Peter Ward\nEmployer: Kenya Power",
+    "mustHide": ["Peter", "Ward"],
+    "mustKeep": ["Kenya Power"]
+  },
+  {
+    "id": "r24-spec-13",
+    "input": "Member No. 3310 Mary Wanjiru Statement Period: Jan-Dec 2023",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Statement Period: Jan-Dec 2023"]
+  },
+  {
+    "id": "r24-spec-14",
+    "input": "Member No. 3310 Mary Wanjiru Opening Balance 20,000 Closing Balance 25,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Opening Balance 20,000", "Closing Balance 25,000"]
+  },
+  {
+    "id": "r24-spec-15",
+    "input": "Member No. 3310 Mary Wanjiru Monthly Contribution KES 5,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r24-spec-16",
+    "input": "Member No. 3310 Mary Wanjiru Product: BOSA Savings",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Product: BOSA Savings"]
+  },
+  {
+    "id": "r24-spec-17",
+    "input": "Member No. 3310 Mary Wanjiru Contributions Received KES 60,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Contributions Received KES 60,000"]
+  },
+  {
+    "id": "r24-spec-18",
+    "input": "Member No. 3310 Mary Wanjiru Deductions KES 1,200",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Deductions KES 1,200"]
+  },
+  {
+    "id": "r24-spec-19",
+    "input": "Member No. 3310 Wanjiru Monthly Contribution KES 5,000",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r24-spec-20",
+    "input": "Member No. 3310\nMary Wanjiru\nStatement Period: Jan-Dec 2023",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Statement Period: Jan-Dec 2023"]
+  },
+  {
+    "id": "r24-spec-21",
+    "input": "Member Name: Mary Wanjiru\nMember No. 3310\nStatement Period: Jan 2023 - Dec 2023\nOpening Balance: 20,000\nClosing Balance: 25,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": [
+      "Statement Period: Jan 2023 - Dec 2023",
+      "Opening Balance: 20,000",
+      "Closing Balance: 25,000"
+    ]
+  },
+  {
+    "id": "r24-spec-22",
+    "input": "Member No. 3310 Mary Wanjiru Member No. 3311 Peter Otieno",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["3311"]
+  },
+  {
+    "id": "r24-spec-23",
+    "input": "Member No. 3310 Mary Wanjiru, Member No. 3311 Peter Otieno",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["3311"]
+  },
+  {
+    "id": "r24-spec-24",
+    "input": "Member No. 3310 Mary Wanjiru and Member No. 3311 Peter Otieno",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["3311"]
+  },
+  {
+    "id": "r24-spec-25",
+    "input": "Member No. 3310 Mary Wanjiru KES 5,000 Member No. 3311 Peter Otieno KES 6,000",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["KES 5,000", "KES 6,000"]
+  },
+  {
+    "id": "r24-spec-26",
+    "input": "Member No. 3310 Mary Wanjiru together with Peter Otieno",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-27",
+    "input": "Member No. 3310 Mary Wanjiru Monthly Deduction KES 2,000\nEmployer: Kenya Power",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Monthly Deduction KES 2,000", "Kenya Power"]
+  },
+  {
+    "id": "r24-spec-28",
+    "input": "Membership No. M3310 Mary Wanjiru Opening Balance 20,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Opening Balance 20,000"]
+  },
+  {
+    "id": "r24-spec-29",
+    "input": "Member No. 3310 Mary Wanjiru Received KES 5,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Received KES 5,000"]
+  },
+  {
+    "id": "r24-spec-30",
+    "input": "STIMA SACCO\nMEMBER STATEMENT\nMember No. 3310 Mary Wanjiru\nPeriod: Jan-Dec 2023\nOpening Balance 20,000\nMonthly Contribution 5,000\nClosing Balance 80,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": [
+      "STIMA SACCO",
+      "MEMBER STATEMENT",
+      "Period: Jan-Dec 2023",
+      "Opening Balance 20,000",
+      "Monthly Contribution 5,000",
+      "Closing Balance 80,000"
+    ]
+  },
+  {
+    "id": "r24-spec-31",
+    "input": "Borrowers: John Kamau & Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-32",
+    "input": "Borrowers: John & Mary Kamau",
+    "mustHide": ["John", "Mary", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-33",
+    "input": "Proprietor: John Kamau ID 12345678 & Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-34",
+    "input": "Employee: Mary Wanjiru\nEmployer: Kamau & Sons Ltd",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Kamau & Sons Ltd"]
+  },
+  {
+    "id": "r24-spec-35",
+    "input": "Borrower: John Kamau ID 12345678\nBank: Equity Bank & Trust",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Equity Bank & Trust"]
+  },
+  {
+    "id": "r24-spec-36",
+    "input": "Shareholder: John Kamau ID 12345678 & Kakuzi PLC",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi PLC"]
+  },
+  {
+    "id": "r24-spec-37",
+    "input": "Account Name: John Kamau & Mary Wanjiru\nBank: KCB Bank\nBranch: Moi Avenue",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["KCB Bank", "Branch: Moi Avenue"]
+  },
+  {
+    "id": "r24-spec-38",
+    "input": "Owners: John Kamau / Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-39",
+    "input": "Lender: Kamau & Sons Ltd\nBorrower: Mary Wanjiru ID 23456789",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Kamau & Sons Ltd"]
+  },
+  {
+    "id": "r24-spec-40",
+    "input": "Proprietor: John Kamau ID 12345678 & Mary Ward",
+    "mustHide": ["John", "Kamau", "Mary", "Ward"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-41",
+    "input": "Proprietor: John Kamau ID 12345678 Mary Park",
+    "mustHide": ["John", "Kamau", "Mary", "Park"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-42",
+    "input": "Proprietor: John Kamau ID 12345678, Uhuru Park",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Uhuru Park"]
+  },
+  {
+    "id": "r24-spec-43",
+    "input": "Proprietor: John Kamau ID 12345678 Uhuru Park, Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Uhuru Park, Nairobi"]
+  },
+  {
+    "id": "r24-spec-44",
+    "input": "Proprietor: John Kamau ID 12345678\nRiverside Drive",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Riverside Drive"]
+  },
+  {
+    "id": "r24-spec-45",
+    "input": "Proprietor: John Kamau ID 12345678 Riverside Drive",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Riverside Drive"]
+  },
+  {
+    "id": "r24-spec-46",
+    "input": "Proprietor: John Kamau ID 12345678 Kenyatta Lane",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenyatta Lane"]
+  },
+  {
+    "id": "r24-spec-47",
+    "input": "Proprietor: John Kamau ID 12345678 Mary Park\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau", "Mary", "Park"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r24-spec-48",
+    "input": "Proprietor: John Kamau ID 12345678 and Mary Park ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Park"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-49",
+    "input": "Proprietor: John Kamau ID 12345678, Mary Park ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Park"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-50",
+    "input": "Proprietor: John Kamau ID 12345678, Peter Close, ID 23456789",
+    "mustHide": ["John", "Kamau", "Peter", "Close"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-51",
+    "input": "Proprietor: John Kamau ID 12345678 Kenyatta Avenue, Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenyatta Avenue, Nakuru", "County: Nakuru"]
+  },
+  {
+    "id": "r24-spec-52",
+    "input": "Owner: John Kamau ID 12345678 Riverside Drive\nMake: Toyota\nModel: Premio",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Riverside Drive", "Toyota", "Premio"]
+  },
+  {
+    "id": "r24-spec-53",
+    "input": "Proprietor: John Kamau ID 12345678 Kenyatta Road\nCounty: Kiambu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenyatta Road", "County: Kiambu"]
+  },
+  {
+    "id": "r24-spec-54",
+    "input": "Proprietor: John Kamau ID 12345678 Kindaruma Lane\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kindaruma Lane", "County: Nairobi"]
+  },
+  {
+    "id": "r24-spec-55",
+    "input": "Proprietor: Mary Ward\nWard: Kileleshwa\nCounty: Nairobi",
+    "mustHide": ["Mary"],
+    "mustKeep": ["Ward: Kileleshwa", "County: Nairobi"]
+  },
+  {
+    "id": "r24-spec-56",
+    "input": "Proprietor: Mary Ward Ward: Kileleshwa",
+    "mustHide": ["Mary"],
+    "mustKeep": ["Ward: Kileleshwa"]
+  },
+  {
+    "id": "r24-spec-57",
+    "input": "Member No. 3310 Mary Ward",
+    "mustHide": ["Mary", "Ward"],
+    "mustKeep": ["Member No. 3310"]
+  },
+  {
+    "id": "r24-spec-58",
+    "input": "Owner: Peter Ward ID 12345678 Ward: Kilimani",
+    "mustHide": ["Peter"],
+    "mustKeep": ["Ward: Kilimani"]
+  },
+  {
+    "id": "r24-spec-59",
+    "input": "Owners: Mary Ward and John Kamau",
+    "mustHide": ["Mary", "Ward", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-60",
+    "input": "Borrowers: John Kamau, Grace Monthly and Peter Product",
+    "mustHide": ["John", "Kamau", "Grace", "Monthly", "Peter", "Product"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-61",
+    "input": "Proprietor: John Kamau ID 12345678 Joy Received",
+    "mustHide": ["John", "Kamau", "Joy", "Received"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-62",
+    "input": "Shareholders: Mary Period ID 12345678; Ann Closing ID 23456789",
+    "mustHide": ["Mary", "Period", "Ann", "Closing"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-63",
+    "input": "Member No. 3310 Ann Closing Balance 2,000",
+    "mustHide": ["Ann"],
+    "mustKeep": ["Closing Balance 2,000"]
+  },
+  {
+    "id": "r24-spec-64",
+    "input": "Member No. 3310 Peter Opening Balance 20,000",
+    "mustHide": ["Peter"],
+    "mustKeep": ["Opening Balance 20,000"]
+  },
+  {
+    "id": "r24-spec-65",
+    "input": "Member No. 3310 Mary Wanjiru Period: Jan-Dec 2023",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Period: Jan-Dec 2023"]
+  },
+  {
+    "id": "r24-spec-66",
+    "input": "Member No. 3310 Wanjiru Statement Period: 2023",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Statement Period: 2023"]
+  },
+  {
+    "id": "r24-spec-67",
+    "input": "Member No. 3310 Otieno Product: FOSA",
+    "mustHide": ["Otieno"],
+    "mustKeep": ["Product: FOSA"]
+  },
+  {
+    "id": "r24-spec-68",
+    "input": "Statement Period: Jan-Dec 2023\nMonthly Contribution: KES 5,000\nOpening Balance: 20,000",
+    "mustHide": [],
+    "mustKeep": [
+      "Statement Period: Jan-Dec 2023",
+      "Monthly Contribution: KES 5,000",
+      "Opening Balance: 20,000"
+    ]
+  },
+  {
+    "id": "r24-spec-69",
+    "input": "PAYSLIP\nEmployee: Peter Otieno\nPeriod: March 2024\nBasic Pay: 80,000\nDeductions: 12,000\nNet Pay: 68,000\nEmployer: Kenya Power",
+    "mustHide": ["Peter", "Otieno"],
+    "mustKeep": [
+      "Period: March 2024",
+      "Basic Pay: 80,000",
+      "Deductions: 12,000",
+      "Net Pay: 68,000",
+      "Kenya Power"
+    ]
+  },
+  {
+    "id": "r24-spec-70",
+    "input": "Employee: Peter Otieno Period: March 2024 Basic Pay 80,000",
+    "mustHide": ["Peter", "Otieno"],
+    "mustKeep": ["Period: March 2024", "Basic Pay 80,000"]
+  },
+  {
+    "id": "r24-spec-71",
+    "input": "Member No. 3310 Mary Wanjiru & Peter Otieno Joint Account",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["Joint Account"]
+  },
+  {
+    "id": "r24-spec-72",
+    "input": "Account Holder: John Kamau together with Mary Wanjiru\nBank: Co-operative Bank",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Co-operative Bank"]
+  },
+  {
+    "id": "r24-spec-73",
+    "input": "Owner: John Kamau ID 12345678 of Nakuru together with Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Nakuru"]
+  },
+  {
+    "id": "r24-spec-74",
+    "input": "Member No. 3310 Mary Wanjiru\nMember No. 3311 Peter Otieno\nMember No. 3312 Grace Achieng",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno", "Achieng"],
+    "mustKeep": ["3312"]
+  },
+  {
+    "id": "r24-spec-75",
+    "input": "Member No. 3310 MARY WANJIRU Opening Balance 20,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Opening Balance 20,000"]
+  },
+  {
+    "id": "r24-spec-76",
+    "input": "Member No. 3310 Mary Wanjiru Closing Balance KES 80,000\nBranch: Nakuru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Closing Balance KES 80,000", "Branch: Nakuru"]
+  },
+  {
+    "id": "r24-spec-77",
+    "input": "Member No. 3310 Mary Wanjiru Loan Product: Development Loan Monthly Deduction 4,500",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Product: Development Loan", "Monthly Deduction 4,500"]
+  },
+  {
+    "id": "r24-spec-78",
+    "input": "Proprietor: John Kamau ID 12345678 & Mary Wanjiru of Riverside Drive, Nairobi",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Riverside Drive, Nairobi"]
+  },
+  {
+    "id": "r24-spec-79",
+    "input": "Member No. M3310 Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Member No."]
+  },
+  {
+    "id": "r24-spec-80",
+    "input": "Membership No. 3310 Mary Wanjiru Opening Balance 20,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Opening Balance 20,000"]
+  },
+  {
+    "id": "r24-spec-81",
+    "input": "Member No. 3310/A Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-82",
+    "input": "Proprietors: John Kamau ID 12345678, Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-83",
+    "input": "Proprietors: John Kamau ID 12345678; Mary Park ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Park"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-84",
+    "input": "Shareholders: John Kamau ID 12345678, Grace Court ID 23456789\nCompany: Kakuzi PLC",
+    "mustHide": ["John", "Kamau", "Grace", "Court"],
+    "mustKeep": ["Kakuzi PLC"]
+  },
+  {
+    "id": "r24-spec-85",
+    "input": "Borrowers: John Kamau ID 12345678, Mary Wanjiru ID 23456789, Peter Otieno ID 34567890",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-86",
+    "input": "Borrowers: Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru & Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-87",
+    "input": "Member No. 3310 Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and Mary Wanjiru Statement Period, and",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r24-spec-88",
+    "input": "Proprietor: John Kamau ID 12345678 ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park, ID 12345670 Mary Park, ID 12345671 Mary Park, ID 12345672 Mary Park, ID 12345673 Mary Park, ID 12345674 Mary Park, ID 12345675 Mary Park, ID 12345676 Mary Park, ID 12345677 Mary Park, ID 12345678 Mary Park, ID 12345679 Mary Park",
+    "mustHide": ["John", "Kamau", "Mary", "Park"],
+    "mustKeep": []
   }
 ]

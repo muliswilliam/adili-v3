@@ -567,52 +567,106 @@ describe('minimise a text layer: review probes', () => {
 });
 
 /**
+ * Milliseconds of CPU `run` takes: the fastest of three runs. CPU time, not the wall clock, so
+ * other processes on a busy machine (a CI runner) do not count; the fastest, as a run is only
+ * ever slowed (by garbage collection), never sped.
+ */
+function fastest(run: () => void): number {
+  let best = Infinity;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const started = process.cpuUsage();
+    run();
+    const { user, system } = process.cpuUsage(started);
+    best = Math.min(best, (user + system) / 1_000);
+  }
+  return best;
+}
+
+/** Below this many milliseconds, a run's time is noise, not a cost to compare. */
+const NOISE_MS = 20;
+
+/**
+ * Asserts that reading grows linearly with its input, on a machine of any speed: `read` over the
+ * input `build` makes at `scale` twice is timed against it at `scale`, after a warm-up. Linear
+ * time about doubles; quadratic time quadruples, so the bound is three times (with a floor for
+ * runs too fast to time). The input is built before the clock starts.
+ */
+function expectLinear<T>(build: (scale: number) => T, read: (input: T) => void, scale: number) {
+  read(build(Math.max(1, Math.floor(scale / 10))));
+  const once = build(scale);
+  const twice = build(scale * 2);
+  const onceMs = fastest(() => {
+    read(once);
+  });
+  const twiceMs = fastest(() => {
+    read(twice);
+  });
+  expect(
+    twiceMs,
+    `${twiceMs.toFixed(1)} ms at twice the input, ${onceMs.toFixed(1)} ms once`,
+  ).toBeLessThan(3 * Math.max(onceMs, NOISE_MS));
+}
+
+/** Time enough for the slowest rows, read six times on a slow runner. */
+const LINEAR_TIMEOUT_MS = 60_000;
+
+/**
  * A text layer is untrusted input: no label, number or address pattern may take more than linear
- * time over it (#314 review F29, F36, F37): 10,000 characters after each kind of introducer,
- * 100,000 of repeated introducers, and stray line terminators in an address line.
+ * time over it (#314 review F29, F36, F37 and later): long runs after each kind of introducer,
+ * repeated introducers, and stray line terminators in an address line. Each row builds its input
+ * at a scale (about half the 10,000 to 100,000 characters it was first written at) and is read
+ * at that scale and twice it.
  */
 describe('minimise a text layer in linear time', () => {
-  const SPACES = ' '.repeat(10_000);
-  it.each([
-    ['Address', `Address${SPACES}\n`],
-    ['Physical address', `Physical address${SPACES}x\n`],
-    ['Member No.', `Member No.${SPACES}\n`],
-    ['Member No. code', `Member No. ${'A1'.repeat(5_000)}\n`],
-    ['Proprietor', `Proprietor${SPACES}\n`],
-    ['Proprietor colon', `Proprietor:${SPACES}John\n`],
-    ['Guarantor(s)', `Guarantor(s)${SPACES}:\n`],
-    ['Mr.', `Mr.${SPACES}\n`],
-    ['Dear', `Dear${SPACES}\n`],
-    ['certify that', `certify${SPACES}that${SPACES}\n`],
-    ['blank lines', `Proprietor:${'\n'.repeat(10_000)}`],
-    ['capitalised words', `Proprietor: ${'Kamau '.repeat(5_000)}\n`],
-    // Repeated introducers, each followed by the rest of a 100,000-character line (F36).
-    ['Mr repeated', 'Mr '.repeat(33_000)],
-    ['Dear repeated', 'Dear '.repeat(20_000)],
-    ['Borrower repeated', 'Borrower '.repeat(11_000)],
-    ['Guarantor(s): repeated', 'Guarantor(s): '.repeat(7_000)],
-    ['Proprietor: and commas', `Proprietor: ${', '.repeat(50_000)}`],
+  const spaces = (scale: number) => ' '.repeat(scale);
+  it.each<[string, (scale: number) => string, number]>([
+    ['Address', (n) => `Address${spaces(n)}\n`, 5_000],
+    ['Physical address', (n) => `Physical address${spaces(n)}x\n`, 5_000],
+    ['Member No.', (n) => `Member No.${spaces(n)}\n`, 5_000],
+    ['Member No. code', (n) => `Member No. ${'A1'.repeat(n)}\n`, 2_500],
+    ['Proprietor', (n) => `Proprietor${spaces(n)}\n`, 5_000],
+    ['Proprietor colon', (n) => `Proprietor:${spaces(n)}John\n`, 5_000],
+    ['Guarantor(s)', (n) => `Guarantor(s)${spaces(n)}:\n`, 5_000],
+    ['Mr.', (n) => `Mr.${spaces(n)}\n`, 5_000],
+    ['Dear', (n) => `Dear${spaces(n)}\n`, 5_000],
+    ['certify that', (n) => `certify${spaces(n)}that${spaces(n)}\n`, 5_000],
+    ['blank lines', (n) => `Proprietor:${'\n'.repeat(n)}`, 5_000],
+    ['capitalised words', (n) => `Proprietor: ${'Kamau '.repeat(n)}\n`, 2_500],
+    // Repeated introducers, each followed by the rest of a long line (F36).
+    ['Mr repeated', (n) => 'Mr '.repeat(n), 16_500],
+    ['Dear repeated', (n) => 'Dear '.repeat(n), 10_000],
+    ['Borrower repeated', (n) => 'Borrower '.repeat(n), 5_500],
+    ['Guarantor(s): repeated', (n) => 'Guarantor(s): '.repeat(n), 3_500],
+    ['Proprietor: and commas', (n) => `Proprietor: ${', '.repeat(n)}`, 25_000],
     // Stray line terminators inside an address line (F37).
-    ['Address and carriage returns', `Address${' \r'.repeat(20_000)}`],
-    ['Address and line separators', `Address${' \u2028'.repeat(20_000)}`],
-    ['Address and paragraph separators', `Address${' \u2029'.repeat(20_000)}`],
-    ['a long address', `Physical address: ${'House 14, Riverside Drive, '.repeat(4_000)}`],
-    ['Make: A repeated', 'Make: A '.repeat(12_500)],
-    ['Chairman: repeated', 'Chairman: '.repeat(10_000)],
-    ['a marked list', `Directors:\n${'(a) John Kamau\n'.repeat(7_000)}`],
-    ['shapes after a name', `Witness: Jane Akinyi Tel ${'0712 345 678 '.repeat(8_000)}`],
-    ['a long list', `Directors:\n${'1. John Kamau\n'.repeat(7_000)}`],
-    ['Kamau: repeated', `Borrower: ${'Kamau: '.repeat(14_000)}`],
-    ['100,000 newlines', `Proprietor:${'\n'.repeat(100_000)}John Kamau`],
+    ['Address and carriage returns', (n) => `Address${' \r'.repeat(n)}`, 10_000],
+    ['Address and line separators', (n) => `Address${' \u2028'.repeat(n)}`, 10_000],
+    ['Address and paragraph separators', (n) => `Address${' \u2029'.repeat(n)}`, 10_000],
+    [
+      'a long address',
+      (n) => `Physical address: ${'House 14, Riverside Drive, '.repeat(n)}`,
+      2_000,
+    ],
+    ['Make: A repeated', (n) => 'Make: A '.repeat(n), 6_250],
+    ['Chairman: repeated', (n) => 'Chairman: '.repeat(n), 5_000],
+    ['a marked list', (n) => `Directors:\n${'(a) John Kamau\n'.repeat(n)}`, 3_500],
+    ['shapes after a name', (n) => `Witness: Jane Akinyi Tel ${'0712 345 678 '.repeat(n)}`, 4_000],
+    ['a long list', (n) => `Directors:\n${'1. John Kamau\n'.repeat(n)}`, 3_500],
+    ['Kamau: repeated', (n) => `Borrower: ${'Kamau: '.repeat(n)}`, 7_000],
+    ['newlines', (n) => `Proprietor:${'\n'.repeat(n)}John Kamau`, 50_000],
     // A long run of capitals, which a parcel's section may start (F102).
-    ['100,000 capitals', 'KRA '.repeat(25_000)],
+    ['capitals', (n) => 'KRA '.repeat(n), 12_500],
     // Capitals joined by slashes, which a parcel's blocks may be (F111).
-    ['100,000 capitals and slashes', 'KSM/BLOCK '.repeat(10_000)],
-  ])('reads %s quickly', (_name, text) => {
-    const started = performance.now();
-    minimise({ textLayer: text });
-    expect(performance.now() - started).toBeLessThan(500);
-  });
+    ['capitals and slashes', (n) => 'KSM/BLOCK '.repeat(n), 5_000],
+    // Member numbers, each a label's value a name may follow (F115).
+    ['member numbers', (n) => 'Member No. 1 '.repeat(n), 3_850],
+  ])(
+    'reads %s in linear time',
+    (_name, build, scale) => {
+      expectLinear(build, (textLayer) => minimise({ textLayer }), scale);
+    },
+    LINEAR_TIMEOUT_MS,
+  );
 });
 
 /**
@@ -1145,15 +1199,18 @@ describe('minimise a text layer: names out, fields readable', () => {
 });
 
 describe('minimise a text layer: what is no name', () => {
-  it('reads 1,000 pages quickly (F49)', () => {
-    const pages = Array.from({ length: 1_000 }, (_, page) => ({
-      page: page + 1,
-      textLayer: 'Proprietor: John Kamau\nMember No. AB12C\nPhysical address: House 14, Nakuru',
-    }));
-    const started = performance.now();
-    minimise({ document: { pages } });
-    expect(performance.now() - started).toBeLessThan(1_000);
-  });
+  it(
+    'reads pages in linear time (F49)',
+    () => {
+      const pagesOf = (count: number) =>
+        Array.from({ length: count }, (_, page) => ({
+          page: page + 1,
+          textLayer: 'Proprietor: John Kamau\nMember No. AB12C\nPhysical address: House 14, Nakuru',
+        }));
+      expectLinear(pagesOf, (pages) => minimise({ document: { pages } }), 500);
+    },
+    LINEAR_TIMEOUT_MS,
+  );
 
   it('reads a label at the end of one page and its name at the start of the next (F38)', () => {
     const { input } = minimise({
@@ -1296,22 +1353,28 @@ describe('minimise free text: parcels as the regular expression found them', () 
 });
 
 describe('minimise free text in linear time', () => {
-  it.each([
-    ['a long run of letters and digits', 'A1'.repeat(10_000)],
-    ['a long address-like run', `${'a.'.repeat(5_000)}@${'b.'.repeat(5_000)}`],
-  ])('reads %s quickly, and still finds an email', (_name, run) => {
-    const started = performance.now();
-    const { input } = minimise({ note: `${run} mail jane.doe@example.co.ke` });
-    expect(performance.now() - started).toBeLessThan(100);
-    expect(input.note).toMatch(/mail \[\[EMAIL_\d\]\]$/u);
-  });
+  it.each<[string, (scale: number) => string, number]>([
+    ['a long run of letters and digits', (n) => 'A1'.repeat(n), 5_000],
+    ['a long address-like run', (n) => `${'a.'.repeat(n)}@${'b.'.repeat(n)}`, 2_500],
+  ])(
+    'reads %s in linear time, and still finds an email',
+    (_name, run, scale) => {
+      const noteOf = (n: number) => `${run(n)} mail jane.doe@example.co.ke`;
+      expectLinear(noteOf, (note) => minimise({ note }), scale);
+      expect(minimise({ note: noteOf(scale) }).input.note).toMatch(/mail \[\[EMAIL_\d\]\]$/u);
+    },
+    LINEAR_TIMEOUT_MS,
+  );
 
-  it('reads a long run of capitals quickly, and still finds a parcel (F102)', () => {
-    const started = performance.now();
-    const { input } = minimise({ note: `${'KRA '.repeat(25_000)}plot NAKURU/NJORO/1234` });
-    expect(performance.now() - started).toBeLessThan(500);
-    expect(input.note).toMatch(/plot \[\[PARCEL_\d\]\]$/u);
-  });
+  it(
+    'reads a long run of capitals in linear time, and still finds a parcel (F102)',
+    () => {
+      const noteOf = (n: number) => `${'KRA '.repeat(n)}plot NAKURU/NJORO/1234`;
+      expectLinear(noteOf, (note) => minimise({ note }), 12_500);
+      expect(minimise({ note: noteOf(12_500) }).input.note).toMatch(/plot \[\[PARCEL_\d\]\]$/u);
+    },
+    LINEAR_TIMEOUT_MS,
+  );
 
   it('finds an email whose domain an OCR pass broke ("jane@.example.co.ke")', () => {
     expect(minimise({ note: 'mail jane@.example.co.ke' }).input.note).toBe('mail [[EMAIL_1]]');

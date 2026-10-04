@@ -4,7 +4,9 @@ import {
   COMMISSION_ADMIN,
   COMMISSION_ROSTER_ROLES,
   COMMISSION_STAFF_ROLES,
+  EACC_ANALYST,
   EACC_ROLES,
+  FORM_M_ROLES,
   HELPDESK,
   LAW_ENFORCEMENT,
   NATIONAL_ROLES,
@@ -31,10 +33,17 @@ export type WorkspaceHref =
   | '/obligations'
   | '/obligations/national'
   | '/review'
+  | '/approvals'
+  | '/actions'
+  | '/referrals'
   | '/access/requests'
   | '/lea/requests'
   | '/platform/law-enforcement'
-  | '/ai-policy';
+  | '/ai-policy'
+  | '/help'
+  | '/form-m'
+  | '/eacc/reports'
+  | '/eacc/referrals';
 
 interface WorkspaceDefinition {
   id: string;
@@ -95,8 +104,29 @@ export function readsCommissionPolicy(roles: readonly string[]): boolean {
   return COMMISSION_POLICY_ROLES.some((role) => roles.includes(role));
 }
 
+/**
+ * Roles that act on their Commission's Form M (spec 09): the supervisor compiles and reviews, the
+ * commission-admin confirms and submits. The reporting officer only reads it (`FORM_M_ROLES`);
+ * nobody else sees it, EACC included.
+ */
+export const FORM_M_WRITE_ROLES = [SUPERVISOR, COMMISSION_ADMIN] as const;
+
+/**
+ * EACC analysts push referrals to ICMS (spec 09 FE access table); EACC supervisors read the
+ * intake and download packages.
+ */
+export const REFERRAL_PUSH_ROLES = [EACC_ANALYST] as const;
+
 /** National roles, who see obligation counts per Commission but no declarant (spec 04). */
 export const NATIONAL_OBLIGATIONS_ROLES = NATIONAL_ROLES;
+
+/**
+ * A Commission's help articles (spec 11): its administrators write them, its reporting officers
+ * read them; both see the question themes. Platform admins write the platform's articles and see
+ * the legal corpus, under the same pages.
+ */
+export const HELP_ROLES = [COMMISSION_ADMIN, REPORTING_OFFICER] as const;
+export const HELP_WRITE_ROLES = [COMMISSION_ADMIN] as const;
 
 /** Console areas, in display order, with the realm roles that open each one (architecture section 7). */
 const WORKSPACES: WorkspaceDefinition[] = [
@@ -127,7 +157,23 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: 'approvals',
     title: 'Approvals',
     description: 'Approve determinations and administrative actions proposed by reviewers.',
+    href: '/approvals',
     roles: [SUPERVISOR],
+  },
+  {
+    id: 'actions',
+    title: 'Actions',
+    description:
+      'Approve the notices and warnings drafted for overdue declarations and clarifications.',
+    href: '/actions',
+    roles: [REVIEWER, SUPERVISOR],
+  },
+  {
+    id: 'referrals',
+    title: 'Referrals',
+    description: 'Referrals to EACC proposed by reviewers and the system, and where each stands.',
+    href: '/referrals',
+    roles: [REVIEWER, SUPERVISOR],
   },
   {
     id: 'access',
@@ -165,16 +211,46 @@ const WORKSPACES: WorkspaceDefinition[] = [
     roles: OBLIGATIONS_ROLES,
   },
   {
+    id: 'help',
+    title: 'Help articles',
+    description:
+      "Write the help your Commission's declarants find in Ask Adili, and see what they ask.",
+    readOnlyDescription:
+      "The help your Commission's declarants find in Ask Adili, and what they ask.",
+    href: '/help',
+    roles: HELP_ROLES,
+    writeRoles: HELP_WRITE_ROLES,
+  },
+  {
     id: 'commission',
     title: 'Commission administration',
     description: 'Manage users, policies and document templates for your Commission.',
     roles: [COMMISSION_ADMIN],
   },
   {
+    id: 'form-m',
+    title: 'Form M',
+    description: "Your Commission's compliance report to EACC, compiled from your data.",
+    readOnlyDescription: "Your Commission's compliance report to EACC and where it stands.",
+    href: '/form-m',
+    roles: FORM_M_ROLES,
+    writeRoles: FORM_M_WRITE_ROLES,
+  },
+  {
     id: 'compliance',
     title: 'Compliance reports',
     description: 'Receive Form M reports and build the national consolidated report.',
+    href: '/eacc/reports',
     roles: EACC_ROLES,
+  },
+  {
+    id: 'referrals-intake',
+    title: 'Referrals received',
+    description: 'Referrals from Commissions with their evidence packages, handed to ICMS.',
+    readOnlyDescription: 'Referrals from Commissions with their evidence packages and ICMS status.',
+    href: '/eacc/referrals',
+    roles: EACC_ROLES,
+    writeRoles: REFERRAL_PUSH_ROLES,
   },
   {
     id: 'audit',
@@ -193,6 +269,13 @@ const WORKSPACES: WorkspaceDefinition[] = [
     title: 'AI policy',
     description: 'Which Commissions may use an AI provider, task routing and budgets.',
     href: '/ai-policy',
+    roles: [PLATFORM_ADMIN],
+  },
+  {
+    id: 'platform-help',
+    title: 'Help articles',
+    description: 'Write the help every declarant finds in Ask Adili, and read the legal corpus.',
+    href: '/help',
     roles: [PLATFORM_ADMIN],
   },
   {

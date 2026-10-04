@@ -41,6 +41,7 @@ export {
 export { Avatar, type AvatarProps, type AvatarTone } from './components/avatar';
 export { Badge, type BadgeProps, badgeVariants } from './components/badge';
 export {
+  BATCH_FILTERS_GRID,
   BATCH_PHASES,
   BATCH_SELECTOR_MESSAGES,
   type BatchPhase,
@@ -174,6 +175,7 @@ export {
   diffDelta,
   type DiffGroup,
   type DiffKind,
+  diffHighlighted,
   diffKind,
   diffPercent,
   type DiffRow,
@@ -255,8 +257,29 @@ export {
   type HashDropZoneMessages,
   type HashDropZoneProps,
 } from './components/hash-drop-zone';
+export {
+  FIGURE_CHIP_MESSAGES,
+  FigureChip,
+  type FigureChipMessages,
+  type FigureChipProps,
+  type FigureFormatter,
+  type ResolvedFigure,
+} from './components/figure-chip';
 export { FilterChip, type FilterChipProps } from './components/filter-chip';
 export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
+export {
+  FORM_M_DECLARATION_SECTIONS,
+  FORM_M_REMARKS_MAX_LENGTH,
+  FORM_M_SECTION_COPY,
+  FORM_M_SECTION_MESSAGES,
+  type FormMDeclarationSection,
+  type FormMDeclarationSectionKey,
+  type FormMNonFiler,
+  FormMSection,
+  type FormMSectionCopy,
+  type FormMSectionMessages,
+  type FormMSectionProps,
+} from './components/form-m-section';
 export {
   type Ground,
   GroundsSelect,
@@ -266,7 +289,16 @@ export {
 } from './components/grounds-select';
 export { Icon, type IconProps } from './components/icon';
 export { IconTile, type IconTileProps, iconTileVariants } from './components/icon-tile';
+export { InfoTip, type InfoTipProps } from './components/info-tip';
 export { controlClassName, Input } from './components/input';
+export {
+  INTAKE_STATUS_BADGE_MESSAGES,
+  INTAKE_STATUSES,
+  type IntakeStatus,
+  IntakeStatusBadge,
+  type IntakeStatusBadgeMessages,
+  type IntakeStatusBadgeProps,
+} from './components/intake-status-badge';
 export { Label } from './components/label';
 export {
   LADDER_STEP_STATUSES,
@@ -308,6 +340,23 @@ export {
 } from './components/menu';
 export { Meter, type MeterProps } from './components/meter';
 export { MoneyInput, type MoneyInputProps } from './components/money-input';
+export {
+  type MatchesNarrativeSections,
+  NARRATIVE_EDITOR_MESSAGES,
+  NARRATIVE_MAX_LENGTH,
+  NARRATIVE_PARAGRAPH_SEPARATOR,
+  NATIONAL_REPORT_NARRATIVE_SECTIONS,
+  type NationalReportNarrativeSectionId,
+  type NarrativeChange,
+  NarrativeEditor,
+  type NarrativeEditorMessages,
+  type NarrativeEditorParagraph,
+  type NarrativeEditorProps,
+  type NarrativeSection,
+  narrativeSections,
+  narrativeSectionText,
+  type NarrativeValue,
+} from './components/narrative-editor';
 export { type CaseNote, NoteList, type NoteListProps } from './components/note-list';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
@@ -319,6 +368,17 @@ export {
   type OutcomeBadgeMessages,
   type OutcomeBadgeProps,
 } from './components/outcome-badge';
+export {
+  PATTERN_CANDIDATE_KIND_COPY,
+  PATTERN_CANDIDATE_KINDS,
+  PATTERN_CARD_MESSAGES,
+  type PatternCandidateKind,
+  type PatternCandidateKindCopy,
+  PatternCard,
+  type PatternCardMessages,
+  type PatternCardProps,
+  PatternCardSkeleton,
+} from './components/pattern-card';
 export { PercentInput, type PercentInputProps } from './components/percent-input';
 export {
   PRIORITY_BADGE_MESSAGES,
@@ -345,6 +405,14 @@ export {
   RadioGroup,
   type RadioGroupProps,
 } from './components/radio';
+export {
+  RATE_BAR_MESSAGES,
+  RateBar,
+  type RateBarMessages,
+  type RateBarProps,
+  type RateTone,
+  rateTone,
+} from './components/rate-bar';
 export {
   DECLARATION_REFERENCE_COPY,
   type DeclarationReferenceCopy,
@@ -378,6 +446,14 @@ export {
   RegistryStatusRow,
   type RegistryStatusRowProps,
 } from './components/registry-status';
+export {
+  RELEASE_STATUS_BADGE_MESSAGES,
+  RELEASE_STATUSES,
+  type ReleaseStatus,
+  ReleaseStatusBadge,
+  type ReleaseStatusBadgeMessages,
+  type ReleaseStatusBadgeProps,
+} from './components/release-status-badge';
 export { type RepeaterActionLabels, Repeater, type RepeaterProps } from './components/repeater';
 export {
   SaveIndicator,
@@ -482,6 +558,23 @@ export {
   type SuggestionMessages,
   type SuggestionStatus,
 } from './components/suggestion-card';
+export { Switch, type SwitchProps } from './components/switch';
+export {
+  DEFAULT_SUPPRESSION_THRESHOLD,
+  UNSHOWN_FIGURE_KINDS,
+  SUPPRESSION_LEGEND_MESSAGES,
+  SUPPRESSION_MARKER_MESSAGES,
+  type UnshownFigureKind,
+  SuppressionLegend,
+  type SuppressionLegendMessages,
+  type SuppressionLegendMessagesOverride,
+  type SuppressionLegendProps,
+  SuppressionMarker,
+  type SuppressionMarkerCopy,
+  type SuppressionMarkerMessages,
+  type SuppressionMarkerMessagesOverride,
+  type SuppressionMarkerProps,
+} from './components/suppression-marker';
 export {
   Table,
   TableBody,
@@ -589,6 +682,14 @@ export {
 export { type IdempotencyKeys, useIdempotencyKey } from './lib/use-idempotency-key';
 export { useToday } from './lib/use-today';
 export {
+  type Autosave,
+  AutosaveFailure,
+  type AutosaveOptions,
+  type AutosaveState,
+  type AutosaveStatus,
+  useAutosave,
+} from './lib/use-autosave';
+export {
   obligationCycleLabel,
   obligationMessages,
   obligationMessagesSw,
@@ -621,7 +722,7 @@ export {
   sha256Hex,
   Sha256UnavailableError,
 } from './lib/sha256';
-export { formatNumber } from './lib/format-number';
+export { formatNumber, formatPercent } from './lib/format-number';
 export {
   formatMoney,
   type MoneyInvalidReason,

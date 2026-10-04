@@ -22,6 +22,7 @@ import { allocateReference, declarationSchemes, issuerCode } from '@adili/number
 import { and, eq, isNull } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
+import { deleteWhatGoesWithTheDraft } from '../drafts/draft-ended.js';
 import { Clock } from '../clock.js';
 import { config } from '../config.js';
 import {
@@ -51,7 +52,6 @@ import type { ObligationStatus } from '../obligations/engine.js';
 import { obligationStatusChanged } from '../obligations/events.js';
 import { filingObligations } from '../obligations/schema.js';
 import { noChanges, ObligationWorkflows, tellWorkflows } from '../obligations/workflows.js';
-import { deleteSuggestions } from '../suggestions/expiry.js';
 import { declarationSubmitted } from './events.js';
 import { type DerivedItem, deriveItems } from './items.js';
 import { incomplete, refused, stepUpRequired } from './problems.js';
@@ -351,8 +351,9 @@ export class SubmissionService {
       .where(eq(declarations.id, declaration.id));
     // No longer a draft in progress for the Commission's counts (#300).
     await tx.delete(obligationDrafts).where(eq(obligationDrafts.declarationId, declaration.id));
-    // Registry suggestions expire with the draft they were offered on (spec 05b S7).
-    await deleteSuggestions(tx, declaration.id);
+    // Registry suggestions (spec 05b S7) and the Ask Adili conversation (spec 11 S7) expire with
+    // the draft.
+    await deleteWhatGoesWithTheDraft(tx, declaration.id);
 
     // An amendment keeps the obligation filed as it was (when, and whether late); only the
     // version in force moves on.
