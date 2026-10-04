@@ -362,7 +362,7 @@ describe('asking a question (S1, S2)', () => {
     const { question, answer } = finalOf((await ask(conversation.id, VEHICLE_QUESTION)).body);
 
     const rows = await api.asPerson(ACHIENG, (tx) =>
-      tx.select().from(assistantMessages).orderBy(assistantMessages.at),
+      tx.select().from(assistantMessages).orderBy(assistantMessages.id),
     );
     expect(rows.map((row) => row.id)).toEqual([question.id, answer.id]);
     for (const row of rows) expect(row.ciphertext.toString('utf8')).not.toContain('matatu');
@@ -696,7 +696,6 @@ describe("the declarant's rate limit", () => {
     for (const question of [VEHICLE_QUESTION, SALARY_QUESTION]) {
       expect((await ask(conversation.id, question, null, caller)).statusCode).toBe(200);
     }
-
     const asked = api.aiGateway.requests.length;
 
     const refused = await ask(conversation.id, VEHICLE_QUESTION, null, caller);
@@ -706,8 +705,16 @@ describe("the declarant's rate limit", () => {
     expect(Number(refused.headers['retry-after'])).toBeGreaterThan(0);
     expect(refused.headers['ratelimit-remaining']).toBe('0');
     expect(api.aiGateway.requests).toHaveLength(asked);
-    const messages = await api.asPerson(personId, (tx) => tx.select().from(assistantMessages));
-    expect(messages).toHaveLength(4);
+    const messages = await api.asPerson(personId, (tx) =>
+      tx.select().from(assistantMessages).orderBy(assistantMessages.id),
+    );
+    // The two questions answered, and nothing of the third.
+    expect(messages.map((message) => message.role)).toEqual([
+      'user',
+      'assistant',
+      'user',
+      'assistant',
+    ]);
   });
 });
 

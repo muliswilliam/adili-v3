@@ -125,6 +125,7 @@ async function* arriving(
   }
 }
 
+/** The deltas in turns, then nothing until the request is aborted, then the final all the same. */
 async function* held(
   scripted: Extract<ScriptedAnswer, { kind: 'held' }>,
   signal: AbortSignal,
@@ -133,17 +134,11 @@ async function* held(
     await Promise.resolve();
     yield { event: 'delta', text };
   }
-  await new Promise<void>((resolve) => {
-    if (signal.aborted) resolve();
-    else
-      signal.addEventListener(
-        'abort',
-        () => {
-          resolve();
-        },
-        { once: true },
-      );
-  });
+  if (!signal.aborted) {
+    await new Promise((resolve) => {
+      signal.addEventListener('abort', resolve, { once: true });
+    });
+  }
   yield { event: 'final', job: { id: randomUUID(), output: scripted.output } };
 }
 

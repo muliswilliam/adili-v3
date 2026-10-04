@@ -255,7 +255,8 @@ export interface DeclarationsApi {
   clock: TestClock;
   /**
    * The rate limits by group, as the service reads them on each request (`RATE_LIMITS` of
-   * vitest.integration.config.ts); a test may change one, and `reset` puts them back.
+   * vitest.integration.config.ts); a test may change a configured group's, and `reset` puts
+   * them back.
    */
   rateLimits: Record<string, RateLimitPolicy>;
   /**
@@ -450,7 +451,13 @@ export async function startDeclarationsApi({
     },
     token: signer,
     listen() {
-      listening ??= app.listen(0, '127.0.0.1').then(() => app.getUrl());
+      listening ??= app
+        .listen(0, '127.0.0.1')
+        .then(() => app.getUrl())
+        .catch((error: unknown) => {
+          listening = undefined;
+          throw error;
+        });
       return listening;
     },
     anonymous(path) {
