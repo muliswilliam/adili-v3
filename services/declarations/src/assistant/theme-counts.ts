@@ -41,7 +41,10 @@ export async function countQuestion(
   return theme;
 }
 
-/** Whether row-level security refused the query (SQLSTATE 42501), through Drizzle's wrapper. */
+/**
+ * Whether row-level security refused the query, through Drizzle's wrapper: SQLSTATE 42501
+ * (`insufficient_privilege`), which a person transaction holding its grants gets only from RLS.
+ */
 function refusedByRowSecurity(error: unknown): boolean {
   for (let cause = error; cause instanceof Error; cause = cause.cause) {
     if ('code' in cause && cause.code === '42501') return true;

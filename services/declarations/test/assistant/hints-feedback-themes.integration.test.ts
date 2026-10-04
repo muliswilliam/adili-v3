@@ -392,6 +392,7 @@ describe('feedback (S8)', () => {
     // The second waits for the first, so it cannot reach the gateway first and be overwritten.
     const second = rate(conversation.id, answer.id, { rating: 'helpful', reason: null });
     await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(api.aiGateway.feedback).toHaveLength(1);
     release();
     const responses = await Promise.all([first, second]);
 

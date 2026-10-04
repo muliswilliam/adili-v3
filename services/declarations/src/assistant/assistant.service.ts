@@ -328,15 +328,17 @@ export class AssistantService {
           ),
         )
         .for('update');
+      // Locked, the answer cannot go with its draft meanwhile: that delete cascades here and waits.
       if (!message) return null;
 
-      const forwarded = await this.forwardRating(principal, conversation.tenant, message, request);
+      // Sealed first, so a rating the gateway took is not then lost to the cipher.
       const feedback: FeedbackPlaintext = { reason: request.reason, note: request.note };
       const { ciphertext, envelope } = await this.cipher.encrypt({
         tenant: conversation.tenant,
         recordId: `${recordId(message.id)}/feedback`,
         plaintext: JSON.stringify(feedback),
       });
+      const forwarded = await this.forwardRating(principal, conversation.tenant, message, request);
       const [row] = await tx
         .update(assistantMessages)
         .set({
