@@ -24,7 +24,7 @@ The console's reporting client (`apps/console/src/server/reporting/api.gen.ts`) 
 
 Until #238 this file was hand-written: the backend PRs (#446, #234, #237, #272) edited it next to the code, and the integration tests checked the answers against it.
 It is now exported from the controllers and Zod schemas (`services/reporting/src/openapi.ts`).
-Each representation the service answers with is checked at compile time against the schema that documents it (`Conforms` in `src/conforms.ts`), and the integration tests still validate the answers against the exported file.
+Each representation the service answers with is typed from the schema that documents it (`z.infer`, as in the other services), and the integration tests still validate the answers against the exported file.
 
 Operations: none added, none dropped, none moved. Changed:
 
@@ -57,7 +57,7 @@ The export marks them `x-draft: true`.
 
 PR #491 (spec 09b backend) edits `internal/reporting.yaml` and `internal/documents.yaml` by hand. Once #238 merges, both files are generated, so #491's rebase conflicts on them. Taking the generated files as they are would drop #491's contract. The rule for the rebase:
 
-- **Into code:** every operation, component and problem code #491 adds or changes. Operations are documented on its controllers, components are Zod schemas in `OPENAPI_SCHEMAS` with a `Conforms` check, and codes are registered in `PROBLEM_CODES`.
+- **Into code:** every operation, component and problem code #491 adds or changes. Operations are documented on its controllers, components are Zod schemas in `OPENAPI_SCHEMAS` whose `z.infer` types the answers, and codes are registered in `PROBLEM_CODES`.
 - **In the drafts:** `drafts/reporting.yaml` keeps only what is still unimplemented. The export refuses an operation or component that the draft and the code both define (`withDraft` in api-kit `contract.ts`). A draft may `$ref` implemented components.
 - **Never hand-edited:** the generated files. Run `pnpm --filter <service> contracts` for reporting and documents, then `pnpm contracts:drift`, and regenerate the clients.
 
