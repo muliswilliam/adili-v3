@@ -6,7 +6,6 @@ import { z } from 'zod';
 
 import { requireEacc } from '../access.js';
 import { countSchema as tally } from '../compliance-reports/representation.js';
-import type { Conforms } from '../conforms.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { AI_FEEDBACK_REASONS } from '../projections/events.js';
 import { aiFeedbackFacts, copilotCaseFacts } from '../projections/schema.js';
@@ -15,30 +14,6 @@ import { eaccContext } from '../system-context.js';
 type AiFeedbackReason = (typeof AI_FEEDBACK_REASONS)[number];
 
 /** reporting.yaml `AiTaskRatings`: the ratings of one task's outputs. */
-export interface AiTaskRatings {
-  task: string;
-  helpful: number;
-  notHelpful: number;
-  /** Not-helpful (or helpful) ratings by the reason given; a rating without one is in neither. */
-  reasons: Record<AiFeedbackReason, number>;
-}
-
-/** reporting.yaml `AiUsageCommission`. */
-export interface AiUsageCommission {
-  tenant: string;
-  /** Cases whose copilot first had outputs to show in the year. */
-  aiAssistedCases: number;
-  /** Ratings last given in the year, by task, in task order. */
-  ratings: AiTaskRatings[];
-}
-
-/** reporting.yaml `AiUsageReport`. */
-export interface AiUsageReport {
-  fy: number;
-  /** Commissions with an AI-assisted case or a rating in the year, in slug order. */
-  commissions: AiUsageCommission[];
-}
-
 export const aiTaskRatingsSchema = z.object({
   task: z.string().meta({
     description: 'The ai-gateway task whose outputs were rated, e.g. `summarize-declaration`',
@@ -56,7 +31,9 @@ export const aiTaskRatingsSchema = z.object({
       description: 'Ratings by the reason the reviewer gave; a rating without one counts in none',
     }),
 });
+export type AiTaskRatings = z.infer<typeof aiTaskRatingsSchema>;
 
+/** reporting.yaml `AiUsageCommission`. */
 export const aiUsageCommissionSchema = z.object({
   tenant: z.string().meta({ description: 'Commission slug' }),
   aiAssistedCases: tally.meta({
@@ -66,14 +43,16 @@ export const aiUsageCommissionSchema = z.object({
     description: 'Ratings last given in the year, per AI task, in task order',
   }),
 });
+export type AiUsageCommission = z.infer<typeof aiUsageCommissionSchema>;
 
+/** reporting.yaml `AiUsageReport`. */
 export const aiUsageReportSchema = z.object({
   fy: z.number().int().meta({ description: 'Financial year start year' }),
   commissions: z.array(aiUsageCommissionSchema).meta({
     description: 'Commissions with an AI-assisted case or a rating in the year, in slug order',
   }),
 });
-true satisfies Conforms<AiUsageReport, typeof aiUsageReportSchema>;
+export type AiUsageReport = z.infer<typeof aiUsageReportSchema>;
 
 const EACC_ONLY = 'Only EACC analysts and supervisors see the AI usage counts.';
 
