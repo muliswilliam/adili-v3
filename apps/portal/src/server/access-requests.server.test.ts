@@ -18,7 +18,7 @@ import {
   failNextAccessCall,
   MOCK_ACCESS_REQUEST_IDS as IDS,
   mockAccessFetch,
-  resetAccessMock,
+  resetAccessMocks,
   setAccessMockLatency,
 } from './access/mock.server';
 import type { paths as AccessPaths } from './access/schema.gen';
@@ -86,7 +86,7 @@ const DRAFT: FormKDraft = {
 const checked = (draft: FormKDraft = DRAFT) => formKDraftSchema.parse(draft);
 
 beforeEach(() => {
-  resetAccessMock(NOW);
+  resetAccessMocks(NOW);
   setAccessMockLatency(0);
 });
 
@@ -260,7 +260,7 @@ describe('loadRequest', () => {
   it('dates the seeds by Kenyan day, even between 00:00 and 03:00 in Nairobi', async () => {
     // 01:00 on 3 October in Nairobi, while UTC is still on 2 October.
     const night = Date.parse('2026-10-02T22:00:00Z');
-    resetAccessMock(night);
+    resetAccessMocks(night);
     const result = await loadRequest(clients().access, IDS.deciding);
     if (result.status !== 'ok') throw new Error(result.status);
     // Submitted 27 Kenyan days ago, at 09:12 in Nairobi: day 27 of 30, due in 3 days.
@@ -351,7 +351,7 @@ describe('readPackageDownload (#261, S7)', () => {
       // Seeded as of NOW, but run a month later: every seeded window has closed by the wall clock.
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(NOW + 30 * 86_400_000);
-      resetAccessMock(NOW);
+      resetAccessMocks(NOW);
       const { documentId } = await packageOf(IDS.granted);
       expect(await readPackageDownload(clients().documents, documentId)).toEqual({
         status: 'ok',
