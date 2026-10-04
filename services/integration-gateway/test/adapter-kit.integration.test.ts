@@ -373,8 +373,9 @@ describe('adapter kit', () => {
       const result = await lookup(WANJIKU);
 
       expect(result).toMatchObject({ outcome: 'unavailable', reason: 'timeout' });
-      // Measured where the call runs: the lookup's own time adds the row write.
-      expect(kra.abortedAfterMs).toBeGreaterThanOrEqual(1_999);
+      // Measured where the call runs: the lookup's own time adds the row write. Timers fire off
+      // libuv's cached loop time, which can trail performance.now() by a few milliseconds.
+      expect(kra.abortedAfterMs).toBeGreaterThanOrEqual(1_990);
       expect(kra.abortedAfterMs).toBeLessThan(3_000);
       const [row] = (await rows()).slice(-1);
       expect(row).toMatchObject({ outcome: 'unavailable', reason: 'timeout' });
@@ -432,10 +433,11 @@ describe('adapter kit', () => {
       // One a second, timed from the slots: the first slot falls after `queued`, the second a
       // second after it. The gap between the two calls is no measure: the first call can start
       // late after its slot (its reply waits on a busy event loop) while the second, timed on
-      // Valkey's clock, starts on its slot. Within 2 ms: Valkey's TIME floored to the millisecond
-      // and a Node timer firing up to a millisecond early.
+      // Valkey's clock, starts on its slot. Within 10 ms: Valkey's TIME floored to the
+      // millisecond, and the reservation's timer firing off libuv's cached loop time, which can
+      // trail performance.now() by a few milliseconds.
       const [, second = 0] = ntsa.callTimes;
-      expect(second - queued).toBeGreaterThanOrEqual(998);
+      expect(second - queued).toBeGreaterThanOrEqual(990);
     });
   });
 
@@ -475,15 +477,16 @@ describe('adapter kit', () => {
 
     it('refuses a lookup rate-limited before any of its calls when its slots are past the max wait, without tripping the breaker', async () => {
       brs.callsPerLookup = 2;
-      brs.extraCalls = 1;
+      brs.extraCalls = 3;
       await lookup('30000006', forCase, brs);
       brs.extraCalls = 0;
 
-      // Three calls charged at one a second: the next two would wait three seconds, past 2.5 s.
+      // Five calls charged at one a second: the next two would wait five seconds less the time
+      // the first lookup took, well past the 2.5 s max wait however slow the run.
       const result = await lookup('30000007', forCase, brs);
 
       expect(result).toMatchObject({ outcome: 'unavailable', reason: 'rate-limited' });
-      expect(brs.calls).toBe(3);
+      expect(brs.calls).toBe(5);
       // Our own limit is no registry failure.
       expect(breakerState()).toBe(CircuitState.Closed);
       const [, row] = await rows();

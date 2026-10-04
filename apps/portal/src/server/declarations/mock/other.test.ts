@@ -1,5 +1,5 @@
 import createClient from 'openapi-fetch';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadSection, loadSummary, saveSection, startDeclaration } from '../../declarations.server';
 import { MOCK_OBLIGATIONS, mockDeclarationsFetch, resetDeclarationsMock } from '../mock.server';
@@ -24,8 +24,18 @@ function context(overrides: Partial<RuleContext> = {}): RuleContext {
 
 const ANSWERED = { dualCitizenship: { holds: false, pendingApplication: false } };
 
+// The mock's obligations are fixed dates (the biennial's statement date is 2027-11-01), so the
+// round trip runs on a clock pinned before them, as the other declarations tests do.
+const NOW = Date.parse('2026-09-30T07:42:00Z');
+
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(NOW);
   resetDeclarationsMock();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('other information rules (S11)', () => {

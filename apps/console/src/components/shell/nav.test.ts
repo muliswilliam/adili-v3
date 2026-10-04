@@ -65,10 +65,10 @@ describe('navFor', () => {
     ]);
   });
 
-  it('shows reviewers Obligations and the review queue, leaving out what is not built yet', () => {
+  it('shows reviewers Obligations, the review queue and Actions, leaving out what is not built yet', () => {
     expect(labels(['reviewer'])).toEqual([
       ['Commission', ['Obligations']],
-      ['Review', ['Review queue']],
+      ['Review', ['Review queue', 'Actions', 'Referrals']],
     ]);
   });
 
@@ -77,7 +77,7 @@ describe('navFor', () => {
     expect(labels(['supervisor'])).toEqual([
       ['Access', ['Access requests']],
       ['Commission', ['Obligations']],
-      ['Review', ['Review queue']],
+      ['Review', ['Review queue', 'Approvals', 'Actions', 'Referrals']],
       ['Reporting', ['Form M']],
     ]);
     expect(navFor(['access-officer'])[0]?.items[0]?.to).toBe('/access/requests');

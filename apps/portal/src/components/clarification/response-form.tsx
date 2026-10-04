@@ -22,7 +22,7 @@ import {
   Textarea,
 } from '@adili/ui';
 import { Clock01Icon, SentIcon, WifiOff01Icon } from '@hugeicons/core-free-icons';
-import { type Dispatch, useReducer, useState } from 'react';
+import { type Dispatch, useReducer } from 'react';
 
 import { COPY } from '../../clarification/copy';
 import { lateDays } from '../../clarification/deadline';
@@ -40,17 +40,8 @@ import {
   type ResponseForm,
   responseFormReducer,
 } from '../../clarification/response-form';
-import {
-  completeAttachmentUpload,
-  createAttachmentUpload,
-  getAttachmentUpload,
-} from '../../server/documents/uploads';
 import type { DeclarantClarification } from '../../server/review/types';
-import {
-  putToPresignedUrl,
-  uploadAttachment,
-  type UploadSteps,
-} from '../declaration/attachment-upload';
+import { useResponseUploads } from '../response-uploads';
 import { ATTACHMENT_ACCEPT, ATTACHMENT_MAX_BYTES } from '../declaration/attachments';
 
 /**
@@ -67,55 +58,16 @@ export interface ResponseFormState {
   retry: (rowId: string) => void;
 }
 
-function wait(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
-}
-
 export function useResponseForm(points: number): ResponseFormState {
   const [form, dispatch] = useReducer(responseFormReducer, points, newResponseForm);
-  // The picked files by row id, to upload a failed one again.
-  const [files] = useState(() => new Map<string, File>());
-
-  function start(rowId: string, file: File) {
-    const steps: UploadSteps = {
-      reserve: (picked) =>
-        createAttachmentUpload({ data: { ...picked, purpose: 'clarification-attachment' } }),
-      put: putToPresignedUrl,
-      complete: (uploadId) => completeAttachmentUpload({ data: { uploadId } }),
-      check: (uploadId) => getAttachmentUpload({ data: { uploadId } }),
-      // A clarification attachment is tied to the response when it is sent; nothing to link.
-      link: () => Promise.resolve({ status: 'linked', size: file.size }),
-      wait,
-    };
-    void uploadAttachment(rowId, file, steps, (event) => {
-      if (event.type === 'linked') files.delete(rowId);
-      dispatch(event);
-    });
-  }
-
+  const uploads = useResponseUploads('clarification-attachment', dispatch);
   return {
     form,
     dispatch,
     attach: (index, file, rejection) => {
-      const rowId = crypto.randomUUID();
-      dispatch({
-        type: 'picked',
-        id: rowId,
-        itemId: pointKey(index),
-        name: file.name,
-        size: file.size,
-        rejection,
-      });
-      if (rejection) return;
-      files.set(rowId, file);
-      start(rowId, file);
+      uploads.attach(pointKey(index), file, rejection);
     },
-    retry: (rowId) => {
-      const file = files.get(rowId);
-      if (!file) return;
-      dispatch({ type: 'retry', id: rowId });
-      start(rowId, file);
-    },
+    retry: uploads.retry,
   };
 }
 

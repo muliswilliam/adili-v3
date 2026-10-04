@@ -372,4 +372,12 @@ describe('the Form M workspace (S15)', () => {
     expect(screen.getByRole('button', { name: 'Preview action' })).toBeTruthy();
     expect(screen.queryByText('Preview. Submit after 30 Jun 2027.')).toBeNull();
   });
+
+  it('does not ask the sign-off screens for a footer action on a submitted report', async () => {
+    resetReportingMock('2027-04-10');
+    const footerActions = vi.fn(() => <button type="button">Confirm and submit</button>);
+    show(await load('2027-04-10', { fy: 2025 }), { extensions: { footerActions } });
+    expect(footerActions).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Confirm and submit' })).toBeNull();
+  });
 });
