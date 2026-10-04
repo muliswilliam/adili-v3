@@ -42,7 +42,7 @@ import {
   UserMultipleIcon,
 } from '@hugeicons/core-free-icons';
 import { useNavigate } from '@tanstack/react-router';
-import { type ReactNode, useEffect, useId, useState } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 import { getDeclarationSection } from '../../server/declarations';
 import type {
@@ -87,7 +87,13 @@ import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-ite
 import { ownerOf, personKeyOf } from '../../declaration/section-key';
 import { liveSections, relationLabel, stepLink } from './steps';
 import { categoryOfItem, withAcceptedItem } from '../../declaration/suggestions';
-import { focusControl, useFocusFirstError, useShownErrors } from './section-errors';
+import {
+  focusControl,
+  useFocusFirstError,
+  useFocusLinkedField,
+  useShownErrors,
+} from './section-errors';
+import { useAskAdiliTab } from '../assistant/context';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 export type { ItemAttachmentSlot, RenderAttachments } from './statement-item-editor';
@@ -130,6 +136,11 @@ export interface StatementSectionProps {
   etag: string;
   /** Show every missing answer at once, e.g. when arriving from the summary's list. */
   showErrors?: boolean;
+  /**
+   * A JSON pointer to open and focus, e.g. `/assets/1/value` from an Ask Adili answer: its tab,
+   * its item's editor and the field; `/assets` opens the tab.
+   */
+  focusField?: string;
   /** The spouse is separated: declare what is known, and say how much. */
   separated?: boolean;
   /**
@@ -164,6 +175,7 @@ export function StatementSection({
   section,
   etag,
   showErrors = false,
+  focusField,
   separated = false,
   renderAttachments,
   registries,
@@ -186,6 +198,7 @@ export function StatementSection({
   const [editing, setEditing] = useState<string | null>(() =>
     showErrors ? (firstIssue(statement, firstCategoryWithIssues(statement))?.id ?? null) : null,
   );
+  useAskAdiliTab(tab);
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const { touch, shown } = useShownErrors(showErrors);
   const [badMoney, setBadMoney] = useState<ReadonlyMap<string, MoneyInvalidReason>>(new Map());
@@ -200,6 +213,28 @@ export function StatementSection({
   useFocusFirstError(showErrors, () => {
     const first = firstIssue(statement, tab);
     return first ? itemFieldId(first.id, first.field) : null;
+  });
+
+  // A field linked from Ask Adili: its tab and item open as the link arrives, then it is focused.
+  const linked = focusField ? linkedField(statement, focusField) : null;
+  const [linkedFor, setLinkedFor] = useState<string | undefined>(undefined);
+  if (focusField !== linkedFor) {
+    setLinkedFor(focusField);
+    if (linked) {
+      setTab(linked.category);
+      if (linked.itemId) setEditing(linked.itemId);
+    }
+  }
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useFocusLinkedField(focusField, () => {
+    if (!linked) return null;
+    if (linked.itemId) {
+      return (
+        document.getElementById(itemFieldId(linked.itemId, linked.control)) ??
+        document.getElementById(itemFieldId(linked.itemId, AMOUNT_CONTROL))
+      );
+    }
+    return tabsRef.current?.querySelector<HTMLElement>('[role="tab"][data-state="active"]') ?? null;
   });
 
   function itemsOf(category: Category): Item[] {
@@ -338,6 +373,7 @@ export function StatementSection({
       ) : null}
 
       <Tabs
+        ref={tabsRef}
         value={tab}
         onValueChange={(value) => {
           setTab(value as Category);
@@ -474,6 +510,34 @@ export function StatementSection({
       />
     </div>
   );
+}
+
+/** The item editor's control for the amount, whichever the category calls it. */
+const AMOUNT_CONTROL = 'amount';
+
+/** Pointer parts after the item's index, to the id its editor gives the control. */
+function itemControl(parts: readonly string[]): string {
+  const [first, second] = parts;
+  if (first === undefined || first === 'value' || first === 'amount' || first === 'outstanding') {
+    return AMOUNT_CONTROL;
+  }
+  if (first === 'details' && second) return second;
+  if (first === 'joint') return second === 'coOwner' ? 'coOwner' : 'share';
+  if (first === 'change') return second === 'explanation' ? 'explanation' : 'changeKind';
+  if (first === 'location' && second && second !== 'inKenya') return second;
+  return first;
+}
+
+/** Where a pointer into a statement leads: a tab, and maybe an item and its control. */
+function linkedField(
+  statement: Draft<Statement>,
+  pointer: string,
+): { category: Category; itemId: string | null; control: string } | null {
+  const [, category, index, ...rest] = pointer.split('/');
+  const found = CATEGORIES.find((candidate) => candidate === category);
+  if (!found) return null;
+  const item = index === undefined ? undefined : statement[found]?.[Number(index)];
+  return { category: found, itemId: item?.id ?? null, control: itemControl(rest) };
 }
 
 function firstCategoryWithIssues(statement: Draft<Statement>): Category {

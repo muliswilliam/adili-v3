@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { formMIssues } from '@adili/forms';
-import { and, desc, eq, inArray, lt } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 
 import { COMMISSION_ADMIN, SUPERVISOR } from '../access.js';
@@ -13,7 +13,12 @@ import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
 import { dueDateOf, fyLabel } from '../financial-year.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
-import { actionFacts, clarificationFacts, obligationFacts } from '../projections/schema.js';
+import {
+  accessRequestFacts,
+  actionFacts,
+  clarificationFacts,
+  obligationFacts,
+} from '../projections/schema.js';
 import { ReviewClient } from '../review/review-client.js';
 import { systemContext } from '../system-context.js';
 import type {
@@ -102,7 +107,15 @@ export class ComplianceReportActivities {
         })
         .from(clarificationFacts)
         .where(and(eq(clarificationFacts.tenant, tenant), eq(clarificationFacts.fy, fy)));
-      return aggregateFacts(obligations, clarifications);
+      const accessRequests = await tx
+        .select({
+          outcome: accessRequestFacts.outcome,
+          grounds: accessRequestFacts.grounds,
+          withdrawn: sql<boolean>`${accessRequestFacts.withdrawnAt} is not null`,
+        })
+        .from(accessRequestFacts)
+        .where(and(eq(accessRequestFacts.tenant, tenant), eq(accessRequestFacts.fy, fy)));
+      return aggregateFacts(obligations, clarifications, accessRequests);
     });
   }
 

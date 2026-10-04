@@ -5,12 +5,15 @@ import {
   ChartColumnIcon,
   CheckListIcon,
   File01Icon,
+  Flag02Icon,
   InboxIcon,
   Key01Icon,
+  Legal01Icon,
   PlugSocketIcon,
   Shield01Icon,
   SquareLock02Icon,
   SparklesIcon,
+  StampIcon,
   UserGroupIcon,
 } from '@hugeicons/core-free-icons';
 
@@ -71,7 +74,10 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
   {
     label: 'EACC',
     // The intake, its reports and the national report all sit under /eacc/reports.
-    items: [{ workspace: 'compliance', icon: InboxIcon, section: '/eacc/reports' }],
+    items: [
+      { workspace: 'compliance', icon: InboxIcon, section: '/eacc/reports' },
+      { workspace: 'referrals-intake', icon: Flag02Icon },
+    ],
   },
   {
     label: 'Law enforcement',
@@ -99,7 +105,12 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
   },
   {
     label: 'Review',
-    items: [{ workspace: 'review', icon: CheckListIcon }],
+    items: [
+      { workspace: 'review', icon: CheckListIcon },
+      { workspace: 'approvals', icon: StampIcon },
+      { workspace: 'actions', icon: Legal01Icon },
+      { workspace: 'referrals', icon: Flag02Icon },
+    ],
   },
   {
     label: 'Reporting',

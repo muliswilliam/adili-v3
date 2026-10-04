@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { addDays } from '@adili/ui';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   issueDraft,
@@ -244,6 +245,23 @@ describe('issueDraft (S12)', () => {
     expect(await issueDraft(client(), CASES.mine, null, { items: [] }, KEYS)).toMatchObject({
       ok: false,
       error: { kind: 'problem', problem: { status: 400 } },
+    });
+  });
+
+  describe('on a wall clock past the seeded windows', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('issues as of when the mock was seeded, not the wall clock', async () => {
+      // Seeded as of NOW, but run a day after the case's 30-day window closed by the wall clock.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(Date.parse(addDays(NOW, 31)));
+      resetReviewMock(NOW_MS);
+      const issued = await issueDraft(client(), CASES.mine, null, { items: [PLOT_ITEM] }, KEYS);
+      if (!issued.ok) throw new Error(JSON.stringify(issued.error));
+      expect(issued.data).toMatchObject({ status: 'issued', issuedAt: NOW });
+      expect(issued.data.dueAt).toBe('2026-10-28T09:00:00.000Z');
     });
   });
 

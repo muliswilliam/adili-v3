@@ -39,6 +39,7 @@ export const ATTACHMENT_PURPOSES = [
   'declaration-attachment',
   'clarification-attachment',
   'access-representation',
+  'action-response',
 ] as const satisfies readonly UploadPurpose[];
 
 export type AttachmentPurpose = (typeof ATTACHMENT_PURPOSES)[number];

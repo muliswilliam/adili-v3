@@ -1,8 +1,13 @@
-import { addDays, daysBetween, INTAKE_STATUSES } from '@adili/ui';
+import { daysBetween, INTAKE_STATUSES } from '@adili/ui';
 
 import type { Intake, IntakeRow, IntakeStatus } from '../../server/reporting/types';
-import { nairobiDay } from '../access/request-view';
-import { dueDateOf, FIRST_FINANCIAL_YEAR, financialYearOf } from '../form-m/financial-year';
+import {
+  dayAfter,
+  dueDateOf,
+  FIRST_FINANCIAL_YEAR,
+  financialYearOf,
+  nairobiDayOf,
+} from '../form-m/financial-year';
 
 /**
  * The EACC intake dashboard's rules (spec 09 FE-3), apart from rendering: which financial years
@@ -78,11 +83,11 @@ export function intakeCounts(rows: readonly IntakeRow[]): IntakeCounts {
 export function nextChaseOn(intake: Intake, today: string): string | null {
   const last = intake.commissions
     .filter((row) => row.status === 'not-reported')
-    .flatMap((row) => (row.chases.lastAt ? [nairobiDay(row.chases.lastAt)] : []))
+    .flatMap((row) => (row.chases.lastAt ? [nairobiDayOf(row.chases.lastAt)] : []))
     .sort()
     .at(-1);
   if (!last) return null;
-  const next = addDays(last, 7).slice(0, 10);
+  const next = dayAfter(last, 7);
   return next >= today ? next : null;
 }
 

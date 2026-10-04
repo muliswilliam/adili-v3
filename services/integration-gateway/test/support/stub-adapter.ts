@@ -26,7 +26,10 @@ export class StubAdapter implements RegistryAdapter<StubRecord> {
   /** `performance.now()` at the start of each call. */
   readonly callTimes: number[] = [];
   behaviour: StubAdapterBehaviour = { kind: 'registry' };
-  /** How long the last hanging call ran before its signal aborted; null until one did. */
+  /**
+   * How long the last hanging call ran, from its start, before its signal aborted; null until
+   * one did.
+   */
   abortedAfterMs: number | null = null;
   /** Calls a lookup reserves and makes at once, as KRA's PINs and one PIN's compliance. */
   callsPerLookup = 1;
@@ -53,6 +56,8 @@ export class StubAdapter implements RegistryAdapter<StubRecord> {
     signal: AbortSignal,
     calls: UpstreamCalls,
   ): Promise<StubRecord | null> {
+    // The kit's deadline runs from here: the charge below (a Valkey round trip) is inside it.
+    const started = performance.now();
     for (let call = 0; call < this.callsPerLookup; call += 1)
       this.callTimes.push(performance.now());
     await calls.charge(this.extraCalls);
@@ -65,7 +70,6 @@ export class StubAdapter implements RegistryAdapter<StubRecord> {
         throw behaviour.error;
       case 'hang':
         return new Promise((_, reject) => {
-          const started = performance.now();
           signal.addEventListener('abort', () => {
             this.abortedAfterMs = performance.now() - started;
             reject(new UpstreamError('upstream-error', 'Stub registry call aborted'));

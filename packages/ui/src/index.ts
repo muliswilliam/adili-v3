@@ -41,6 +41,7 @@ export {
 export { Avatar, type AvatarProps, type AvatarTone } from './components/avatar';
 export { Badge, type BadgeProps, badgeVariants } from './components/badge';
 export {
+  BATCH_FILTERS_GRID,
   BATCH_PHASES,
   BATCH_SELECTOR_MESSAGES,
   type BatchPhase,
@@ -174,6 +175,7 @@ export {
   diffDelta,
   type DiffGroup,
   type DiffKind,
+  diffHighlighted,
   diffKind,
   diffPercent,
   type DiffRow,
@@ -444,6 +446,14 @@ export {
   RegistryStatusRow,
   type RegistryStatusRowProps,
 } from './components/registry-status';
+export {
+  RELEASE_STATUS_BADGE_MESSAGES,
+  RELEASE_STATUSES,
+  type ReleaseStatus,
+  ReleaseStatusBadge,
+  type ReleaseStatusBadgeMessages,
+  type ReleaseStatusBadgeProps,
+} from './components/release-status-badge';
 export { type RepeaterActionLabels, Repeater, type RepeaterProps } from './components/repeater';
 export {
   SaveIndicator,
@@ -548,6 +558,23 @@ export {
   type SuggestionMessages,
   type SuggestionStatus,
 } from './components/suggestion-card';
+export { Switch, type SwitchProps } from './components/switch';
+export {
+  DEFAULT_SUPPRESSION_THRESHOLD,
+  UNSHOWN_FIGURE_KINDS,
+  SUPPRESSION_LEGEND_MESSAGES,
+  SUPPRESSION_MARKER_MESSAGES,
+  type UnshownFigureKind,
+  SuppressionLegend,
+  type SuppressionLegendMessages,
+  type SuppressionLegendMessagesOverride,
+  type SuppressionLegendProps,
+  SuppressionMarker,
+  type SuppressionMarkerCopy,
+  type SuppressionMarkerMessages,
+  type SuppressionMarkerMessagesOverride,
+  type SuppressionMarkerProps,
+} from './components/suppression-marker';
 export {
   Table,
   TableBody,
