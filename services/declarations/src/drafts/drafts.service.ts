@@ -7,6 +7,7 @@ import { ATTESTATION_TEXT, type DeclarationSectionKey, type PersonKey } from '@a
 import { and, count, desc, eq, inArray, max, ne, notInArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
+import { deleteWhatGoesWithTheDraft } from './draft-ended.js';
 import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
@@ -84,7 +85,6 @@ import {
   statementKey,
   statementPersonKey,
 } from './sections.js';
-import { deleteSuggestions } from '../suggestions/expiry.js';
 import { personNames, statementChanges, writeStatementChanges } from './statements.js';
 import { asDeclaredFor } from './since-last.js';
 import { reviewDraft } from './summary.js';
@@ -332,8 +332,8 @@ export class DraftsService {
       await tx
         .delete(declarationSections)
         .where(eq(declarationSections.declarationId, declaration.id));
-      // Registry suggestions go with the draft (spec 05b S7).
-      await deleteSuggestions(tx, declaration.id);
+      // Registry suggestions (spec 05b S7) and the Ask Adili conversation go with the draft.
+      await deleteWhatGoesWithTheDraft(tx, declaration.id);
       await tx
         .update(declarations)
         .set({ status: 'discarded' })

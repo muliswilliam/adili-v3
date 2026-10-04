@@ -29,6 +29,7 @@ import { addDays } from '@adili/ui';
 import { mockUpload } from '../documents/mock.server';
 import type { Env } from '../env.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
+import { reviewClock } from './mock-clock.server';
 import type { components } from './schema.gen';
 
 type Notice = components['schemas']['DeclarantNotice'];
@@ -291,7 +292,7 @@ async function respond(request: Request, actionId: string): Promise<Response> {
   const updated: Notice = {
     ...found,
     status: 'responded',
-    response: { text, attachments: files, submittedAt: new Date().toISOString() },
+    response: { text, attachments: files, submittedAt: reviewClock.isoNow() },
   };
   notices.set(actionId, updated);
   const reply = json(201, updated);

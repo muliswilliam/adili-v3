@@ -31,6 +31,7 @@ import { addDays } from '@adili/ui';
 
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
+import { reviewClock } from './mock-clock.server';
 import {
   type MockSalary,
   noticeInStore,
@@ -195,6 +196,7 @@ export function resetReviewMock(
     salary = 'none',
   }: { letterIssueMs?: number; noNotices?: boolean; salary?: MockSalary } = {},
 ) {
+  reviewClock.startAt(now);
   resetNoticesMock(now, { empty: noNotices, salary });
   issueDelayMs = letterIssueMs;
   decisions.clear();
@@ -351,7 +353,7 @@ export function mockNotice(actionId: string) {
 
 /** Seeds the fixtures on first use; `salary` is the dev server's REVIEW_MOCK_SALARY. */
 function ensureSeeded(salary: MockSalary = 'none') {
-  if (clarifications.size === 0) resetReviewMock(Date.now(), { salary });
+  if (clarifications.size === 0) resetReviewMock(reviewClock.now(), { salary });
 }
 
 /**
@@ -454,7 +456,7 @@ async function respond(request: Request, id: string): Promise<Response> {
     answers.push({ index: item.index, text: item.text, attachments: files });
   }
 
-  const now = new Date().toISOString();
+  const now = reviewClock.isoNow();
   const updated: DeclarantClarification = {
     ...found,
     status: 'responded',

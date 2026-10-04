@@ -7,7 +7,12 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { complianceReportWorkflowId } from '../../src/compliance-reports/contract.js';
 import { complianceReports } from '../../src/db/schema.js';
 import { contractErrors, okResponse } from '../support/contract.js';
-import { declarationSubmitted, obligationCreated } from '../support/events.js';
+import {
+  accessEvent,
+  declarationSubmitted,
+  leaEvent,
+  obligationCreated,
+} from '../support/events.js';
 import {
   COMMISSION_ADMIN,
   compiledReport,
@@ -74,7 +79,8 @@ describe('Form M compile (S2, S3, S4)', () => {
         reviewedBy: null,
         reference: null,
         dueDate: '2028-07-31',
-        accessDataUnavailable: true,
+        // No access request received in the year: zeros, but the data is there.
+        accessDataUnavailable: false,
         counts: {
           initial: { expected: 12, declared: 10, notDeclared: 2 },
           biennial: { expected: 100, declared: 95, notDeclared: 5, noCycleInPeriod: false },
@@ -170,7 +176,7 @@ describe('Form M compile (S2, S3, S4)', () => {
         granted: 0,
         declined: 0,
         declineReasons: [],
-        dataUnavailable: true,
+        dataUnavailable: false,
       });
       expect(document.partII.complaints).toEqual({ registerMaintained: null, items: [] });
       expect(document.partIII).toEqual({
@@ -312,6 +318,93 @@ describe('Form M compile (S2, S3, S4)', () => {
     expect(validateFormM(document)).toEqual({ ok: true, value: document });
     // Recompiling tells no one again.
     await expect.poll(() => api.notifications.sent).toHaveLength(2);
+  });
+
+  it('section 5: counts the Form K requests received in the year, with their outcomes and the reasons cited', async () => {
+    const granted = randomUUID();
+    const partial = randomUUID();
+    const denied = randomUUID();
+    const unidentified = randomUUID();
+    const withdrawn = randomUUID();
+    const open = randomUUID();
+    const lateDecided = randomUUID();
+    const lastYear = randomUUID();
+    const leaRequest = randomUUID();
+    const events = [
+      // FY 2027 (1 July 2027 to 30 June 2028, Nairobi time).
+      accessEvent('psc', 'received', { requestId: granted, at: '2027-08-02T08:00:00Z' }),
+      accessEvent('psc', 'decided', { requestId: granted, at: '2027-08-20T08:00:00Z' }),
+      accessEvent('psc', 'received', { requestId: partial, at: '2027-09-01T08:00:00Z' }),
+      accessEvent('psc', 'decided', {
+        requestId: partial,
+        at: '2027-09-25T08:00:00Z',
+        outcome: 'partial-grant',
+        grounds: ['prejudice-proceeding'],
+      }),
+      accessEvent('psc', 'received', { requestId: denied, at: '2027-10-01T08:00:00Z' }),
+      accessEvent('psc', 'decided', {
+        requestId: denied,
+        at: '2027-10-25T08:00:00Z',
+        outcome: 'deny',
+        grounds: ['prejudice-proceeding', 'frivolous-vexatious'],
+      }),
+      accessEvent('psc', 'received', { requestId: unidentified, at: '2027-11-01T08:00:00Z' }),
+      accessEvent('psc', 'cannot-identify', {
+        requestId: unidentified,
+        at: '2027-11-03T08:00:00Z',
+      }),
+      accessEvent('psc', 'received', { requestId: withdrawn, at: '2027-12-01T08:00:00Z' }),
+      accessEvent('psc', 'withdrawn', { requestId: withdrawn, at: '2027-12-02T08:00:00Z' }),
+      accessEvent('psc', 'received', { requestId: open, at: '2028-06-20T08:00:00Z' }),
+      // Received at 22:00 Nairobi on 30 June 2028, decided in FY 2028: counted in FY 2027.
+      accessEvent('psc', 'received', { requestId: lateDecided, at: '2028-06-30T19:00:00Z' }),
+      accessEvent('psc', 'decided', {
+        requestId: lateDecided,
+        at: '2028-07-20T08:00:00Z',
+        outcome: 'deny',
+        grounds: ['public-interest'],
+      }),
+      // Received in FY 2026, decided in FY 2027: counted in FY 2026.
+      accessEvent('psc', 'received', { requestId: lastYear, at: '2027-06-25T08:00:00Z' }),
+      accessEvent('psc', 'decided', { requestId: lastYear, at: '2027-07-10T08:00:00Z' }),
+      // Another Commission's request.
+      accessEvent('tsc', 'received', { requestId: randomUUID(), at: '2027-08-02T08:00:00Z' }),
+      // A law enforcement request (s.36(2)): not counted.
+      leaEvent('psc', 'received', { requestId: leaRequest, at: '2027-08-05T08:00:00Z' }),
+      leaEvent('psc', 'decided', {
+        requestId: leaRequest,
+        at: '2027-08-15T08:00:00Z',
+        outcome: 'deny',
+        grounds: ['prejudice-proceeding'],
+      }),
+    ];
+    for (const event of events) {
+      // Form K events are consumed; law enforcement ones are never routed to reporting.
+      expect(await api.deliver(event)).toBe(event.type.startsWith('access.'));
+    }
+    api.declarations.given('psc');
+    api.clock.set('2028-07-25T06:00:00.000Z');
+
+    await compile(2027);
+    const report = await compiledReport(api, 2027);
+
+    expect(report.accessDataUnavailable).toBe(false);
+    expect(report.counts).toMatchObject({
+      accessRequests: { received: 7, granted: 2, declined: 3 },
+    });
+    expect(report.document?.partII.accessRequests).toEqual({
+      received: 7,
+      granted: 2,
+      declined: 3,
+      // The denial citing two grounds counts under each: the reasons add up to more than declined.
+      declineReasons: [
+        { reason: 'public-interest', count: 1 },
+        { reason: 'prejudice-proceeding', count: 2 },
+        { reason: 'frivolous-vexatious', count: 1 },
+        { reason: 'other', count: 1 },
+      ],
+      dataUnavailable: false,
+    });
   });
 
   it('S4: an even financial year without a biennial cycle marks section 2 noCycleInPeriod with zero counts', async () => {
