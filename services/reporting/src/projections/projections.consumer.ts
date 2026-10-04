@@ -374,10 +374,15 @@ export class ProjectionsConsumer {
   accessRequestReceived(@Payload() event: EventEnvelope): Promise<boolean> {
     const data = accessRequestReceivedDataSchema.parse(event.data);
     const receivedAt = new Date(data.at);
-    return this.accessRequest(event, data.subjectId, {
-      fy: financialYearAt(receivedAt),
-      receivedAt,
-    });
+    return this.accessRequest(
+      event,
+      data.subjectId,
+      { fy: financialYearAt(receivedAt), receivedAt },
+      earliestHolds(
+        { fy: accessRequestFacts.fy, receivedAt: accessRequestFacts.receivedAt },
+        'receivedAt',
+      ),
+    );
   }
 
   /** The access officer's final decision, with the Regulation 24 grounds it cites. */
@@ -406,49 +411,54 @@ export class ProjectionsConsumer {
   @OnEvent(ACCESS_REQUEST_WITHDRAWN)
   accessRequestWithdrawn(@Payload() event: EventEnvelope): Promise<boolean> {
     const data = accessRegisterEventDataSchema.parse(event.data);
-    return this.accessRequest(event, data.subjectId, { withdrawnAt: new Date(data.at) });
-  }
-
-  /**
-   * Upserts what one event knows of a Form K request, and only that, so a decision that arrives
-   * before the receipt still lands in the year the receipt brings. Receipt and withdrawal
-   * happen once per request.
-   */
-  private accessRequest(
-    event: EventEnvelope,
-    requestId: string,
-    facts: Partial<Omit<typeof accessRequestFacts.$inferInsert, 'requestId' | 'tenant'>>,
-  ): Promise<boolean> {
-    return this.project(event, (tx, tenant) =>
-      tx
-        .insert(accessRequestFacts)
-        .values({ requestId, tenant, ...facts })
-        .onConflictDoUpdate({ target: accessRequestFacts.requestId, set: facts }),
+    return this.accessRequest(
+      event,
+      data.subjectId,
+      { withdrawnAt: new Date(data.at) },
+      earliestHolds({ withdrawnAt: accessRequestFacts.withdrawnAt }, 'withdrawnAt'),
     );
   }
 
   /**
    * How a Form K request closed: a decision, or the officer not identified. Final, so the
-   * earliest closure holds and a later (or late redelivered) one cannot replace it.
+   * earliest closure holds. Access sends one closure per request; this keeps a conflicting or
+   * late redelivered one from replacing it all the same.
    */
   private closeAccessRequest(
     event: EventEnvelope,
     requestId: string,
     facts: { outcome: AccessRequestFactOutcome; grounds: AccessGround[]; closedAt: Date },
   ): Promise<boolean> {
-    const first = sql`(${accessRequestFacts.closedAt} is null or excluded.closed_at < ${accessRequestFacts.closedAt})`;
+    return this.accessRequest(
+      event,
+      requestId,
+      facts,
+      earliestHolds(
+        {
+          outcome: accessRequestFacts.outcome,
+          grounds: accessRequestFacts.grounds,
+          closedAt: accessRequestFacts.closedAt,
+        },
+        'closedAt',
+      ),
+    );
+  }
+
+  /**
+   * Upserts what one event knows of a Form K request, and only that (`set`), so a decision that
+   * arrives before the receipt still lands in the year the receipt brings.
+   */
+  private accessRequest(
+    event: EventEnvelope,
+    requestId: string,
+    facts: Partial<Omit<typeof accessRequestFacts.$inferInsert, 'requestId' | 'tenant'>>,
+    set: Record<string, SQL>,
+  ): Promise<boolean> {
     return this.project(event, (tx, tenant) =>
       tx
         .insert(accessRequestFacts)
         .values({ requestId, tenant, ...facts })
-        .onConflictDoUpdate({
-          target: accessRequestFacts.requestId,
-          set: {
-            outcome: sql`case when ${first} then excluded.outcome else ${accessRequestFacts.outcome} end`,
-            grounds: sql`case when ${first} then excluded.grounds else ${accessRequestFacts.grounds} end`,
-            closedAt: sql`case when ${first} then excluded.closed_at else ${accessRequestFacts.closedAt} end`,
-          },
-        }),
+        .onConflictDoUpdate({ target: accessRequestFacts.requestId, set }),
     );
   }
 
@@ -488,4 +498,25 @@ function newerStatus(status: PgColumn, statusAt: PgColumn): Record<string, SQL> 
     status: sql`case when ${newer} then excluded.status else ${status} end`,
     statusAt: sql`case when ${newer} then excluded.status_at else ${statusAt} end`,
   };
+}
+
+/**
+ * The `set` of an upsert that keeps what the earliest event brought: `columns` move only for an
+ * event earlier (by its `at` column) than the one that set them, so a later or re-emitted one
+ * cannot replace them, whatever order they arrive in.
+ */
+function earliestHolds<K extends string>(
+  columns: Record<K, PgColumn>,
+  at: NoInfer<K>,
+): Record<string, SQL> {
+  // The column the insert proposed; property names map to snake_case (`casing: 'snake_case'`).
+  const excluded = (key: string) =>
+    sql.raw(`excluded.${key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)}`);
+  const earlier = sql`(${columns[at]} is null or ${excluded(at)} < ${columns[at]})`;
+  return Object.fromEntries(
+    Object.entries<PgColumn>(columns).map(([key, column]) => [
+      key,
+      sql`case when ${earlier} then ${excluded(key)} else ${column} end`,
+    ]),
+  );
 }

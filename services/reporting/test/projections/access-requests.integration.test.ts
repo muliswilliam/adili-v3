@@ -128,6 +128,27 @@ describe('access request projections (Form M section 5)', () => {
     ]);
   });
 
+  it('keeps the earliest receipt of a request, whatever order a re-emitted one arrives in', async () => {
+    const requestId = randomUUID();
+    // Received on 30 June 2028 (FY 2027); the same receipt re-emitted under a new event id, later.
+    const received = accessEvent('psc', 'received', { requestId, at: '2028-06-30T08:00:00Z' });
+    const reemitted = accessEvent('psc', 'received', { requestId, at: '2028-07-02T08:00:00Z' });
+    const receipt = { fy: 2027, receivedAt: new Date('2028-06-30T08:00:00Z') };
+
+    expect(await api.deliver(received)).toBe(true);
+    expect(await api.deliver(reemitted)).toBe(true);
+    expect(await api.asPlatform((tx) => tx.select().from(accessRequestFacts))).toEqual([
+      expect.objectContaining({ requestId, ...receipt }),
+    ]);
+
+    await api.reset();
+    expect(await api.deliver(reemitted)).toBe(true);
+    expect(await api.deliver(received)).toBe(true);
+    expect(await api.asPlatform((tx) => tx.select().from(accessRequestFacts))).toEqual([
+      expect.objectContaining({ requestId, ...receipt }),
+    ]);
+  });
+
   it('closes a request whose officer cannot be identified, and records a withdrawal, under their Commission', async () => {
     const unidentified = randomUUID();
     const withdrawn = randomUUID();
