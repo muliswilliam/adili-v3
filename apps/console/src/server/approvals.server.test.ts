@@ -71,8 +71,8 @@ describe('loadApprovals (S14)', () => {
       resetReviewMock(NOW_MS);
       const result = await loadApprovals(supervisor(), 'tsc', { kind: 'determination' });
       expect(result.ok && result.data.counts.byAge).toEqual({
-        under7Days: 6,
-        from7To30Days: 6,
+        under7Days: 9,
+        from7To30Days: 8,
         over30Days: 1,
       });
     });

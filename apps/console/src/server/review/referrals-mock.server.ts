@@ -30,6 +30,7 @@ import { SUPERVISOR } from '@adili/roles';
 import { ASSET_RULES, NARRATIVE_EXCERPT } from '../../referral/view';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { MockApprovalSource } from './approvals-mock.server';
+import { reviewClock } from './mock-clock.server';
 import {
   MOCK_CALLER,
   type MockApprover,
@@ -366,7 +367,7 @@ export function resetReferralsMock(
 function current(found: StoredReferral): StoredReferral {
   if (found.status !== 'approved' || !found.approvedAt) return found;
   const sentAt = Date.parse(found.approvedAt) + MOCK_PACKAGE_DELAY_MS;
-  if (Date.now() < sentAt) return found;
+  if (reviewClock.now() < sentAt) return found;
   const documentId = randomUUID();
   found.status = 'sent';
   found.sentAt = new Date(sentAt).toISOString();
@@ -531,7 +532,7 @@ export async function referralsRoute(
     const reason = cannotApproveReferral(found, cases, caller);
     if (reason) return refuse(reason);
     const decider = { subject: caller.subject, name: caller.name };
-    const at = new Date().toISOString();
+    const at = reviewClock.isoNow();
     if (verb === 'approve') {
       found.status = 'approved';
       found.approver = decider;
@@ -609,7 +610,7 @@ async function proposeOn(
     grounds,
     proposerKind: 'user',
     proposer: { subject: caller.subject, name: caller.name },
-    proposedAt: new Date().toISOString(),
+    proposedAt: reviewClock.isoNow(),
     narrative: narrative.trim(),
     declarantName: found.item.declarantName,
     personnelFileNumber: found.item.personnelFileNumber,
