@@ -8,6 +8,8 @@ export interface MockClock {
   startAt(now: number): void;
   /** The mock's time now, in epoch milliseconds. */
   now(): number;
+  /** The mock's time now, as an ISO 8601 date-time (what timestamps in a response carry). */
+  isoNow(): string;
 }
 
 /**
@@ -17,12 +19,14 @@ export interface MockClock {
  */
 export function createMockClock(): MockClock {
   let offsetMs = 0;
+  const now = () => Date.now() + offsetMs;
   return {
-    startAt(now) {
-      offsetMs = now - Date.now();
+    startAt(seededAt) {
+      offsetMs = seededAt - Date.now();
     },
-    now() {
-      return Date.now() + offsetMs;
+    now,
+    isoNow() {
+      return new Date(now()).toISOString();
     },
   };
 }

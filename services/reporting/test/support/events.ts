@@ -21,7 +21,9 @@ export function envelope(
       ? 'adili/declarations'
       : type.startsWith('ai.')
         ? 'adili/ai-gateway'
-        : 'adili/review';
+        : type.startsWith('access.') || type.startsWith('lea.')
+          ? 'adili/access'
+          : 'adili/review';
   return {
     specversion: '1.0',
     id: uuidv7(),
@@ -269,5 +271,80 @@ export function aiFeedbackRecorded(
       recordedAt: fixture.recordedAt,
     },
     fixture.recordedAt,
+  );
+}
+
+/** The access-register steps reporting projects (spec 10 `access.request.*`). */
+type AccessStep = 'received' | 'decided' | 'cannot-identify' | 'withdrawn';
+
+/** What a test says of one access-register step. */
+interface AccessFixture {
+  requestId: string;
+  at: string;
+  outcome?: 'grant' | 'partial-grant' | 'deny';
+  grounds?: string[];
+}
+
+/**
+ * An access-register event of a Form K request (`access.request.*`, Act s.36(1)) as the access
+ * service publishes it (spec 10, `packages/events/src/contracts/access.ts`). The subject is the
+ * request.
+ */
+export function accessEvent(
+  tenant: string,
+  step: AccessStep,
+  fixture: AccessFixture,
+): EventEnvelope {
+  return registerEvent('access.request', 'access-request', 'act-s36-1', tenant, step, fixture);
+}
+
+/**
+ * An access-register event of a law enforcement request (`lea.request.*`, Act s.36(2)), which
+ * Form M section 5 does not count (decided on #239).
+ */
+export function leaEvent(
+  tenant: string,
+  step: Exclude<AccessStep, 'cannot-identify'>,
+  fixture: AccessFixture,
+): EventEnvelope {
+  return registerEvent('lea.request', 'lea-request', 'act-s36-2', tenant, step, fixture);
+}
+
+function registerEvent(
+  stream: 'access.request' | 'lea.request',
+  subjectKind: 'access-request' | 'lea-request',
+  legalBasis: 'act-s36-1' | 'act-s36-2',
+  tenant: string,
+  step: AccessStep,
+  fixture: AccessFixture,
+): EventEnvelope {
+  const facts =
+    step === 'received'
+      ? {
+          decisionDeadlineAt: new Date(Date.parse(fixture.at) + 30 * 86_400_000).toISOString(),
+        }
+      : step === 'decided'
+        ? { outcome: fixture.outcome ?? 'grant', grounds: fixture.grounds ?? [] }
+        : step === 'cannot-identify'
+          ? { declineReason: 'other' }
+          : {};
+  return envelope(
+    `${stream}.${step}.v1`,
+    tenant,
+    fixture.requestId,
+    {
+      registerEntryId: randomUUID(),
+      subjectKind,
+      subjectId: fixture.requestId,
+      reference: `ARQ-${tenant.toUpperCase()}-2028-0000001-3`,
+      tenant,
+      kind: step,
+      legalBasis,
+      personId: step === 'received' ? null : randomUUID(),
+      actor: step === 'received' ? null : `access-officer-${tenant}`,
+      at: fixture.at,
+      ...facts,
+    },
+    fixture.at,
   );
 }

@@ -1,3 +1,4 @@
+import { addDays } from '@adili/ui';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadCopilot, rateOutput, readCopilotView, refreshCopilot } from './copilot.server';
@@ -83,7 +84,7 @@ describe('copilot endpoints (review mock)', () => {
 
   it('generates as of when the mock was seeded, not the wall clock', async () => {
     // Seeded as of NOW, but run a month later.
-    const later = NOW_MS + 30 * 86_400_000;
+    const later = Date.parse(addDays(new Date(NOW_MS).toISOString(), 30));
     vi.setSystemTime(later);
     resetReviewMock(NOW_MS);
     await refreshCopilot(client(), CASES.mine);

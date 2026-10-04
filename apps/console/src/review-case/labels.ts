@@ -9,6 +9,9 @@ import type { Tone } from '../clarification/labels';
  * (`apps/portal/src/declaration/labels.ts`), so both apps name an item alike.
  */
 
+/** A proposer that is no officer: inside a sentence ("Proposed by the system"), or on its own. */
+export const SYSTEM_PROPOSER = { inSentence: 'the system', alone: 'The system' } as const;
+
 export const CASE_STATUSES = {
   unassigned: { label: 'Unassigned', tone: 'neutral' },
   assigned: { label: 'Assigned', tone: 'info' },

@@ -64,10 +64,26 @@ export function diffPercent(row: DiffRow): number | null {
   return row.previousCents ? (diffDelta(row) / row.previousCents) * 100 : null;
 }
 
+/**
+ * Whether the table shades a row: a matched change of `highlightPercent` or more, by the exact
+ * percentage (24.96% shows as "+25.0%" but stays under 25). A row with no percentage (up from
+ * nothing, or unmatched) is not shaded.
+ */
+export function diffHighlighted(row: DiffRow, highlightPercent = DIFF_HIGHLIGHT_PERCENT): boolean {
+  const percent = diffPercent(row);
+  return percent !== null && Math.abs(percent) >= highlightPercent;
+}
+
 export interface DiffTableMessages {
   item: string;
   /** A version's column: `2` → "Version 2 (KES)". */
   versionColumn: (version: number) => string;
+  /**
+   * The previous version's column, when `versionColumn` does not tell it apart (the previous
+   * version is the last cycle's declaration, numbered like the current one). Defaults to
+   * `versionColumn`.
+   */
+  previousColumn?: (version: number) => string;
   change: string;
   percent: string;
   match: string;
@@ -193,7 +209,7 @@ export function DiffTable({
               {copy.item}
             </th>
             <th scope="col" className={cn(head, 'text-right')}>
-              {copy.versionColumn(previousVersion)}
+              {(copy.previousColumn ?? copy.versionColumn)(previousVersion)}
             </th>
             <th scope="col" className={cn(head, 'text-right')}>
               {copy.versionColumn(currentVersion)}
@@ -253,7 +269,7 @@ function DiffTableRow({
   const delta = diffDelta(row);
   const percent = diffPercent(row);
   const dir = direction(delta);
-  const big = percent !== null && Math.abs(percent) >= highlightPercent;
+  const big = diffHighlighted(row, highlightPercent);
   const cell = 'border-b px-2 py-[9px] text-right align-top whitespace-nowrap';
 
   const amount = (cents: number | null) =>

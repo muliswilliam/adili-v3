@@ -23,6 +23,13 @@ describe('createMockClock', () => {
     expect(clock.now()).toBe(SEEDED + 1_500);
   });
 
+  it('reads its time as an ISO date-time', () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: SEEDED + 86_400_000 });
+    const clock = createMockClock();
+    clock.startAt(SEEDED);
+    expect(clock.isoNow()).toBe('2026-09-28T09:00:00.000Z');
+  });
+
   it('keeps each clock to itself', () => {
     vi.useFakeTimers({ toFake: ['Date'], now: SEEDED + 86_400_000 });
     const one = createMockClock();

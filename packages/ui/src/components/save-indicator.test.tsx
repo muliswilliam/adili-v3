@@ -51,4 +51,21 @@ describe('SaveIndicator', () => {
 
     expect(screen.getByRole('status').textContent).toBe('Saved at 10:42');
   });
+
+  it('says it autosaves before anything is edited, without an icon', () => {
+    render(<SaveIndicator status="idle" />);
+
+    const status = screen.getByRole('status');
+    expect(status.textContent).toBe('Autosaves');
+    expect(status.querySelector('svg')).toBeNull();
+  });
+
+  it('says a refused save at once, in red', () => {
+    render(<SaveIndicator status="error" messages={{ error: 'Approved: no longer editable' }} />);
+
+    const status = screen.getByRole('status');
+    expect(status.textContent).toBe('Approved: no longer editable');
+    expect(status.getAttribute('aria-live')).toBe('assertive');
+    expect(status.className).toContain('text-destructive');
+  });
 });
