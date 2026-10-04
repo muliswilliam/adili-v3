@@ -114,16 +114,21 @@ export const SEPARATED_COPY =
   "You declare what you know of a separated spouse's finances. Say so in the statement if you do not know.";
 
 const ICONS = { income: Coins01Icon, assets: Home01Icon, liabilities: Invoice01Icon } as const;
-/** An asset's card shows what it is; an asset with no type yet, or "Other", the category's. */
-const ASSET_ICONS: Partial<Record<AssetType, IconProps['icon']>> = {
-  land: MapsLocation01Icon,
-  building: Building03Icon,
-  vehicle: Car01Icon,
-  securities: ChartLineData01Icon,
-  shareholding: PieChartIcon,
-  'bank-account': BankIcon,
-  cash: Money01Icon,
-  receivable: MoneyReceive01Icon,
+/**
+ * A card shows what its item is, e.g. a car for a vehicle. Types not listed here ("Other",
+ * no type yet, and every income and liability type) show the category's icon.
+ */
+const TYPE_ICONS: Partial<Record<Category, Partial<Record<string, IconProps['icon']>>>> = {
+  assets: {
+    land: MapsLocation01Icon,
+    building: Building03Icon,
+    vehicle: Car01Icon,
+    securities: ChartLineData01Icon,
+    shareholding: PieChartIcon,
+    'bank-account': BankIcon,
+    cash: Money01Icon,
+    receivable: MoneyReceive01Icon,
+  } satisfies Partial<Record<AssetType, IconProps['icon']>>,
 };
 /** Shown where an item's amount goes until it is entered, like "No description yet". */
 const NO_AMOUNT = {
@@ -654,11 +659,10 @@ function CategoryPanel({
         getKey={(item) => item.id ?? ''}
         getTitle={(item) => itemTitle(category, item)}
         icon={ICONS[category]}
-        getIcon={(item) =>
-          category === 'assets'
-            ? ASSET_ICONS[(item as Draft<AssetItem>).type ?? 'other']
-            : undefined
-        }
+        getIcon={(item) => {
+          const type = (item as AnyItem).type;
+          return type ? TYPE_ICONS[category]?.[type] : undefined;
+        }}
         editingKey={editing !== null && items.some((item) => item.id === editing) ? editing : null}
         onEditingKeyChange={onEditingChange}
         onAdd={onAdd}

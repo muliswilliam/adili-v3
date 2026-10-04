@@ -266,6 +266,20 @@ describe('StatementSection: your assets', () => {
     expect(within(vehicle).getByText(ITEM_MESSAGES.county)).toBeTruthy();
   });
 
+  it('asks for the value of an asset missing only its value', () => {
+    renderStatement(
+      statement({ assets: [{ ...car, location: { inKenya: true, county: '047' } }] }),
+      {
+        showErrors: true,
+      },
+    );
+    openTab(/^Assets/);
+
+    const vehicle = card('Vehicle: Family car');
+    expect(within(vehicle).getByText('No value yet')).toBeTruthy();
+    expect(within(vehicle).getByText(ITEM_MESSAGES.amount.assets)).toBeTruthy();
+  });
+
   it('S11: badges an item from a registry with its source, date and identifier', () => {
     const at = '2026-09-26T08:00:00Z';
     const suggestionId = '7d1f7a64-3c41-4c55-9d0e-6a9b1b3e2f10';
