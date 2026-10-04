@@ -47,6 +47,12 @@ export const envSchema = bffEnvSchema.extend({
    */
   REPORTING_MOCK_NCR: z.enum(['not-built', 'draft', 'stale', 'approved']).default('not-built'),
   /**
+   * With REPORTING_MOCK: the national report's pattern candidates (spec 09b). `computed` by
+   * default, from the built report and two prior years; `none` for no candidates; `error` for a
+   * 503, the panel's error state.
+   */
+  REPORTING_MOCK_CANDIDATES: z.enum(['computed', 'none', 'error']).default('computed'),
+  /**
    * With REVIEW_MOCK: `not-enabled` seeds every mock case's copilot as not enabled for the
    * Commission (the panel's and Draft with AI's disabled states); `ready` by default.
    */

@@ -41,6 +41,7 @@ import {
   readJson,
   unsignedMockToken,
 } from '../mock-http';
+import { isCandidatesPath, mockCandidatesFetch } from './candidates-mock.server';
 import { hasBiennialCycle, isEacc, mockDelay, mockEaccIntake } from './eacc-mock.server';
 import {
   type CommissionAggregate,
@@ -152,7 +153,7 @@ export function resetNcrMock(
       paragraph('findings', 0, DRAFT_FINDINGS[0] ?? ''),
       paragraph('findings', 1, DRAFT_FINDINGS[1] ?? '', {
         aiDraft: true,
-        aggregateRefs: ['commission.cpsb047.rate.biennial'],
+        aggregateRefs: ['commission.cpsb047.biennialFilingRate'],
       }),
     ],
     author: BRIAN,
@@ -392,6 +393,10 @@ const approvedConflict = () =>
 export async function mockNcrFetch(request: Request): Promise<Response> {
   const data = ensureSeeded();
   const url = new URL(request.url);
+  // The year's pattern candidates (#331), from the report as last built.
+  if (isCandidatesPath(url.pathname)) {
+    return mockCandidatesFetch(request, (fy) => data.reports.get(fy)?.aggregates ?? null);
+  }
   const caller = mockCallerOf(request);
   if (!isEacc(caller)) {
     return problem(
