@@ -1,3 +1,4 @@
+import { addDays } from '@adili/ui';
 import createClient from 'openapi-fetch';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -144,7 +145,7 @@ describe('respondToClarification', () => {
     it('responds as of when the mock was seeded, not the wall clock', async () => {
       // Seeded as of NOW, but run a month later: the clarification is past due by the wall clock.
       vi.useFakeTimers({ toFake: ['Date'] });
-      vi.setSystemTime(NOW + 30 * 86_400_000);
+      vi.setSystemTime(Date.parse(addDays(new Date(NOW).toISOString(), 30)));
       resetReviewMock(NOW);
       const result = await respondToClarification(client(), IDS.open, answers(), KEY);
       if (result.status !== 'responded') throw new Error(result.status);

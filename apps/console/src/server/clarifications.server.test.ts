@@ -1,3 +1,4 @@
+import { addDays } from '@adili/ui';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -255,7 +256,7 @@ describe('issueDraft (S12)', () => {
     it('issues as of when the mock was seeded, not the wall clock', async () => {
       // Seeded as of NOW, but run a day after the case's 30-day window closed by the wall clock.
       vi.useFakeTimers({ toFake: ['Date'] });
-      vi.setSystemTime(NOW_MS + 31 * 86_400_000);
+      vi.setSystemTime(Date.parse(addDays(NOW, 31)));
       resetReviewMock(NOW_MS);
       const issued = await issueDraft(client(), CASES.mine, null, { items: [PLOT_ITEM] }, KEYS);
       if (!issued.ok) throw new Error(JSON.stringify(issued.error));
