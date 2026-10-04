@@ -74,6 +74,12 @@ type MessageRow = typeof assistantMessages.$inferSelect;
  */
 const RATING_ATTEMPTS = 3;
 
+/** A rating's reason and note as kept on the answer: sealed once, before it is forwarded. */
+interface SealedFeedback {
+  ciphertext: Buffer;
+  envelope: FieldEnvelope;
+}
+
 /** A conversation outside a draft is deleted this long after its last message (spec 11 S7). */
 export const CONVERSATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -351,7 +357,7 @@ export class AssistantService {
       recordId: `${recordId(message.id)}/feedback`,
       plaintext: JSON.stringify(feedback),
     });
-    const sealed = { ciphertext: Buffer.from(ciphertext, 'base64'), envelope };
+    const sealed: SealedFeedback = { ciphertext: Buffer.from(ciphertext, 'base64'), envelope };
     let version = message.feedbackVersion;
     for (let attempt = 1; ; attempt += 1) {
       const forwarded = await this.forwardRating(principal, conversation.tenant, message, request);
@@ -380,13 +386,13 @@ export class AssistantService {
       conversation: ConversationRow;
       message: MessageRow;
       request: RateMessageRequest;
-      sealed: { ciphertext: Buffer; envelope: FieldEnvelope };
+      sealed: SealedFeedback;
       forwarded: boolean;
       version: number;
     },
   ): Promise<
     | { outcome: 'kept'; row: MessageRow }
-    | { outcome: 'newer'; version: number }
+    | { outcome: 'superseded'; version: number }
     | { outcome: 'gone' }
   > {
     const { conversation, message, request, sealed, forwarded, version } = rating;
@@ -412,7 +418,7 @@ export class AssistantService {
         .select({ version: assistantMessages.feedbackVersion })
         .from(assistantMessages)
         .where(eq(assistantMessages.id, message.id));
-      return current ? { outcome: 'newer', version: current.version } : { outcome: 'gone' };
+      return current ? { outcome: 'superseded', version: current.version } : { outcome: 'gone' };
     }
     await this.events.record(
       tx,
