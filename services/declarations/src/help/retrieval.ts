@@ -99,18 +99,41 @@ export function searchTerms(
   };
 }
 
+/** One passage or article in full (#549), as `passageById` reads it. */
+export interface PassageDetailRow {
+  id: string;
+  source: CorpusSource | 'help';
+  citation: string;
+  title: string;
+  /** The whole passage or article body, in `language`. */
+  text: string;
+  /**
+   * `sw` when Swahili was asked and the passage has a Swahili text (an article's Swahili body or
+   * a corpus wording's Swahili text), else `en`.
+   */
+  language: HelpLanguage;
+  tags: CorpusTag[];
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  /** The Commission of a Commission's article: its slug, and its reference from the read model. */
+  tenant: string | null;
+  commission: { slug: string; issuerCode: string; name: string } | null;
+}
+
 /**
  * One passage or article in full (#549), by the id search and citations give it, as help search
  * would read it: a corpus wording in force on `date`, or a published article in force on `date`
  * that the transaction may read (row-level security: the platform's and those of the declarant's
- * own Commissions). The text in `language` where the passage has it (an article's Swahili body,
- * a corpus wording's Swahili text), else in English. `undefined` when there is no such passage.
+ * own Commissions), with its Commission. The text in `language` where the passage has it, else in
+ * English. `undefined` when there is no such passage.
  */
 export async function passageById(
   tx: Transaction,
   query: { id: string; language: HelpLanguage; date: string },
-): Promise<(Omit<RetrievedPassage, 'snippet' | 'score'> & { tenant: string | null }) | undefined> {
+): Promise<PassageDetailRow | undefined> {
   const swahili = query.language === 'sw';
+  const inForceOn = (table: string) =>
+    sql`${sql.raw(table)}.effective_from <= ${query.date}::date and (${sql.raw(table)}.effective_to is null or ${sql.raw(table)}.effective_to > ${query.date}::date)`;
   const result = await tx.execute<{
     id: string;
     source: CorpusSource | 'help';
@@ -122,25 +145,24 @@ export async function passageById(
     effective_from: string;
     effective_to: string | null;
     tenant: string | null;
+    issuer_code: string | null;
+    commission_name: string | null;
   }>(sql`
     select p.id::text, p.source, p.citation, p.title, p.tags,
       case when ${swahili} and p.text_sw is not null then p.text_sw else p.text_en end as text,
       case when ${swahili} and p.text_sw is not null then 'sw' else 'en' end as language,
       p.effective_from::text as effective_from, p.effective_to::text as effective_to,
-      null::text as tenant
+      null::text as tenant, null::text as issuer_code, null::text as commission_name
     from corpus_passages p
-    where p.id::text = ${query.id}
-      and p.effective_from <= ${query.date}::date
-      and (p.effective_to is null or p.effective_to > ${query.date}::date)
+    where p.id::text = ${query.id} and ${inForceOn('p')}
     union all
     select a.id::text, 'help', 'Help: ' || a.title, a.title, a.tags,
       case when ${swahili} and a.body_sw is not null then a.body_sw else a.body_en end,
       case when ${swahili} and a.body_sw is not null then 'sw' else 'en' end,
-      a.effective_from::text, a.effective_to::text, a.tenant
+      a.effective_from::text, a.effective_to::text, a.tenant, c.issuer_code, c.name
     from help_articles a
-    where a.id::text = ${query.id} and a.published
-      and a.effective_from <= ${query.date}::date
-      and (a.effective_to is null or a.effective_to > ${query.date}::date)
+    left join commission_refs c on c.slug = a.tenant
+    where a.id::text = ${query.id} and a.published and ${inForceOn('a')}
   `);
   const [row] = result.rows;
   if (!row) return undefined;
@@ -155,6 +177,10 @@ export async function passageById(
     effectiveFrom: row.effective_from,
     effectiveTo: row.effective_to,
     tenant: row.tenant,
+    commission:
+      row.tenant !== null && row.issuer_code !== null && row.commission_name !== null
+        ? { slug: row.tenant, issuerCode: row.issuer_code, name: row.commission_name }
+        : null,
   };
 }
 

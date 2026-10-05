@@ -35,7 +35,6 @@ import {
   type HelpSearchQuery,
 } from './representation.js';
 import { passageById, retrieve } from './retrieval.js';
-import { commissionRefs } from '../obligations/schema.js';
 import { corpusPassages, helpArticles } from './schema.js';
 
 type ArticleRow = typeof helpArticles.$inferSelect;
@@ -107,27 +106,20 @@ export class HelpService {
     query: HelpPassageQuery,
   ): Promise<HelpPassageDetail> {
     const person = personOf(principal);
-    const found = await withPerson(this.db, person, async (tx) => {
-      const passage = await passageById(tx, {
+    const found = await withPerson(this.db, person, (tx) =>
+      passageById(tx, {
         id: passageId,
         language: query.language,
         date: query.date ?? nairobiDate(this.clock.now()),
-      });
-      if (!passage) return undefined;
-      const { tenant, ...detail } = passage;
-      if (tenant === null) return { ...detail, commission: null };
-      const [commission] = await tx
-        .select({
-          slug: commissionRefs.slug,
-          issuerCode: commissionRefs.issuerCode,
-          name: commissionRefs.name,
-        })
-        .from(commissionRefs)
-        .where(eq(commissionRefs.slug, tenant));
-      // The read model holds every Commission; without its reference the article is not shown.
-      return commission ? { ...detail, commission } : undefined;
-    });
-    return notFoundIfInvisible(found);
+      }),
+    );
+    const { tenant, commission, ...detail } = notFoundIfInvisible(found);
+    // The read model holds every Commission (as `commissionOf` in disclosures): a gap is a
+    // transient fault to retry, not a reason to hide the article.
+    if (tenant !== null && commission === null) {
+      throw new Error(`No Commission reference for ${tenant}`);
+    }
+    return { ...detail, commission };
   }
 
   listCommissionArticles(principal: Principal, slug: string): Promise<HelpArticle[]> {

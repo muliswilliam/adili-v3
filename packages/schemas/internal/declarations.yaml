@@ -4391,6 +4391,7 @@ components:
             - type: string
               format: date
             - type: 'null'
+          description: Exclusive; null while in force
       required:
         - id
         - source

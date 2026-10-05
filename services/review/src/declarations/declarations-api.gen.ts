@@ -1765,6 +1765,7 @@ export interface components {
             commission: components["schemas"]["CommissionRef"] | null;
             /** Format: date */
             effectiveFrom: string;
+            /** @description Exclusive; null while in force */
             effectiveTo: string | null;
         };
         HelpArticleInput: {

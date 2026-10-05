@@ -437,14 +437,18 @@ export function searchHelp(url: URL, caller: string | null) {
 const COMMENCEMENT = '2026-01-01';
 
 /**
- * `GET /v1/help/passages/{passageId}` (draft `getHelpPassage`, #549): one passage, whole, if in
- * force on `date` (today unless asked).
+ * `GET /v1/help/passages/{passageId}` (`getHelpPassage`, #549): one passage, whole, if in force on
+ * `date` (today in Nairobi unless asked, as the service reads it). Mock data: titles have Swahili
+ * here though the service's corpus and articles do not yet, and every Commission's article is
+ * shown, as this mock's search shows them.
  */
 export function getHelpPassage(url: URL, caller: string | null, passageId: string) {
   if (!caller) return notFound();
   const language = url.searchParams.get('language');
   if (!isLanguage(language)) return problem(400, 'Invalid request');
-  const date = url.searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
+  const date =
+    url.searchParams.get('date') ??
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date());
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return problem(400, 'Invalid request');
   const item = CORPUS.find((candidate) => candidate.id === passageId);
   // Only a wording in force on `date`, as the service reads it.

@@ -91,7 +91,7 @@ export const helpPassageDetailSchema = z
       description: 'The Commission whose article it is; null for the law and platform articles',
     }),
     effectiveFrom: isoDate,
-    effectiveTo: isoDate.nullable(),
+    effectiveTo: isoDate.nullable().meta({ description: 'Exclusive; null while in force' }),
   })
   .meta({
     description: 'A passage of the corpus or a help article, whole, as the help pages show it',

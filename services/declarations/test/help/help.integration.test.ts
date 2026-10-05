@@ -752,6 +752,12 @@ describe('#549 one passage or article in full (getHelpPassage)', () => {
     await notFound('not-a-passage');
   });
 
+  it("does not hide a Commission's article when the read model lacks its Commission: it fails", async () => {
+    const created = await publish('psc', article());
+    await api.asPlatform((tx) => tx.delete(commissionRefs).where(eq(commissionRefs.slug, 'psc')));
+    expect((await api.get(passagePath(created.id), pscDeclarant)).statusCode).toBe(500);
+  });
+
   it('is for declarants: staff and platform tokens without a person get 404', async () => {
     const act = await actPassage();
     for (const caller of [pscAdmin, pscReviewer, platformAdmin]) {
