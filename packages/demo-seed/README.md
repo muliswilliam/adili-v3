@@ -81,7 +81,7 @@ confirm); `syntheticOfficers(context)`, `PERSONAS` and `onboardees(context)` giv
 
 | `demo_key` | Who | State at `0-start` |
 | --- | --- | --- |
-| `wanjiku` | Wanjiku Kamau, KEMSA (27451863) | Previous declaration filed; current not started (filed live) |
+| `wanjiku` | Wanjiku Kamau, KEMSA (27451863) | Previous declaration filed; current a draft holding what carries over from it (finished and filed live) |
 | `otieno` | Otieno Odhiambo, MOH | Both filed, clean |
 | `kiprono` | Kiprono Chebet, PSC | Both filed; KRA non-compliant flag |
 | `amina` | Amina Hassan, PSC | Current amended to version 2 |
@@ -146,7 +146,7 @@ the story starts cold from its checkpoint.
 
 | Checkpoint | State | Starts |
 | --- | --- | --- |
-| `0-start` | Seeded; Wanjiku has not started her current declaration | Roster, onboarding, the live filing |
+| `0-start` | Seeded; Wanjiku's current declaration is a draft holding what she carried over from 2024 | Roster, onboarding, the live filing |
 | `1-after-filing` | Wanjiku submitted; her case has its registry flags and copilot | Review |
 | `2-after-review` | Wanjiku's clarification issued (the Prado, the Kajiado parcel) | Reply, determination, actions |
 | `3-form-m-ready` | PSC's Form M compiled and reviewed | Form M confirm, EACC, open data |

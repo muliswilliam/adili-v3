@@ -39,7 +39,7 @@ The seeded declarants sign in with **Act as**; their Keycloak usernames are the 
 
 | Act as | Demo key | Who | State at `0-start` | Purpose |
 | --- | --- | --- | --- | --- |
-| Wanjiku Kamau | `wanjiku` | KEMSA, ID 27451863 | Previous declaration filed; current not started | Live filing: Check registries, Read into the form, Ask Adili, submit; then the three registry flags |
+| Wanjiku Kamau | `wanjiku` | KEMSA, ID 27451863 | Previous declaration filed; current a draft holding what carries over (details, household, other information) | Live filing: Check registries, Read into the form, Ask Adili, submit; then the three registry flags |
 | Otieno Odhiambo | `otieno` | MOH, ID 30194427 | Both filed, clean | The AI does not cry wolf |
 | Kiprono Chebet | `kiprono` | PSC, ID 22607781 | Both filed, KRA non-compliant | A clarification to answer; a Form K about him awaits his representations |
 | Amina Hassan | `amina` | PSC, ID 31552094 | Current amended to version 2 | Version compare, superseded slip, certified copy |

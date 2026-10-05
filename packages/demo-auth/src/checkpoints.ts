@@ -14,7 +14,7 @@ export interface DemoCheckpoint {
 export const DEMO_CHECKPOINTS: readonly DemoCheckpoint[] = [
   {
     name: '0-start',
-    state: 'Seeded; Wanjiku has not started her current declaration',
+    state: 'Seeded; Wanjiku’s current declaration holds what she carried over from 2024',
     beat: 'Roster, onboarding and the live filing',
   },
   {

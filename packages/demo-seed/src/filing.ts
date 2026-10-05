@@ -49,6 +49,107 @@ export async function declarantState(
   };
 }
 
+type Bio = Record<string, unknown> & {
+  name?: Statement['personName'];
+  employment?: Record<string, unknown>;
+};
+
+async function readBio(api: Apis, declarationId: string): Promise<Bio> {
+  return ok(
+    await api.declarations.GET('/v1/declarations/{declarationId}/sections/{sectionKey}', {
+      params: { path: { declarationId, sectionKey: 'bio' } },
+    }),
+    'read bio',
+  ).contents;
+}
+
+/** Your details as the declarant completes them over the roster's pre-filled bio. */
+function bioContents(
+  bio: Bio,
+  declarant: Declarant,
+  holdings: Holdings,
+  previous: Holdings | undefined,
+  followsEarlier: boolean,
+): Record<string, unknown> {
+  const married = (holdings.household?.spouses.length ?? 0) > 0;
+  const wasMarried = (previous?.household?.spouses.length ?? 0) > 0;
+  return {
+    ...bio,
+    birth: declarant.birth,
+    maritalStatus: married ? 'married' : 'single',
+    ...(followsEarlier && {
+      maritalStatusChange:
+        previous && married !== wasMarried
+          ? { changed: true, explanation: 'Marital status changed since the last declaration.' }
+          : { changed: false },
+    }),
+    address: { postal: 'P.O. Box 30095-00100, Nairobi', physical: 'Nairobi' },
+    employment: { nature: 'permanent', ...bio.employment },
+  };
+}
+
+/**
+ * Starts the obligation's declaration, unless it is started, and saves what carries over unchanged
+ * from `previous` (#682): Your details, Spouses and children, Other information, and no
+ * liabilities, as the declarant re-confirms them. The financial statement's income and assets are
+ * left for the live filing: the registries, the documents read into the form and the values.
+ * Returns the draft's id. Nothing is saved over a draft already started.
+ */
+export async function startCarriedOver(
+  context: SeedContext,
+  declarant: Declarant,
+  obligation: MyObligation,
+  existing: MyDeclaration | undefined,
+  previous: Holdings,
+): Promise<{ declarationId: string; started: boolean }> {
+  if (existing && existing.status !== 'discarded') {
+    if (existing.status !== 'draft') {
+      throw new Error(`${declarant.demoKey}'s ${obligation.cycleKey} declaration is filed already`);
+    }
+    return { declarationId: existing.id, started: false };
+  }
+  const api = await context.as(declarant.demoKey);
+  const draft = ok(
+    await api.declarations.POST('/v1/obligations/{id}/declaration', {
+      params: { path: { id: obligation.id } },
+    }),
+    `start ${obligation.cycleKey}`,
+  );
+  const declarationId = draft.id;
+  let version = draft.draftVersion;
+  const save = async (sectionKey: string, contents: Record<string, unknown>) => {
+    version = ok(
+      await api.declarations.PUT('/v1/declarations/{declarationId}/sections/{sectionKey}', {
+        params: {
+          path: { declarationId, sectionKey: sectionKey as never },
+          header: { 'If-Match': String(version) },
+        },
+        body: contents,
+      }),
+      `save ${sectionKey} of ${declarationId}`,
+    ).draftVersion;
+  };
+  const read = async (sectionKey: string) =>
+    ok(
+      await api.declarations.GET('/v1/declarations/{declarationId}/sections/{sectionKey}', {
+        params: { path: { declarationId, sectionKey: sectionKey as never } },
+      }),
+      `read ${sectionKey}`,
+    ).contents as Record<string, unknown>;
+
+  const followsEarlier = draft.type !== 'initial';
+  const bio = await readBio(api, declarationId);
+  await save('bio', bioContents(bio, declarant, previous, previous, followsEarlier));
+  await save('household', householdSection(previous.household, draft.statementDate));
+  await save('statement:officer', {
+    ...(await read('statement:officer')),
+    liabilitiesNil: true,
+    liabilities: [],
+  });
+  await save('other', otherInformation(previous, previous, followsEarlier));
+  return { declarationId, started: true };
+}
+
 /**
  * Fills a draft (or an amendment in progress) section by section as the portal saves it, then
  * submits it with a fresh step-up sign-in. `holdings` is what the officer declares, `previous` what
@@ -84,30 +185,8 @@ async function fillAndSubmit(
     version = saved.draftVersion;
   };
 
-  const bio = ok(
-    await api.declarations.GET('/v1/declarations/{declarationId}/sections/{sectionKey}', {
-      params: { path: { declarationId, sectionKey: 'bio' } },
-    }),
-    'read bio',
-  ).contents as Record<string, unknown> & {
-    name?: Statement['personName'];
-    employment?: Record<string, unknown>;
-  };
-  const married = (holdings.household?.spouses.length ?? 0) > 0;
-  const wasMarried = (previous?.household?.spouses.length ?? 0) > 0;
-  await save('bio', {
-    ...bio,
-    birth: declarant.birth,
-    maritalStatus: married ? 'married' : 'single',
-    ...(followsEarlier && {
-      maritalStatusChange:
-        previous && married !== wasMarried
-          ? { changed: true, explanation: 'Marital status changed since the last declaration.' }
-          : { changed: false },
-    }),
-    address: { postal: 'P.O. Box 30095-00100, Nairobi', physical: 'Nairobi' },
-    employment: { nature: 'permanent', ...bio.employment },
-  });
+  const bio = await readBio(api, declarationId);
+  await save('bio', bioContents(bio, declarant, holdings, previous, followsEarlier));
   await save('household', householdSection(holdings.household, draft.statementDate));
   const frame = {
     statementDate: draft.statementDate,
