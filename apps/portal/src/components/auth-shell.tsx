@@ -30,7 +30,7 @@ export function AuthShell({ art, children }: { art: AuthArtVariant; children: Re
               <LogoWordmark />
             </a>
             <div className="flex items-center gap-1">
-              {aside ? <div className="mr-1">{aside}</div> : null}
+              {aside ? <div className="mr-1 flex items-center gap-1">{aside}</div> : null}
               <LanguageButton />
               <Button asChild variant="ghost" size="sm">
                 <a href="/auth/login">Sign in</a>

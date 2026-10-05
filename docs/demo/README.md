@@ -5,7 +5,7 @@ How to run the hackathon demo (#371): the 5-minute quick start, accounts, the st
 ## Quick start (5 minutes)
 
 1. Open the portal on the left half of the screen and the console on the right ([hosted URLs](#hosted-urls)).
-2. In either app, open the `DEMO · synthetic data` pill in the header and pick an account from **Act as**. No password, no code. The [accounts](#accounts) table says who does what.
+2. In either app, open the `DEMO` pill in the header and pick an account from **Act as**. No password, no code. The [accounts](#accounts) table says who does what.
 3. Before the demo, reset to the start: run the **Azure demo command** workflow (GitHub Actions) with `reset` and `0-start`. Locally: `pnpm demo:reset 0-start`. The console's demo panel (next to the pill) does the same.
 4. Follow [the story](#story): beats A to E live, F to I from seeded data.
 5. If the AI provider misbehaves: `pnpm demo:ai replay` (workflow: `ai`, `replay`). Every scripted AI beat answers from recordings.

@@ -196,6 +196,16 @@ function Dashboard({
   const main = (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
       <h1 className="text-2xl font-semibold tracking-tight">Welcome, {firstName}</h1>
+      {/* The Commissions the declarant files with: whose declarant they are, on every visit. */}
+      {viewer.declarant.status === 'onboarded' &&
+      viewer.declarant.account.commissions.length > 0 ? (
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          You declare to{' '}
+          <span className="font-medium text-foreground">
+            {formatList(viewer.declarant.account.commissions.map((commission) => commission.name))}
+          </span>
+        </p>
+      ) : null}
       <div className="mt-8">
         <DashboardCards
           viewer={viewer}
@@ -246,4 +256,9 @@ function Dashboard({
       )}
     </ToastProvider>
   );
+}
+
+/** "A", "A and B", "A, B and C". */
+function formatList(items: readonly string[]): string {
+  return new Intl.ListFormat('en-GB', { style: 'long', type: 'conjunction' }).format(items);
 }

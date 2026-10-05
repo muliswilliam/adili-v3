@@ -4,7 +4,7 @@ Judges' pack: every demo account, for the hosted demo and a local stack. The sto
 
 ## How to sign in
 
-- **One click (demo mode).** Portal and console show a `DEMO · synthetic data` pill in the header. Its **Act as** menu signs in as any account below with no password or code (#616). Every switch is in the audit trail.
+- **One click (demo mode).** Portal and console show a `DEMO` pill in the header. Its **Act as** menu signs in as any account below with no password or code (#616). Every switch is in the audit trail.
 - **By hand.** Every account's password is `Adili-Demo-2026`. Staff then enrol TOTP; declarants and the applicant get an SMS code in the mocks inbox (local: http://localhost:8000/sms/inbox; the hosted demo does not publish it).
 
 The switcher's list is one module, `packages/demo-auth/src/accounts.ts` (`DEMO_ACCOUNTS`); this page follows it. The staff accounts come from the realm import (`infra/compose/keycloak/adili-realm.json`); the declarant personas and the extra staff are made by `pnpm demo:seed` (`packages/demo-seed`).
