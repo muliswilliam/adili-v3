@@ -55,6 +55,19 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('DemoPanel (#621)', () => {
+  it('offers the files the beats upload, served by the stack (#679)', async () => {
+    getDemoPanel.mockResolvedValue(panel('button'));
+    renderPanel(signedIn);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Demo panel' }));
+
+    const files = await screen.findByRole('list', { name: 'Demo files' });
+    const roster = within(files).getByRole('link', { name: 'Download psc-roster.csv' });
+    expect(roster.getAttribute('href')).toBe('/demo/files/psc-roster.csv');
+    expect(roster.getAttribute('download')).toBe('psc-roster.csv');
+    expect(within(files).getAllByRole('link')).toHaveLength(4);
+  });
+
   it('is absent outside demo mode', () => {
     const { container } = renderPanel(null);
     expect(container.innerHTML).toBe('');

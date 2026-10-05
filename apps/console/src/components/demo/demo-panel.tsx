@@ -1,4 +1,4 @@
-import { SlidersHorizontalIcon } from '@hugeicons/core-free-icons';
+import { Download01Icon, SlidersHorizontalIcon } from '@hugeicons/core-free-icons';
 import {
   Alert,
   AlertDescription,
@@ -27,6 +27,7 @@ import {
   resetDemo,
   setDemoRegistryPaused,
 } from '../../server/demo/panel';
+import { DEMO_FILES, demoFileHref } from '../../server/demo/files';
 import { DemoContext } from './demo-context';
 
 /** How long the panel waits for the console to go down after asking for a reset. */
@@ -37,8 +38,8 @@ const INBOX_POLL_MS = 4000;
 
 /**
  * The demo panel (#621) beside the role switcher in the console's top bar: reset the stack to a
- * checkpoint, pause and resume each registry mock, read the demo inboxes. Demo mode and a signed-in demo account only;
- * nothing renders otherwise.
+ * checkpoint, download the files the beats upload, pause and resume each registry mock, read the
+ * demo inboxes. Demo mode and a signed-in demo account only; nothing renders otherwise.
  */
 export function DemoPanel() {
   const demo = useContext(DemoContext);
@@ -104,8 +105,9 @@ function DemoPanelContent() {
       <DrawerHeader>
         <DrawerTitle>Demo panel</DrawerTitle>
         <DrawerDescription>
-          Put the demo back to a checkpoint, take a registry offline to show how filing and review
-          carry on without it, or read the codes the platform just sent.
+          Put the demo back to a checkpoint, download the files the beats upload, take a registry
+          offline to show how filing and review carry on without it, or read the codes the platform
+          just sent.
         </DrawerDescription>
       </DrawerHeader>
       <DrawerBody>
@@ -198,6 +200,7 @@ function DemoPanelContent() {
                 ))}
               </ul>
             </section>
+            <DemoFilesSection />
             <section aria-labelledby="demo-registries" className="flex flex-col gap-2.5">
               <h3 id="demo-registries" className="text-sm font-semibold">
                 Registries
@@ -236,6 +239,45 @@ function DemoPanelContent() {
         )}
       </DrawerBody>
     </DrawerContent>
+  );
+}
+
+/**
+ * The files the live beats upload, served by the stack itself so they match what it was seeded
+ * from (#679).
+ */
+function DemoFilesSection() {
+  return (
+    <section aria-labelledby="demo-files" className="flex flex-col gap-2.5">
+      <h3 id="demo-files" className="text-sm font-semibold">
+        Demo files
+      </h3>
+      <p className="text-sm text-muted-foreground">
+        The files the live beats upload, as this stack holds them. Download them here rather than
+        from a copy of the repository, which can be out of date.
+      </p>
+      <ul className="flex flex-col divide-y rounded-lg border" aria-label="Demo files">
+        {DEMO_FILES.map((file) => (
+          <li key={file.name} className="flex items-center gap-3 px-3.5 py-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{file.label}</p>
+              <p className="truncate font-mono text-xs text-muted-foreground">{file.name}</p>
+              <p className="text-xs text-muted-foreground">Used in: {file.beat}</p>
+            </div>
+            <Button asChild size="sm" variant="secondary" className="shrink-0">
+              <a
+                href={demoFileHref(file)}
+                download={file.name}
+                aria-label={`Download ${file.name}`}
+              >
+                <Icon icon={Download01Icon} />
+                Download
+              </a>
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
