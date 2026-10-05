@@ -123,6 +123,12 @@ set_env "$seed_env" KEYCLOAK_ADMIN_URL http://127.0.0.1:18080
 set_env_from_file "$seed_env" KEYCLOAK_ADMIN_PASSWORD "$ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE"
 
 set_env "$ROOT/services/documents/.env" S3_PUBLIC_ENDPOINT "$s3_public"
+# Services reach SeaweedFS on loopback; Caddy holds the public :8333 (docker-compose.azure.yml).
+for svc in audit documents reporting; do
+  set_env "$ROOT/services/$svc/.env" S3_ENDPOINT http://localhost:18333
+done
+# Download links the AI may read: the store on loopback or through Caddy.
+set_env "$ROOT/services/ai-gateway/.env" AI_DOCUMENT_ORIGINS "http://localhost:18333,${s3_public}"
 # QR codes on issued documents open the public verify app.
 set_env "$ROOT/services/documents/.env" VERIFY_BASE_URL "${ADILI_VERIFY_URL}"
 # Public open-data releases link their manifest's verify page.
