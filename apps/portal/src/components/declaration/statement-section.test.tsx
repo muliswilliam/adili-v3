@@ -25,7 +25,14 @@ import {
   StatementSection,
   type StatementSectionProps,
 } from './statement-section';
-import { cardOf, DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
+import {
+  cardOf,
+  DECLARATION_ID,
+  renderWorkspace,
+  sampleDeclaration,
+  sections,
+  workspaceTree,
+} from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
@@ -851,3 +858,143 @@ describe('opening a field from Ask Adili', () => {
 });
 
 const VEHICLE_ID = 'a0000000-0000-4000-8000-0000000000ff';
+
+describe('fixing one item, then another, from the summary (#700, #701)', () => {
+  const fielder = {
+    ...car,
+    description: 'Toyota Fielder',
+    location: { inKenya: true, county: '022' },
+  };
+  const plot = { ...land, value: undefined, joint: { isJoint: false }, change: { changed: false } };
+  /** The statement as the route first loaded it, and keeps cached: neither value yet. */
+  const loaded = statement({ assets: [fielder, plot] });
+  const declaration = sampleDeclaration({ sections: sections({}, household) });
+
+  function screenAt(section: LoadedSection, focusField: string, etag = '"1"') {
+    return workspaceTree(
+      <StatementSection section={section} etag={etag} focusField={focusField} showErrors />,
+      { step: section.key, declaration, etag: '"1"' },
+    );
+  }
+
+  function amountOf(itemId: string) {
+    const input = document.getElementById(`item-${itemId}-amount`);
+    if (!(input instanceof HTMLInputElement)) throw new Error(`No amount for ${itemId}`);
+    return input;
+  }
+
+  function savedAs(version: number) {
+    return {
+      status: 'saved' as const,
+      etag: `"${version}"`,
+      result: {
+        key: 'statement:officer' as const,
+        completeness: 'incomplete' as const,
+        draftVersion: version,
+        issues: [],
+        sectionsChanged: [],
+      },
+    };
+  }
+
+  interface Assets {
+    assets: { id: string; value?: { kesCents: number } }[];
+  }
+
+  it("keeps the first item's saved value when the second is fixed on a screen opened from the route's older data", async () => {
+    vi.useFakeTimers();
+    try {
+      saveMock.mockResolvedValueOnce(savedAs(2)).mockResolvedValueOnce(savedAs(3));
+      const view = render(screenAt(loaded, '/assets/0/value'));
+      fireEvent.change(amountOf(fielder.id), { target: { value: '1000000' } });
+      await flushTimers();
+      expect(saveMock).toHaveBeenCalledTimes(1);
+
+      // To the summary and back, where the route shows the statement it had cached.
+      view.rerender(workspaceTree(<p>Summary</p>, { declaration, etag: '"1"' }));
+      const fresh = statement({
+        assets: [{ ...fielder, value: { kesCents: 100_000_000 } }, plot],
+      });
+      getSectionMock.mockResolvedValue({
+        status: 'ok',
+        section: { ...fresh, draftVersion: 2 },
+        etag: '"2"',
+      });
+      view.rerender(screenAt(loaded, '/assets/1/value'));
+
+      // The screen reads the statement again rather than editing what it was given.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(getSectionMock).toHaveBeenCalledWith({
+        data: { declarationId: DECLARATION_ID, sectionKey: 'statement:officer' },
+      });
+      fireEvent.change(amountOf(plot.id), { target: { value: '4000000' } });
+      await flushTimers();
+
+      expect(saveMock).toHaveBeenCalledTimes(2);
+      const second = saveMock.mock.calls[1]?.[0].data;
+      expect(second?.ifMatch).toBe('"2"');
+      const assets = (second?.contents as unknown as Assets).assets;
+      expect(assets[0]?.value).toEqual({ kesCents: 100_000_000 });
+      expect(assets[1]?.value).toEqual({ kesCents: 400_000_000 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('waits for an edit still on its way before reading the statement again', async () => {
+    vi.useFakeTimers();
+    try {
+      let land2: (outcome: ReturnType<typeof savedAs>) => void = () => undefined;
+      saveMock.mockReturnValueOnce(
+        new Promise((resolve) => {
+          land2 = resolve;
+        }),
+      );
+      const view = render(screenAt(loaded, '/assets/0/value'));
+      fireEvent.change(amountOf(fielder.id), { target: { value: '1000000' } });
+      // Left at once: the edit is sent as the screen goes, and is still on its way.
+      view.rerender(workspaceTree(<p>Summary</p>, { declaration, etag: '"1"' }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(saveMock).toHaveBeenCalledTimes(1);
+
+      view.rerender(screenAt(loaded, '/assets/1/value'));
+      // Not editable meanwhile: what it shows may be older than the edit on its way.
+      fireEvent.change(amountOf(plot.id), { target: { value: '4000000' } });
+      expect(amountOf(plot.id).value).toBe('');
+      expect(getSectionMock).not.toHaveBeenCalled();
+
+      const fresh = statement({
+        assets: [{ ...fielder, value: { kesCents: 100_000_000 } }, plot],
+      });
+      getSectionMock.mockResolvedValue({
+        status: 'ok',
+        section: { ...fresh, draftVersion: 2 },
+        etag: '"2"',
+      });
+      await act(async () => {
+        land2(savedAs(2));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(getSectionMock).toHaveBeenCalledTimes(1);
+      expect(card('Vehicle: Toyota Fielder').textContent).toMatch(/1,000,000/);
+      fireEvent.change(amountOf(plot.id), { target: { value: '4000000' } });
+      expect(amountOf(plot.id).value).toBe('4,000,000');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows the newer statement the route reads after showing an older one', () => {
+    const view = render(screenAt(statement(), '/assets'));
+    expect(tab(/^Assets/).textContent).not.toMatch(/2 items/);
+
+    view.rerender(screenAt({ ...loaded, draftVersion: 2 }, '/assets', '"2"'));
+
+    expect(tab(/^Assets/).textContent).toMatch(/2 items/);
+  });
+});

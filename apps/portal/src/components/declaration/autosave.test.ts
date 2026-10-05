@@ -10,6 +10,7 @@ import {
   hasUnsavedWork,
   initialAutosave,
   retryDelay,
+  sectionFreshness,
 } from './autosave';
 
 function run(state: AutosaveState, ...events: AutosaveEvent[]) {
@@ -343,5 +344,60 @@ describe('AutosaveQueue', () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(save).toHaveBeenCalledWith('bio', 1, '"1"');
     });
+  });
+});
+
+describe('section freshness (#700)', () => {
+  const start = initialAutosave('"1"', 1);
+  const statement = 'statement:officer';
+
+  it('is fresh for contents read at the version nothing has been written after', () => {
+    expect(sectionFreshness(start, statement, 1)).toBe('fresh');
+  });
+
+  it('is busy while an edit of the section waits or is in flight, then stale for older reads', () => {
+    const waiting = run(start, { type: 'edit', key: statement, contents: { a: 1 } });
+    expect(sectionFreshness(waiting, statement, 1)).toBe('busy');
+    const sending = run(waiting, { type: 'ready', key: statement }, { type: 'send' });
+    expect(sectionFreshness(sending, statement, 1)).toBe('busy');
+    const saved = run(sending, saved2());
+    expect(sectionFreshness(saved, statement, 1)).toBe('stale');
+    expect(sectionFreshness(saved, statement, 2)).toBe('fresh');
+  });
+
+  it("does not hold a save of another section against a section's older read", () => {
+    const saved = run(
+      start,
+      { type: 'edit', key: 'bio', contents: {} },
+      { type: 'ready', key: 'bio' },
+      { type: 'send' },
+      saved2(),
+    );
+    expect(sectionFreshness(saved, statement, 1)).toBe('fresh');
+  });
+
+  it('counts the sections a save changed on the service as written', () => {
+    const saved = run(
+      start,
+      { type: 'edit', key: 'household', contents: {} },
+      { type: 'ready', key: 'household' },
+      { type: 'send' },
+      { type: 'saved', etag: '"2"', version: 2, changed: [statement] },
+    );
+    expect(sectionFreshness(saved, statement, 1)).toBe('stale');
+  });
+
+  it('counts a held write as written to the section it names, or to any when it names none', () => {
+    const named = run(start, { type: 'took-etag', etag: '"2"', version: 2, key: statement });
+    expect(sectionFreshness(named, statement, 1)).toBe('stale');
+    expect(sectionFreshness(named, 'bio', 1)).toBe('fresh');
+    const unnamed = run(start, { type: 'took-etag', etag: '"2"', version: 2 });
+    expect(sectionFreshness(unnamed, 'bio', 1)).toBe('stale');
+  });
+
+  it('treats a newer version read from the service as a change to any section', () => {
+    const adopted = run(start, { type: 'adopt-etag', etag: '"3"', version: 3 });
+    expect(sectionFreshness(adopted, statement, 1)).toBe('stale');
+    expect(sectionFreshness(adopted, statement, 3)).toBe('fresh');
   });
 });

@@ -47,6 +47,18 @@ export interface AutosaveState {
    * saved. The refused contents are kept and count as unsaved work.
    */
   rejection: { key: string; code: string | null; contents: unknown } | null;
+  /**
+   * The draft version each section was last written at by this page: its own saves, the
+   * sections a save changed on the service (`sectionsChanged`) and writes made while saves were
+   * held. Contents read before that version are stale for that section (see `sectionFreshness`).
+   */
+  writtenAt: Record<string, number>;
+  /**
+   * The newest draft version taken from a read rather than a write of this page, i.e. a change
+   * made elsewhere (another tab or device) to a section it cannot name. Contents read before it
+   * may be stale for any section.
+   */
+  externalAt: number;
 }
 
 export type AutosaveEvent =
@@ -55,7 +67,8 @@ export type AutosaveEvent =
   | { type: 'ready'; key: string }
   /** Take the next ready section and put it in flight, if nothing is in flight. */
   | { type: 'send' }
-  | { type: 'saved'; etag: string; version: number }
+  /** `changed`: other sections the service changed with this save (`sectionsChanged`). */
+  | { type: 'saved'; etag: string; version: number; changed?: readonly string[] }
   | { type: 'failed' }
   | { type: 'conflict' }
   | { type: 'rejected'; code: string | null }
@@ -69,7 +82,7 @@ export type AutosaveEvent =
    * waited during the write already build on it, so it is taken with them waiting, as long as
    * nothing is in flight and it is newer.
    */
-  | { type: 'took-etag'; etag: string; version: number }
+  | { type: 'took-etag'; etag: string; version: number; key?: string }
   | { type: 'reloaded'; etag: string; version: number };
 
 export function initialAutosave(etag: string, version: number): AutosaveState {
@@ -81,6 +94,8 @@ export function initialAutosave(etag: string, version: number): AutosaveState {
     inFlight: null,
     failures: 0,
     rejection: null,
+    writtenAt: {},
+    externalAt: version,
   };
 }
 
@@ -91,6 +106,28 @@ function idle(state: AutosaveState) {
 /** True while a save is in flight or waiting to go. */
 export function isSaving(state: AutosaveState): boolean {
   return !idle(state);
+}
+
+/**
+ * Whether contents of section `key` read at draft version `basis` can be edited and saved
+ * whole, the way autosave saves a section. The ETag the queue sends covers the draft and moves
+ * on with every save this page makes, so a screen seeded from an older read (a route's cached
+ * or preloaded data) would pass `If-Match` and overwrite what was saved since (#700). So:
+ * - `busy`: an edit of this section is still waiting or in flight; wait for it to land.
+ * - `stale`: the section was written (here or elsewhere) after `basis`; read it again.
+ * - `fresh`: nothing has been written to it since `basis`.
+ */
+export type SectionFreshness = 'fresh' | 'busy' | 'stale';
+
+export function sectionFreshness(
+  state: AutosaveState,
+  key: string,
+  basis: number,
+): SectionFreshness {
+  if (state.status === 'conflict') return 'fresh'; // editing is off until the reload anyway
+  if (key in state.pending || state.inFlight?.key === key) return 'busy';
+  const writtenAt = Math.max(state.writtenAt[key] ?? 0, state.externalAt);
+  return basis < writtenAt ? 'stale' : 'fresh';
 }
 
 /**
@@ -140,12 +177,20 @@ export function autosaveReducer(state: AutosaveState, event: AutosaveEvent): Aut
       };
     }
     case 'saved': {
+      const writtenAt = { ...state.writtenAt };
+      for (const key of [
+        ...(state.inFlight ? [state.inFlight.key] : []),
+        ...(event.changed ?? []),
+      ]) {
+        writtenAt[key] = event.version;
+      }
       const next = {
         ...state,
         etag: event.etag,
         version: event.version,
         inFlight: null,
         failures: 0,
+        writtenAt,
       };
       if (state.rejection?.key === state.inFlight?.key) next.rejection = null;
       return { ...next, status: settledStatus(next) };
@@ -180,12 +225,17 @@ export function autosaveReducer(state: AutosaveState, event: AutosaveEvent): Aut
     }
     case 'adopt-etag':
       return idle(state) && event.version > state.version
-        ? { ...state, etag: event.etag, version: event.version }
+        ? { ...state, etag: event.etag, version: event.version, externalAt: event.version }
         : state;
-    case 'took-etag':
-      return state.inFlight === null && event.version > state.version
-        ? { ...state, etag: event.etag, version: event.version }
-        : state;
+    case 'took-etag': {
+      if (state.inFlight !== null || event.version <= state.version) return state;
+      const writtenAt = event.key
+        ? { ...state.writtenAt, [event.key]: event.version }
+        : state.writtenAt;
+      // A write that cannot say which section it changed may have changed any.
+      const externalAt = event.key ? state.externalAt : event.version;
+      return { ...state, etag: event.etag, version: event.version, writtenAt, externalAt };
+    }
     case 'reloaded':
       return initialAutosave(event.etag, event.version);
   }
@@ -289,13 +339,13 @@ export class AutosaveQueue {
    * then takes the ETag it read back before saving again. One write at a time; none after a
    * conflict.
    */
-  whileHeld<T>(write: HeldWrite<T>): Promise<HeldResult<T>> {
-    const run = this.holds.then(() => this.hold(write));
+  whileHeld<T>(write: HeldWrite<T>, key?: string): Promise<HeldResult<T>> {
+    const run = this.holds.then(() => this.hold(write, key));
     this.holds = run.catch(() => undefined);
     return run;
   }
 
-  private async hold<T>(write: HeldWrite<T>): Promise<HeldResult<T>> {
+  private async hold<T>(write: HeldWrite<T>, key?: string): Promise<HeldResult<T>> {
     this.flush();
     const settled = await this.until(
       (state) =>
@@ -308,7 +358,7 @@ export class AutosaveQueue {
     this.holding = true;
     try {
       const { value, etag, version } = await write(this.state.etag);
-      if (etag !== null) this.dispatch({ type: 'took-etag', etag, version });
+      if (etag !== null) this.dispatch({ type: 'took-etag', etag, version, key });
       return { status: 'done', value };
     } finally {
       this.holding = false;
@@ -381,7 +431,12 @@ export class AutosaveQueue {
     }
     switch (outcome.status) {
       case 'saved':
-        this.dispatch({ type: 'saved', etag: outcome.etag, version: outcome.result.draftVersion });
+        this.dispatch({
+          type: 'saved',
+          etag: outcome.etag,
+          version: outcome.result.draftVersion,
+          changed: outcome.result.sectionsChanged.map((change) => change.key),
+        });
         this.savedHandler?.(key, outcome.result, contents);
         break;
       case 'conflict':

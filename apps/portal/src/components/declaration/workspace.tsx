@@ -10,7 +10,11 @@ import {
   useSyncExternalStore,
 } from 'react';
 
-import { getDeclaration, saveDeclarationSection } from '../../server/declarations';
+import {
+  getDeclaration,
+  getDeclarationSection,
+  saveDeclarationSection,
+} from '../../server/declarations';
 import type { LoadedSection, SaveOutcome } from '../../server/declarations.server';
 import type {
   CompletenessIssue,
@@ -24,6 +28,7 @@ import {
   hasUnsavedWork,
   type HeldResult,
   type HeldWrite,
+  sectionFreshness,
 } from './autosave';
 import type { Draft, Household } from '../../declaration/contents';
 import { renamesPerson } from '../../declaration/household';
@@ -52,9 +57,9 @@ export interface WorkspaceValue {
   /**
    * Runs a write the service makes to the draft outside autosave (linking or unlinking a
    * document): waiting edits are sent first, saves wait while it runs, and the ETag it read back
-   * is used for the next save. See `AutosaveQueue.whileHeld`.
+   * is used for the next save. `key` names the section it writes. See `AutosaveQueue.whileHeld`.
    */
-  whileHeld: <T>(write: HeldWrite<T>) => Promise<HeldResult<T>>;
+  whileHeld: <T>(write: HeldWrite<T>, key?: SectionKey) => Promise<HeldResult<T>>;
   setIssues: (key: SectionKey, issues: CompletenessIssue[], basis: unknown) => void;
   /** Re-reads the header and section list, e.g. after a household save changed statements. */
   refresh: () => Promise<void>;
@@ -222,7 +227,10 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
     },
     [queue],
   );
-  const whileHeld = useCallback(<T,>(write: HeldWrite<T>) => queue.whileHeld(write), [queue]);
+  const whileHeld = useCallback(
+    <T,>(write: HeldWrite<T>, key?: SectionKey) => queue.whileHeld(write, key),
+    [queue],
+  );
   const setIssues = useCallback((key: SectionKey, next: CompletenessIssue[], basis: unknown) => {
     setIssueMap((current) => ({ ...current, [key]: next }));
     setIssueBasis((current) => ({ ...current, [key]: basis }));
@@ -252,7 +260,10 @@ export interface SectionAutosave<T> {
   value: T;
   /** Replaces the contents (or derives them from the current ones) and schedules a save. */
   update: (next: T | ((current: T) => T)) => void;
-  /** True while editing is off (after a conflict, until reload). */
+  /**
+   * True while editing is off: after a conflict, until reload, and while the contents shown are
+   * being read again because they were older than a save (see `sectionFreshness`).
+   */
   disabled: boolean;
   /**
    * The service's issues for this section, from the load or the latest save, less those on an
@@ -262,22 +273,90 @@ export interface SectionAutosave<T> {
   issues: CompletenessIssue[];
 }
 
+/** How long to wait before reading a stale section again after the read failed. */
+const REREAD_MS = 2_000;
+
 /**
- * State and autosave for one section screen. Give it the section as its route loaded it
- * (always fresh); edits save after a 1.5 s pause, and leaving the screen sends them at once.
+ * State and autosave for one section screen. Give it the section as its route loaded it; edits
+ * save after a 1.5 s pause, and leaving the screen sends them at once.
+ *
+ * A save sends the whole section with the draft's latest ETag, so the contents edited must be
+ * at least as new as every save of the section (#700). The route's data can be older: a cached
+ * or preloaded read, or one taken while this section's last edit was still on its way. So
+ * before editing is turned on, the screen's contents are checked against the autosave queue,
+ * and read again when a save landed after them. A newer read from the route (a loader re-run)
+ * replaces them while this screen has no edit on its way.
  */
 export function useSectionAutosave<T>(section: LoadedSection, etag: string): SectionAutosave<T> {
   const workspace = useWorkspace();
   const key = section.key;
+  const { adoptEtag, flush, edit, setIssues, autosave } = workspace;
+  const declarationId = workspace.declaration.id;
+  // The read the contents come from: the route's, or a fresher one made here.
+  const [source, setSource] = useState({ section, etag });
   const [value, setValue] = useState<T>(() => section.contents as T);
   const valueRef = useRef(value);
-  const { adoptEtag, flush, edit, setIssues } = workspace;
-
-  // On load only; later issues come from saves.
+  const basis = source.section.draftVersion;
+  const freshness = sectionFreshness(autosave, key, basis);
+  // Editing starts once the contents are known to be fresh, and stays on: from then on the
+  // section's saves are this screen's own.
+  const [checked, setChecked] = useState(freshness === 'fresh');
+  if (!checked && freshness === 'fresh') {
+    setChecked(true);
+  }
+  const editable = checked || freshness === 'fresh';
+  const editableRef = useRef(editable);
   useEffect(() => {
-    adoptEtag(etag, section.draftVersion);
-    setIssues(key, section.issues, section.contents);
-  }, [adoptEtag, setIssues, etag, key, section]);
+    editableRef.current = editable;
+    valueRef.current = value;
+  }, [editable, value]);
+  const [attempt, setAttempt] = useState(0);
+
+  const reseed = useCallback((next: LoadedSection, nextEtag: string) => {
+    setSource({ section: next, etag: nextEtag });
+    setValue(next.contents as T);
+    setChecked(false);
+  }, []);
+
+  // A newer read from the route, e.g. a loader re-run: take it unless an edit is on its way.
+  const [routeSection, setRouteSection] = useState(section);
+  if (routeSection !== section) {
+    setRouteSection(section);
+    const waiting = key in autosave.pending || autosave.inFlight?.key === key;
+    if (section.draftVersion > basis && !waiting && autosave.rejection?.key !== key) {
+      reseed(section, etag);
+    }
+  }
+
+  // Contents older than a save of this section: read it again once that save has landed.
+  const stale = !checked && freshness === 'stale';
+  useEffect(() => {
+    if (!stale) return;
+    let cancelled = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    void getDeclarationSection({ data: { declarationId, sectionKey: key } })
+      .catch(() => null)
+      .then((result) => {
+        if (cancelled) return;
+        if (result?.status === 'ok') {
+          reseed(result.section, result.etag);
+          return;
+        }
+        retry = setTimeout(() => {
+          setAttempt((current) => current + 1);
+        }, REREAD_MS);
+      });
+    return () => {
+      cancelled = true;
+      clearTimeout(retry);
+    };
+  }, [stale, basis, declarationId, key, reseed, attempt]);
+
+  // On each read only; later issues come from saves.
+  useEffect(() => {
+    adoptEtag(source.etag, source.section.draftVersion);
+    setIssues(key, source.section.issues, source.section.contents);
+  }, [adoptEtag, setIssues, key, source]);
 
   // Leaving the screen sends its waiting edits at once.
   useEffect(
@@ -289,6 +368,8 @@ export function useSectionAutosave<T>(section: LoadedSection, etag: string): Sec
 
   const update = useCallback(
     (next: T | ((current: T) => T)) => {
+      // Never save contents that may be older than a save of the section.
+      if (!editableRef.current) return;
       const resolved =
         typeof next === 'function' ? (next as (current: T) => T)(valueRef.current) : next;
       valueRef.current = resolved;
@@ -301,10 +382,10 @@ export function useSectionAutosave<T>(section: LoadedSection, etag: string): Sec
   return {
     value,
     update,
-    disabled: workspace.conflict,
+    disabled: workspace.conflict || !editable,
     issues: current(
-      workspace.issues[key] ?? section.issues,
-      key in workspace.issueBasis ? workspace.issueBasis[key] : section.contents,
+      workspace.issues[key] ?? source.section.issues,
+      key in workspace.issueBasis ? workspace.issueBasis[key] : source.section.contents,
       value,
     ),
   };
