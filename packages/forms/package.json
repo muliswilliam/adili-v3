@@ -4,6 +4,7 @@
   "private": true,
   "description": "Validators and generated types for the prescribed forms' JSON Schemas in @adili/schemas (declaration.v1, form-k.v1, form-m.v1), with Zod schemas for declaration.v1 and form-m.v1, shared by the services and the apps.",
   "type": "module",
+  "sideEffects": false,
   "files": [
     "dist"
   ],
@@ -14,7 +15,7 @@
     }
   },
   "scripts": {
-    "generate": "node ./scripts/generate-types.ts",
+    "generate": "node ./scripts/generate-types.ts && node ./scripts/generate-validators.ts",
     "build": "pnpm generate && tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "lint": "eslint .",
@@ -23,7 +24,6 @@
   },
   "dependencies": {
     "@adili/schemas": "workspace:*",
-    "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
     "zod": "^4.6.5"
   },
@@ -31,6 +31,7 @@
     "@adili/eslint-config": "workspace:*",
     "@adili/tsconfig": "workspace:*",
     "@types/node": "^24.0.0",
+    "ajv": "^8.18.0",
     "eslint": "^10.11.0",
     "json-schema-to-typescript": "^16.0.0",
     "prettier": "^3.9.9",

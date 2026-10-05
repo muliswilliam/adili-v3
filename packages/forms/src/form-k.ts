@@ -1,10 +1,9 @@
-import schema from '@adili/schemas/forms/form-k.v1.json' with { type: 'json' };
-
 import type { FormKV1 } from './form-k.v1.gen.js';
-import { compileForm } from './validate.js';
+import { formK } from './form-k.v1.validate.gen.js';
+import { formValidator } from './validate.js';
 
 /** Validates a Form K document (Regs r.22(1)) against `form-k.v1`. */
-export const validateFormK = compileForm<FormKV1>(schema);
+export const validateFormK = formValidator<FormKV1>(formK);
 
 /** A part of a declaration an access scope names (`form-k.v1` `scope.sections`). */
 export type FormKSection = FormKV1['scope']['sections'][number];

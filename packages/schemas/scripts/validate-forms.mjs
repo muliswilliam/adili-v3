@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Meta-validates every First Schedule / Form K / Form M JSON Schema (draft 2020-12), then
-// compiles it with the options @adili/forms uses (packages/forms/src/validate.ts), so a schema
-// that would throw at a consumer's startup (an unknown keyword, say) fails here first. Fixtures
-// are checked by the @adili/forms tests.
+// compiles it with the options @adili/forms generates its validators with
+// (packages/forms/scripts/generate-validators.ts), so a schema ajv would refuse (an unknown
+// keyword, say) fails here first. Fixtures are checked by the @adili/forms tests.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,7 +17,7 @@ const ajv = new Ajv2020({
 });
 addFormats(ajv);
 
-// Keep in step with packages/forms/src/validate.ts.
+// Keep in step with packages/forms/scripts/generate-validators.ts.
 const compileOptions = { allErrors: true, strictTypes: false };
 
 const files = readdirSync(formsDir)

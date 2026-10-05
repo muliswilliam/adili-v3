@@ -1,21 +1,33 @@
 import schema from '@adili/schemas/forms/declaration.v1.json' with { type: 'json' };
 import type { z } from 'zod';
 
+import {
+  FIXED_SECTION_FIELDS,
+  FIXED_SECTION_KEYS,
+  type FixedSectionKey,
+} from './declaration-section-fields.js';
 import type { DeclarationV1 } from './declaration.v1.gen.js';
+import {
+  bioSection,
+  declaration,
+  householdSection,
+  otherSection,
+  statementSection,
+} from './declaration.v1.validate.gen.js';
 import { DeclarationSchema, StatementSchema } from './declaration.v1.zod.gen.js';
 import {
-  compileFieldProblems,
   type FieldProblem,
+  fieldProblems,
   formValidator,
   type FormValidationError,
   jsonPointer,
   placeProblems,
 } from './validate.js';
 
-const declarationProblems = compileFieldProblems(schema);
+const declarationProblems = fieldProblems(declaration);
 
 /** Validates a declaration (the First Schedule, paragraphs 1-9) against `declaration.v1`. */
-export const validateDeclaration = formValidator<DeclarationV1>(declarationProblems);
+export const validateDeclaration = formValidator<DeclarationV1>(declaration);
 
 /** `officer` or `spouse:<id>` / `child:<id>`: whose financial statement (paragraph 8) it is. */
 export type PersonKey = 'officer' | `spouse:${string}` | `child:${string}`;
@@ -47,61 +59,35 @@ export interface DeclarationProblems {
   declaration: FormValidationError[];
 }
 
-const FIXED_SECTION_KEYS = ['bio', 'household', 'other'] as const;
-type FixedSectionKey = (typeof FIXED_SECTION_KEYS)[number];
-type Fields = readonly [keyof DeclarationV1, ...(keyof DeclarationV1)[]];
-
-/**
- * The capture sections other than the per-person statements: the declaration.v1 fields each
- * holds, and whether paths inside it keep the field name (household contents are
- * `{ spouses, children }`, so they do; bio and other contents are the field itself).
- */
+/** Each fixed capture section's fields (declaration-section-fields.ts) and its Zod schema. */
 const FIXED_SECTIONS: Record<
   FixedSectionKey,
-  { fields: Fields; keepsFieldName: boolean; schema: z.ZodType }
+  (typeof FIXED_SECTION_FIELDS)[FixedSectionKey] & { schema: z.ZodType }
 > = {
-  bio: { fields: ['officer'], keepsFieldName: false, schema: DeclarationSchema.shape.officer },
+  bio: { ...FIXED_SECTION_FIELDS.bio, schema: DeclarationSchema.shape.officer },
   household: {
-    fields: ['spouses', 'children'],
-    keepsFieldName: true,
+    ...FIXED_SECTION_FIELDS.household,
     schema: DeclarationSchema.pick({ spouses: true, children: true }),
   },
   other: {
-    fields: ['otherInformation'],
-    keepsFieldName: false,
+    ...FIXED_SECTION_FIELDS.other,
     schema: DeclarationSchema.shape.otherInformation,
   },
 };
 
 const PERSON_KEY = new RegExp(schema.$defs.PersonKey.pattern, 'u');
 
-// One validator per capture section, over the same schema, so a draft's section can be checked
-// on its own when it is saved. Each keeps the root's $defs so its references resolve.
-const sectionValidator = (sectionSchema: object) =>
-  compileFieldProblems({ $defs: schema.$defs, ...sectionSchema });
-const fixedSectionValidator = (key: FixedSectionKey) => {
-  const { fields, keepsFieldName } = FIXED_SECTIONS[key];
-  const { properties } = schema;
-  return sectionValidator(
-    keepsFieldName
-      ? {
-          type: 'object',
-          required: fields,
-          additionalProperties: false,
-          properties: Object.fromEntries(fields.map((field) => [field, properties[field]])),
-        }
-      : properties[fields[0]],
-  );
-};
-// Typed so that a section key without a validator fails typecheck.
+// One validator per capture section (scripts/generate-validators.ts), so a draft's section can be
+// checked on its own when it is saved. Typed so that a section key without a validator fails
+// typecheck.
 const SECTION_VALIDATORS: Record<
   FixedSectionKey | 'statement',
-  ReturnType<typeof sectionValidator>
+  ReturnType<typeof fieldProblems>
 > = {
-  bio: fixedSectionValidator('bio'),
-  household: fixedSectionValidator('household'),
-  other: fixedSectionValidator('other'),
-  statement: sectionValidator({ $ref: '#/$defs/Statement' }),
+  bio: fieldProblems(bioSection),
+  household: fieldProblems(householdSection),
+  other: fieldProblems(otherSection),
+  statement: fieldProblems(statementSection),
 };
 
 /**
