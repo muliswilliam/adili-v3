@@ -6,13 +6,16 @@ import {
   executeChild,
   isCancellation,
   log,
+  patched,
   proxyActivities,
   sleep,
   workflowInfo,
 } from '@temporalio/workflow';
 
+import { requestCaseCopilot } from '../copilot/workflows.js';
 import type { RegistryCheckActivities } from './activities.js';
 import {
+  type RecheckOptions,
   type RegistryCheckRequest,
   type RegistryCheckResult,
   type RegistryLookups,
@@ -64,6 +67,28 @@ export async function registryCheck(request: RegistryCheckRequest): Promise<Regi
 }
 
 /**
+ * `registryRecheck` (#603): the registry check of a case at its current version, then its copilot
+ * asked anew with the check's time, so the summary is marked stale and rebuilt on the statuses the
+ * check stored (spec 07c S11). A reviewer's re-check always asks; the sweep asks only when a
+ * status changed (`RecheckOptions`). A stale check asks nothing.
+ */
+export async function registryRecheck(
+  request: RegistryCheckRequest,
+  options: RecheckOptions,
+): Promise<RegistryCheckResult> {
+  const result = await registryCheck(request);
+  if (result.outcome !== 'checked') return result;
+  if (options.refreshCopilot === 'if-changed' && !result.changed) return result;
+  await requestCaseCopilot({
+    tenant: request.tenant,
+    caseId: request.caseId,
+    trigger: 're-check',
+    registryCheckedAt: result.checkedAt,
+  });
+  return result;
+}
+
+/**
  * Whether a lookup or supplier check is still without an answer worth waiting for (one the
  * gateway refused is not: it needs fixing).
  */
@@ -79,8 +104,8 @@ export function anyToLookUpAgain(lookups: RegistryLookups): boolean {
  * schedule: checks the registries again for the open cases with a registry still unavailable,
  * oldest check first, as `planRegistrySweep` paces them under the systems' rate limits (each case
  * starting once the systems it looks up have room for it, until the plan's window closes), at
- * most `SWEEP_CONCURRENCY` at once. Each check is a `registryCheck` child; one that fails leaves
- * its case for the next run.
+ * most `SWEEP_CONCURRENCY` at once. Each check is a `registryRecheck` child, which refreshes the
+ * case's copilot when a status changed (#603); one that fails leaves its case for the next run.
  */
 export async function registrySweep(): Promise<RegistrySweepResult> {
   const plan = await planRegistrySweep();
@@ -100,16 +125,25 @@ export async function registrySweep(): Promise<RegistrySweepResult> {
   return result;
 }
 
+/**
+ * The sweep's child became `registryRecheck` with #603 (ADR-003): a sweep started before keeps its
+ * `registryCheck` children on replay. Remove the old branch once no sweep from before #603 runs.
+ */
+const RECHECK_CHILD_PATCH = 'registry-sweep-recheck-child';
+
 /** One swept case's check as a child, counted in `result`; a failure never stops the run. */
 async function checkSwept(
   request: RegistryCheckRequest,
   result: RegistrySweepResult,
 ): Promise<void> {
   try {
-    const checked = await executeChild(registryCheck, {
-      workflowId: registrySweepCheckWorkflowId(request.caseId, workflowInfo().runId),
-      args: [request],
-    });
+    const workflowId = registrySweepCheckWorkflowId(request.caseId, workflowInfo().runId);
+    const checked = patched(RECHECK_CHILD_PATCH)
+      ? await executeChild(registryRecheck, {
+          workflowId,
+          args: [request, { refreshCopilot: 'if-changed' }],
+        })
+      : await executeChild(registryCheck, { workflowId, args: [request] });
     result[checked.outcome] += 1;
   } catch (error) {
     if (isCancellation(error)) throw error;

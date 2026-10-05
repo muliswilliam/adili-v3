@@ -388,6 +388,8 @@ describe('registry checks', () => {
     const eventsBefore = await api.db.select().from(outbox);
 
     // The activity retried after its commit: the same check, the same sequence.
+    // The same answer: a retry after the first store committed says what changed as the first
+    // did (#603: the sweep refreshes the copilot on it), and the same check time.
     expect(await registry.matchAndStoreRegistries({ check: request, lookups })).toEqual(first);
 
     expect(await timelineOf(request.caseId)).toEqual(timelineBefore);

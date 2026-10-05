@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { reviewFlags } from '../../src/cases/schema.js';
-import { copilotInputs } from '../../src/copilot/copilot-inputs.js';
+import { copilotInputs, registryStatusesOf } from '../../src/copilot/copilot-inputs.js';
 import {
   asset,
   declaration,
@@ -153,5 +153,31 @@ describe('copilotInputs', () => {
       ],
       language: 'en',
     });
+  });
+});
+
+describe('registryStatusesOf (#603)', () => {
+  it("gives the summary each registry check of the case, the household's labelled by whose", () => {
+    expect(
+      registryStatusesOf([
+        {
+          personKey: 'spouse:0192f1a0-5a11-7000-8000-000000000101',
+          system: 'ntsa',
+          status: 'matched',
+        },
+        { personKey: 'officer', system: 'ntsa', status: 'mismatched' },
+        { personKey: 'officer', system: 'kra', status: 'matched' },
+        { personKey: 'child:0192f1a0-5a11-7000-8000-000000000201', system: 'kra', status: 'no-id' },
+      ]),
+    ).toEqual([
+      { system: 'kra', status: 'matched' },
+      { system: 'kra · child', status: 'no-id' },
+      { system: 'ntsa', status: 'mismatched' },
+      { system: 'ntsa · spouse', status: 'matched' },
+    ]);
+  });
+
+  it('is empty before the registries are checked', () => {
+    expect(registryStatusesOf([])).toEqual([]);
   });
 });

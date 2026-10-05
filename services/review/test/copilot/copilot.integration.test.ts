@@ -10,9 +10,11 @@ import type {
 } from '../../src/ai-gateway/ai-gateway-client.js';
 import type { CopilotView } from '../../src/copilot/copilot.service.js';
 import { copilotJobWorkflowId } from '../../src/copilot/contract.js';
+import { registryStatusesOf } from '../../src/copilot/copilot-inputs.js';
 import { CopilotWorkflows } from '../../src/copilot/copilot-workflows.js';
 import { outbox, reviewCases, reviewCopilots, reviewFlags } from '../../src/db/schema.js';
 import { processingWorkflowId } from '../../src/processing/contract.js';
+import { registryChecks } from '../../src/registry/schema.js';
 import { asset, declaration, income, revalued, statement } from '../fixtures/declarations.js';
 import { processedFromInbox, twoVersions } from '../support/cases.js';
 import { temporalOf } from '../support/closures.js';
@@ -268,13 +270,17 @@ describe('review copilot', () => {
             document: first.document,
             previousDocument: null,
             changes: [],
-            registryStatuses: [],
             language: 'en',
           },
         },
       });
       const summarizeInput = summarize?.request.input as SummarizeDeclarationInput | undefined;
       expect(summarizeInput?.flags.map((flag) => flag.id)).toEqual(flagIds);
+      // The case's registry check, stored before the copilot is requested (#603).
+      const checks = await api.asPlatform((tx) =>
+        tx.select().from(registryChecks).where(eq(registryChecks.caseId, caseId)),
+      );
+      expect(summarizeInput?.registryStatuses).toEqual(registryStatusesOf(checks));
       expect(explain).toMatchObject({
         task: 'explain-flags',
         request: { input: { kind: 'explain-flags', language: 'en' } },

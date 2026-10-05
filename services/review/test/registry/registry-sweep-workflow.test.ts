@@ -54,6 +54,8 @@ const checked: RegistryCheckResult = {
   outcome: 'checked',
   flags: 1,
   statuses: [{ personKey: 'officer', system: 'ardhisasa', status: 'mismatched', reason: null }],
+  checkedAt: '2027-12-10T10:00:01.000Z',
+  changed: false,
 };
 
 /** A plan starting the cases at once, as when every system has room for all of them. */

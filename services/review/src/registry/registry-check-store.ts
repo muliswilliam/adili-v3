@@ -1,8 +1,9 @@
 import { type Database, withTenant } from '@adili/data-access';
 import type { EventPublisher } from '@adili/events';
-import { and, count, eq, inArray, isNull } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
+import type { ReviewTransaction } from '../cases/case-lookup.js';
 import { reviewCases, reviewFlags, reviewTimeline } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
 import {
@@ -16,7 +17,12 @@ import {
   score,
 } from '../rules/index.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
-import type { CheckStatus, RegistryCheckRequest, RegistryCheckResult } from './contract.js';
+import type {
+  CheckStatus,
+  RegistryCheckRequest,
+  RegistryCheckResult,
+  StoredStatus,
+} from './contract.js';
 import { REVIEW_REGISTRY_CHECKED, type RegistryCheckedData } from './events.js';
 import { registryChecks } from './schema.js';
 
@@ -65,7 +71,11 @@ export async function storeRegistryCheck(
     if (sequence < found.storedRegistryCheck) return { outcome: 'stale' };
     // This check is stored already (the activity retried after its commit): the same lookups
     // match the same, so nothing to write, no second timeline entry or event.
-    if (sequence === found.storedRegistryCheck) return checkedResult(match);
+    // A retry after the first attempt committed cannot tell what that attempt changed: it says
+    // `changed`, so the sweep refreshes the copilot at worst once more, never leaves it behind.
+    if (sequence === found.storedRegistryCheck) {
+      return checkedResult(match, await storedAt(tx, found.id), true);
+    }
 
     const versionFlags = await tx
       .select()
@@ -130,8 +140,9 @@ export async function storeRegistryCheck(
       );
     }
 
-    // The check's time is the database's, as the timeline's: the case's other entries are too.
+    const before = await storedStatuses(tx, found.id);
     await tx.delete(registryChecks).where(eq(registryChecks.caseId, found.id));
+    // The check's time is the database's, as the timeline's: the case's other entries are too.
     if (match.checks.length > 0) {
       await tx.insert(registryChecks).values(
         match.checks.map((entry) => ({
@@ -196,12 +207,71 @@ export async function storeRegistryCheck(
         checks: statuses,
       },
     });
-    return checkedResult(match);
+    return checkedResult(match, await storedAt(tx, found.id), statusesChanged(before, match));
   });
 }
 
-function checkedResult(match: RegistryMatch): RegistryCheckResult {
-  return { outcome: 'checked', flags: match.flags.length, statuses: statusesOf(match) };
+function checkedResult(
+  match: RegistryMatch,
+  checkedAt: string,
+  changed: boolean,
+): RegistryCheckResult {
+  return {
+    outcome: 'checked',
+    flags: match.flags.length,
+    statuses: statusesOf(match),
+    checkedAt,
+    changed,
+  };
+}
+
+/**
+ * When the case's latest check was stored: its statuses' time, or, for a check that stored none,
+ * its timeline entry's. Read back from the database, so a retried store answers the same time.
+ */
+async function storedAt(tx: ReviewTransaction, caseId: string): Promise<string> {
+  const [row] = await tx
+    .select({
+      at: sql<Date | string | null>`coalesce(
+        (select max(${registryChecks.checkedAt}) from ${registryChecks} where ${registryChecks.caseId} = ${caseId}),
+        (select max(${reviewTimeline.at}) from ${reviewTimeline} where ${reviewTimeline.caseId} = ${caseId} and ${reviewTimeline.kind} = 'registry-checked'))`,
+    })
+    .from(reviewCases)
+    .where(eq(reviewCases.id, caseId));
+  // A stored check always has its timeline entry: one without it is a bug to see, not to mask.
+  if (!row?.at) throw new Error(`case ${caseId} has no stored registry check`);
+  return new Date(row.at).toISOString();
+}
+
+/**
+ * The statuses the case's registry check stored, of one version when given: what a new check
+ * compares against, and what the copilot's summary reads (#603).
+ */
+export function storedStatuses(
+  tx: ReviewTransaction,
+  caseId: string,
+  versionId?: string,
+): Promise<StoredStatus[]> {
+  return tx
+    .select({
+      personKey: registryChecks.personKey,
+      system: registryChecks.system,
+      status: registryChecks.status,
+    })
+    .from(registryChecks)
+    .where(
+      versionId === undefined
+        ? eq(registryChecks.caseId, caseId)
+        : and(eq(registryChecks.caseId, caseId), eq(registryChecks.versionId, versionId)),
+    );
+}
+
+/** Whether any person's status in any registry differs between two checks of a case. */
+function statusesChanged(before: readonly StoredStatus[], match: RegistryMatch): boolean {
+  const key = (entry: StoredStatus) => `${entry.personKey} ${entry.system} ${entry.status}`;
+  const previous = new Set(before.map(key));
+  const now = new Set(match.checks.map(key));
+  return previous.size !== now.size || [...now].some((entry) => !previous.has(entry));
 }
 
 function statusesOf(match: RegistryMatch): CheckStatus[] {

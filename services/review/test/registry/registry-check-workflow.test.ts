@@ -62,6 +62,8 @@ const checked: RegistryCheckResult = {
   statuses: [
     { personKey: 'officer', system: 'ardhisasa', status: 'unavailable', reason: 'timeout' },
   ],
+  checkedAt: '2027-12-10T10:00:01.000Z',
+  changed: false,
 };
 
 describe('RegistryCheckWorkflow', () => {

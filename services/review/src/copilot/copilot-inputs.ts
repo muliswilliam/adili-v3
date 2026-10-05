@@ -8,18 +8,35 @@ import type {
   SummarizeDeclarationInput,
 } from '../ai-gateway/ai-gateway-client.js';
 import type { reviewFlags } from '../cases/schema.js';
+import type { StoredStatus } from '../registry/contract.js';
 import {
   match,
+  personKind,
   type PlacedItem,
   placedItems,
   statementSectionKey,
   valueOf,
 } from '../rules/match.js';
 
-/** A registry check's outcome for the summary (spec 07b); none until registry matching lands. */
+/** A registry check's outcome for the summary (spec 07b): `kra`, or `kra · spouse` for a household member. */
 export interface RegistryStatus {
   system: string;
   status: string;
+}
+
+/**
+ * The case's registry checks as the summary reads them (#603): one per person and registry, the
+ * officer's by the registry's name, a spouse's or child's as `<registry> · spouse` or `· child`
+ * (never their identifiers), in a fixed order so the same checks make the same input.
+ */
+export function registryStatusesOf(checks: readonly StoredStatus[]): RegistryStatus[] {
+  const byCode = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+  return checks
+    .map(({ personKey, system, status }) => ({
+      system: personKey === 'officer' ? system : `${system} · ${personKind(personKey)}`,
+      status,
+    }))
+    .sort((a, b) => byCode(a.system, b.system) || byCode(a.status, b.status));
 }
 
 /** What the copilot's inputs are built from: data the review service already holds or pulls. */

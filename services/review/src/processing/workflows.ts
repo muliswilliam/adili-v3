@@ -16,7 +16,7 @@ export { copilotJobFinished, copilotPolicyChanged } from '../copilot/workflows.j
 export { determinationIssuance } from '../determinations/workflows.js';
 export { enforcement } from '../enforcement/workflows.js';
 export { referralSending, referralSweep, referralSweeps } from '../referrals/workflows.js';
-export { registryCheck, registrySweep } from '../registry/workflows.js';
+export { registryCheck, registryRecheck, registrySweep } from '../registry/workflows.js';
 
 /**
  * Pulls from declarations and the directory, and database work: retried with backoff until they
@@ -64,10 +64,12 @@ export async function declarationProcessing(input: ProcessingInput): Promise<Pro
   });
   const flags = await runRules({ input, facts, previous });
   const processed = await upsertCase({ input, facts, flags });
+  let registryCheckedAt: string | undefined;
   try {
     // A version the case is already past is `stale` and looks nothing up. A repeated run checks
     // again, so a run stopped between the case and its check still gets one.
-    await registryCheck({ ...input, caseId: processed.caseId });
+    const checked = await registryCheck({ ...input, caseId: processed.caseId });
+    if (checked.outcome === 'checked') registryCheckedAt = checked.checkedAt;
   } catch (error) {
     if (isCancellation(error)) throw error;
     log.warn('The registry check of the case failed; its registries stay unchecked', {
@@ -76,21 +78,23 @@ export async function declarationProcessing(input: ProcessingInput): Promise<Pro
     });
   }
   if (processed.outcome === 'unchanged') return processed;
-  await afterRegistryMatching(input, processed);
+  await afterRegistryMatching(input, processed, registryCheckedAt);
   return processed;
 }
 
 /**
- * The steps after the registry check. The copilot request omits `registryCheckedAt`, so it keeps
- * the record's.
+ * The steps after the registry check: the copilot, with the check's time (#603). A check that
+ * failed or went stale omits it, so the record keeps its own.
  */
 async function afterRegistryMatching(
   input: ProcessingInput,
   { outcome, caseId }: { outcome: 'created' | 'updated'; caseId: string },
+  registryCheckedAt: string | undefined,
 ): Promise<void> {
   await requestCaseCopilot({
     tenant: input.tenant,
     caseId,
     trigger: outcome === 'created' ? 'case-created' : 'amendment',
+    ...(registryCheckedAt === undefined ? {} : { registryCheckedAt }),
   });
 }

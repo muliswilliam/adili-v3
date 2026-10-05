@@ -15,6 +15,7 @@ import {
 } from '../ai-gateway/ai-gateway-client.js';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
 import { reviewCases, reviewFlags } from '../cases/schema.js';
+import { storedStatuses } from '../registry/registry-check-store.js';
 import { config } from '../config.js';
 import type { ReviewSchema } from '../db/schema.js';
 import {
@@ -30,7 +31,7 @@ import {
   type CopilotActivityRequest,
   type NotEnabledPage,
 } from './contract.js';
-import { copilotInputs } from './copilot-inputs.js';
+import { copilotInputs, registryStatusesOf } from './copilot-inputs.js';
 import { isCopilotOutput } from './output-schema.js';
 import { COPILOT_PROMPT_VERSIONS } from './prompt-versions.js';
 import { caseSubjectRef, type CopilotUpdatedData, REVIEW_COPILOT_UPDATED } from './events.js';
@@ -100,15 +101,21 @@ export class CopilotRequests {
   async request(request: CopilotRequest): Promise<void> {
     const { tenant, caseId } = request;
     const context = { tenant, subject: request.actingSubject };
-    const { row, flags, record } = await withTenant(this.db, context, async (tx) => ({
-      row: await caseOf(tx, tenant, caseId),
-      flags: await tx
-        .select()
-        .from(reviewFlags)
-        .where(eq(reviewFlags.caseId, caseId))
-        .orderBy(asc(reviewFlags.createdAt), asc(reviewFlags.id)),
-      record: await copilotOf(tx, caseId),
-    }));
+    // One snapshot: the case, its flags, its copilot record and the registry check of the
+    // version the summary is for (spec 07b, #603).
+    const { row, flags, record, checks } = await withTenant(this.db, context, async (tx) => {
+      const found = await caseOf(tx, tenant, caseId);
+      return {
+        row: found,
+        flags: await tx
+          .select()
+          .from(reviewFlags)
+          .where(eq(reviewFlags.caseId, caseId))
+          .orderBy(asc(reviewFlags.createdAt), asc(reviewFlags.id)),
+        record: await copilotOf(tx, caseId),
+        checks: found ? await storedStatuses(tx, caseId, found.currentVersionId) : [],
+      };
+    });
     // The case of a request is never deleted; one invisible here asks nothing of the gateway.
     if (!row) return;
 
@@ -126,8 +133,7 @@ export class CopilotRequests {
       current: current.document as unknown as DeclarationV1,
       previous: (previous?.document ?? null) as unknown as DeclarationV1 | null,
       flags,
-      // Spec 07b's registry statuses join here once registry matching lands.
-      registryStatuses: [],
+      registryStatuses: registryStatusesOf(checks),
     });
 
     const registryCheckedAt =
