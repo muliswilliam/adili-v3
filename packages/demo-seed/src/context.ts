@@ -10,6 +10,8 @@ export interface SeedContext {
   log(message: string): void;
   /** The APIs as the demo account with this `demo_key` (signed in on first use). */
   as(demoKey: string, options?: { fresh?: boolean }): Promise<Apis>;
+  /** The demo account's access token, for the few routes with no generated client. */
+  token(demoKey: string): Promise<string>;
   /** The APIs without a token, for public routes. */
   anonymous: Apis;
   keycloak: KeycloakAdmin;
@@ -33,6 +35,9 @@ export function createContext(
     log,
     async as(demoKey, options) {
       return apis(config, await tokens.user(demoKey, options));
+    },
+    token(demoKey) {
+      return tokens.user(demoKey);
     },
     anonymous: apis(config),
     keycloak: new KeycloakAdmin(config),

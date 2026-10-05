@@ -4,8 +4,16 @@ import { verify } from './verify.js';
 import { commissions } from './commissions.js';
 import { cycles, policies } from './cycles.js';
 import { filings } from './filings.js';
+import { mockFixtures } from './mock-fixtures.js';
 import { onboarding } from './onboarding.js';
 import { rosters } from './rosters.js';
+import {
+  reviewClarifications,
+  reviewClosure,
+  reviewQueue,
+  reviewReferral,
+  reviewTeam,
+} from './review.js';
 import { settle } from './settle.js';
 import { syntheticPeople } from './synthetic.js';
 
@@ -15,6 +23,7 @@ import { syntheticPeople } from './synthetic.js';
  * ones they build on.
  */
 export const STEPS: readonly SeedStep[] = [
+  mockFixtures,
   commissions,
   policies,
   cycles,
@@ -23,6 +32,11 @@ export const STEPS: readonly SeedStep[] = [
   onboarding,
   filings,
   settle,
+  reviewTeam,
+  reviewQueue,
+  reviewClarifications,
+  reviewClosure,
+  reviewReferral,
   access,
   verify,
 ];

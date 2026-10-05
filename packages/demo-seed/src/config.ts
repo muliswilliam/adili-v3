@@ -21,6 +21,9 @@ const schema = z.object({
    * Unset: KEYCLOAK_URL.
    */
   KEYCLOAK_ADMIN_URL: z.url().optional(),
+  /** Temporal, for triggering the services' daily sweeps instead of waiting for them. */
+  TEMPORAL_ADDRESS: z.string().default('localhost:7233'),
+  TEMPORAL_NAMESPACE: z.string().default('adili'),
   KEYCLOAK_REALM: z.string().default('adili'),
   KEYCLOAK_ADMIN_USER: z.string().default('admin'),
   KEYCLOAK_ADMIN_PASSWORD: z.string().default('admin_dev'),
