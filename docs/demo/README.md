@@ -46,14 +46,34 @@ pnpm health        # readiness, each app's mocks and the AI provider
 pnpm demo:check    # the same, failing unless every mock is off and the AI provider is real
 ```
 
-### The API key
+### The provider credentials
 
-The key never goes in the repo, in a `.env.example` or in a log. On the VM it is read from the first of:
+The ai-gateway reaches Claude either through the Anthropic API or through a self-hosted LLM Gateway (the open-source [llmgateway](https://github.com/theopenco/llmgateway)), which exposes the same Messages API at `<gateway>/v1/messages`. A gateway we run ourselves keeps the provider credentials and the request log on our own host, a step towards the self-hosted model path in [ADR-007](../adr/0007-vendor-agnostic-ai-layer.md); the gateway still forwards prompts to its upstream provider.
+
+Credentials never go in the repo, in a `.env.example` or in a log. On the VM they are read from the first of:
 
 1. `/etc/adili/secrets.env`, owned by root, readable by `adili` (`root:adili`, mode 0640)
-2. `/home/adili/.config/adili/secrets.env` (mode 0600), written by every deploy when the repo secret `ANTHROPIC_API_KEY` is set
+2. `/home/adili/.config/adili/secrets.env` (mode 0600), written by every deploy from the repo secrets and variables below
 
-Each holds one line, `ANTHROPIC_API_KEY=...`. With no key the ai-gateway stays on replay and the deploy warns.
+| Setting | Anthropic API | Self-hosted LLM Gateway |
+|---|---|---|
+| `ANTHROPIC_API_KEY` (secret) | the key | not set |
+| `ANTHROPIC_AUTH_TOKEN` (secret) | not set | the gateway's API key, sent as `Authorization: Bearer` |
+| `ANTHROPIC_BASE_URL` (variable) | not set | the gateway's URL without `/v1`, e.g. `https://<your-gateway-host>` |
+| `ANTHROPIC_STRUCTURED_OUTPUT` (variable) | not set (`native`) | `prompted`: the gateway drops `output_config.format`, so the schema goes in the system prompt |
+| `AI_MODEL` (variable) | not set (`claude-opus-5-5`) | optional; `anthropic/claude-opus-5-5` pins the gateway to the Anthropic provider |
+
+For the gateway, from a checkout with `gh` signed in:
+
+```sh
+gh secret set ANTHROPIC_AUTH_TOKEN               # paste the gateway API key at the prompt
+gh variable set ANTHROPIC_BASE_URL --body 'https://<your-gateway-host>'
+gh variable set ANTHROPIC_STRUCTURED_OUTPUT --body prompted
+gh variable set AI_MODEL --body anthropic/claude-opus-5-5   # optional
+gh workflow run 'Azure demo'                     # deploy now instead of on the next merge
+```
+
+The VM must reach the gateway's URL over HTTPS. With neither a key nor a token the ai-gateway stays on replay and the deploy warns. A deploy rewrites the provider settings to exactly what the secrets file holds, so switching between the API and the gateway leaves no stale token behind.
 
 ### Switching the AI provider
 
