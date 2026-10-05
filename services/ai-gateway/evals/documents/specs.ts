@@ -36,7 +36,7 @@ export interface SyntheticDocument {
   };
 }
 
-const titleDeed = (fields: [string, string][], extra: Block[] = []): Block[] => [
+export const titleDeed = (fields: [string, string][], extra: Block[] = []): Block[] => [
   { kind: 'border' },
   { kind: 'gap', size: 10 },
   { kind: 'center', text: 'REPUBLIC OF KENYA', size: 16, bold: true },
@@ -56,7 +56,7 @@ const titleDeed = (fields: [string, string][], extra: Block[] = []): Block[] => 
   { kind: 'stamp', text: 'LAND REGISTRY' },
 ];
 
-const logbook = (fields: [string, string][], extra: Block[] = []): Block[] => [
+export const logbook = (fields: [string, string][], extra: Block[] = []): Block[] => [
   { kind: 'center', text: 'NATIONAL TRANSPORT AND SAFETY AUTHORITY', size: 13, bold: true },
   { kind: 'center', text: 'CERTIFICATE OF REGISTRATION OF A MOTOR VEHICLE', size: 11 },
   { kind: 'center', text: 'Traffic Act (Cap. 403)', size: 9 },

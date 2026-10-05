@@ -33,7 +33,8 @@
     "check": "pnpm format:check && pnpm contracts:lint && pnpm contracts:drift && turbo run lint typecheck test && pnpm deps:check",
     "health": "node scripts/health.mjs",
     "keycloak:check": "node scripts/check-keycloak-realm.mjs",
-    "keycloak:demo-sign-in": "node scripts/keycloak-demo-sign-in.mjs"
+    "keycloak:demo-sign-in": "node scripts/keycloak-demo-sign-in.mjs",
+    "demo:seed": "pnpm --filter @adili/demo-seed seed"
   },
   "devDependencies": {
     "dependency-cruiser": "^18.4.0",

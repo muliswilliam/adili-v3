@@ -7,6 +7,7 @@ import { createCanvas, type Canvas } from '@napi-rs/canvas';
 import { PDFDocument, type PDFFont, type PDFPage, rgb, StandardFonts } from 'pdf-lib';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
+import { DEMO_DOCUMENTS } from './demo-specs.js';
 import { DOCUMENTS, type Block, type SyntheticDocument } from './specs.js';
 
 /**
@@ -284,9 +285,12 @@ async function generate(spec: SyntheticDocument): Promise<Uint8Array> {
   return mixed.save();
 }
 
-await mkdir(OUT_DIR, { recursive: true });
-for (const spec of DOCUMENTS) {
+// `demo`: the demo's live-filing files (demo-specs.ts), written to the mocks' demo files.
+const demo = process.argv[2] === 'demo';
+const outDir = demo ? join(OUT_DIR, '../../../../mocks/demo/files') : OUT_DIR;
+await mkdir(outDir, { recursive: true });
+for (const spec of demo ? DEMO_DOCUMENTS : DOCUMENTS) {
   const bytes = await generate(spec);
-  await writeFile(join(OUT_DIR, spec.file), bytes);
+  await writeFile(join(outDir, spec.file), bytes);
   process.stdout.write(`${spec.file}: ${bytes.byteLength} bytes\n`);
 }
