@@ -14,6 +14,7 @@ function closedResponse() {
     destroyed: true,
     writableEnded: false,
     writeHead: () => raw,
+    flushHeaders: () => undefined,
     write: () => true,
     end: () => undefined,
   });

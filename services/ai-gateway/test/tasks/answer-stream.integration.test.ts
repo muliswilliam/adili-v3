@@ -111,6 +111,34 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
 
   const row = async (id: string) => (await t.db.select().from(jobs).where(eq(jobs.id, id)))[0];
 
+  /** The app on a real socket (inject buffers the whole reply), listening once for the file. */
+  let listening: Promise<number> | undefined;
+  const serve = () => {
+    listening ??= t.app.listen({ port: 0, host: '127.0.0.1' }).then(() => {
+      return (t.app.getHttpServer().address() as AddressInfo).port;
+    });
+    return listening;
+  };
+
+  /** POSTs a stream over the socket; resolves with the response once its headers arrive. */
+  const fetchStream = async (key: string, signal?: AbortSignal) => {
+    const port = await serve();
+    return fetch(
+      `http://127.0.0.1:${String(port)}/internal/v1/tasks/answer-declarant-question/stream`,
+      {
+        method: 'POST',
+        headers: {
+          ...auth,
+          ...actingFor('demo'),
+          'idempotency-key': key,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(request(answerInput, key).payload),
+        ...(signal ? { signal } : {}),
+      },
+    );
+  };
+
   it('streams the prose, then the job with the validated answer', async () => {
     provider.scripts = [answered()];
 
@@ -487,6 +515,31 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
     expect(after.costMicros).toBe(before.costMicros);
   });
 
+  // #685: the caller waits 5 s for the headers (STREAM_OPEN_TIMEOUT_MS in declarations). Node
+  // holds written headers until the first body byte, so a model slower than that to its first
+  // token made every answer to a long prompt "unavailable".
+  it('sends the headers as soon as the stream opens, before the model writes anything', async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    provider.scripts = [
+      {
+        ...answered(),
+        beforeChunk: async (index) => {
+          if (index === 0) await held;
+        },
+      },
+    ];
+
+    const response = await fetchStream(randomUUID(), AbortSignal.timeout(3_000)).finally(release);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toMatch(/^text\/event-stream/);
+    const all = frames(await response.text());
+    expect(finalJob(all).status).toBe('succeeded');
+  });
+
   it('fails the job when the caller disconnects mid-stream, charging an estimate', async () => {
     let started: () => void = () => undefined;
     const streaming = new Promise<void>((resolve) => {
@@ -504,24 +557,9 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
     ];
     const budgets = t.app.get(Budgets);
     const before = await budgets.usage('demo');
-    await t.app.listen({ port: 0, host: '127.0.0.1' });
-    const { port } = t.app.getHttpServer().address() as AddressInfo;
     const caller = new AbortController();
     const key = randomUUID();
-    const response = await fetch(
-      `http://127.0.0.1:${port}/internal/v1/tasks/answer-declarant-question/stream`,
-      {
-        method: 'POST',
-        headers: {
-          ...auth,
-          ...actingFor('demo'),
-          'idempotency-key': key,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify(request(answerInput, key).payload),
-        signal: caller.signal,
-      },
-    );
+    const response = await fetchStream(key, caller.signal);
     expect(response.status).toBe(200);
     await streaming;
 
@@ -544,7 +582,7 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
     const after = await budgets.usage('demo');
     expect(after.tokensUsed - before.tokensUsed).toBe((job?.tokensIn ?? 0) + (job?.tokensOut ?? 0));
     expect(after.costMicros - before.costMicros).toBe(job?.costMicros);
-    // The only test on a real socket: the app closes once it is gone.
+    // The last test on a real socket: the app closes once it is gone.
     t.app.getHttpServer().closeAllConnections();
   });
 });
