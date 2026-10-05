@@ -218,6 +218,7 @@ describe('the acknowledgement consumer', () => {
         sha256: slip.document.sha256,
         issuedAt: slip.document.issuedAt.toISOString(),
         status: 'valid',
+        expiresAt: null,
       });
       const outbox = JSON.stringify(await api.outbox());
       expect(outbox).not.toContain('Achieng');

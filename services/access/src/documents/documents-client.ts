@@ -48,6 +48,8 @@ export interface IssueDocumentRequest {
   watermark?: Watermark;
   /** How long the subject may download it (access packages). */
   downloadWindowDays?: number;
+  /** When it stops being in force (ISO 8601; access packages: the end of their window). */
+  validUntil?: string;
   /**
    * Token subjects of the Commission's staff who may download it too: the access officer who
    * recorded the in-person application a certified copy was ordered through.

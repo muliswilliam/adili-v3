@@ -51,6 +51,12 @@ export {
 } from './service-client.js';
 export { createService, type ServiceOptions } from './bootstrap.js';
 export { type BaseEnv, baseEnvSchema, loadConfig, TRUSTED_PROXIES_DEFAULT } from './config.js';
+export {
+  demoModeSetting,
+  demoWindowSetting,
+  isoDurationMs,
+  refuseDemoWindowsOutsideDemo,
+} from './demo-windows.js';
 export { errorType } from './error-type.js';
 export { CoreModule, type CoreModuleOptions } from './core.module.js';
 export { HttpReadinessCheck } from './health/http-readiness-check.js';

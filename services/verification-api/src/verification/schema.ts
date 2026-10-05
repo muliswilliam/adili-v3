@@ -30,6 +30,11 @@ export const verificationProjection = pgTable(
     /** Why it was revoked, when the level allows saying. */
     revokedReason: text().$type<RevocationReason>(),
     /**
+     * When the document stops being in force (ADR-010); null: until superseded or revoked. Past
+     * it, a valid document answers `expired`. Validity is public at every level, so is its end.
+     */
+    expiresAt: timestamp({ withTimezone: true }),
+    /**
      * When the documents service changed the status (the issue time until then): an event older
      * than the row, redelivered or reordered, never overwrites it.
      */

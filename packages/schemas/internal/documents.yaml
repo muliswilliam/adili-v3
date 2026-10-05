@@ -964,6 +964,10 @@ components:
           type: integer
           minimum: 1
           maximum: 90
+        validUntil:
+          description: 'When the document stops being in force (ADR-010): from then on the verify page answers `expired`. Must be after the issue. None: in force until superseded or revoked'
+          type: string
+          format: date-time
         additionalDownloaders:
           description: "Token subjects (`sub`) of the issuing Commission's staff who may download the document besides its subject person, with a token of that Commission, within the same window and audited the same way: the access officer who recorded an in-person self-access application, to print the certified copy they hand over. None: the subject person only"
           maxItems: 10

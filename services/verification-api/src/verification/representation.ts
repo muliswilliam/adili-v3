@@ -49,11 +49,15 @@ export const verificationResultSchema = z.object({
 });
 export type VerificationResult = z.infer<typeof verificationResultSchema>;
 
-/** The answer for a projected document: its row as is, the projection kept only what may show. */
+/**
+ * The answer for a projected document: its row as is, the projection kept only what may show,
+ * and `expired` for a valid document past the end of its validity (ADR-010 §3).
+ */
 export function toVerificationResult(row: ProjectionRow, checkedAt: Date): VerificationResult {
+  const expired = row.status === 'valid' && row.expiresAt !== null && row.expiresAt <= checkedAt;
   return {
     verificationId: row.verificationId,
-    status: row.status,
+    status: expired ? 'expired' : row.status,
     disclosureLevel: row.disclosureLevel,
     document: row.publicPayload,
     sha256: row.sha256,
