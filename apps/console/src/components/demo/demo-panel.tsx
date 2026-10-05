@@ -149,6 +149,11 @@ function DemoPanelContent() {
                       <p className="font-mono text-[13px] font-medium">{checkpoint.name}</p>
                       <p className="text-sm">{checkpoint.state}</p>
                       <p className="text-xs text-muted-foreground">Starts: {checkpoint.beat}</p>
+                      {panel.reset === 'command' ? (
+                        <p className="mt-1.5 font-mono text-xs">
+                          pnpm demo:reset {checkpoint.name}
+                        </p>
+                      ) : null}
                     </div>
                     {panel.reset === 'command' ? (
                       <CopyButton
@@ -156,7 +161,7 @@ function DemoPanelContent() {
                         label={`Copy pnpm demo:reset ${checkpoint.name}`}
                         size="sm"
                         variant="secondary"
-                        showLabel
+                        className="shrink-0"
                       />
                     ) : confirming === checkpoint.name ? (
                       <div className="flex shrink-0 gap-1.5">
