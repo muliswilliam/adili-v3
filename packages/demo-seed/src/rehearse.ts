@@ -3,12 +3,15 @@
  * the APIs, as the presenter does it in the portal, and checks what the demo promises (#617):
  *
  * 1. Wanjiku opens her current declaration, which `0-start` leaves holding what carries over from
- *    her previous one, and asks the registries: KRA, NTSA, BRS and ArdhiSasa suggest her Fielder,
- *    her Kiambu parcel and her salary.
- * 2. She accepts them, attaches the sample files (`mocks/demo/files`) and has each read into the
- *    form (the AI provider's `extract-document`).
+ *    her previous one (her salary, without its amount, and her Sacco loan), and asks the
+ *    registries: NTSA and ArdhiSasa suggest her Fielder and her Kiambu parcel, KRA hints at her
+ *    income.
+ * 2. She accepts the Fielder and the parcel, attaches the sample files (`mocks/demo/files`) and
+ *    has each read into the form (the AI provider's `extract-document`), the payslip into her
+ *    carried-over salary.
  * 3. She submits; the reviewer's case then shows the three 07b flags (the Prado, the Kajiado
- *    parcel, Afya Bora supplying KEMSA) and the comparison with her previous declaration.
+ *    parcel, Afya Bora supplying KEMSA) and the comparison with her previous declaration, and no
+ *    comparison flag: what she carried over pairs with what she declared before (#704).
  *
  * It files Wanjiku's declaration, which `0-start` leaves for the live demo: run it on a stack you
  * reset to `0-start` afterwards (an empty stack and `pnpm demo:seed` until #621's checkpoints),
@@ -111,37 +114,66 @@ const offered = (identifier: string) =>
 expect('Check registries offers the Fielder KCX 214J', offered('KCX 214J') !== undefined);
 expect('Check registries offers the Kiambu parcel', offered('KIAMBU/RUIRU') !== undefined);
 
-// Accept the Fielder, the parcel and the salary hint; each becomes an item to attach a file to.
+// Accept the Fielder and the parcel; each becomes an item to attach a file to. KRA's income hint
+// is for checking the salary she carried over, so it is left as a hint.
 const accept = async (
   suggestionId: string,
   fields: Record<string, unknown>,
   applyToItemId: string | null,
+  overwrite = true,
 ) =>
   ok(
     await api.declarations.POST(
       '/v1/declarations/{declarationId}/suggestions/{suggestionId}/accept',
       {
         params: { path: { declarationId, suggestionId }, header: { 'If-Match': await version() } },
-        body: { fields, applyToItemId, overwrite: true },
+        body: { fields, applyToItemId, overwrite },
       },
     ),
     `accept ${suggestionId}`,
   );
-const items: Record<string, string> = {};
+const carried = ok(
+  await api.declarations.GET('/v1/declarations/{declarationId}/sections/{sectionKey}', {
+    params: { path: { declarationId, sectionKey: 'statement:officer' } },
+  }),
+  'carried-over statement',
+).contents as { income?: { id: string; type: string }[] };
+const salaryId = carried.income?.find((item) => item.type === 'salary-emoluments')?.id;
+expect('the salary is carried over from her previous declaration', salaryId !== undefined);
+const items: Record<string, string> = salaryId ? { salary: salaryId } : {};
 for (const [key, suggestion] of [
   ['vehicle', offered('KCX 214J')],
   ['land', offered('KIAMBU/RUIRU')],
-  ['salary', registry.find((s) => s.itemType === 'income-hint')],
 ] as const) {
   if (!suggestion) continue;
   items[key] = (await accept(suggestion.id, suggestion.fields, null)).itemId;
 }
 
 // Read each sample file into its item.
+// As the presenter does: "Use what was read" on the logbook only, so the salary keeps the
+// description she declared it under before.
 const files = [
-  { key: 'salary', file: 'payslip-kemsa-june-2026.pdf', type: 'application/pdf', kind: 'payslip' },
-  { key: 'vehicle', file: 'logbook-fielder-kcx-214j.jpg', type: 'image/jpeg', kind: 'logbook' },
-  { key: 'land', file: 'title-deed-kiambu-ruiru.pdf', type: 'application/pdf', kind: 'title-deed' },
+  {
+    key: 'salary',
+    file: 'payslip-kemsa-june-2026.pdf',
+    type: 'application/pdf',
+    kind: 'payslip',
+    overwrite: false,
+  },
+  {
+    key: 'vehicle',
+    file: 'logbook-fielder-kcx-214j.jpg',
+    type: 'image/jpeg',
+    kind: 'logbook',
+    overwrite: true,
+  },
+  {
+    key: 'land',
+    file: 'title-deed-kiambu-ruiru.pdf',
+    type: 'application/pdf',
+    kind: 'title-deed',
+    overwrite: false,
+  },
 ] as const;
 for (const sample of files) {
   const itemId = items[sample.key];
@@ -190,11 +222,12 @@ for (const sample of files) {
   );
   if (suggestion) {
     console.log(`    read: ${JSON.stringify(suggestion.fields)}`);
-    await accept(suggestion.id, suggestion.fields, itemId);
+    await accept(suggestion.id, suggestion.fields, itemId, sample.overwrite);
   }
 }
 
-// The values the presenter types, then submit with a fresh sign-in; the rest carried over.
+// The values the presenter types (docs/demo/README.md, beat D), then submit with a fresh sign-in;
+// the rest carried over.
 const statement = ok(
   await api.declarations.GET('/v1/declarations/{declarationId}/sections/{sectionKey}', {
     params: { path: { declarationId, sectionKey: 'statement:officer' } },
@@ -228,10 +261,8 @@ ok(
         change: unchanged,
         joint: { isJoint: false },
         location: { inKenya: true, county: '022' },
-        ...withValue(a, 'value', 1_000_000),
+        ...withValue(a, 'value', a.type === 'land' ? 4_000_000 : 1_000_000),
       })),
-      liabilitiesNil: true,
-      liabilities: [],
     },
   }),
   'save the statement',
@@ -279,6 +310,17 @@ for (const rule of [
   expect(`07b flag ${rule}`, found.rules.includes(rule));
 }
 expect('compared with her previous declaration', !found.rules.includes('no-previous-version'));
+// What she carried over pairs with her previous declaration and the typed values move less than
+// 25%: the comparison flags nothing the story does not explain (#704).
+const comparisonRules = [
+  'acquisition-unflagged',
+  'disposal-unflagged',
+  'nil-after-populated',
+  'value-change-25',
+  'change-flag-mismatch',
+  'income-vs-asset-growth',
+];
+expect('no comparison flag', !found.rules.some((rule) => comparisonRules.includes(rule)));
 const compare = await reviewer.review.GET('/v1/review/cases/{caseId}/compare', {
   params: { path: { caseId: found.item.id } },
 });

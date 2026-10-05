@@ -5,6 +5,7 @@ import type { Statement } from '@adili/forms';
 import { type Apis, ok } from './clients/api.js';
 import type { SeedContext } from './context.js';
 import {
+  carriedOverStatement,
   type Holdings,
   householdSection,
   itemId,
@@ -90,9 +91,11 @@ function bioContents(
 
 /**
  * Starts the obligation's declaration, unless it is started, and saves what carries over unchanged
- * from `previous` (#682): Your details, Spouses and children, Other information, and no
- * liabilities, as the declarant re-confirms them. The financial statement's income and assets are
- * left for the live filing: the registries, the documents read into the form and the values.
+ * from `previous` (#682): Your details, Spouses and children, Other information, and the financial
+ * statement's income and liabilities exactly as declared (#704), as the declarant re-confirms
+ * them, so the comparison flags only what changed. The salary's amount for the new period and the
+ * assets are left for the live filing: the registries, the documents read into the form and the
+ * values.
  * Returns the draft's id. Nothing is saved over a draft already started.
  */
 export async function startCarriedOver(
@@ -143,8 +146,7 @@ export async function startCarriedOver(
   await save('household', householdSection(previous.household, draft.statementDate));
   await save('statement:officer', {
     ...(await read('statement:officer')),
-    liabilitiesNil: true,
-    liabilities: [],
+    ...carriedOverStatement(previous),
   });
   await save('other', otherInformation(previous, previous, followsEarlier));
   return { declarationId, started: true };

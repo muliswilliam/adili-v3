@@ -2,6 +2,7 @@ import { sectionIssues } from '@adili/forms';
 import { describe, expect, it } from 'vitest';
 
 import {
+  carriedOverStatement,
   householdSection,
   itemId,
   nilStatement,
@@ -59,6 +60,26 @@ describe('the declarations the seed files', () => {
     expect(officerStatement(frame, now, undefined, true).assets[0]?.change).toEqual({
       changed: false,
     });
+  });
+
+  it('carry the previous income and liabilities over as declared, so nothing reads as new or gone (#704)', () => {
+    const wanjiku = PERSONAS.find((persona) => persona.demoKey === 'wanjiku');
+    if (!wanjiku?.filings.startsCurrent) throw new Error('Wanjiku starts her current declaration');
+    const { previous } = wanjiku.filings;
+    const declared = officerStatement(frame, previous, undefined, false);
+    const carried = carriedOverStatement(previous);
+
+    // The comparison pairs items by type and description: each carried item is its declared self.
+    const key = (item: { type: string; description: string }) => [item.type, item.description];
+    expect(carried.income.map(key)).toEqual(declared.income.map(key));
+    expect(carried.liabilities).toEqual(declared.liabilities);
+    expect(carried.liabilitiesNil).toBe(false);
+    expect(carried.liabilities).not.toHaveLength(0);
+    // The salary for the new period is hers to enter; nothing carried is marked as changed.
+    expect(carried.income.every((item) => !('amount' in item))).toBe(true);
+    expect([...carried.income, ...carried.liabilities].map((item) => item.change)).toEqual(
+      [...carried.income, ...carried.liabilities].map(() => ({ changed: false })),
+    );
   });
 
   it('give a holding the same item id in every cycle', () => {
