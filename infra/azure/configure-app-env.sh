@@ -62,6 +62,12 @@ set_env "$ROOT/apps/console/.env" ADILI_DEMO_BIND 1
 # Links to the portal's public pages (open data).
 set_env "$ROOT/apps/console/.env" PORTAL_URL "${ADILI_PORTAL_URL}"
 
+# The hackathon demo (#616): synthetic-data banner and one-click role switcher. Keycloak runs
+# with ADILI_DEMO_MODE=true (docker-compose.azure.yml) and the same demo-ticket-secret.
+for app in portal console; do
+  set_env "$ROOT/apps/$app/.env" DEMO_MODE true
+done
+
 set_env "$ROOT/apps/verify/.env" APP_URL "${ADILI_VERIFY_URL}"
 set_env "$ROOT/apps/verify/.env" PORT "$verify_port"
 set_env "$ROOT/apps/verify/.env" ADILI_DEMO_BIND 1

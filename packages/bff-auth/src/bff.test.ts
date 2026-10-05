@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   Bff,
+  type BffOptions,
   hasFreshStepUp,
   STEP_UP_CODE_MAX_AGE_SECONDS,
   STEP_UP_SUBMIT_MARGIN_SECONDS,
@@ -350,6 +351,77 @@ describe('Bff', () => {
         STEP_UP_SUBMIT_MARGIN_SECONDS,
       );
       expect(STEP_UP_SUBMIT_MARGIN_SECONDS).toBeGreaterThanOrEqual(120);
+    });
+  });
+
+  describe('demo mode (#616)', () => {
+    it('signs in afresh: ends the session and sends the parameters to Keycloak', async () => {
+      const cookie = await signIn();
+
+      const response = await bff.signInAfresh(
+        new Request(`${APP_URL}/auth/demo-switch`, { method: 'POST', headers: { cookie } }),
+        { authorizeParams: { demo_ticket: 'v1.ticket' }, returnTo: '/review' },
+      );
+
+      expect(response.status).toBe(302);
+      expect(provider.authorizationUrl.mock.calls.at(-1)?.[0].extraParams).toEqual({
+        demo_ticket: 'v1.ticket',
+      });
+      expect(response.headers.getSetCookie()).toContainEqual(
+        expect.stringMatching(/^adili_portal=;/),
+      );
+      expect(await bff.getSession(new Request(APP_URL, { headers: { cookie } }))).toBeNull();
+
+      const callback = await bff.callback(
+        new Request(`${APP_URL}/auth/callback?code=abc&state=s`, {
+          headers: { cookie: cookieFrom(response, `${COOKIE}_login`) },
+        }),
+      );
+      expect(callback.headers.get('location')).toBe(`${APP_URL}/review`);
+    });
+
+    it('asks the hook for parameters on sign-in and step-up', async () => {
+      const authorizeParams = vi.fn<NonNullable<BffOptions['authorizeParams']>>((_, kind) =>
+        Promise.resolve(kind === 'step-up' ? { demo_ticket: 'v1.step-up' } : undefined),
+      );
+      bff = new Bff({
+        appUrl: APP_URL,
+        cookieName: COOKIE,
+        provider,
+        store: new MemorySessionStore(() => now),
+        now: () => now,
+        authorizeParams,
+      });
+
+      await bff.login(new Request(`${APP_URL}/auth/login`));
+      await bff.stepUp(new Request(`${APP_URL}/auth/step-up`));
+
+      expect(authorizeParams.mock.calls.map(([, kind]) => kind)).toEqual(['login', 'step-up']);
+      expect(provider.authorizationUrl.mock.calls[0]?.[0].extraParams).toBeUndefined();
+      expect(provider.authorizationUrl.mock.calls[1]?.[0].extraParams).toEqual({
+        demo_ticket: 'v1.step-up',
+      });
+    });
+
+    it('revalidates tokens older than revalidateAfterMs, ending a session Keycloak ended', async () => {
+      bff = new Bff({
+        appUrl: APP_URL,
+        cookieName: COOKIE,
+        provider,
+        store: new MemorySessionStore(() => now),
+        now: () => now,
+        revalidateAfterMs: 3000,
+      });
+      const cookie = await signIn();
+      const request = () => new Request(APP_URL, { headers: { cookie } });
+
+      now += 2000;
+      expect((await bff.getSession(request()))?.accessToken).toBe('access-1');
+      expect(provider.refresh).not.toHaveBeenCalled();
+
+      now += 1000;
+      provider.refresh.mockRejectedValueOnce(new Error('invalid_grant'));
+      expect(await bff.getSession(request())).toBeNull();
     });
   });
 
