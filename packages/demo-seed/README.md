@@ -45,18 +45,14 @@ pnpm --filter @adili/demo-seed seed --list
 | `rosters` | Every Commission's roster: personas, roster-only officers, timed officers, volume | roster file import as the reporting officer |
 | `onboarding` | Every officer but the roster-only ones onboarded, each a demo account | public onboarding API, codes from Mailpit and the SMS inbox |
 | `filings` | Personas' declarations, the volume's (on time, late, missing, registry mismatches) | the portal's draft and submit API, as each declarant |
-<<<<<<< HEAD
-| `settle` | Waits for every declaration's review case and the personas' slips | review and declarations APIs |
-| `access` | Form K about Kiprono awaiting his representations, about Otieno granted (watermarked, signed package), about Amina denied (Regulation 24, proceedings); DCI's request about Kiprono granted; Amina's certified copy of version 2; a JSC grant whose package expires | access API as `applicant`, `access-officer`, `law-enforcement`, the declarants and a seeded `jsc-access-officer` |
-| `verify` | A document in every verify status, and a tampered copy of a slip; writes `.demo/verify.md` and `.demo/verify.json` | declarations, review (a JSC clarification issued in error and withdrawn), access and documents APIs |
-=======
 | `settle` | Waits for every declaration's review case and the personas' slips | review queue summary, declarant's slips |
 | `review-team` | Two more PSC reviewers (Brian Kiptoo, Mercy Wanjala) and EACC's own staff supervisor (Lilian Chepkoech) | Keycloak admin (no API creates Commission staff) |
 | `review-queue` | 22 PSC volume cases across the bands claimed by the three reviewers; Amina's amended case with the second; copilot summaries the seeding burst failed asked again | review API (claim, copilot refresh) |
 | `review-clarifications` | Kiprono's AI-drafted clarification, edited and issued, awaiting his reply (legal window); one answered, resolved and determined compliant (approved); Otieno's case proposed compliant, awaiting the supervisor; one unanswered past its window with the ladder at a notice and a warning; one carried to a salary stoppage the payroll mock acknowledged | review API as reviewer, declarant and supervisor; short windows through review's demo windows |
 | `review-closure` | Clean low-risk PSC cases (officers who had not filed 2026 file now, with a short case window) proposed by the closure sweep and approved in bulk | declarations and review APIs, the closure sweep's Temporal schedule triggered |
 | `review-referral` | EACC's officer who missed 2022 and 2024: referral proposed by the sweep, approved by EACC's staff supervisor, pushed to ICMS with its case number | review and reporting APIs, the referral sweep's schedule triggered |
->>>>>>> origin/t618/demo-seed-review
+| `access` | Form K about Kiprono awaiting his representations, about Otieno granted (watermarked, signed package), about Amina denied (Regulation 24, proceedings); DCI's request about Kiprono granted; Amina's certified copy of version 2; a JSC grant whose package expires | access API as `applicant`, `access-officer`, `law-enforcement`, the declarants and a seeded `jsc-access-officer` |
+| `verify` | A document in every verify status, and a tampered copy of a slip; writes `.demo/verify.md` and `.demo/verify.json` | declarations, review (a JSC clarification issued in error and withdrawn), access and documents APIs |
 
 Why demo cycles: the first real cycle (2027) has its statement date on 1 November 2027, so
 nothing can be filed or compared before then. The demo runs two earlier cycles on the same
