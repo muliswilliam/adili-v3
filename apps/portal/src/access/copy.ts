@@ -225,7 +225,9 @@ const REQUEST = {
     days === 0 ? 'Decision due today' : `Decision due in ${plural(days, 'day')}`,
   ),
   decisionLate: en((days: number) => `Decision ${plural(days, 'day')} late`),
-  decisionDayOf: en((date: string, day: number, of: number) => `Due ${date} · day ${day} of ${of}`),
+  decisionDayOf: en(
+    (date: string, day: number, of: number) => `Due ${date} · day\u00a0${day}\u00a0of\u00a0${of}`,
+  ),
   decisionClock: en('Decision clock'),
   withdraw: en('Withdraw request'),
   withdrawTitle: en('Withdraw this request?'),

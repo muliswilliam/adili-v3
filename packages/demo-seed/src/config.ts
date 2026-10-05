@@ -14,7 +14,13 @@ const schema = z.object({
   AI_GATEWAY_URL: z.url().default('http://localhost:4008'),
   MOCKS_URL: z.url().default('http://localhost:8000'),
   MAILPIT_URL: z.url().default('http://localhost:8025'),
+  /** Keycloak as a browser reaches it: demo sign-in. */
   KEYCLOAK_URL: z.url().default('http://localhost:8080'),
+  /**
+   * Keycloak's admin API, when it is not public (the hosted VM serves it on loopback only).
+   * Unset: KEYCLOAK_URL.
+   */
+  KEYCLOAK_ADMIN_URL: z.url().optional(),
   /** Temporal, for triggering the services' daily sweeps instead of waiting for them. */
   TEMPORAL_ADDRESS: z.string().default('localhost:7233'),
   TEMPORAL_NAMESPACE: z.string().default('adili'),

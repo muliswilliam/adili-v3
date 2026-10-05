@@ -6,7 +6,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./accounts": "./src/accounts.ts"
+    "./accounts": "./src/accounts.ts",
+    "./checkpoints": "./src/checkpoints.ts"
   },
   "scripts": {
     "lint": "eslint .",

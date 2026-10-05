@@ -36,7 +36,10 @@
     "demo:ai": "node scripts/demo-ai.mjs",
     "keycloak:check": "node scripts/check-keycloak-realm.mjs",
     "keycloak:demo-sign-in": "node scripts/keycloak-demo-sign-in.mjs",
-    "demo:seed": "pnpm --filter @adili/demo-seed seed"
+    "demo:seed": "pnpm --filter @adili/demo-seed seed",
+    "demo:checkpoints": "pnpm --filter @adili/demo-seed checkpoints",
+    "demo:checkpoint": "./scripts/demo-checkpoint.sh capture",
+    "demo:reset": "./scripts/demo-reset.sh"
   },
   "devDependencies": {
     "dependency-cruiser": "^18.4.0",

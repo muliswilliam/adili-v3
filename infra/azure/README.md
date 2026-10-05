@@ -102,7 +102,7 @@ It does **not** re-seed, re-issue certificates, or `terraform apply`. The SSH ho
 
 Every deploy also puts the stack on the real backend (#615): all app mocks off and the ai-gateway on Anthropic, then checks it with `pnpm demo:check` (a warning, not a failed deploy). The API key comes from `/etc/adili/secrets.env` or, when the repo secret `ANTHROPIC_API_KEY` is set, from `~adili/.config/adili/secrets.env`, which the workflow writes over SSH stdin. See [docs/demo](../../docs/demo/README.md#real-backend-and-ai-provider).
 
-The **Azure demo command** workflow (`.github/workflows/azure-demo-command.yml`, run by hand) runs one allow-listed command on the VM through `infra/azure/demo-command.sh`: `check`, `health`, `diagnose`, `seed`, `reset <checkpoint>` or `ai anthropic|record|replay`. Its log is public, so every line goes through a redactor (API keys, bearer tokens, JWTs, demo tickets, secret- and password-named values). `diagnose` prints health, whether the stack is on the real backend, Keycloak discovery on loopback and on the public URL, the containers, and the last log lines of whatever is down.
+The **Azure demo command** workflow (`.github/workflows/azure-demo-command.yml`, run by hand) runs one allow-listed command on the VM through `infra/azure/demo-command.sh`: `check`, `health`, `diagnose`, `seed`, `checkpoints [<from>]` (play the beats and capture every checkpoint, or from one on), `checkpoint [<name>]` (capture the stack as it is under a name; without one, list the checkpoints), `reset <checkpoint>` or `ai anthropic|record|replay`. Its log is public, so every line goes through a redactor (API keys, bearer tokens, JWTs, demo tickets, secret- and password-named values). `diagnose` prints health, whether the stack is on the real backend, Keycloak discovery on loopback and on the public URL, the containers, and the last log lines of whatever is down.
 
 ## Backups
 
@@ -142,6 +142,8 @@ Repo secret (Actions -> Secrets):
 - Image built from `infra/docker/keycloak.Dockerfile` (theme + `adili-otp` extension)
 - Realm file `infra/compose/keycloak/adili-realm.json`
 - File vault at `/opt/keycloak/vault`, mounted from `/home/adili/.config/adili/keycloak-vault` (outside the rsync tree, mode 700/600, owned by adili, Keycloak's uid). `deploy.sh` creates it once (`demo-vault.sh`): the repo's development entries, plus a **random demo ticket secret per host** (#616), since that secret signs demo accounts in with no password or code. `configure-app-env.sh` copies it into the portal and console `.env` (mode 600) from the file; it is never printed. To rotate: delete `adili_demo-ticket-secret` there and redeploy.
+- **Admin off the public URL.** Caddy proxies only `/realms/adili/*` and `/resources/*` on `:8080`. The admin console, the admin API and the master realm answer 404 there and stay on loopback (`127.0.0.1:18080`).
+- **Master admin password per host.** `demo-vault.sh` creates a random `keycloak-admin-password` in `/home/adili/.config/adili` (mode 600), and `deploy.sh` sets it on the master `admin` in place of the bootstrap `admin_dev` (`keycloak-admin-password.mjs`, on loopback, idempotent, never printed). It sets it again if `admin_dev` comes back, e.g. after a Keycloak database restore. `keycloak-demo-sign-in.mjs`, `enable-https.sh` and the hosted seed (`KEYCLOAK_ADMIN_URL` on loopback, `KEYCLOAK_ADMIN_PASSWORD` in `packages/demo-seed/.env`) use it. To sign in to the admin console, tunnel the loopback port (`ssh -L 18080:127.0.0.1:18080 adili@<host>`) and read the password on the VM. The services' own Keycloak calls (directory's onboarding provisioning) use their service accounts on `OIDC_INTERNAL_URL`, not this password.
 - `start-dev --import-realm` for the demo (same as local)
 - Staff TOTP and declarant/applicant SMS OTP unchanged
 
@@ -149,13 +151,19 @@ The committed `vault-dev` secrets are for local and this demo only (ADR-012), ex
 
 ## OpenBao state
 
-OpenBao holds the per-tenant transit keys that seal declaration fields, the document signing keys and the demo root CA. It runs as a persistent server: integrated storage on the `openbao-data` volume (`/openbao/file` in the container), unsealed on start by the static seal key committed in `infra/compose/openbao/server/demo-seal.key`. That key is demo-only (ADR-012); a real deployment uses an HSM or KMS seal.
+OpenBao holds the per-tenant transit keys that seal declaration fields, the document signing keys and the demo root CA. It runs as a persistent server: integrated storage on the `openbao-data` volume (`/openbao/file` in the container), unsealed on start by the static seal key committed in `infra/compose/openbao/server/demo-seal-key.txt`. That key is demo-only (ADR-012); a real deployment uses an HSM or KMS seal.
 
 - Restarts, reboots and redeploys keep every key, so sealed data stays readable.
-- A demo checkpoint must capture `openbao-data` together with the Postgres databases: stop `openbao`, archive the volume, start it again. Restoring one without the other leaves ciphertext that no key opens.
+- Demo checkpoints capture `openbao-data` together with the Postgres databases (see [Demo checkpoints](#demo-checkpoints)). Restoring one without the other leaves ciphertext that no key opens.
 - Deleting the volume (`pnpm infra:reset`, `docker compose down -v`) deletes the keys: drop and re-seed the demo databases too.
 
 One-time switch on a stack that ran the old dev-mode OpenBao (in memory): its keys are already gone after any restart, so data sealed under them cannot be recovered. After the deploy recreates `openbao` and `openbao-init` initialises it, reset the demo data (drop and migrate the service databases, then seed again).
+
+## Demo checkpoints
+
+`pnpm demo:checkpoints` (after `pnpm demo:seed`) captures the demo's checkpoints on the VM; `pnpm demo:reset <checkpoint>` restores one (#621, `packages/demo-seed/README.md`). The restore needs every app stopped, and only systemd can stop `adili-apps`, so `infra/azure/demo-reset.sh` leaves a request in `~/.local/state/adili/` and restarts the unit through the root helper; the unit's `ExecStartPre` (`demo-pending-reset.sh`) restores while the apps are down, then they start. The outcome is in `~/.local/state/adili/demo-reset-last` and `~/adili-demo-reset.log`; a failed restore never keeps the apps down. The console's demo panel runs the same script (`DEMO_RESET_SCRIPT`, set by `configure-app-env.sh`).
+
+Checkpoints live in the Compose Postgres (databases named `ckpt__<checkpoint>__<db>`) and the `demo-checkpoints` volume, so they survive deploys. After a restore the unit runs `pnpm db:migrate`, so a checkpoint captured before a deploy that added migrations still starts on the current schema.
 
 ## Tear down
 
