@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createNonce, isHttps, issuerOrigin, securityHeaders } from './security-headers';
+import { createNonce, isHttps, urlOrigin, securityHeaders } from './security-headers';
 
 describe('securityHeaders', () => {
   it('lets only the nonce-carrying scripts run and refuses framing', () => {
@@ -26,13 +26,28 @@ describe('securityHeaders', () => {
         nonce: 'abc',
         dev: false,
         https: true,
-        identityProvider: issuerOrigin('https://auth.example.ke:8080/realms/adili'),
+        identityProvider: urlOrigin('https://auth.example.ke:8080/realms/adili'),
       }).get('content-security-policy') ?? '';
     expect(csp).toContain("form-action 'self' https://auth.example.ke:8080;");
     expect(
       securityHeaders({ nonce: 'abc', dev: false, https: true }).get('content-security-policy'),
     ).toContain("form-action 'self';");
-    expect(issuerOrigin('not a url')).toBeUndefined();
+    expect(urlOrigin('not a url')).toBeUndefined();
+  });
+
+  it('lets the page upload to the object store, which presigned URLs point at (#676)', () => {
+    const options = { nonce: 'abc', https: true };
+    const storage = urlOrigin('https://demo.example.ke:8333/');
+    expect(
+      securityHeaders({ ...options, dev: false, objectStorage: storage }).get(
+        'content-security-policy',
+      ),
+    ).toContain("connect-src 'self' https://demo.example.ke:8333;");
+    expect(
+      securityHeaders({ ...options, dev: true, objectStorage: storage }).get(
+        'content-security-policy',
+      ),
+    ).toContain("connect-src 'self' https://demo.example.ke:8333 ws: wss:;");
   });
 
   it('allows what Vite needs in development only', () => {

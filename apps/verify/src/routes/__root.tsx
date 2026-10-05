@@ -1,7 +1,8 @@
-import { SiteHeader, THEME_SCRIPT, ThemeToggle } from '@adili/ui';
-import { createRootRoute, HeadContent, Link, Outlet, Scripts } from '@tanstack/react-router';
+import { SiteHeader, ThemeToggle } from '@adili/ui';
+import { createRootRoute, Link, Outlet } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
+import { RootDocument } from '../components/root-document';
 import { verifyMessages as copy } from '../copy';
 import { getTheme } from '../server/theme';
 import appCss from '../styles.css?url';
@@ -24,7 +25,7 @@ export const Route = createRootRoute({
   }),
   loader: () => getTheme(),
   staleTime: Infinity,
-  shellComponent: RootDocument,
+  shellComponent: RootShell,
   component: RootComponent,
 });
 
@@ -53,19 +54,6 @@ function RootComponent() {
   );
 }
 
-function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
-  return (
-    // The head script sets data-theme before React hydrates.
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Sets the theme before the first paint: the shared cookie's choice, or the device's. */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-        <HeadContent />
-      </head>
-      <body>
-        <div className="flex min-h-dvh flex-col">{children}</div>
-        <Scripts />
-      </body>
-    </html>
-  );
+function RootShell({ children }: Readonly<{ children: ReactNode }>) {
+  return <RootDocument theme={Route.useLoaderData()}>{children}</RootDocument>;
 }

@@ -6,6 +6,7 @@ import {
   parseThemePreference,
   serverTheme,
   THEME_SCRIPT,
+  themeRootProps,
 } from './theme';
 
 function mockDevice(dark: boolean) {
@@ -46,6 +47,14 @@ describe('theme preference', () => {
   it('lets the server render only an explicit choice', () => {
     expect(serverTheme('dark')).toBe('dark');
     expect(serverTheme('system')).toBeUndefined();
+  });
+
+  it('gives <html> the explicit choice, and nothing for system', () => {
+    expect(themeRootProps('dark')).toEqual({
+      'data-theme': 'dark',
+      style: { colorScheme: 'dark' },
+    });
+    expect(themeRootProps('system')).toEqual({});
   });
 
   it('stores the choice and applies it at once', () => {

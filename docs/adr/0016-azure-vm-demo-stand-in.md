@@ -31,5 +31,6 @@ ADR-012 #4 and architecture §12 describe the hackathon host as Dokploy / Swarm:
 
 **Negative / risks**
 - Apps are Vite / Nest dev servers, not the CI-built images ADR-012 describes.
+  - *Update 2026-10-05 (#371):* portal, console and verify now run from their production builds (`.output/server/index.mjs`, built by `deploy.sh`, started by `infra/azure/run-apps.sh`): over the network, Vite's unbundled modules held up hydration by seconds. Services and mocks are still `pnpm dev`, and these are still not the per-app images.
 - Data lives on the VM OS disk (Docker volumes). `terraform destroy` wipes it. Nightly dumps and a restore check are `infra/azure/backup-databases.sh` and `verify-restore.sh` (#370); they are not an off-site copy.
 - South Africa North is not "self-hosted in Kenya". Synthetic demo data only.

@@ -1,5 +1,5 @@
 [Unit]
-Description=Adili demo apps (pnpm dev)
+Description=Adili demo: services and mocks (turbo dev), portal, console and verify (production builds)
 After=docker.service network-online.target
 Wants=network-online.target
 
@@ -14,7 +14,8 @@ Environment=ADILI_DEMO_BIND=1
 EnvironmentFile=/etc/adili/public.env
 # Restores a demo checkpoint first when `pnpm demo:reset` asked for one (#621); never fails.
 ExecStartPre=/opt/adili/infra/azure/demo-pending-reset.sh
-ExecStart=/usr/bin/pnpm dev
+# Services and mocks run as `pnpm dev`; the apps from their production builds (run-apps.sh, #371).
+ExecStart=/opt/adili/infra/azure/run-apps.sh
 Restart=on-failure
 RestartSec=5
 # Covers a checkpoint restore in ExecStartPre (about a minute).
