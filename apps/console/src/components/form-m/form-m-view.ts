@@ -109,13 +109,15 @@ export interface SignOffStep {
 export function signOffSteps(
   report: Pick<
     ComplianceReport,
-    'fy' | 'status' | 'compiledAt' | 'reviewedBy' | 'confirmedBy' | 'submittedAt'
+    'fy' | 'status' | 'compiledAt' | 'reviewedBy' | 'confirmedBy' | 'submittedAt' | 'document'
   >,
   missing: readonly string[],
 ): SignOffStep[] {
   const submitted = report.status === 'submitted';
   const reviewed = submitted || report.reviewedBy !== null;
   const filled = submitted || missing.length === 0;
+  // The review's date is the supervisor's Part III signature, as the draft's header has it.
+  const reviewedOn = report.document?.partIII.compiledBy.date;
   const state = (done: boolean, next: boolean): SignOffState =>
     done ? 'done' : next ? 'current' : 'upcoming';
   return [
@@ -128,7 +130,9 @@ export function signOffSteps(
     {
       id: 'reviewed',
       label: m.steps.reviewed,
-      detail: report.reviewedBy?.name ?? null,
+      detail: report.reviewedBy
+        ? [report.reviewedBy.name, reviewedOn && formatDate(reviewedOn)].filter(Boolean).join(', ')
+        : null,
       state: state(reviewed, true),
     },
     {
