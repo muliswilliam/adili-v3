@@ -13,12 +13,11 @@ import {
   formatScopeSections,
   formatScopeYears,
   Icon,
+  InfoTip,
   RegisterTimeline,
-  Tooltip,
 } from '@adili/ui';
 import {
   Alert02Icon,
-  InformationCircleIcon,
   JusticeScale01Icon,
   Undo02Icon,
   ViewOffSlashIcon,
@@ -190,15 +189,7 @@ export function WrittenRequestCard({ request }: { request: LeaRequest }) {
         <CardTitle id="written-request-title">{m.writtenRequest}</CardTitle>
         <span className="ml-auto inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
           {m.noFormK}
-          <Tooltip content={m.noFormKTip}>
-            <button
-              type="button"
-              aria-label={m.noFormKTip}
-              className="inline-flex rounded-full text-muted-foreground hover:text-foreground"
-            >
-              <Icon icon={InformationCircleIcon} className="size-3.5" />
-            </button>
-          </Tooltip>
+          <InfoTip label={m.noFormKTip} content={m.noFormKTip} />
         </span>
       </CardHeader>
       <div>

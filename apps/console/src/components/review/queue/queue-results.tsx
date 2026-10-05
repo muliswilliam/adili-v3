@@ -7,6 +7,7 @@ import {
   focusRing,
   formatDate,
   Icon,
+  InfoTip,
   Menu,
   MenuContent,
   MenuItem,
@@ -26,7 +27,6 @@ import {
   Alert02Icon,
   ArrowLeftRightIcon,
   InboxIcon,
-  InformationCircleIcon,
   MailReply01Icon,
   MoreVerticalIcon,
   Search01Icon,
@@ -305,15 +305,7 @@ function Header() {
         <TableHead>
           <span className="inline-flex items-center gap-1">
             {m.columns.priority}
-            <Tooltip content={m.priorityTip}>
-              <span
-                tabIndex={0}
-                aria-label={m.priorityTipLabel}
-                className={cn('inline-flex rounded-sm', focusRing)}
-              >
-                <Icon icon={InformationCircleIcon} className="size-3.5" />
-              </span>
-            </Tooltip>
+            <InfoTip label={m.priorityTipLabel} content={m.priorityTip} />
           </span>
         </TableHead>
         <TableHead className="text-right">{m.columns.flags}</TableHead>
