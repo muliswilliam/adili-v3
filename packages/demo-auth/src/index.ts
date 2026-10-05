@@ -1,4 +1,5 @@
 export { DEMO_ACCOUNTS, type DemoAccount, demoAccount, type DemoApp } from './accounts.ts';
+export { DEMO_CHECKPOINTS, type DemoCheckpoint, isDemoCheckpoint } from './checkpoints.ts';
 export {
   AUDIT_DEMO_SWITCH,
   type DemoSwitchAccount,

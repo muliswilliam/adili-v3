@@ -26,8 +26,6 @@ __pycache__/
 !.env.example
 *.pem
 *.key
-# Demo-only OpenBao seal key (ADR-012), like the Keycloak vault-dev secrets.
-!infra/compose/openbao/server/demo-seal.key
 *.p12
 
 # AI replay record mode: items of batches still in flight

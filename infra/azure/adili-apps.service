@@ -12,10 +12,13 @@ Environment=HOME=/home/adili
 Environment=PATH=/usr/bin:/usr/local/bin:/home/adili/.local/bin:/home/adili/.local/share/pnpm
 Environment=ADILI_DEMO_BIND=1
 EnvironmentFile=/etc/adili/public.env
+# Restores a demo checkpoint first when `pnpm demo:reset` asked for one (#621); never fails.
+ExecStartPre=/opt/adili/infra/azure/demo-pending-reset.sh
 ExecStart=/usr/bin/pnpm dev
 Restart=on-failure
 RestartSec=5
-TimeoutStartSec=180
+# Covers a checkpoint restore in ExecStartPre (about a minute).
+TimeoutStartSec=420
 
 [Install]
 WantedBy=multi-user.target

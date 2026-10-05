@@ -14,6 +14,10 @@ ADILI_KEYCLOAK_VAULT="$ADILI_SECRETS_DIR/keycloak-vault"
 ADILI_DEMO_TICKET_SECRET_FILE="$ADILI_KEYCLOAK_VAULT/adili_demo-ticket-secret"
 # docker-compose.azure.yml mounts this directory as Keycloak's file vault.
 export ADILI_KEYCLOAK_VAULT
+# Keycloak's master admin password on this host, random, set by keycloak-admin-password.mjs in
+# place of the bootstrap admin_dev. Outside the vault: Keycloak itself never reads it.
+ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE="$ADILI_SECRETS_DIR/keycloak-admin-password"
+export ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE
 
 # Creates or refreshes the vault. Run as adili, Keycloak's uid in its container (1000): the
 # entries are mode 600 and Keycloak reads them through the bind mount.
@@ -28,6 +32,11 @@ adili_prepare_demo_vault() {
       [ "$name" = adili_demo-ticket-secret ] && continue
       install -m 600 "$entry" "$ADILI_KEYCLOAK_VAULT/$name"
     done
+    if [ ! -s "$ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE" ]; then
+      head -c 36 /dev/urandom | base64 | tr -d '\n/+=' >"$ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE.tmp"
+      mv "$ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE.tmp" "$ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE"
+      echo "Created this host's Keycloak admin password in $ADILI_SECRETS_DIR"
+    fi
     if [ ! -s "$ADILI_DEMO_TICKET_SECRET_FILE" ]; then
       head -c 48 /dev/urandom | base64 | tr -d '\n/+=' >"$ADILI_DEMO_TICKET_SECRET_FILE.tmp"
       mv "$ADILI_DEMO_TICKET_SECRET_FILE.tmp" "$ADILI_DEMO_TICKET_SECRET_FILE"
@@ -36,10 +45,13 @@ adili_prepare_demo_vault() {
   )
 }
 
-# Fails unless deploy.sh has created the vault: without it Keycloak would start with no vault.
+# Fails unless deploy.sh has created the vault and the admin password: without the vault Keycloak
+# would start with none.
 adili_require_demo_vault() {
-  if [ ! -s "$ADILI_DEMO_TICKET_SECRET_FILE" ]; then
-    echo "Missing $ADILI_DEMO_TICKET_SECRET_FILE. Run infra/azure/deploy.sh as adili first." >&2
-    exit 1
-  fi
+  for secret in "$ADILI_DEMO_TICKET_SECRET_FILE" "$ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE"; do
+    if [ ! -s "$secret" ]; then
+      echo "Missing $secret. Run infra/azure/deploy.sh as adili first." >&2
+      exit 1
+    fi
+  done
 }

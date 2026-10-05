@@ -1,4 +1,4 @@
-import { DemoBar } from '@adili/ui';
+import { DemoBar, SiteHeaderAside } from '@adili/ui';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
@@ -32,11 +32,24 @@ function RootComponent() {
   const demo = Route.useLoaderData();
   return (
     <RootDocument>
-      <Outlet />
+      {/* In demo mode every site header carries the switcher, so it never covers a page. */}
+      <SiteHeaderAside
+        value={
+          demo ? <DemoBar variant="inline" accounts={demo.accounts} current={demo.current} /> : null
+        }
+      >
+        <Outlet />
+      </SiteHeaderAside>
       {demo ? (
         <>
-          {/* Room below the footer, so the fixed demo bar never covers the end of a page. */}
-          <div aria-hidden="true" className="h-16 shrink-0" />
+          {/*
+           * Pages without a site header (sign-in, onboarding) float it instead, with room below
+           * the footer so it never covers the end of a page.
+           */}
+          <div
+            aria-hidden="true"
+            className="h-16 shrink-0 [body:has([data-demo-bar=inline])_&]:hidden"
+          />
           <DemoBar accounts={demo.accounts} current={demo.current} />
         </>
       ) : null}

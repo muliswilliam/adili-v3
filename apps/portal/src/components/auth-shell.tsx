@@ -1,6 +1,15 @@
-import { Button, cn, focusRing, Icon, LogoWordmark, ToastProvider, useToast } from '@adili/ui';
+import {
+  Button,
+  cn,
+  focusRing,
+  Icon,
+  LogoWordmark,
+  SiteHeaderAside,
+  ToastProvider,
+  useToast,
+} from '@adili/ui';
 import { Globe02Icon } from '@hugeicons/core-free-icons';
-import type { ReactNode } from 'react';
+import { type ReactNode, useContext } from 'react';
 
 import { AuthArt, type AuthArtVariant } from './auth-art';
 
@@ -9,6 +18,8 @@ import { AuthArt, type AuthArtVariant } from './auth-art';
  * and sign-in link, and the photo panel beside it from 1000px. Follows the prototype's `.auth`.
  */
 export function AuthShell({ art, children }: { art: AuthArtVariant; children: ReactNode }) {
+  // What every site header carries (the demo switcher in demo mode).
+  const aside = useContext(SiteHeaderAside);
   return (
     // Above the pages, so a toast such as "Email verified" survives the move to the next step.
     <ToastProvider>
@@ -19,6 +30,7 @@ export function AuthShell({ art, children }: { art: AuthArtVariant; children: Re
               <LogoWordmark />
             </a>
             <div className="flex items-center gap-1">
+              {aside ? <div className="mr-1">{aside}</div> : null}
               <LanguageButton />
               <Button asChild variant="ghost" size="sm">
                 <a href="/auth/login">Sign in</a>

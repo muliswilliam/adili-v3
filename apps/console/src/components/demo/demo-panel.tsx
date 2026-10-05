@@ -1,0 +1,248 @@
+import { SlidersHorizontalIcon } from '@hugeicons/core-free-icons';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  CopyButton,
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+  Icon,
+  Spinner,
+  Switch,
+} from '@adili/ui';
+import { useContext, useEffect, useState } from 'react';
+
+import {
+  type DemoPanelState,
+  getDemoPanel,
+  resetDemo,
+  setDemoRegistryPaused,
+} from '../../server/demo/panel';
+import { DemoContext } from './demo-context';
+
+/** How long the panel waits for the console to go down after asking for a reset. */
+const GOING_DOWN_MS = 45_000;
+const POLL_MS = 3000;
+
+/**
+ * The demo panel (#621) beside the role switcher in the console's top bar: reset the stack to a
+ * checkpoint, pause and resume each registry mock. Demo mode and a signed-in demo account only;
+ * nothing renders otherwise.
+ */
+export function DemoPanel() {
+  const demo = useContext(DemoContext);
+  const [open, setOpen] = useState(false);
+  if (!demo?.current) return null;
+  return (
+    <Drawer open={open} onOpenChange={setOpen}>
+      <DrawerTrigger asChild>
+        <Button variant="ghost" size="sm">
+          <Icon icon={SlidersHorizontalIcon} />
+          <span className="max-[900px]:sr-only">Demo panel</span>
+        </Button>
+      </DrawerTrigger>
+      {open ? <DemoPanelContent /> : null}
+    </Drawer>
+  );
+}
+
+function DemoPanelContent() {
+  const [panel, setPanel] = useState<DemoPanelState | null | 'loading'>('loading');
+  const [resetting, setResetting] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void getDemoPanel().then((state) => {
+      if (live) setPanel(state);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  async function reset(checkpoint: string) {
+    setError(null);
+    setResetting(checkpoint);
+    const result = await resetDemo({ data: { checkpoint } });
+    if (!result?.ok) {
+      setResetting(null);
+      setError(result?.message ?? 'Only a signed-in demo account can reset the demo.');
+      return;
+    }
+    await waitForRestart();
+    window.location.assign('/');
+  }
+
+  async function toggle(system: string, paused: boolean) {
+    if (panel === 'loading' || !panel) return;
+    const state = await setDemoRegistryPaused({
+      data: { system: system as 'kra', paused },
+    });
+    setPanel({
+      ...panel,
+      registries: panel.registries.map((registry) =>
+        registry.system === system ? { ...registry, paused: state } : registry,
+      ),
+    });
+  }
+
+  return (
+    <DrawerContent>
+      <DrawerHeader>
+        <DrawerTitle>Demo panel</DrawerTitle>
+        <DrawerDescription>
+          Put the demo back to a checkpoint, or take a registry offline to show how filing and
+          review carry on without it.
+        </DrawerDescription>
+      </DrawerHeader>
+      <DrawerBody>
+        {panel === 'loading' ? (
+          <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Spinner /> Loading
+          </p>
+        ) : panel === null ? (
+          <p className="text-sm text-muted-foreground">
+            Sign in with a demo account to use the demo panel.
+          </p>
+        ) : resetting ? (
+          <Alert variant="info" role="status">
+            <AlertTitle>Resetting the demo to {resetting}</AlertTitle>
+            <AlertDescription>
+              Every app restarts on the restored stack, this console too. It is back in about two
+              minutes and this page reloads by itself; then pick an account to act as.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <section aria-labelledby="demo-checkpoints" className="flex flex-col gap-2.5">
+              <h3 id="demo-checkpoints" className="text-sm font-semibold">
+                Reset to a checkpoint
+              </h3>
+              {error ? (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              ) : null}
+              {panel.reset === 'command' ? (
+                <p className="text-sm text-muted-foreground">
+                  On a local stack, stop <code>pnpm dev</code>, run the reset, then start{' '}
+                  <code>pnpm dev</code> again.
+                </p>
+              ) : null}
+              <ul className="flex flex-col divide-y rounded-lg border">
+                {panel.checkpoints.map((checkpoint) => (
+                  <li key={checkpoint.name} className="flex items-start gap-3 px-3.5 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono text-[13px] font-medium">{checkpoint.name}</p>
+                      <p className="text-sm">{checkpoint.state}</p>
+                      <p className="text-xs text-muted-foreground">Starts: {checkpoint.beat}</p>
+                    </div>
+                    {panel.reset === 'command' ? (
+                      <CopyButton
+                        value={`pnpm demo:reset ${checkpoint.name}`}
+                        label={`Copy pnpm demo:reset ${checkpoint.name}`}
+                        size="sm"
+                        variant="secondary"
+                        showLabel
+                      />
+                    ) : confirming === checkpoint.name ? (
+                      <div className="flex shrink-0 gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setConfirming(null);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => void reset(checkpoint.name)}
+                        >
+                          Reset now
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="shrink-0"
+                        onClick={() => {
+                          setConfirming(checkpoint.name);
+                        }}
+                      >
+                        Reset
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+            <section aria-labelledby="demo-registries" className="flex flex-col gap-2.5">
+              <h3 id="demo-registries" className="text-sm font-semibold">
+                Registries
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                A paused registry answers as unavailable: new checks wait and retry, cases show the
+                check as pending.
+              </p>
+              <ul className="flex flex-col divide-y rounded-lg border">
+                {panel.registries.map((registry) => (
+                  <li
+                    key={registry.system}
+                    className="flex items-center justify-between gap-3 px-3.5 py-2"
+                  >
+                    <Switch
+                      label={registry.label}
+                      checked={registry.paused === false}
+                      blockedReason={
+                        registry.paused === null ? 'The integration mocks did not answer' : ''
+                      }
+                      onCheckedChange={(online) => void toggle(registry.system, !online)}
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {registry.paused === null
+                        ? 'Unreachable'
+                        : registry.paused
+                          ? 'Paused'
+                          : 'Online'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </>
+        )}
+      </DrawerBody>
+    </DrawerContent>
+  );
+}
+
+/**
+ * Waits for the console to go down for the restart (or for a while, if it went faster than a
+ * poll), then for it to answer again.
+ */
+async function waitForRestart(): Promise<void> {
+  const answers = async () => {
+    try {
+      await fetch('/', { redirect: 'manual', cache: 'no-store' });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const asked = Date.now();
+  while (Date.now() - asked < GOING_DOWN_MS && (await answers())) await sleep(POLL_MS);
+  while (!(await answers())) await sleep(POLL_MS);
+}
