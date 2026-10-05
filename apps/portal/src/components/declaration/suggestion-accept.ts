@@ -100,7 +100,7 @@ export function useAcceptSuggestion(): AcceptSuggestion {
               version: seen?.version ?? 0,
             };
           }
-        });
+        }, sectionKey);
         return held.status === 'done' ? held.value : { status: 'failed', reason: 'conflict' };
       } catch {
         return { status: 'failed', reason: 'unavailable' };

@@ -156,7 +156,7 @@ export function ItemAttachments({ slot }: { slot: ItemAttachmentSlot }) {
           attachmentsIn(fresh.section.contents, category, itemId) ?? written.fallback,
         );
         return { value: written.value, etag: fresh.etag, version: fresh.section.draftVersion };
-      });
+      }, sectionKey);
       return held.status === 'done' ? held.value : null;
     } catch {
       return null;
