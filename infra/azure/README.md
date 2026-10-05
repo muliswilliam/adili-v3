@@ -134,7 +134,7 @@ Repo secret (Actions -> Secrets):
 |---|---|
 | `AZURE_DEMO_SSH_KEY` | Private ed25519 key whose public half is in `~adili/.ssh/authorized_keys` on the VM |
 | `ANTHROPIC_API_KEY` | Optional. The demo's Anthropic key, written to the VM on each deploy; without it (or a gateway token) the AI stays on replay unless `/etc/adili/secrets.env` has one |
-| `ANTHROPIC_AUTH_TOKEN` | Optional, instead of the key. A self-hosted LLM Gateway's API key; set repo variables `ANTHROPIC_BASE_URL` and `ANTHROPIC_STRUCTURED_OUTPUT=prompted` (and optionally `AI_MODEL`) with it ([docs/demo](../../docs/demo/README.md#the-provider-credentials)) |
+| `ANTHROPIC_AUTH_TOKEN` | Optional, instead of the key. A self-hosted LLM Gateway's API key; set repo variables `ANTHROPIC_BASE_URL` and `ANTHROPIC_STRUCTURED_OUTPUT=prompted` and `ANTHROPIC_ATTACHMENTS=image,text` (and optionally `AI_MODEL`) with it ([docs/demo](../../docs/demo/README.md#the-provider-credentials)) |
 
 `adili` may passwordless-sudo only `/usr/local/sbin/adili-demo-root` (root-owned, not in the rsync tree). PRs that touch `infra/azure` also `terraform fmt` / `validate` (no Azure credentials).
 

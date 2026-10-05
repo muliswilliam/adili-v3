@@ -8,10 +8,10 @@
 // The choice is kept in ~/.config/adili/ai-mode so a deploy does not undo a switch to replay.
 // The provider settings come from /etc/adili/secrets.env, then ~/.config/adili/secrets.env, then
 // the environment: ANTHROPIC_API_KEY, or for a self-hosted LLM Gateway ANTHROPIC_AUTH_TOKEN with
-// ANTHROPIC_BASE_URL, plus ANTHROPIC_STRUCTURED_OUTPUT and AI_MODEL. They are written to
-// services/ai-gateway/.env (mode 600) and never printed. Without a key or token, anthropic and
-// record fall back to replay with a warning. A running ai-gateway (`pnpm dev`)
-// is restarted and the switch is confirmed from its /health/ready.
+// ANTHROPIC_BASE_URL, plus ANTHROPIC_STRUCTURED_OUTPUT, ANTHROPIC_ATTACHMENTS and AI_MODEL. They
+// are written to services/ai-gateway/.env (mode 600) and never printed. Without a key or token,
+// anthropic and record fall back to replay with a warning. A running ai-gateway (`pnpm dev`) is
+// restarted and the switch is confirmed from its /health/ready.
 import { chmodSync, existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -30,6 +30,7 @@ const PROVIDER_SETTINGS = [
   'ANTHROPIC_AUTH_TOKEN',
   'ANTHROPIC_BASE_URL',
   'ANTHROPIC_STRUCTURED_OUTPUT',
+  'ANTHROPIC_ATTACHMENTS',
   'AI_MODEL',
 ];
 /** Relative to services/ai-gateway, where the service runs. */

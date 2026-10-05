@@ -21,7 +21,11 @@ function anthropic(env: ProviderEnv): AnthropicAdapter {
     // Retries, backoff and the circuit breaker belong to the job executor, not the SDK.
     maxRetries: 0,
   });
-  return new AnthropicAdapter({ client, structuredOutput: env.ANTHROPIC_STRUCTURED_OUTPUT });
+  return new AnthropicAdapter({
+    client,
+    structuredOutput: env.ANTHROPIC_STRUCTURED_OUTPUT,
+    attachments: env.ANTHROPIC_ATTACHMENTS,
+  });
 }
 
 export function createModelProvider(env: ProviderEnv): ModelProvider {

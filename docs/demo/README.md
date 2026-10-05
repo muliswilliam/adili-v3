@@ -204,6 +204,7 @@ Credentials never go in the repo, in a `.env.example` or in a log. On the VM the
 | `ANTHROPIC_AUTH_TOKEN` (secret) | not set | the gateway's API key, sent as `Authorization: Bearer` |
 | `ANTHROPIC_BASE_URL` (variable) | not set | the gateway's URL without `/v1`, e.g. `https://<your-gateway-host>` |
 | `ANTHROPIC_STRUCTURED_OUTPUT` (variable) | not set (`native`) | `prompted`: the gateway drops `output_config.format`, so the schema goes in the system prompt |
+| `ANTHROPIC_ATTACHMENTS` (variable) | not set (`image,pdf,text`) | `image,text`: the gateway drops PDF `document` blocks, so each PDF (a scanned title deed) goes as one image per page, at most 20 pages |
 | `AI_MODEL` (variable) | not set (`claude-opus-5-5`) | optional; `anthropic/claude-opus-5-5` pins the gateway to the Anthropic provider |
 
 For the gateway, from a checkout with `gh` signed in:
@@ -212,6 +213,7 @@ For the gateway, from a checkout with `gh` signed in:
 gh secret set ANTHROPIC_AUTH_TOKEN               # paste the gateway API key at the prompt
 gh variable set ANTHROPIC_BASE_URL --body 'https://<your-gateway-host>'
 gh variable set ANTHROPIC_STRUCTURED_OUTPUT --body prompted
+gh variable set ANTHROPIC_ATTACHMENTS --body image,text
 gh variable set AI_MODEL --body anthropic/claude-opus-5-5   # optional
 gh workflow run 'Azure demo'                     # deploy now instead of on the next merge
 ```
