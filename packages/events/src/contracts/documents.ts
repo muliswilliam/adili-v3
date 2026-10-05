@@ -178,6 +178,11 @@ export interface DocumentEventData extends Record<string, unknown> {
   sha256: string;
   issuedAt: string;
   status: DocumentStatus;
+  /**
+   * When the document stops being in force (ADR-010 `expired`); null or absent: in force until
+   * superseded or revoked. The status stays as issued: a reader compares this with its clock.
+   */
+  expiresAt?: string | null;
 }
 
 /** A document was rendered, signed, registered and stored. */

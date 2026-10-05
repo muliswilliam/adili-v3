@@ -959,3 +959,38 @@ describe('S13 a certified copy ordered in person: the recording officer hands it
     ]);
   });
 });
+
+describe('ADR-010 a document valid until a time (#371)', () => {
+  it('signs the end of its validity into the record and announces it', async () => {
+    const validUntil = new Date(Date.now() + 14 * DAY_MS);
+    const document = await issued(packageBody({ validUntil: validUntil.toISOString() }));
+
+    const [record] = await withTenant(api.db, { tenant: 'psc', subject: 'test' }, (tx) =>
+      tx.select().from(verificationRecords).where(eq(verificationRecords.documentId, document.id)),
+    );
+    expect(record?.expiresAt).toEqual(validUntil);
+    const [announced] = await eventsAbout(document.id);
+    expect(documentIssuedDataSchema.parse(announced?.data).expiresAt).toBe(
+      validUntil.toISOString(),
+    );
+  });
+
+  it('announces no end for a document without one', async () => {
+    const document = await issued(packageBody());
+    const [announced] = await eventsAbout(document.id);
+    expect(documentIssuedDataSchema.parse(announced?.data).expiresAt).toBeNull();
+  });
+
+  it('refuses an end that is not after the issue with 400, and issues nothing', async () => {
+    const body = packageBody({ validUntil: new Date(Date.now() - 1000).toISOString() });
+    const response = await issue(body);
+    expect(response.statusCode).toBe(400);
+    expect(response.json<Problem>().errors).toEqual([
+      expect.objectContaining({ path: 'validUntil' }),
+    ]);
+    const rows = await withTenant(api.db, { tenant: 'platform', subject: 'test' }, (tx) =>
+      tx.select().from(issuedDocuments).where(eq(issuedDocuments.subjectRef, body.subjectRef)),
+    );
+    expect(rows).toEqual([]);
+  });
+});
