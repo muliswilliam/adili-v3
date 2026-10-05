@@ -5,6 +5,7 @@ import { type ReactNode, useEffect, useRef } from 'react';
 
 import { Breadcrumbs } from './breadcrumbs';
 import { ShellDemoBar } from '../demo/demo-context';
+import { DemoPanel } from '../demo/demo-panel';
 import { seniorRoleLabel } from '../roles';
 import { formatNumber } from '../format';
 import { activeNavHref, type NavHref, navFor } from './nav';
@@ -81,7 +82,8 @@ export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleSh
             <LogoWordmark className="h-5" />
           </Link>
           <Breadcrumbs />
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1.5">
+            <DemoPanel />
             <ShellDemoBar />
           </div>
         </header>

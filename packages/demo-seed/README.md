@@ -74,3 +74,38 @@ confirm); `syntheticOfficers(context)`, `PERSONAS` and `onboardees(context)` giv
 registries, read the sample files (`mocks/demo/files`) into the form with the real AI provider,
 submit, then checks the reviewer's case has the three 07b flags and the comparison. It files her
 declaration, so reset to `0-start` afterwards.
+
+## Checkpoints (#621)
+
+A checkpoint is the whole stack at one moment: every demo database (the services', Keycloak's,
+the mocks' and Temporal's, kept as Postgres copies beside them) and the stateful volumes
+(SeaweedFS, OpenBao, RabbitMQ, Mailpit, copied into the `demo-checkpoints` volume). Any beat of
+the story starts cold from its checkpoint.
+
+| Checkpoint | State | Starts |
+| --- | --- | --- |
+| `0-start` | Seeded; Wanjiku has not started her current declaration | Roster, onboarding, the live filing |
+| `1-after-filing` | Wanjiku submitted; her case has its registry flags and copilot | Review |
+| `2-after-review` | Wanjiku's clarification issued (the Prado, the Kajiado parcel) | Reply, determination, actions |
+| `3-form-m-ready` | PSC's Form M compiled and reviewed | Form M confirm, EACC, open data |
+
+```sh
+pnpm demo:seed                       # 0-start's state
+pnpm demo:checkpoints                # plays each beat and captures all four (--from <name>)
+pnpm demo:checkpoint <name>          # capture the stack as it is, under any name
+scripts/demo-checkpoint.sh list      # what is captured
+pnpm demo:reset <name>               # restore one
+```
+
+- Capture runs with everything up: it closes the databases to connections and pauses the
+  volume containers for the few seconds the copies take, so the parts agree.
+- Restore needs the services and apps stopped (Temporal workers cache workflow state). Locally:
+  stop `pnpm dev`, `pnpm demo:reset <name>`, start `pnpm dev` (the script refuses while the
+  service ports answer). On the Azure host `pnpm demo:reset` restarts the apps around the restore
+  (`infra/azure/demo-reset.sh`), and the console's demo panel does the same.
+- Temporal comes back with its database: a workflow started after the checkpoint is gone, one
+  running at the checkpoint runs again from where it was, and a timer that fell due meanwhile
+  fires at once. Valkey (sessions, caches) is emptied, so everyone signs in again.
+- Restoring takes about 35 s for the stack (1.2 GB of databases) plus the apps' start; capture
+  about 7 s. A checkpoint holds the databases as they were: after restoring one captured
+  before new migrations, run `pnpm db:migrate` (the Azure host does it as part of the reset).

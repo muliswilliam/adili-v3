@@ -147,10 +147,16 @@ The committed `vault-dev` secrets are for local and this demo only (ADR-012), ex
 OpenBao holds the per-tenant transit keys that seal declaration fields, the document signing keys and the demo root CA. It runs as a persistent server: integrated storage on the `openbao-data` volume (`/openbao/file` in the container), unsealed on start by the static seal key committed in `infra/compose/openbao/server/demo-seal.key`. That key is demo-only (ADR-012); a real deployment uses an HSM or KMS seal.
 
 - Restarts, reboots and redeploys keep every key, so sealed data stays readable.
-- A demo checkpoint must capture `openbao-data` together with the Postgres databases: stop `openbao`, archive the volume, start it again. Restoring one without the other leaves ciphertext that no key opens.
+- Demo checkpoints capture `openbao-data` together with the Postgres databases (see [Demo checkpoints](#demo-checkpoints)). Restoring one without the other leaves ciphertext that no key opens.
 - Deleting the volume (`pnpm infra:reset`, `docker compose down -v`) deletes the keys: drop and re-seed the demo databases too.
 
 One-time switch on a stack that ran the old dev-mode OpenBao (in memory): its keys are already gone after any restart, so data sealed under them cannot be recovered. After the deploy recreates `openbao` and `openbao-init` initialises it, reset the demo data (drop and migrate the service databases, then seed again).
+
+## Demo checkpoints
+
+`pnpm demo:checkpoints` (after `pnpm demo:seed`) captures the demo's checkpoints on the VM; `pnpm demo:reset <checkpoint>` restores one (#621, `packages/demo-seed/README.md`). The restore needs every app stopped, and only systemd can stop `adili-apps`, so `infra/azure/demo-reset.sh` leaves a request in `~/.local/state/adili/` and restarts the unit through the root helper; the unit's `ExecStartPre` (`demo-pending-reset.sh`) restores while the apps are down, then they start. The outcome is in `~/.local/state/adili/demo-reset-last` and `~/adili-demo-reset.log`; a failed restore never keeps the apps down. The console's demo panel runs the same script (`DEMO_RESET_SCRIPT`, set by `configure-app-env.sh`).
+
+Checkpoints live in the Compose Postgres (databases named `ckpt__<checkpoint>__<db>`) and the `demo-checkpoints` volume, so they survive deploys. After a restore the unit runs `pnpm db:migrate`, so a checkpoint captured before a deploy that added migrations still starts on the current schema.
 
 ## Tear down
 
