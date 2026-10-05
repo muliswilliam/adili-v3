@@ -31,7 +31,10 @@ async function runInProduction(script: string, args: string[]): Promise<string> 
 }
 
 describe('demo scripts in production', () => {
-  it.each([['src/db/demo-cycles.ts', ['2024,2026', '400']]])(
+  it.each([
+    ['src/db/demo-cycles.ts', ['2024,2026', '400']],
+    ['src/db/demo-open-cycle.ts', []],
+  ])(
     '%s refuses to run',
     async (script, args) => {
       expect(await runInProduction(script, args)).toMatch(/not in production/);
