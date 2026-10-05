@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { SECTION_KEY } from '../drafts/sections.js';
+import { commissionRefSchema } from '../obligations/representation.js';
 import { CORPUS_TAGS, ITEM_TYPE_TAGS } from './corpus.js';
 import { CORPUS_SOURCE_VALUES } from './schema.js';
 
@@ -57,6 +58,46 @@ export const helpPassageSchema = z.object({
 });
 
 export type HelpPassage = z.infer<typeof helpPassageSchema>;
+
+/** Query of `GET /v1/help/passages/{passageId}` (#549). */
+export const helpPassageQuery = z.object({
+  language: helpLanguageSchema,
+  date: isoDate
+    .optional()
+    .meta({ description: 'Read the law in force on this day (`YYYY-MM-DD`); today by default' }),
+});
+
+export type HelpPassageQuery = z.infer<typeof helpPassageQuery>;
+
+/** `GET /v1/help/passages/{passageId}` path: a `HelpPassage` id as search and citations give it. */
+export const helpPassageIdParam = z.string().min(1).max(100);
+
+export const helpPassageDetailSchema = z
+  .object({
+    id: z.string(),
+    source: z.enum([...CORPUS_SOURCE_VALUES, 'help']),
+    citation: z.string().meta({ examples: ['Act s.31(4)', 'Help: Joint assets'] }),
+    title: z.string().meta({ description: 'In `language`' }),
+    text: z.string().meta({
+      description: 'The whole passage or article body, in `language`; statutory text as published',
+    }),
+    language: helpLanguageSchema.meta({
+      description: 'The language of the title and text; `en` when the passage has no Swahili text',
+    }),
+    tags: z.array(helpTagSchema).meta({
+      description: 'Section kinds, statement item types and topics it covers',
+    }),
+    commission: commissionRefSchema.nullable().meta({
+      description: 'The Commission whose article it is; null for the law and platform articles',
+    }),
+    effectiveFrom: isoDate,
+    effectiveTo: isoDate.nullable(),
+  })
+  .meta({
+    description: 'A passage of the corpus or a help article, whole, as the help pages show it',
+  });
+
+export type HelpPassageDetail = z.infer<typeof helpPassageDetailSchema>;
 
 export const helpArticleInputSchema = z
   .object({

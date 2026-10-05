@@ -30,9 +30,12 @@ import {
   type HelpArticleInput,
   helpArticleInputSchema,
   type HelpPassage,
+  type HelpPassageDetail,
+  type HelpPassageQuery,
   type HelpSearchQuery,
 } from './representation.js';
-import { retrieve } from './retrieval.js';
+import { passageById, retrieve } from './retrieval.js';
+import { commissionRefs } from '../obligations/schema.js';
 import { corpusPassages, helpArticles } from './schema.js';
 
 type ArticleRow = typeof helpArticles.$inferSelect;
@@ -91,6 +94,40 @@ export class HelpService {
       snippet,
       language,
     }));
+  }
+
+  /**
+   * One passage or article in full for the portal's help pages (#549), with help search's
+   * visibility: the law, the platform's published articles and those of the declarant's own
+   * Commissions, in force on `date` (today by default). Anything else is not found.
+   */
+  async passage(
+    principal: Principal,
+    passageId: string,
+    query: HelpPassageQuery,
+  ): Promise<HelpPassageDetail> {
+    const person = personOf(principal);
+    const found = await withPerson(this.db, person, async (tx) => {
+      const passage = await passageById(tx, {
+        id: passageId,
+        language: query.language,
+        date: query.date ?? nairobiDate(this.clock.now()),
+      });
+      if (!passage) return undefined;
+      const { tenant, ...detail } = passage;
+      if (tenant === null) return { ...detail, commission: null };
+      const [commission] = await tx
+        .select({
+          slug: commissionRefs.slug,
+          issuerCode: commissionRefs.issuerCode,
+          name: commissionRefs.name,
+        })
+        .from(commissionRefs)
+        .where(eq(commissionRefs.slug, tenant));
+      // The read model holds every Commission; without its reference the article is not shown.
+      return commission ? { ...detail, commission } : undefined;
+    });
+    return notFoundIfInvisible(found);
   }
 
   listCommissionArticles(principal: Principal, slug: string): Promise<HelpArticle[]> {

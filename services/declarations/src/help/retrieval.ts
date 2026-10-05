@@ -99,6 +99,65 @@ export function searchTerms(
   };
 }
 
+/**
+ * One passage or article in full (#549), by the id search and citations give it, as help search
+ * would read it: a corpus wording in force on `date`, or a published article in force on `date`
+ * that the transaction may read (row-level security: the platform's and those of the declarant's
+ * own Commissions). The text in `language` where the passage has it (an article's Swahili body,
+ * a corpus wording's Swahili text), else in English. `undefined` when there is no such passage.
+ */
+export async function passageById(
+  tx: Transaction,
+  query: { id: string; language: HelpLanguage; date: string },
+): Promise<(Omit<RetrievedPassage, 'snippet' | 'score'> & { tenant: string | null }) | undefined> {
+  const swahili = query.language === 'sw';
+  const result = await tx.execute<{
+    id: string;
+    source: CorpusSource | 'help';
+    citation: string;
+    title: string;
+    text: string;
+    language: HelpLanguage;
+    tags: CorpusTag[];
+    effective_from: string;
+    effective_to: string | null;
+    tenant: string | null;
+  }>(sql`
+    select p.id::text, p.source, p.citation, p.title, p.tags,
+      case when ${swahili} and p.text_sw is not null then p.text_sw else p.text_en end as text,
+      case when ${swahili} and p.text_sw is not null then 'sw' else 'en' end as language,
+      p.effective_from::text as effective_from, p.effective_to::text as effective_to,
+      null::text as tenant
+    from corpus_passages p
+    where p.id::text = ${query.id}
+      and p.effective_from <= ${query.date}::date
+      and (p.effective_to is null or p.effective_to > ${query.date}::date)
+    union all
+    select a.id::text, 'help', 'Help: ' || a.title, a.title, a.tags,
+      case when ${swahili} and a.body_sw is not null then a.body_sw else a.body_en end,
+      case when ${swahili} and a.body_sw is not null then 'sw' else 'en' end,
+      a.effective_from::text, a.effective_to::text, a.tenant
+    from help_articles a
+    where a.id::text = ${query.id} and a.published
+      and a.effective_from <= ${query.date}::date
+      and (a.effective_to is null or a.effective_to > ${query.date}::date)
+  `);
+  const [row] = result.rows;
+  if (!row) return undefined;
+  return {
+    id: row.id,
+    source: row.source,
+    citation: row.citation,
+    title: row.title,
+    text: row.text,
+    language: row.language,
+    tags: row.tags,
+    effectiveFrom: row.effective_from,
+    effectiveTo: row.effective_to,
+    tenant: row.tenant,
+  };
+}
+
 export async function retrieve(
   tx: Transaction,
   query: RetrievalQuery,

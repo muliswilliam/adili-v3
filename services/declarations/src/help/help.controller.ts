@@ -38,6 +38,10 @@ import {
   type CorpusPassageView,
   type HelpArticle,
   type HelpPassage,
+  type HelpPassageDetail,
+  helpPassageIdParam,
+  type HelpPassageQuery,
+  helpPassageQuery,
   type HelpSearchQuery,
   helpSearchQuery,
 } from './representation.js';
@@ -81,6 +85,30 @@ export class HelpController {
     @Query(new ZodValidationPipe(helpSearchQuery)) query: HelpSearchQuery,
   ): Promise<HelpPassage[]> {
     return this.help.search(principal, query);
+  }
+
+  @Get('help/passages/:passageId')
+  @ApiOperation({
+    operationId: 'getHelpPassage',
+    summary: "One passage of the corpus or one help article in full, for the portal's help pages",
+    description:
+      "Declarants (by the person_id claim), with the visibility of `searchHelp`: the Act and Regulations, the platform's published articles and those of the declarant's own Commissions, in force on `date`. The text is in `language` where the passage has it, else in English (`language` of the response says which). Deterministic: no AI. Anything else, and other callers, 404.",
+  })
+  @ApiParam({
+    name: 'passageId',
+    description: 'A `HelpPassage` id, as `searchHelp` and answer citations give it',
+    schema: { type: 'string', minLength: 1, maxLength: 100 },
+  })
+  @ApiQueryParameters(helpPassageQuery)
+  @ApiOkResponse({ description: 'The passage', schema: schemaRef('HelpPassageDetail') })
+  @ApiProblemResponse(400, 'Query failed validation')
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  passage(
+    @CurrentPrincipal() principal: Principal,
+    @Param('passageId', new ZodValidationPipe(helpPassageIdParam)) passageId: string,
+    @Query(new ZodValidationPipe(helpPassageQuery)) query: HelpPassageQuery,
+  ): Promise<HelpPassageDetail> {
+    return this.help.passage(principal, passageId, query);
   }
 
   @Get('commissions/:slug/help/articles')
