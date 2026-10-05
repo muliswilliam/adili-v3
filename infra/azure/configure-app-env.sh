@@ -127,6 +127,14 @@ set_env "$ROOT/services/documents/.env" S3_PUBLIC_ENDPOINT "$s3_public"
 set_env "$ROOT/services/documents/.env" VERIFY_BASE_URL "${ADILI_VERIFY_URL}"
 # Public open-data releases link their manifest's verify page.
 set_env "$ROOT/services/reporting/.env" VERIFY_BASE_URL "${ADILI_VERIFY_URL}"
+# Links services put in invitations, emails and SMS (and the redirect Keycloak checks on an
+# activation email) are the public app URLs, not the local defaults.
+for svc in directory access; do
+  set_env "$ROOT/services/$svc/.env" CONSOLE_URL "${ADILI_CONSOLE_URL}"
+done
+for svc in directory access declarations review; do
+  set_env "$ROOT/services/$svc/.env" PORTAL_URL "${ADILI_PORTAL_URL}"
+done
 
 # The hosted demo runs the real backend (#615), whatever an older .env says: every development
 # mock off (each `*_MOCK` setting the app declares), and settings the demo flows need. Mocks stay
