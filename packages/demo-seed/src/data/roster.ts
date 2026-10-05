@@ -31,6 +31,47 @@ const CSV_COLUMNS: readonly [string, keyof RosterRow][] = [
   ['employer_code', 'employerCode'],
 ];
 
+/**
+ * What a Commission's roster holds for a record, in the fields a roster row sets. The list read
+ * gives the first three; the rest come from the record's own read, which the seed makes only for
+ * the named officers (undefined: not read, not compared).
+ */
+export interface HeldRow {
+  fullName: string;
+  designation: string | null;
+  jobGroup: string | null;
+  nationalId?: string;
+  appointmentDate?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
+/**
+ * The fields where the roster's record differs from the row the seed wants it to hold, as the
+ * import would normalise the row: a re-import is due when any does. This is how a re-run of the
+ * seed puts back a record a stale roster file changed (#679), or brings a stack seeded before a
+ * fixture changed up to date.
+ */
+export function rosterDrift(held: HeldRow, row: RosterRow): (keyof HeldRow)[] {
+  const wanted: Required<HeldRow> = {
+    fullName: collapse(row.fullName) ?? '',
+    designation: collapse(row.designation),
+    jobGroup: collapse(row.jobGroup),
+    nationalId: row.nationalId.trim(),
+    appointmentDate: collapse(row.appointmentDate),
+    email: collapse(row.email)?.toLowerCase() ?? null,
+    phone: collapse(row.phone),
+  };
+  return (Object.keys(wanted) as (keyof HeldRow)[]).filter(
+    (field) => held[field] !== undefined && held[field] !== wanted[field],
+  );
+}
+
+function collapse(value: string): string | null {
+  const collapsed = value.replace(/\s+/g, ' ').trim();
+  return collapsed === '' ? null : collapsed;
+}
+
 /** A fixture officer: the roster row and what IPRS holds besides. */
 export interface FixtureOfficer extends RosterRow {
   dateOfBirth: string;

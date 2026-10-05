@@ -6,15 +6,19 @@ import { uploadFile } from '../clients/uploads.js';
 import type { SeedContext } from '../context.js';
 import { DEMO_COMMISSIONS } from '../data/commissions.js';
 import { EXTRA_PSC_ROWS, TIMED_OFFICERS } from '../data/personas.js';
-import { fixtureRoster, type RosterRow, rosterCsv } from '../data/roster.js';
+import {
+  fixtureRoster,
+  type HeldRow,
+  type RosterRow,
+  rosterCsv,
+  rosterDrift,
+} from '../data/roster.js';
 import { syntheticOfficers } from '../data/synthetic.js';
 import type { SeedStep } from '../step.js';
 
 /** The roster records a Commission holds now, by personnel file number. */
-interface HeldRecord {
+interface HeldRecord extends HeldRow {
   id: string;
-  fullName: string;
-  designation: string | null;
 }
 
 async function heldRecords(api: Apis, slug: string): Promise<Map<string, HeldRecord>> {
@@ -32,6 +36,7 @@ async function heldRecords(api: Apis, slug: string): Promise<Map<string, HeldRec
         id: record.id,
         fullName: record.fullName,
         designation: record.designation,
+        jobGroup: record.jobGroup,
       });
     }
     cursor = page.nextCursor ?? undefined;
@@ -46,12 +51,57 @@ function nairobiDaysAgo(days: number): string {
 }
 
 /**
- * The rows a Commission's roster should hold: its fixture officers (the personas), the PSC extras
- * (the IPRS mismatch), the timed officers and its synthetic officers. A timed officer already on
- * the roster keeps the appointment date it was imported with, so a later run changes nothing.
+ * Adds to the held records of the named officers (fixture, extras, timed) what only the record's
+ * own read gives: national ID, appointment date and contacts, so a drift in those is put back too.
+ * The synthetic officers are generated, never edited by hand: their list fields are enough.
+ */
+async function readNamedRecords(
+  api: Apis,
+  slug: string,
+  held: Map<string, HeldRecord>,
+  named: readonly RosterRow[],
+): Promise<void> {
+  for (const row of named) {
+    const key = row.personnelFileNumber.toUpperCase();
+    const record = held.get(key);
+    if (!record) continue;
+    const detail = ok(
+      await api.directory.GET('/v1/commissions/{slug}/roster/records/{recordId}', {
+        params: { path: { slug, recordId: record.id } },
+      }),
+      `read ${row.personnelFileNumber}`,
+    );
+    held.set(key, {
+      ...record,
+      nationalId: detail.nationalId,
+      appointmentDate: detail.appointmentDate,
+      email: detail.email,
+      phone: detail.phone,
+    });
+  }
+}
+
+/**
+ * The rows a Commission's roster should hold: its named officers (`namedRows`) and its synthetic
+ * officers.
  */
 async function desiredRows(
   context: SeedContext,
+  api: Apis,
+  slug: string,
+  held: Map<string, HeldRecord>,
+): Promise<{ named: RosterRow[]; rows: RosterRow[] }> {
+  const named = await namedRows(api, slug, held);
+  const synthetic = ((await syntheticOfficers(context)).get(slug) ?? []).map(toRow);
+  return { named, rows: [...named, ...synthetic] };
+}
+
+/**
+ * A Commission's named officers: its fixture officers (the personas), the PSC extras (the IPRS
+ * mismatch) and the timed officers. A timed officer already on the roster keeps the appointment
+ * date it was imported with, so a later run changes nothing.
+ */
+async function namedRows(
   api: Apis,
   slug: string,
   held: Map<string, HeldRecord>,
@@ -74,7 +124,6 @@ async function desiredRows(
       rows.push({ ...timed.row, appointmentDate });
     }
   }
-  rows.push(...((await syntheticOfficers(context)).get(slug) ?? []).map(toRow));
   return rows;
 }
 
@@ -95,8 +144,9 @@ function toRow(officer: RosterRow): RosterRow {
 
 /**
  * Every Commission's roster, imported by its reporting officer as a roster file (spec 02), the
- * way the console does it. Only the rows the roster lacks are imported, as a partial file (not
- * declared complete), so a re-run imports nothing.
+ * way the console does it. Only the rows the roster lacks or holds otherwise (`rosterDrift`) are
+ * imported, as a partial file (not declared complete), so a re-run on a seeded stack imports
+ * nothing, and one on a stack whose records drifted from the fixtures puts them back (#679).
  */
 export const rosters: SeedStep = {
   id: 'rosters',
@@ -107,10 +157,18 @@ export const rosters: SeedStep = {
     for (const commission of DEMO_COMMISSIONS) {
       const api = await context.as(commission.reportingOfficer.demoKey);
       const held = await heldRecords(api, commission.slug);
-      const rows = await desiredRows(context, api, commission.slug, held);
+      const { named, rows } = await desiredRows(context, api, commission.slug, held);
+      await readNamedRecords(api, commission.slug, held, named);
       const missing = rows.filter((row) => {
         const record = held.get(row.personnelFileNumber.toUpperCase());
-        return record?.fullName !== row.fullName || record.designation !== row.designation;
+        if (!record) return true;
+        const drift = rosterDrift(record, row);
+        if (drift.length > 0) {
+          notes.push(
+            `${commission.slug}: ${row.personnelFileNumber} differs from the fixture in ${drift.join(', ')}`,
+          );
+        }
+        return drift.length > 0;
       });
       notes.push(
         `${commission.slug}: ${String(rows.length)} rows, ${String(missing.length)} to import`,
