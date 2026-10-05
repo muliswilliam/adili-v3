@@ -1,27 +1,60 @@
 # Demo accounts
 
-Judges' pack for the hosted demo and for local sign-in. Every account uses the password `Adili-Demo-2026`. The accounts are the Keycloak realm import `infra/compose/keycloak/adili-realm.json`. `pnpm db:seed` creates the Commissions they belong to (PSC, TSC, EACC), the government-system mocks, the applicant, and the law enforcement officer.
+Judges' pack: every demo account, for the hosted demo and a local stack. The story that uses them is in the [demo guide](demo/README.md).
 
-Staff and law enforcement officers enrol TOTP on first sign-in. The declarant and the applicant receive an SMS one-time code in the mocks SMS inbox at http://localhost:8000/sms/inbox. Mailpit is email only. The hosted demo does not publish that inbox or Mailpit.
+## How to sign in
+
+- **One click (demo mode).** Portal and console show a `DEMO · synthetic data` pill in the header. Its **Act as** menu signs in as any account below with no password or code (#616). Every switch is in the audit trail.
+- **By hand.** Every account's password is `Adili-Demo-2026`. Staff then enrol TOTP; declarants and the applicant get an SMS code in the mocks inbox (local: http://localhost:8000/sms/inbox; the hosted demo does not publish it).
+
+The switcher's list is one module, `packages/demo-auth/src/accounts.ts` (`DEMO_ACCOUNTS`); this page follows it. The staff accounts come from the realm import (`infra/compose/keycloak/adili-realm.json`); the declarant personas and the extra staff are made by `pnpm demo:seed` (`packages/demo-seed`).
 
 | Where | Local | Hosted demo |
 | --- | --- | --- |
 | Portal | http://localhost:3010 | https://adili-demo.southafricanorth.cloudapp.azure.com |
 | Console | http://localhost:3020 | https://adili-demo.southafricanorth.cloudapp.azure.com:3020 |
+| Verify | http://localhost:3030 | https://adili-demo.southafricanorth.cloudapp.azure.com:3030 |
 
-| Login | Name | Role | Signs in at | Tenant | Purpose |
-| --- | --- | --- | --- | --- | --- |
-| `declarant` | Wanjiku Kamau | Declarant | Portal | PSC | File her declarations. The mocks flag an undeclared Prado (KDK 482M), the Kajiado parcel and a company directorship (`mocks/demo/REGISTRY_FLAGS.md`). |
-| `applicant` | Njoki Wambua | Applicant | Portal | Public | Submit a Form K request to see someone else's declaration. |
-| `reporting-officer` | Otieno Odhiambo | Reporting officer | Console | PSC | Import and maintain the PSC roster (`mocks/demo/rosters/psc-roster.csv`). |
-| `tsc-reporting-officer` | Jepkosgei Chelimo | Reporting officer | Console | TSC | Import the TSC roster (`mocks/demo/rosters/tsc-roster.csv`). |
-| `reviewer` | Achieng Njeri | Reviewer | Console | PSC | Work the PSC review queue. |
-| `supervisor` | Kiprono Chebet | Supervisor | Console | PSC | Approve reviews, determinations and Form M for the PSC. |
-| `commission-admin` | Mwangi Wairimu | Commission admin | Console | PSC | Administer the PSC. |
-| `access-officer` | Amina Hassan | Access officer | Console | PSC | Decide Form K and law-enforcement access requests. |
-| `eacc-analyst` | Baraka Mutua | EACC analyst | Console | EACC | Analyse Form M and the national report. |
-| `eacc-supervisor` | Nafula Wekesa | EACC supervisor | Console | EACC | Supervise EACC intake and sign-off. |
-| `auditor` | Kariuki Muriithi | Auditor | Console | EACC | Read the audit trail. |
-| `helpdesk` | Zawadi Akinyi | Helpdesk | Console | Platform | Support accounts. |
-| `platform-admin` | Juma Omondi | Platform admin | Console | Platform | Provision Commissions and law-enforcement agencies. |
-| `law-enforcement` | Suleiman Ali | Law enforcement | Console | DCI | Request access to a declaration as a law enforcement officer. |
+## Console (staff)
+
+| Act as | Login | Role | Commission | Purpose |
+| --- | --- | --- | --- | --- |
+| Grace Mutiso | `reporting-officer` | Reporting officer | PSC | Imports the PSC roster; obligations and reminders |
+| Jepkosgei Chelimo | `tsc-reporting-officer` | Reporting officer | TSC | A second Commission: tenant isolation |
+| Achieng Njeri | `reviewer` | Reviewer | PSC | Review queue, registry flags, copilot, clarifications |
+| David Ochieng | `supervisor` | Supervisor | PSC | Approves determinations and actions; compiles Form M |
+| Mwangi Wairimu | `commission-admin` | Commission admin | PSC | Confirms and submits Form M |
+| Anne Atieno | `jsc-commission-admin` | Commission admin | JSC | A submitted Form M; the Commission's open-data preview |
+| Halima Yusuf | `access-officer` | Access officer | PSC | Decides Form K and law enforcement requests |
+| Baraka Mutua | `eacc-analyst` | EACC analyst | EACC | Form M intake, referrals to ICMS, national report, open data |
+| Nafula Wekesa | `eacc-supervisor` | EACC supervisor | EACC | Approves the national report and open-data releases |
+| Kariuki Muriithi | `auditor` | Auditor | EACC | The audit trail across every flow |
+| Zawadi Akinyi | `helpdesk` | Helpdesk | Platform | Account support: looks a person up by officer reference |
+| Juma Omondi | `platform-admin` | Platform admin | Platform | Commissions, AI policy, registry integrations |
+| Suleiman Ali | `law-enforcement` | Law enforcement | DCI | Requests access to a declaration for an investigation |
+
+## Portal (declarants and the public)
+
+The seeded declarants sign in with **Act as**; their Keycloak usernames are the officer references onboarding gives them, so they are not listed.
+
+| Act as | Demo key | Who | State at `0-start` | Purpose |
+| --- | --- | --- | --- | --- |
+| Wanjiku Kamau | `wanjiku` | KEMSA, ID 27451863 | Previous declaration filed; current not started | Live filing: Check registries, Read into the form, Ask Adili, submit; then the three registry flags |
+| Otieno Odhiambo | `otieno` | MOH, ID 30194427 | Both filed, clean | The AI does not cry wolf |
+| Kiprono Chebet | `kiprono` | PSC, ID 22607781 | Both filed, KRA non-compliant | A clarification to answer; a Form K about him awaits his representations |
+| Amina Hassan | `amina` | PSC, ID 31552094 | Current amended to version 2 | Version compare, superseded slip, certified copy |
+| Demo declarant | `declarant` | Realm user | | The realm's own declarant |
+| Njoki Wambua | `applicant` | Member of the public | Form K requests made | Form K: granted, denied, awaiting representations |
+
+## Seeded people outside the switcher
+
+| Who | Where | State | Use |
+| --- | --- | --- | --- |
+| Achieng Atieno Njeri, `PSC/2012/0311`, ID 28836510 | PSC roster | Not onboarded | Live onboarding with SMS OTP (portal, Get started) |
+| Daniel Rotich, `PSC/2016/0533`, ID 38221907 | PSC roster | Roster name differs from IPRS | Onboarding fails the identity check |
+| Faith Mwende | PSC | Initial due tomorrow | Reminder sent today (Mailpit, SMS inbox) |
+| Collins Were | PSC | Initial overdue | Overdue obligation, enforcement ladder |
+| Samuel Langat, ID 25813407 | EACC | Missed 2022 and 2024 | Referral after two cycles, ICMS case number |
+| Brian Kiptoo, Mercy Wanjala | PSC reviewers | Hold queue cases | Cases spread across reviewers |
+| Lilian Chepkoech | EACC staff supervisor | Approved the referral | Separation of duties |
+| Reporting officers, supervisors, commission admins and reviewers of JSC, NPSC and EACC | Console | Seeded | Form M and review volume |
