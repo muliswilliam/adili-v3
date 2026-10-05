@@ -17,8 +17,7 @@ import { Icon } from './icon';
  * - `not-reported`: the Commission has not reported for the year (its figures are `null`,
  *   unsuppressed: a gap, not suppression).
  * - `not-collected`: a figure nobody collects yet (the table's `notCollected`, such as the filing
- *   figures by reporting entity type, which are not collected yet): `null` for want of data, not
- *   suppression.
+ *   figures by reporting entity type): `null` for want of data, not suppression.
  */
 export const UNSHOWN_FIGURE_KINDS = [
   'suppressed',
