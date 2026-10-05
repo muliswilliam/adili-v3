@@ -21,6 +21,9 @@ export function securityHeaders({ nonce, dev, https }: SecurityHeaderOptions): H
     "default-src 'none'",
     `script-src 'nonce-${nonce}' 'strict-dynamic'`,
     dev ? "style-src 'self' 'unsafe-inline'" : "style-src 'self'",
+    // Widths and fades are style attributes on server-rendered HTML. style-src does not
+    // cover those, and hydration does not put them back.
+    "style-src-attr 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self'",
     dev ? "connect-src 'self' ws: wss:" : "connect-src 'self'",

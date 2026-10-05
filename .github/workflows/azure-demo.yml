@@ -85,3 +85,5 @@ jobs:
           done
           echo 'HTTPS checks did not return 200' >&2
           exit 1
+      - name: Check security headers
+        run: ./infra/azure/check-security-headers.sh "https://${AZURE_DEMO_HOST}"

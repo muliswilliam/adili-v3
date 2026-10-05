@@ -10,9 +10,10 @@ describe('securityHeaders', () => {
     expect(csp).toContain("default-src 'none'");
     expect(csp).toContain("script-src 'nonce-abc' 'strict-dynamic'");
     expect(csp).toContain("style-src 'self';");
+    expect(csp).toContain("style-src-attr 'unsafe-inline'");
     expect(csp).toContain("connect-src 'self';");
     expect(csp).toContain("frame-ancestors 'none'");
-    expect(csp).not.toContain('unsafe');
+    expect(csp).not.toMatch(/script-src[^;]*unsafe/);
     expect(headers.get('referrer-policy')).toBe('no-referrer');
     expect(headers.get('x-frame-options')).toBe('DENY');
     expect(headers.get('x-content-type-options')).toBe('nosniff');

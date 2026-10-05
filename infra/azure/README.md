@@ -106,6 +106,8 @@ Portal, console and verify send a content security policy (including `frame-ance
 ./infra/azure/check-security-headers.sh https://adili-demo.southafricanorth.cloudapp.azure.com
 ```
 
+The Azure demo workflow runs that check after each deploy.
+
 Repo secret (Actions -> Secrets):
 
 | Name | Value |

@@ -14,22 +14,39 @@ BASE="${BASE%/}"
 
 fail=0
 
+header_value() {
+  printf '%s\n' "$headers" | tr -d '\r' | awk -v name="$1" '
+    tolower($0) ~ "^" name ":" {
+      sub(/^[^:]+:[[:space:]]*/, "")
+      print
+      exit
+    }
+  '
+}
+
 check() {
   name="$1"
   url="$2"
   echo "Checking $name ($url)"
-  headers="$(curl -fsSI --max-time 20 "$url")" || {
+  headers="$(curl -fsS -D - -o /dev/null --max-time 20 "$url")" || {
     echo "$name: request failed" >&2
     fail=1
     return
   }
-  csp="$(printf '%s\n' "$headers" | awk 'BEGIN{IGNORECASE=1} /^content-security-policy:/ {sub(/^[^:]*:[[:space:]]*/, ""); print}')"
-  hsts="$(printf '%s\n' "$headers" | awk 'BEGIN{IGNORECASE=1} /^strict-transport-security:/ {sub(/^[^:]*:[[:space:]]*/, ""); print}')"
-  frame="$(printf '%s\n' "$headers" | awk 'BEGIN{IGNORECASE=1} /^x-frame-options:/ {sub(/^[^:]*:[[:space:]]*/, ""); print}')"
+  csp="$(header_value content-security-policy)"
+  hsts="$(header_value strict-transport-security)"
+  frame="$(header_value x-frame-options)"
   case "$csp" in
     *frame-ancestors*none*) ;;
     *)
       echo "$name: content-security-policy is missing frame-ancestors 'none'" >&2
+      fail=1
+      ;;
+  esac
+  case "$csp" in
+    *style-src-attr*unsafe-inline*) ;;
+    *)
+      echo "$name: content-security-policy is missing style-src-attr 'unsafe-inline'" >&2
       fail=1
       ;;
   esac
