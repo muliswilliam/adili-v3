@@ -4,6 +4,7 @@ import io
 import pytest
 from django.test import Client
 
+from ardhisasa.models import Parcel
 from demo.fixtures import load_roster_rows, parse_name
 from demo.rosters import (
     COMMISSIONS,
@@ -139,6 +140,16 @@ def test_synthetic_officers_hold_what_their_registries_return(client: Client) ->
             )
         )
         assert owned == vehicles
+        parcels = {
+            (h["reference"], h["county"], h["areaHectares"])
+            for h in officer["holdings"]
+            if h["kind"] == "parcel"
+        }
+        held = {
+            (p.parcel_number, p.county, str(p.area_hectares))
+            for p in Parcel.objects.filter(owner_id_number=officer["nationalId"])
+        }
+        assert held == parcels
 
 
 @pytest.mark.django_db
