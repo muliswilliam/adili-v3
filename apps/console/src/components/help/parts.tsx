@@ -16,7 +16,7 @@ import type { HelpTag } from '../../server/declarations/client';
 import { PageHead } from '../page';
 import { messages as m } from './messages';
 import { type ArticleStatus } from './model';
-import { type HelpWorkspace, useHelpSession } from './scope';
+import { type HelpScopeKind, type HelpWorkspace, useHelpSession } from './scope';
 
 export type HelpTab = 'articles' | 'corpus' | 'themes';
 
@@ -61,8 +61,7 @@ export function HelpHeader({
                 options={scopes.map(({ kind, label }) => ({ value: kind, label }))}
                 value={workspace.scope.kind}
                 onValueChange={(value) => {
-                  const chosen = scopes.find(({ kind }) => kind === value);
-                  if (chosen) chooseScope(chosen.kind);
+                  chooseScope(value as HelpScopeKind);
                 }}
               />
             ) : null}

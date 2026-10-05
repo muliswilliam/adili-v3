@@ -13,6 +13,7 @@ import type { HelpResult } from '../../../server/help.server';
 
 /** One article: the service lists them whole, so the page finds it in the list. */
 export const Route = createFileRoute('/help/articles/$articleId')({
+  loaderDeps: ({ search }) => ({ scope: search.scope }),
   loader: async ({ context, location, params }): Promise<HelpResult<HelpArticle | null> | null> => {
     if (!context.help) return null;
     const result = await listHelpArticles({ data: { scope: context.help.scope } });

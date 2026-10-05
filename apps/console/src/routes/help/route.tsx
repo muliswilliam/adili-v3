@@ -4,7 +4,9 @@ import { useMemo, useState } from 'react';
 import { messages as m } from '../../components/help/messages';
 import {
   type HelpScopeChoice,
+  helpScopeOfPage,
   helpScopeSearch,
+  HELP_WORKSPACE_IDS,
   type HelpSession,
   HelpSessionContext,
   helpWorkspaceFor,
@@ -33,7 +35,11 @@ export const Route = createFileRoute('/help')({
     const principal = viewer.directory.ok ? viewer.directory.principal : null;
     const roles = principal?.roles ?? [];
     const tenant = principal?.tenant ?? null;
-    const help = helpWorkspaceFor(roles, tenant, search.scope);
+    const help = helpWorkspaceFor(
+      roles,
+      tenant,
+      search.scope ?? helpScopeOfPage(location.pathname),
+    );
     const scopes: HelpScopeChoice[] = helpWorkspacesFor(roles, tenant).map(({ scope }) => ({
       kind: scope.kind,
       label:
@@ -46,9 +52,7 @@ export const Route = createFileRoute('/help')({
       roles,
       help,
       scopes,
-      workspace: help
-        ? (workspaceFor(roles, help.scope.kind === 'platform' ? 'platform-help' : 'help') ?? null)
-        : null,
+      workspace: help ? (workspaceFor(roles, HELP_WORKSPACE_IDS[help.scope.kind]) ?? null) : null,
     };
   },
   staticData: {

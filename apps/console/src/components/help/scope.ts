@@ -1,3 +1,4 @@
+import type { Assert, Same } from '@adili/ui';
 import { createContext, useContext } from 'react';
 import { z } from 'zod';
 
@@ -17,33 +18,52 @@ export interface HelpWorkspace {
   readOnly: boolean;
 }
 
-export type HelpScopeKind = HelpScope['kind'];
+export const HELP_SCOPE_KINDS = ['platform', 'commission'] as const;
+export type HelpScopeKind = (typeof HELP_SCOPE_KINDS)[number];
+
+export type ContractHelpScopeKinds = Assert<Same<HelpScopeKind, HelpScope['kind']>>;
+
+/** The console workspace each help workspace opens under. */
+export const HELP_WORKSPACE_IDS: Record<HelpScopeKind, 'platform-help' | 'help'> = {
+  platform: 'platform-help',
+  commission: 'help',
+};
 
 /**
- * The help pages' URL state: which help a viewer who may open both works on. Absent, the
- * platform's; the help pages keep it on their links to each other.
+ * The help pages' URL state: which help workspace a viewer who may open both works on. Absent,
+ * the platform's; the help pages keep it on their links to each other.
  */
 export const helpScopeSearch = z.object({
-  scope: z.enum(['platform', 'commission']).optional().catch(undefined),
+  scope: z.enum(HELP_SCOPE_KINDS).optional().catch(undefined),
 });
 
-/** Every help the viewer may open, the platform's first; none for anyone else. */
+/**
+ * The help workspace a page belongs to, when only one has it: the question themes are a
+ * Commission's, the legal corpus the platform's. A link to either without `scope` opens it.
+ */
+export function helpScopeOfPage(pathname: string): HelpScopeKind | undefined {
+  if (pathname.startsWith('/help/themes')) return 'commission';
+  if (pathname.startsWith('/help/corpus')) return 'platform';
+  return undefined;
+}
+
+/** Every help workspace the viewer may open, the platform's first; none for anyone else. */
 export function helpWorkspacesFor(
   roles: readonly string[],
   tenant: string | null,
 ): HelpWorkspace[] {
   const workspaces: HelpWorkspace[] = [];
-  if (workspaceFor(roles, 'platform-help')) {
+  if (workspaceFor(roles, HELP_WORKSPACE_IDS.platform)) {
     workspaces.push({ scope: { kind: 'platform' }, readOnly: false });
   }
-  const commission = workspaceFor(roles, 'help');
+  const commission = workspaceFor(roles, HELP_WORKSPACE_IDS.commission);
   if (commission && tenant && tenant !== PLATFORM_TENANT) {
     workspaces.push({ scope: { kind: 'commission', slug: tenant }, readOnly: commission.readOnly });
   }
   return workspaces;
 }
 
-/** The help `chosen` when the viewer may open it, else the first they may; null for none. */
+/** The help workspace `chosen` when the viewer may open it, else their first; null for none. */
 export function helpWorkspaceFor(
   roles: readonly string[],
   tenant: string | null,
@@ -53,7 +73,7 @@ export function helpWorkspaceFor(
   return workspaces.find((each) => each.scope.kind === chosen) ?? workspaces[0] ?? null;
 }
 
-/** One help the viewer may switch to, by name: "Platform", or their Commission's name. */
+/** A help workspace the viewer may switch to, by name: "Platform", or their Commission's. */
 export interface HelpScopeChoice {
   kind: HelpScopeKind;
   label: string;
@@ -62,8 +82,8 @@ export interface HelpScopeChoice {
 /**
  * What the help pages share while the viewer stays in them: the article published last, so the
  * help search drawer marks it "Just published", the search it runs (the server function, or a
- * fake in tests), and the helps the viewer may switch between (more than one only for a
- * platform admin who also holds a Commission role).
+ * fake in tests), and the help workspaces the viewer may switch between (more than one only
+ * for a platform admin who also holds a Commission role).
  */
 export interface HelpSession {
   justPublished: string | null;

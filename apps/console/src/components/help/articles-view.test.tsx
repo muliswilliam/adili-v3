@@ -173,22 +173,33 @@ describe('help articles list (spec 11 FE-4)', () => {
 
   it("lets a platform admin with a Commission role switch to the Commission's help", () => {
     const chooseScope = vi.fn();
-    renderView({ workspace: { scope: { kind: 'platform' }, readOnly: false } }, {
-      scopes: BOTH_SCOPES,
-      chooseScope,
-    });
+    renderView(
+      { workspace: { scope: { kind: 'platform' }, readOnly: false } },
+      {
+        scopes: BOTH_SCOPES,
+        chooseScope,
+      },
+    );
     const choice = screen.getByRole('group', { name: 'Whose help' });
     expect(within(choice).getByRole('radio', { name: 'Platform' })).toHaveProperty('checked', true);
     fireEvent.click(within(choice).getByRole('radio', { name: 'Public Service Commission' }));
     expect(chooseScope).toHaveBeenCalledWith('commission');
   });
 
+  it("keeps a platform admin who is the Commission's reporting officer read only there", () => {
+    renderView({ workspace: { ...COMMISSION, readOnly: true } }, { scopes: BOTH_SCOPES });
+    expect(screen.getByRole('group', { name: 'Whose help' })).toBeTruthy();
+    expect(screen.getByText('Read only')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'New article' })).toBeNull();
+  });
+
   it("shows the Commission's tabs once the Commission's help is chosen", () => {
     renderView({}, { scopes: BOTH_SCOPES });
     const choice = screen.getByRole('group', { name: 'Whose help' });
-    expect(
-      within(choice).getByRole('radio', { name: 'Public Service Commission' }),
-    ).toHaveProperty('checked', true);
+    expect(within(choice).getByRole('radio', { name: 'Public Service Commission' })).toHaveProperty(
+      'checked',
+      true,
+    );
     const tabs = screen.getByRole('navigation', { name: 'Help pages' });
     expect(within(tabs).getByRole('link', { name: 'Question themes' })).toBeTruthy();
     expect(within(tabs).queryByRole('link', { name: 'Legal corpus' })).toBeNull();

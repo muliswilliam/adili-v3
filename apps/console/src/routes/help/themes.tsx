@@ -17,7 +17,7 @@ export const Route = createFileRoute('/help/themes')({
   validateSearch: themesSearch,
   // This month in Nairobi, worked out once per visit: the default month and the picker's first.
   beforeLoad: () => ({ thisMonth: formatCalendarDate(Date.now()).slice(0, 7) }),
-  loaderDeps: ({ search }) => ({ month: search.month }),
+  loaderDeps: ({ search }) => ({ month: search.month, scope: search.scope }),
   loader: async ({ context, deps, location }): Promise<HelpResult<QuestionThemeCount[]> | null> => {
     const scope = context.help?.scope;
     if (scope?.kind !== 'commission') return null;
