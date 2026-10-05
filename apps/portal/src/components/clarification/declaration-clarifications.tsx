@@ -1,11 +1,9 @@
-import { Button, Card, CardTitle, cn } from '@adili/ui';
-import { Link } from '@tanstack/react-router';
 import { Suspense, use } from 'react';
 
 import { LIST_COPY as COPY } from '../../clarification/copy';
 import { declarationClarifications } from '../../clarification/list';
 import type { MyClarificationsLoad } from '../../server/clarifications';
-import { ClarificationRows } from './clarification-list';
+import { ClarificationRows, ClarificationsCardFrame } from './clarification-list';
 
 /**
  * The clarifications about one declaration, on its page (spec 07a FE-5, story 31): each with
@@ -25,12 +23,12 @@ export function DeclarationClarificationsSection({
 }) {
   return (
     <Suspense fallback={null}>
-      <ResolvedSection promise={clarifications} references={references} className={className} />
+      <LoadedSection promise={clarifications} references={references} className={className} />
     </Suspense>
   );
 }
 
-function ResolvedSection({
+function LoadedSection({
   promise,
   references,
   className,
@@ -44,20 +42,12 @@ function ResolvedSection({
   const ours = declarationClarifications(load.clarifications, references);
   if (ours.length === 0) return null;
   return (
-    <Card asChild className={cn('overflow-hidden p-0 sm:p-0', className)}>
-      <section aria-labelledby="declaration-clarifications">
-        <div className="flex items-center gap-3 border-b border-border px-5 py-4 sm:px-6 sm:py-[18px]">
-          <CardTitle id="declaration-clarifications" className="flex-1">
-            {COPY.onDeclaration}
-          </CardTitle>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/clarifications" aria-label={COPY.viewAllLabel}>
-              {COPY.viewAll}
-            </Link>
-          </Button>
-        </div>
-        <ClarificationRows clarifications={ours} all={load.clarifications} now={load.now} />
-      </section>
-    </Card>
+    <ClarificationsCardFrame
+      titleId="declaration-clarifications"
+      title={COPY.onDeclaration}
+      className={className}
+    >
+      <ClarificationRows clarifications={ours} all={load.clarifications} now={load.now} />
+    </ClarificationsCardFrame>
   );
 }

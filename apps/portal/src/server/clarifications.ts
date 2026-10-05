@@ -13,7 +13,10 @@ import {
 import type { Unauthenticated } from './results';
 import { reviewClient, type ReviewClient } from './review/client.server';
 
-/** Server functions for the declarant's clarifications (spec 07a). Tokens stay on the server. */
+/**
+ * Server functions for the declarant's clarifications (spec 07a), and the list as the streamed
+ * cards load it. Tokens stay on the server.
+ */
 
 function asDeclarant<T>(call: (client: ReviewClient) => Promise<T>) {
   return asDeclarantOf(reviewClient, call);
