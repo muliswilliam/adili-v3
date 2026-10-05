@@ -167,7 +167,7 @@ export const COPY = {
   closedBanner: 'This notice is closed. You do not need to act on it.',
   windowLeft: (n: number) => (n < 0 ? 'Window ended' : n === 0 ? 'Last day' : `${days(n)} left`),
   windowLine: (date: string, day: number, of: number) =>
-    `Act by ${date} · day ${String(day)} of ${String(of)}`,
+    `Act by ${date} · day\u00a0${String(day)}\u00a0of\u00a0${String(of)}`,
   letter: 'Letter',
   letterRestricted: 'Restricted letter, for you and your Commission.',
   downloadLetter: 'Download PDF',

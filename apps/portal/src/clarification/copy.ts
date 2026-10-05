@@ -133,7 +133,7 @@ export const COPY = {
   submittedDue: (at: string, due: string) => `Response submitted ${at} · due ${due}`,
   wasDue: (due: string) => `Was due ${due}. You can still respond.`,
   dueDay: (due: string, day: number, of: number) =>
-    `Due ${due} · day ${String(day)} of ${String(of)}`,
+    `Due ${due} · day\u00a0${String(day)}\u00a0of\u00a0${String(of)}`,
 
   letter: 'Letter',
   verificationCode: 'Verification code',

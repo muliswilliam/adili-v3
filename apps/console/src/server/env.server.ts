@@ -10,6 +10,13 @@ export const envSchema = bffEnvSchema.extend({
   DEMO_MODE: z.stringbool().default(false),
   /** With DEMO_MODE: Keycloak's `demo-ticket-secret`, which signs the switcher's tickets. */
   DEMO_TICKET_SECRET: z.string().min(16).optional(),
+  /**
+   * With DEMO_MODE: the script the demo panel resets the stack to a checkpoint with (#621), on the
+   * Azure host `infra/azure/demo-reset.sh`. Unset (locally): the panel shows the command to run.
+   */
+  DEMO_RESET_SCRIPT: z.string().min(1).optional(),
+  /** With DEMO_MODE: the integration mocks, whose registries the demo panel pauses (#621). */
+  DEMO_MOCKS_URL: z.url().default('http://localhost:8000'),
   /** With DEMO_MODE: the broker every switch is recorded on, for the audit trail. */
   RABBITMQ_URL: z.url().default('amqp://adili:adili_dev@localhost:55672'),
   DIRECTORY_API_URL: z.url(),

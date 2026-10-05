@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GetStartedRouteRouteImport } from './routes/get-started/route'
+import { Route as HealthRouteImport } from './routes/health'
 import { Route as AccessIndexRouteImport } from './routes/access/index'
 import { Route as AccessCertifiedCopiesRouteImport } from './routes/access/certified-copies'
 import { Route as AccessGetStartedRouteRouteImport } from './routes/access/get-started/route'
@@ -73,6 +74,11 @@ const IndexRoute = IndexRouteImport.update({
 const GetStartedRouteRoute = GetStartedRouteRouteImport.update({
   id: '/get-started',
   path: '/get-started',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccessIndexRoute = AccessIndexRouteImport.update({
@@ -352,6 +358,7 @@ const ApiOpenDataFyKindVersionFileRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/get-started': typeof GetStartedRouteRouteWithChildren
+  '/health': typeof HealthRoute
   '/access/get-started': typeof AccessGetStartedRouteRouteWithChildren
   '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren
   '/access/certified-copies': typeof AccessCertifiedCopiesRoute
@@ -408,6 +415,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/health': typeof HealthRoute
   '/access/certified-copies': typeof AccessCertifiedCopiesRoute
   '/access/history': typeof AccessHistoryRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -464,6 +472,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/get-started': typeof GetStartedRouteRouteWithChildren
+  '/health': typeof HealthRoute
   '/access/get-started': typeof AccessGetStartedRouteRouteWithChildren
   '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren
   '/access/certified-copies': typeof AccessCertifiedCopiesRoute
@@ -523,6 +532,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/get-started'
+    | '/health'
     | '/access/get-started'
     | '/declarations/$id'
     | '/access/certified-copies'
@@ -579,6 +589,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/health'
     | '/access/certified-copies'
     | '/access/history'
     | '/auth/callback'
@@ -634,6 +645,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/get-started'
+    | '/health'
     | '/access/get-started'
     | '/declarations/$id'
     | '/access/certified-copies'
@@ -692,6 +704,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   GetStartedRouteRoute: typeof GetStartedRouteRouteWithChildren
+  HealthRoute: typeof HealthRoute
   AccessGetStartedRouteRoute: typeof AccessGetStartedRouteRouteWithChildren
   DeclarationsIdRouteRoute: typeof DeclarationsIdRouteRouteWithChildren
   AccessCertifiedCopiesRoute: typeof AccessCertifiedCopiesRoute
@@ -742,6 +755,13 @@ declare module '@tanstack/react-router' {
       path: '/get-started'
       fullPath: '/get-started'
       preLoaderRoute: typeof GetStartedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/access/': {
@@ -1190,6 +1210,7 @@ const DeclarationsIdRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GetStartedRouteRoute: GetStartedRouteRouteWithChildren,
+  HealthRoute: HealthRoute,
   AccessGetStartedRouteRoute: AccessGetStartedRouteRouteWithChildren,
   DeclarationsIdRouteRoute: DeclarationsIdRouteRouteWithChildren,
   AccessCertifiedCopiesRoute: AccessCertifiedCopiesRoute,

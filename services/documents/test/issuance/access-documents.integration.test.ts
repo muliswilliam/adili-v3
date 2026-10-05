@@ -975,6 +975,18 @@ describe('ADR-010 a document valid until a time (#371)', () => {
     );
   });
 
+  it('closes the download window when the validity ends first, and never past it', async () => {
+    const validUntil = new Date(Date.now() + 2 * 60 * 1000);
+    const short = await issued(packageBody({ validUntil: validUntil.toISOString() }));
+    expect(short.downloadExpiresAt).toBe(validUntil.toISOString());
+
+    const later = new Date(Date.now() + 30 * DAY_MS);
+    const long = await issued(packageBody({ validUntil: later.toISOString() }));
+    const window = Date.parse(long.downloadExpiresAt ?? '');
+    expect(window).toBeLessThan(later.getTime());
+    expect(window).toBeGreaterThan(Date.now() + 13 * DAY_MS);
+  });
+
   it('announces no end for a document without one', async () => {
     const document = await issued(packageBody());
     const [announced] = await eventsAbout(document.id);

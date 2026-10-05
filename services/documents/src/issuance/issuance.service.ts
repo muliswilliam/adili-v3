@@ -253,14 +253,18 @@ export class IssuanceService {
     const documentId = uuidv7();
     const verificationId = newVerificationId();
     const issuedAt = this.clock.now();
-    const downloadExpiresAt =
-      request.downloadWindowDays === undefined
-        ? null
-        : new Date(issuedAt.getTime() + request.downloadWindowDays * DAY_MS);
     const expiresAt = request.validUntil === undefined ? null : new Date(request.validUntil);
     if (expiresAt !== null && expiresAt <= issuedAt) {
       throw validationProblem([{ path: 'validUntil', message: 'Must be after the issue' }]);
     }
+    // A document no longer in force is not handed out: the window closes when its validity ends,
+    // if that comes first.
+    const windowEnd =
+      request.downloadWindowDays === undefined
+        ? null
+        : new Date(issuedAt.getTime() + request.downloadWindowDays * DAY_MS);
+    const downloadExpiresAt =
+      windowEnd !== null && expiresAt !== null && expiresAt < windowEnd ? expiresAt : windowEnd;
     // Spec 06: the issued bucket keeps every document at `issued/<documentId>.pdf`.
     const objectKey = `issued/${documentId}.pdf`;
     const verifyUrl = this.verifyUrlOf(verificationId);

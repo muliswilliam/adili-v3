@@ -960,7 +960,7 @@ components:
         watermark:
           $ref: '#/components/schemas/Watermark'
         downloadWindowDays:
-          description: 'Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package and access-nil-letter'
+          description: 'Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. The window never runs past `validUntil`: a document no longer in force is not downloadable. None: no window. Required for access-package and access-nil-letter'
           type: integer
           minimum: 1
           maximum: 90

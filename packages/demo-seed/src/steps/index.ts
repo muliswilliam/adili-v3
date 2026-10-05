@@ -1,4 +1,6 @@
 import type { SeedStep } from '../step.js';
+import { access } from './access.js';
+import { verify } from './verify.js';
 import { commissions } from './commissions.js';
 import { cycles, policies } from './cycles.js';
 import { filings } from './filings.js';
@@ -21,4 +23,6 @@ export const STEPS: readonly SeedStep[] = [
   onboarding,
   filings,
   settle,
+  access,
+  verify,
 ];

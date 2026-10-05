@@ -1,4 +1,4 @@
-import { DemoBar, ToastProvider, TooltipProvider } from '@adili/ui';
+import { DemoBar, SiteHeaderAside, ToastProvider, TooltipProvider } from '@adili/ui';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
@@ -34,12 +34,27 @@ function RootComponent() {
   return (
     <RootDocument>
       <DemoContext value={demo}>
-        <Outlet />
+        {/* The signed-out pages' site header carries the switcher too, so it never covers a page. */}
+        <SiteHeaderAside
+          value={
+            demo ? (
+              <DemoBar variant="inline" accounts={demo.accounts} current={demo.current} />
+            ) : null
+          }
+        >
+          <Outlet />
+        </SiteHeaderAside>
       </DemoContext>
       {demo ? (
         <>
-          {/* Room below the footer, so the fixed demo bar never covers the end of a page. */}
-          <div aria-hidden="true" className="h-16 shrink-0" />
+          {/*
+           * A page without a header for it floats the switcher instead, with room below the
+           * footer so it never covers the end of a page.
+           */}
+          <div
+            aria-hidden="true"
+            className="h-16 shrink-0 [body:has([data-demo-bar=inline])_&]:hidden"
+          />
           <DemoBar accounts={demo.accounts} current={demo.current} />
         </>
       ) : null}

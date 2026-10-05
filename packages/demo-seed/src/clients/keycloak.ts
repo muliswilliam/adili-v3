@@ -18,8 +18,13 @@ export class KeycloakAdmin {
 
   constructor(private readonly config: SeedConfig) {}
 
+  /** Where the admin API is: KEYCLOAK_ADMIN_URL, else the public KEYCLOAK_URL. */
+  private get adminUrl(): string {
+    return this.config.KEYCLOAK_ADMIN_URL ?? this.config.KEYCLOAK_URL;
+  }
+
   private get base(): string {
-    return `${this.config.KEYCLOAK_URL}/admin/realms/${this.config.KEYCLOAK_REALM}`;
+    return `${this.adminUrl}/admin/realms/${this.config.KEYCLOAK_REALM}`;
   }
 
   async userByUsername(username: string): Promise<KeycloakUser | undefined> {
@@ -133,7 +138,7 @@ export class KeycloakAdmin {
   private async headers(): Promise<Record<string, string>> {
     if (!this.token || this.token.expiresAt < Date.now() + 10_000) {
       const { body } = await requestJson<{ access_token: string; expires_in: number }>(
-        `${this.config.KEYCLOAK_URL}/realms/master/protocol/openid-connect/token`,
+        `${this.adminUrl}/realms/master/protocol/openid-connect/token`,
         {
           method: 'POST',
           body: new URLSearchParams({

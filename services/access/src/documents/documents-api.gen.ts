@@ -383,7 +383,7 @@ export interface components {
             /** @description The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package, a form-m, a compliance-report-receipt, an ncr and an open-data-manifest */
             subjectPersonId: string | null;
             watermark?: components["schemas"]["Watermark"];
-            /** @description Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package and access-nil-letter */
+            /** @description Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. The window never runs past `validUntil`: a document no longer in force is not downloadable. None: no window. Required for access-package and access-nil-letter */
             downloadWindowDays?: number;
             /**
              * Format: date-time

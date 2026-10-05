@@ -93,6 +93,15 @@ export function partIMissing(document: Pick<FormMV1, 'partI'>): string[] {
   return missing;
 }
 
+/**
+ * When the supervisor reviewed the report, formatted: the date of their Part III signature, which
+ * the header and the sign-off step both show. Null until they have signed.
+ */
+export function reviewedOn(document: Pick<FormMV1, 'partIII'>): string | null {
+  const { date } = document.partIII.compiledBy;
+  return date ? formatDate(date) : null;
+}
+
 export type SignOffState = 'done' | 'current' | 'upcoming';
 
 export interface SignOffStep {
@@ -109,13 +118,14 @@ export interface SignOffStep {
 export function signOffSteps(
   report: Pick<
     ComplianceReport,
-    'fy' | 'status' | 'compiledAt' | 'reviewedBy' | 'confirmedBy' | 'submittedAt'
+    'fy' | 'status' | 'compiledAt' | 'reviewedBy' | 'confirmedBy' | 'submittedAt' | 'document'
   >,
   missing: readonly string[],
 ): SignOffStep[] {
   const submitted = report.status === 'submitted';
   const reviewed = submitted || report.reviewedBy !== null;
   const filled = submitted || missing.length === 0;
+  const reviewedDate = report.document ? reviewedOn(report.document) : null;
   const state = (done: boolean, next: boolean): SignOffState =>
     done ? 'done' : next ? 'current' : 'upcoming';
   return [
@@ -128,7 +138,9 @@ export function signOffSteps(
     {
       id: 'reviewed',
       label: m.steps.reviewed,
-      detail: report.reviewedBy?.name ?? null,
+      detail: report.reviewedBy
+        ? [report.reviewedBy.name, reviewedDate].filter(Boolean).join(', ')
+        : null,
       state: state(reviewed, true),
     },
     {

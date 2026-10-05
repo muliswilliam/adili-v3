@@ -77,7 +77,7 @@ export const issueDocumentBody = z.strictObject({
   watermark: watermarkSchema.optional(),
   downloadWindowDays: z.int().min(1).max(MAX_DOWNLOAD_WINDOW_DAYS).optional().meta({
     description:
-      'Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package and access-nil-letter',
+      'Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. The window never runs past `validUntil`: a document no longer in force is not downloadable. None: no window. Required for access-package and access-nil-letter',
   }),
   validUntil: z.iso.datetime({ offset: true }).optional().meta({
     description:

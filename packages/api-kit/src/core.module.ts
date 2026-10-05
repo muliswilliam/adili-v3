@@ -1,12 +1,13 @@
 import { type DynamicModule, Module, RequestMethod, type Type } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { createRemoteJWKSet } from 'jose';
 import { LoggerModule } from 'nestjs-pino';
 import type { Options } from 'pino-http';
 
 import { JwtAuthGuard } from './auth/jwt-auth.guard.js';
 import { TokenVerifier } from './auth/token-verifier.js';
-import type { BaseEnv } from './config.js';
-import { HealthController, READINESS_CHECKS } from './health/health.controller.js';
+import { type BaseEnv, oidcRealmUrl } from './config.js';
+import { HEALTH_INFO, HealthController, READINESS_CHECKS } from './health/health.controller.js';
 import type { ReadinessCheck } from './health/readiness-check.js';
 import { serializeRequest } from './log-redaction.js';
 import { ProblemDetailsFilter } from './problem-details.filter.js';
@@ -19,6 +20,11 @@ export interface CoreModuleOptions {
    * or ready-made instances such as `new HttpReadinessCheck(...)`.
    */
   readiness?: (Type<ReadinessCheck> | ReadinessCheck)[];
+  /**
+   * Non-sensitive facts about how the process runs (e.g. the AI provider), reported by
+   * `/health/ready` so operators can check a deployment without reading its environment.
+   */
+  info?: Record<string, string>;
 }
 
 /** The request logger's options; exported so tests can drive pino-http with them directly. */
@@ -62,11 +68,18 @@ export class CoreModule {
       providers: [
         {
           provide: TokenVerifier,
-          useFactory: () => new TokenVerifier(config.OIDC_ISSUER_URL, config.OIDC_AUDIENCE),
+          useFactory: () =>
+            new TokenVerifier(
+              config.OIDC_ISSUER_URL,
+              config.OIDC_AUDIENCE,
+              // Keycloak publishes realm keys here; jose caches them and refetches on unknown `kid`.
+              createRemoteJWKSet(new URL(`${oidcRealmUrl(config)}/protocol/openid-connect/certs`)),
+            ),
         },
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: APP_FILTER, useClass: ProblemDetailsFilter },
         { provide: READINESS_CHECKS, useValue: options.readiness ?? [] },
+        { provide: HEALTH_INFO, useValue: options.info ?? {} },
       ],
       exports: [TokenVerifier],
     };

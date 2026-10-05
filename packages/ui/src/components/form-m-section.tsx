@@ -315,8 +315,9 @@ export function FormMSection({
                           {`${String(firstRowNumber + index)}.`}
                         </TableCell>
                         <TableCell className="min-w-[170px] align-top">
-                          <div className="font-medium">{row.name}</div>
-                          <div className="text-[12.5px] text-muted-foreground">
+                          {/* Balanced, so a wrap leaves no lone word ("II") on a line. */}
+                          <div className="font-medium text-balance">{row.name}</div>
+                          <div className="text-[12.5px] text-balance text-muted-foreground">
                             {row.designation}
                           </div>
                           <div className="font-mono text-[12.5px] text-muted-foreground">

@@ -51,7 +51,7 @@ describe('periodOf', () => {
   it('counts down an open clarification with the day of the period', () => {
     expect(periodOf(clarification(), NOW)).toEqual({
       title: 'Respond within 22 days',
-      detail: 'Due 20 Oct 2026 · day 8 of 30',
+      detail: 'Due 20 Oct 2026 · day\u00a08\u00a0of\u00a030',
       tone: 'neutral',
       progress: { day: 8, of: 30 },
     });

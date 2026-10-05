@@ -18,6 +18,11 @@ export const providerEnvShape = {
    * fixtures, which are committed. Synthetic inputs only; refused in production.
    */
   AI_REPLAY_MODE: z.enum(['replay', 'record']).default('replay'),
+  /**
+   * With `AI_PROVIDER=replay`: `exact` matches recordings byte for byte; `normalised` ignores the
+   * ids and timestamps a fresh run of the same demo beat mints anew (see ReplayMatch).
+   */
+  AI_REPLAY_MATCH: z.enum(['exact', 'normalised']).default('exact'),
   /** Resolved from the working directory. */
   AI_FIXTURES_DIR: z.string().min(1).default('fixtures/ai'),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),

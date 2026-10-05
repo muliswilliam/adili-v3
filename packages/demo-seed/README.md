@@ -26,6 +26,8 @@ pnpm --filter @adili/demo-seed seed --list
 | integration-gateway | `KRA_`, `NTSA_`, `BRS_`, `ARDHISASA_`, `HR_SUPPLIERS_RATE_LIMIT_PER_MINUTE=100000` | Same |
 | declarations | `REMINDER_JITTER_HOURS=0` | The reminder officer's reminder goes out at noon |
 | ai-gateway | `AI_PROVIDER=anthropic` | PSC cases get their copilot; documents are read |
+| access | `DEMO_MODE=true`, `DEMO_PACKAGE_VALIDITY=PT2M`, `DEMO_WINDOW_TENANTS=jsc` | JSC's access package expires (verify shows `expired`); PSC's packages keep their download window |
+| audit | running from the start | Events published while it is down are not kept (no queue holds them), so the auditor's trail covers what ran while it was up |
 
 `DEMO_SEED_VOLUME` (default 500 synthetic officers per volume Commission; PSC gets a fifth),
 `DEMO_SEED_CONCURRENCY` and the service URLs are in `src/config.ts`.
@@ -41,6 +43,9 @@ pnpm --filter @adili/demo-seed seed --list
 | `rosters` | Every Commission's roster: personas, roster-only officers, timed officers, volume | roster file import as the reporting officer |
 | `onboarding` | Every officer but the roster-only ones onboarded, each a demo account | public onboarding API, codes from Mailpit and the SMS inbox |
 | `filings` | Personas' declarations, the volume's (on time, late, missing, registry mismatches) | the portal's draft and submit API, as each declarant |
+| `settle` | Waits for every declaration's review case and the personas' slips | review and declarations APIs |
+| `access` | Form K about Kiprono awaiting his representations, about Otieno granted (watermarked, signed package), about Amina denied (Regulation 24, proceedings); DCI's request about Kiprono granted; Amina's certified copy of version 2; a JSC grant whose package expires | access API as `applicant`, `access-officer`, `law-enforcement`, the declarants and a seeded `jsc-access-officer` |
+| `verify` | A document in every verify status, and a tampered copy of a slip; writes `.demo/verify.md` and `.demo/verify.json` | declarations, review (a JSC clarification issued in error and withdrawn), access and documents APIs |
 
 Why demo cycles: the first real cycle (2027) has its statement date on 1 November 2027, so
 nothing can be filed or compared before then. The demo runs two earlier cycles on the same
@@ -68,9 +73,62 @@ confirm); `syntheticOfficers(context)`, `PERSONAS` and `onboardees(context)` giv
 | (roster only) | Achieng Njeri, PSC (28836510) | Not onboarded: live onboarding with SMS OTP |
 | (roster only) | Daniel Rotich, PSC (38221907) | IPRS name mismatch: the identity check fails |
 
+## Access and verify (#620)
+
+| Who | Sees |
+| --- | --- |
+| `access-officer` (console, Access requests) | The four PSC requests: Kiprono's awaiting representations, Otieno's granted with the package, Amina's denied, DCI's granted |
+| `applicant` (portal) | Her three PSC requests and the JSC one; the packages to download; Amina's denial with its Regulation 24 ground and reasons |
+| `law-enforcement` (console) | DCI/ECU/2026/0417 granted, the package to download |
+| `kiprono` (portal) | The request to answer (7 days); Who accessed: the request and DCI's grant |
+| `otieno`, `amina` (portal) | Who accessed: the grant and package; the denial and the certified copy |
+| `auditor` (console, Audit trail) | Every read, change, verify lookup and demo switch since the audit service started |
+
+The `verify` step writes the verification codes and verify pages of a valid slip, a valid access
+package, Amina's superseded version 1 slip, a revoked clarification letter and the expired JSC
+package to `.demo/verify.md` (and `.json`), with `.demo/tampered-acknowledgement-slip.pdf`: drop
+it on the valid slip's verify page and it reports that the file does not match. The codes change
+with every seed from an empty stack and stay with a checkpoint; `pnpm demo:seed --only verify`
+writes the file again from the stack as it is.
+
 ## Rehearsing the live filing
 
 `pnpm --filter @adili/demo-seed rehearse` runs Wanjiku's live beat through the APIs: Check
 registries, read the sample files (`mocks/demo/files`) into the form with the real AI provider,
 submit, then checks the reviewer's case has the three 07b flags and the comparison. It files her
 declaration, so reset to `0-start` afterwards.
+
+## Checkpoints (#621)
+
+A checkpoint is the whole stack at one moment: every demo database (the services', Keycloak's,
+the mocks' and Temporal's, kept as Postgres copies beside them) and the stateful volumes
+(SeaweedFS, OpenBao, RabbitMQ, Mailpit, copied into the `demo-checkpoints` volume). Any beat of
+the story starts cold from its checkpoint.
+
+| Checkpoint | State | Starts |
+| --- | --- | --- |
+| `0-start` | Seeded; Wanjiku has not started her current declaration | Roster, onboarding, the live filing |
+| `1-after-filing` | Wanjiku submitted; her case has its registry flags and copilot | Review |
+| `2-after-review` | Wanjiku's clarification issued (the Prado, the Kajiado parcel) | Reply, determination, actions |
+| `3-form-m-ready` | PSC's Form M compiled and reviewed | Form M confirm, EACC, open data |
+
+```sh
+pnpm demo:seed                       # 0-start's state
+pnpm demo:checkpoints                # plays each beat and captures all four (--from <name>)
+pnpm demo:checkpoint <name>          # capture the stack as it is, under any name
+scripts/demo-checkpoint.sh list      # what is captured
+pnpm demo:reset <name>               # restore one
+```
+
+- Capture runs with everything up: it closes the databases to connections and pauses the
+  volume containers for the few seconds the copies take, so the parts agree.
+- Restore needs the services and apps stopped (Temporal workers cache workflow state). Locally:
+  stop `pnpm dev`, `pnpm demo:reset <name>`, start `pnpm dev` (the script refuses while the
+  service ports answer). On the Azure host `pnpm demo:reset` restarts the apps around the restore
+  (`infra/azure/demo-reset.sh`), and the console's demo panel does the same.
+- Temporal comes back with its database: a workflow started after the checkpoint is gone, one
+  running at the checkpoint runs again from where it was, and a timer that fell due meanwhile
+  fires at once. Valkey (sessions, caches) is emptied, so everyone signs in again.
+- Restoring takes about 35 s for the stack (1.2 GB of databases) plus the apps' start; capture
+  about 7 s. A checkpoint holds the databases as they were: after restoring one captured
+  before new migrations, run `pnpm db:migrate` (the Azure host does it as part of the reset).
