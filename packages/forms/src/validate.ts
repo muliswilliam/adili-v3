@@ -1,6 +1,3 @@
-import { Ajv2020, type AnySchema, type ErrorObject } from 'ajv/dist/2020.js';
-import addFormats from 'ajv-formats';
-
 /** A problem with one field, shaped like the `errors` of an RFC 9457 validation problem. */
 export interface FormValidationError {
   /** Dotted path to the field, e.g. `partIII.reason` or `scope.years.0`; empty for the root. */
@@ -23,21 +20,29 @@ export interface FieldProblem {
 /** A hostile document can fail thousands of times; the caller gets the first ones. */
 export const MAX_REPORTED_ERRORS = 50;
 
-// Strict (an unknown keyword throws), but untyped keywords are allowed as in declaration.v1. The
-// schemas' lint compiles with the same options (packages/schemas/scripts/validate-forms.mjs).
-const ajv = new Ajv2020({ allErrors: true, strictTypes: false });
-// ajv-formats is CommonJS; its function is also exported as `default`, which TypeScript can see.
-addFormats.default(ajv);
-
-/** Compiles a form's JSON Schema into a validator that reports every problem by field path. */
-export function compileForm<T>(schema: AnySchema): (document: unknown) => FormValidationResult<T> {
-  return formValidator<T>(compileFieldProblems(schema));
+/**
+ * A form's validator as scripts/generate-validators.ts writes it: ajv standalone code, compiled
+ * when the package is built rather than at module load, since ajv compiles with `new Function`
+ * and the apps' CSP forbids that.
+ */
+export interface PrecompiledValidator {
+  (document: unknown): boolean;
+  errors?: AjvError[] | null;
 }
 
-/** Reports the problems a compiled form finds by dotted field path. */
+/** The fields of an ajv `ErrorObject` this module reads. */
+interface AjvError {
+  instancePath: string;
+  keyword: string;
+  params: Record<string, unknown>;
+  message?: string;
+}
+
+/** Reports every problem a form's validator finds by dotted field path. */
 export function formValidator<T>(
-  problems: (document: unknown) => FieldProblem[],
+  validate: PrecompiledValidator,
 ): (document: unknown) => FormValidationResult<T> {
+  const problems = fieldProblems(validate);
   return (document: unknown): FormValidationResult<T> => {
     const found = problems(document);
     if (found.length === 0) return { ok: true, value: document as T };
@@ -48,9 +53,10 @@ export function formValidator<T>(
   };
 }
 
-/** Like compileForm, but keeps each problem's segments and keyword for callers that place it. */
-export function compileFieldProblems(schema: AnySchema): (document: unknown) => FieldProblem[] {
-  const validate = ajv.compile(schema);
+/** Like formValidator, but keeps each problem's segments and keyword for callers that place it. */
+export function fieldProblems(
+  validate: PrecompiledValidator,
+): (document: unknown) => FieldProblem[] {
   return (document: unknown) =>
     validate(document)
       ? []
@@ -59,7 +65,7 @@ export function compileFieldProblems(schema: AnySchema): (document: unknown) => 
 
 // Ajv reports a missing or unexpected property against its parent object; the path names the
 // property itself, so a form can put the message on that field.
-function toFieldProblem(error: ErrorObject): FieldProblem {
+function toFieldProblem(error: AjvError): FieldProblem {
   const segments = error.instancePath.split('/').slice(1).map(unescapePointer);
   const code = error.keyword;
   if (code === 'required') {

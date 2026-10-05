@@ -9,6 +9,7 @@
     "generate": "openapi-typescript node_modules/@adili/schemas/internal/directory.yaml -o src/server/directory/schema.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/declarations.yaml -o src/server/declarations/schema.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/documents.yaml -o src/server/documents/schema.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/review.yaml -o src/server/review/schema.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/access.yaml -o src/server/access/schema.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/reporting.yaml -o src/server/reporting/schema.gen.ts && json2ts -i node_modules/@adili/schemas/forms/declaration.v1.json -o src/declaration/form.gen.ts --unreachableDefinitions",
     "build": "pnpm generate && vite build",
     "start": "node --env-file-if-exists=.env .output/server/index.mjs",
+    "smoke:csp": "node ../../scripts/smoke-csp.mjs",
     "lint": "eslint .",
     "typecheck": "pnpm generate && tsc --noEmit",
     "test": "vitest run"

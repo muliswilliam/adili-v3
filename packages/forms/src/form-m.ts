@@ -1,22 +1,21 @@
-import schema from '@adili/schemas/forms/form-m.v1.json' with { type: 'json' };
-
 import type { FormMV1 } from './form-m.v1.gen.js';
+import { formM } from './form-m.v1.validate.gen.js';
 import {
-  compileFieldProblems,
   type FieldProblem,
+  fieldProblems,
   formValidator,
   type FormValidationError,
   jsonPointer,
   placeProblems,
 } from './validate.js';
 
-const problems = compileFieldProblems(schema);
+const problems = fieldProblems(formM);
 
 /**
  * Validates a compliance report (Form M, Regs r.25(2)) against `form-m.v1`. Errors have dotted
  * paths, the `errors` of the problem details a federated submission gets back.
  */
-export const validateFormM = formValidator<FormMV1>(problems);
+export const validateFormM = formValidator<FormMV1>(formM);
 
 /**
  * The sections of the prescribed Form M: Part I, Part II sections 1-5 (initial, biennial, final,

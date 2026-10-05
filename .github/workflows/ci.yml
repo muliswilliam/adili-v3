@@ -68,6 +68,15 @@ jobs:
       # contracts), so a stale committed copy shows up as a diff.
       - name: Generated files are committed
         run: git diff --exit-code -- '*.gen.ts'
+      # The console's and portal's production builds (from the turbo run above) in Chrome under
+      # their real CSP: public routes, then every client chunk imported from a page. Fails on a CSP
+      # violation or an uncaught error, as when ajv compiled schemas in the browser (#686).
+      - name: Apps load under their CSP
+        env:
+          SMOKE_SKIP_BUILD: '1'
+        run: |
+          pnpm --filter @adili/console smoke:csp
+          pnpm --filter @adili/portal smoke:csp
       - name: Lint OpenAPI (internal + external)
         run: pnpm --filter @adili/schemas lint:openapi
       # Every forms/*.json (declaration.v1, form-k.v1, form-m.v1); their fixtures are checked by
