@@ -7,7 +7,15 @@ http://__HOST__ {
 }
 
 https://__HOST__ {
-  reverse_proxy 127.0.0.1:13010
+  # The API reference (Redoc), built by deploy.sh from packages/schemas (`pnpm api:docs`).
+  redir /api-docs /api-docs/
+  handle_path /api-docs/* {
+    root * /opt/adili/dist/api-docs
+    file_server
+  }
+  handle {
+    reverse_proxy 127.0.0.1:13010
+  }
 }
 
 https://__HOST__:3010 {

@@ -33,8 +33,9 @@ Every demo account, its login and purpose: [demo accounts](../demo-accounts.md).
 | Console (Commission and EACC staff) | https://adili-demo.southafricanorth.cloudapp.azure.com:3020 |
 | Verify (QR codes on issued documents) | https://adili-demo.southafricanorth.cloudapp.azure.com:3030 |
 | Keycloak (sign-in only; admin is not public) | https://adili-demo.southafricanorth.cloudapp.azure.com:8080 |
+| API reference (every service's OpenAPI contract, Redoc) | https://adili-demo.southafricanorth.cloudapp.azure.com/api-docs/ · also on [GitHub Pages](https://muliswilliam.github.io/adili-v3/api-docs/) |
 
-The host and its deploys: [infra/azure](../../infra/azure/README.md).
+The host and its deploys: [infra/azure](../../infra/azure/README.md). Rebuild the API reference locally with `pnpm api:docs` (writes `dist/api-docs/`).
 
 ## Story
 

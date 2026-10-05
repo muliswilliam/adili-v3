@@ -8,6 +8,7 @@ Adili Online V3, Track 3: **Declaration of Income, Assets and Liabilities (DIALs
 |---|---|
 | Understand the system end to end | [Architecture](architecture/README.md) |
 | Know why we chose X | [Architecture Decision Records](adr/) |
+| Browse the APIs every service exposes | [API reference](https://muliswilliam.github.io/adili-v3/api-docs/) (Redoc, built by `pnpm api:docs` from [packages/schemas](../packages/schemas/)) |
 | See how the law maps to features | [Legal traceability matrix](requirements/legal-traceability.md) |
 | See how EACC's user stories are covered | [User story coverage](requirements/user-stories.md) |
 | See the product team's process flowcharts (onboarding, DIALs, access) | [Flowcharts](requirements/dials-flowcharts.html) |

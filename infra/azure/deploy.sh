@@ -74,6 +74,8 @@ KEYCLOAK_URL=http://127.0.0.1:18080 node infra/azure/keycloak-admin-password.mjs
 KEYCLOAK_URL=http://127.0.0.1:18080 KEYCLOAK_ADMIN_PASSWORD="$(cat "$ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE")" \
   node scripts/keycloak-demo-sign-in.mjs
 ./infra/azure/configure-app-env.sh
+# The API reference Caddy serves at /api-docs/. A failed build leaves the last one up.
+pnpm api:docs || echo "WARNING: API reference not rebuilt; /api-docs/ serves the previous build." >&2
 pnpm db:migrate
 if [ -f mocks/uv.lock ]; then
   (cd mocks && uv sync --locked)

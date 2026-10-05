@@ -1,13 +1,17 @@
-name: Prototypes
+name: Prototypes and API reference
 
 # Publishes the clickable HTML prototypes to GitHub Pages. Each prototype dir
 # keeps its repo path so the relative links between prototypes still resolve.
+# The API reference (Redoc, built from packages/schemas) goes under /api-docs/.
 
 on:
   push:
     branches: [main]
     paths:
       - '**/prototype/**'
+      - 'packages/schemas/internal/**'
+      - 'packages/schemas/external/**'
+      - 'packages/schemas/scripts/**'
       - .github/workflows/pages.yml
   workflow_dispatch:
 
@@ -23,11 +27,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @adili/schemas
+      - run: pnpm api:docs
       - name: Assemble site
         run: |
           mkdir _site
           find . -type d -name prototype -not -path '*/node_modules/*' -not -path './_site/*' \
             -exec cp -r --parents {} _site/ \;
+          cp -r dist/api-docs _site/api-docs
           touch _site/.nojekyll
           cat > _site/index.html <<'EOF'
           <!doctype html>
