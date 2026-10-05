@@ -91,6 +91,8 @@ for app in portal console; do
   set_env "$ROOT/apps/$app/.env" DEMO_MODE true
   set_env_from_file "$ROOT/apps/$app/.env" DEMO_TICKET_SECRET "$ADILI_DEMO_TICKET_SECRET_FILE"
 done
+# The console's demo panel resets to a checkpoint through the systemd restart (#621).
+set_env "$ROOT/apps/console/.env" DEMO_RESET_SCRIPT "$ROOT/infra/azure/demo-reset.sh"
 
 set_env "$ROOT/apps/verify/.env" APP_URL "${ADILI_VERIFY_URL}"
 set_env "$ROOT/apps/verify/.env" PORT "$verify_port"
