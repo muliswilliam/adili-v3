@@ -29,8 +29,8 @@ export interface DemoBarProps {
 }
 
 /**
- * The hackathon demo's banner and role switcher (#616), shown only in demo mode: a pill that says
- * the data is synthetic and switches the signed-in account in one click. Picking an account
+ * The hackathon demo's banner and role switcher (#616), shown only in demo mode: a pill that marks
+ * the app as the demo and switches the signed-in account in one click. Picking an account
  * posts the switch form: the server records the switch and signs the account in afresh.
  */
 export function DemoBar({
@@ -46,7 +46,7 @@ export function DemoBar({
   return (
     <div
       role="region"
-      aria-label="Demo"
+      aria-label="Demo mode"
       data-demo-bar={variant}
       className={cn(
         'flex items-center gap-1 rounded-full bg-warning p-1 pl-3.5 text-[13px] text-primary-foreground print:hidden',
@@ -55,10 +55,7 @@ export function DemoBar({
           : 'shrink-0',
       )}
     >
-      <span className="font-semibold tracking-[0.04em]">DEMO</span>
-      <span className={cn('mr-1.5 opacity-90', variant === 'inline' && 'max-[900px]:sr-only')}>
-        synthetic data
-      </span>
+      <span className="mr-1.5 font-semibold tracking-[0.04em]">DEMO</span>
       <form ref={form} method="post" action={action}>
         <input ref={input} type="hidden" name="as" defaultValue="" />
         <Menu>

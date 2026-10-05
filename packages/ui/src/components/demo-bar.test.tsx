@@ -16,12 +16,12 @@ const ACCOUNTS = [
 ];
 
 describe('DemoBar', () => {
-  it('says the data is synthetic and who is signed in', () => {
+  it('marks the demo and says who is signed in', () => {
     render(<DemoBar accounts={ACCOUNTS} current="reviewer" />);
 
-    const bar = screen.getByRole('region', { name: 'Demo' });
+    const bar = screen.getByRole('region', { name: 'Demo mode' });
     expect(bar.textContent).toContain('DEMO');
-    expect(bar.textContent).toContain('synthetic data');
+    expect(bar.textContent).not.toContain('synthetic data');
     expect(screen.getByRole('button', { name: /Acting as Achieng Njeri/ })).toBeTruthy();
   });
 
@@ -36,7 +36,7 @@ describe('DemoBar', () => {
       event.preventDefault();
     });
     render(<DemoBar accounts={ACCOUNTS} current="reviewer" />);
-    const form = screen.getByRole('region', { name: 'Demo' }).querySelector('form');
+    const form = screen.getByRole('region', { name: 'Demo mode' }).querySelector('form');
     form?.addEventListener('submit', submit);
 
     await userEvent.click(screen.getByRole('button', { name: /Acting as/ }));
