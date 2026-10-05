@@ -241,6 +241,12 @@ function Panel({
   // The latest answer's: a decline made without the AI has none, and nor then does the header.
   const latestLabel = messages.findLast((message) => message.role === 'assistant')?.label;
   const onSection = copy.sectionNames[topic];
+  // The section's suggestions stay offered under the conversation, less the ones already asked,
+  // so a tab opened later still has its own (#703).
+  const asked = new Set(
+    messages.flatMap((message) => (message.role === 'user' ? [message.text.trim()] : [])),
+  );
+  const unasked = suggestedQuestions(topic, language).filter((question) => !asked.has(question));
 
   function send(question: string) {
     void ask(question, { sectionKey });
@@ -399,11 +405,7 @@ function Panel({
             {messages.length === 0 && !pending ? (
               <>
                 <p className="text-sm text-secondary-foreground">{copy.idle}</p>
-                <SuggestedQuestions
-                  label={copy.suggested}
-                  questions={suggestedQuestions(topic, language)}
-                  onAsk={send}
-                />
+                <SuggestedQuestions label={copy.suggested} questions={unasked} onAsk={send} />
               </>
             ) : null}
             {/* One list, so a turn's bubbles keep their keys from pending to stored. */}
@@ -454,6 +456,13 @@ function Panel({
                   ]
                 : []),
             ]}
+            {messages.length > 0 && !pending ? (
+              <SuggestedQuestions
+                label={copy.suggestedOn(onSection)}
+                questions={unasked}
+                onAsk={send}
+              />
+            ) : null}
           </ChatLog>
         )}
         <div role="status" className="sr-only">

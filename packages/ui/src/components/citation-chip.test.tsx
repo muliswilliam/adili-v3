@@ -32,6 +32,31 @@ describe('CitationList', () => {
     expect(screen.getByRole('button', { name: 'Help: Joint assets' })).toBeDefined();
   });
 
+  it('keeps a long citation inside the answer, cut with an ellipsis and whole on hover (#703)', () => {
+    const long = 'Help: Valuing your assets: vehicles, land and other property';
+    const help: Citation = {
+      id: 'help-value',
+      source: 'help',
+      citation: long,
+      title: 'Valuing your assets: vehicles, land and other property',
+      snippet: 'Use what the asset would sell for on the statement date.',
+      language: 'en',
+    };
+    render(<CitationList citations={[help]} />);
+    const chip = screen.getByRole('button', { name: long });
+
+    // The list never grows past the answer (a grid track and a flex row both would, to fit an
+    // unbroken label), so the chip's max-width holds and its label truncates.
+    const list = chip.closest('ul');
+    expect(list?.parentElement?.className).toMatch(/(^| )max-w-full( |$)/);
+    expect(list?.parentElement?.className).toMatch(/(^| )min-w-0( |$)/);
+    expect(list?.parentElement?.className).toMatch(/(^| )grid-cols-1( |$)/);
+    expect(list?.className).toMatch(/(^| )min-w-0( |$)/);
+    expect(chip.className).toMatch(/(^| )max-w-full( |$)/);
+    expect(chip.querySelector('.truncate')?.textContent).toBe(long);
+    expect(chip.getAttribute('title')).toBe(long);
+  });
+
   it('expands one passage at a time under the chips', () => {
     render(<CitationList citations={CITATIONS} />);
     const act = screen.getByRole('button', { name: 'Act s.31(4)' });

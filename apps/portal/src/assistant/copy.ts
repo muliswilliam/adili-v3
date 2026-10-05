@@ -19,6 +19,8 @@ export interface AskCopy {
   keptOutside: string;
   idle: string;
   suggested: string;
+  /** Over the section's suggestions under a conversation: "Suggested for Assets". */
+  suggestedOn: (section: string) => string;
   on: string;
   placeholder: string;
   /** The question box outside a draft (the dashboard), where there is no section. */
@@ -75,6 +77,7 @@ export const ASK_COPY: Record<Language, AskCopy> = {
     keptOutside: 'Kept for 30 days after your last question, then deleted.',
     idle: 'Ask in your own words, in English or Kiswahili.',
     suggested: 'Suggested questions',
+    suggestedOn: (section) => `Suggested for ${section}`,
     on: 'On',
     placeholder: 'Ask about this section…',
     placeholderOutside: 'Ask about your declaration…',
@@ -144,6 +147,7 @@ export const ASK_COPY: Record<Language, AskCopy> = {
     keptOutside: 'Huhifadhiwa kwa siku 30 baada ya swali lako la mwisho, kisha hufutwa.',
     idle: 'Uliza kwa maneno yako, kwa Kiingereza au Kiswahili.',
     suggested: 'Maswali yanayopendekezwa',
+    suggestedOn: (section) => `Yanayopendekezwa kwa ${section}`,
     on: 'Sehemu',
     placeholder: 'Uliza kuhusu sehemu hii…',
     placeholderOutside: 'Uliza kuhusu tamko lako…',

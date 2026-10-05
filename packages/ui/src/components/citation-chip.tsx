@@ -62,6 +62,9 @@ export function CitationChip({
       type="button"
       aria-expanded={expanded}
       data-source={citation.source}
+      // A long citation ("Help: Valuing your assets: vehicles, land and other property") is cut
+      // with an ellipsis; the whole of it shows on hover.
+      title={citation.citation}
       {...props}
       className={cn(
         focusRing,
@@ -101,8 +104,10 @@ export function CitationList({
   if (citations.length === 0) return null;
 
   return (
-    <div className={cn('grid gap-2', className)} {...props}>
-      <ul aria-label={copy.listLabel} className="flex flex-wrap gap-1.5">
+    // Never wider than the answer: a grid track and flex row otherwise grow to an unbroken
+    // citation's full width, and the chip runs out of the panel instead of truncating (#703).
+    <div className={cn('grid max-w-full min-w-0 grid-cols-1 gap-2', className)} {...props}>
+      <ul aria-label={copy.listLabel} className="flex min-w-0 flex-wrap gap-1.5">
         {citations.map((citation) => (
           <li key={citation.id} className="max-w-full">
             <CitationChip
