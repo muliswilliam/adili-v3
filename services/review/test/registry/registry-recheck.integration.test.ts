@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { and, asc, desc, eq } from 'drizzle-orm';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CaseDetail } from '../../src/cases/representation.js';
 import { config } from '../../src/config.js';
@@ -25,7 +25,7 @@ import {
 } from '../../src/registry/contract.js';
 import { RegistryWorkflows } from '../../src/registry/registry-workflows.js';
 import type { RegistryView } from '../../src/registry/representation.js';
-import type { registryCheck, registrySweep } from '../../src/registry/workflows.js';
+import type { registryRecheck, registrySweep } from '../../src/registry/workflows.js';
 import { wanjikuDocument, wanjikuHousehold } from '../fixtures/households.js';
 import { BARAKA, IMANI, PETER, type SeededPerson, WANJIKU } from '../fixtures/registries.js';
 import { processed, processingInput } from '../support/cases.js';
@@ -129,7 +129,7 @@ describe('registry re-checks and the sweep', () => {
     );
     if (!entry?.ref) throw new Error('no re-check');
     return temporalOf(api)
-      .workflow.getHandle<typeof registryCheck>(registryRecheckWorkflowId(caseId, entry.ref))
+      .workflow.getHandle<typeof registryRecheck>(registryRecheckWorkflowId(caseId, entry.ref))
       .result();
   }
 
@@ -149,6 +149,56 @@ describe('registry re-checks and the sweep', () => {
   const lastSummaryInput = () =>
     api.ai.calls.filter((call) => call.task === 'summarize-declaration').at(-1)?.request.input as
       { registryStatuses: { system: string; status: string }[] } | undefined;
+
+  /** The AI label on a fake job's output. */
+  const aiLabel = (task: string) => ({
+    aiAssisted: true,
+    task,
+    promptVersion: 1,
+    provider: 'replay',
+    model: 'claude-opus-5-5',
+    generatedAt: '2028-01-20T08:05:00.000Z',
+    disclaimer: 'Indicators, not findings. A named officer decides.',
+  });
+  /** Ends the copilot's requested jobs as the gateway would and waits for it to be ready. */
+  const copilotReady = async (caseId: string) => {
+    const row = await copilotOf(caseId);
+    if (!row?.requestedSummaryJobId) throw new Error('no summarize job');
+    await api.aiJobs.completed(
+      api.ai.succeed(row.requestedSummaryJobId, {
+        label: aiLabel('summarize-declaration'),
+        overview: 'Overview before the re-check.',
+        changesSincePrevious: [],
+        sections: [],
+        worthAttention: [],
+      }),
+    );
+    if (row.requestedExplanationsJobId) {
+      const flags = await api.asPlatform((tx) =>
+        tx.select({ id: reviewFlags.id }).from(reviewFlags).where(eq(reviewFlags.caseId, caseId)),
+      );
+      await api.aiJobs.completed(
+        api.ai.succeed(row.requestedExplanationsJobId, {
+          label: aiLabel('explain-flags'),
+          explanations: flags.map((flag) => ({
+            flagId: flag.id,
+            meaning: 'What the flag means.',
+            whatToCheck: ['Check the registry record.'],
+            typicalResolution: 'A document explains it.',
+            refs: [],
+          })),
+        }),
+      );
+    }
+    return vi.waitFor(
+      async () => {
+        const ready = await copilotOf(caseId);
+        if (ready?.status !== 'ready') throw new Error(`copilot is ${String(ready?.status)}`);
+        return ready;
+      },
+      { timeout: 45_000, interval: 250 },
+    );
+  };
 
   const caseRow = async (caseId: string) => {
     const [row] = await api.asPlatform((tx) =>
@@ -177,16 +227,11 @@ describe('registry re-checks and the sweep', () => {
       (event) => event.eventType === type,
     );
 
-  // That a re-check request marks a ready copilot stale is the copilot's own test (copilot.integration).
-  it("#603 S11: a re-check asks the copilot anew with the case's registry statuses and the check's time", async () => {
+  it("#603 S11: a re-check marks the copilot stale and asks anew with the case's registry statuses and the check's time", async () => {
     const request = await checkedCase();
     const { caseId } = request;
     await api.copilot.requestCopilot({ tenant: 'psc', caseId, trigger: 'case-created' });
-    const before = await copilotOf(caseId);
-    expect(lastSummaryInput()?.registryStatuses).toContainEqual({
-      system: 'kra',
-      status: 'matched',
-    });
+    const before = await copilotReady(caseId);
     await claim(caseId);
     seed(WANJIKU, { without: [SOLD_VEHICLE] });
 
@@ -194,8 +239,8 @@ describe('registry re-checks and the sweep', () => {
     expect(await recheckRun(caseId)).toMatchObject({ outcome: 'checked' });
 
     const after = await copilotOf(caseId);
-    expect(after).toMatchObject({ attempt: (before?.attempt ?? 0) + 1 });
-    expect(after?.requestedSummaryJobId).not.toBe(before?.requestedSummaryJobId);
+    expect(after).toMatchObject({ status: 'stale', attempt: before.attempt + 1 });
+    expect(after?.requestedSummaryJobId).not.toBe(before.requestedSummaryJobId);
     expect(after?.registryCheckedAt?.toISOString()).toBe(await lastCheckedAt(caseId));
     // The summary is asked on exactly the statuses the re-check stored.
     const stored = await api.asPlatform((tx) =>

@@ -6,6 +6,7 @@ import {
   executeChild,
   isCancellation,
   log,
+  patched,
   proxyActivities,
   sleep,
   workflowInfo,
@@ -124,16 +125,25 @@ export async function registrySweep(): Promise<RegistrySweepResult> {
   return result;
 }
 
+/**
+ * The sweep's child became `registryRecheck` with #603 (ADR-003): a sweep started before keeps its
+ * `registryCheck` children on replay. Remove the old branch once no sweep from before #603 runs.
+ */
+const RECHECK_CHILD_PATCH = 'registry-sweep-recheck-child';
+
 /** One swept case's check as a child, counted in `result`; a failure never stops the run. */
 async function checkSwept(
   request: RegistryCheckRequest,
   result: RegistrySweepResult,
 ): Promise<void> {
   try {
-    const checked = await executeChild(registryRecheck, {
-      workflowId: registrySweepCheckWorkflowId(request.caseId, workflowInfo().runId),
-      args: [request, { refreshCopilot: 'if-changed' }],
-    });
+    const workflowId = registrySweepCheckWorkflowId(request.caseId, workflowInfo().runId);
+    const checked = patched(RECHECK_CHILD_PATCH)
+      ? await executeChild(registryRecheck, {
+          workflowId,
+          args: [request, { refreshCopilot: 'if-changed' }],
+        })
+      : await executeChild(registryCheck, { workflowId, args: [request] });
     result[checked.outcome] += 1;
   } catch (error) {
     if (isCancellation(error)) throw error;

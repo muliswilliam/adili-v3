@@ -11,6 +11,7 @@ import type { reviewFlags } from '../cases/schema.js';
 import type { StoredStatus } from '../registry/contract.js';
 import {
   match,
+  personKind,
   type PlacedItem,
   placedItems,
   statementSectionKey,
@@ -32,16 +33,10 @@ export function registryStatusesOf(checks: readonly StoredStatus[]): RegistrySta
   const byCode = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
   return checks
     .map(({ personKey, system, status }) => ({
-      system: personKey === 'officer' ? system : `${system} · ${whose(personKey)}`,
+      system: personKey === 'officer' ? system : `${system} · ${personKind(personKey)}`,
       status,
     }))
     .sort((a, b) => byCode(a.system, b.system) || byCode(a.status, b.status));
-}
-
-/** `spouse` or `child`: a statement person key without its id (`spouse:<id>`). */
-function whose(personKey: string): string {
-  const colon = personKey.indexOf(':');
-  return colon < 0 ? personKey : personKey.slice(0, colon);
 }
 
 /** What the copilot's inputs are built from: data the review service already holds or pulls. */

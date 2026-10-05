@@ -46,6 +46,12 @@ export function statementSectionKey(personKey: string): DeclarationSectionKey {
   return `statement:${personKey as PersonKey}`;
 }
 
+/** Whose statement a person key is: `officer`, `spouse` or `child` (`spouse:<id>` without its id). */
+export function personKind(personKey: string): string {
+  const colon = personKey.indexOf(':');
+  return colon < 0 ? personKey : personKey.slice(0, colon);
+}
+
 /** One key from several parts, for maps and sets; parts cannot run into each other. */
 export function compositeKey(...parts: string[]): string {
   return JSON.stringify(parts);

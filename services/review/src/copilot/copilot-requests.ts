@@ -15,7 +15,7 @@ import {
 } from '../ai-gateway/ai-gateway-client.js';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
 import { reviewCases, reviewFlags } from '../cases/schema.js';
-import { registryChecks } from '../registry/schema.js';
+import { storedStatuses } from '../registry/registry-check-store.js';
 import { config } from '../config.js';
 import type { ReviewSchema } from '../db/schema.js';
 import {
@@ -101,34 +101,24 @@ export class CopilotRequests {
   async request(request: CopilotRequest): Promise<void> {
     const { tenant, caseId } = request;
     const context = { tenant, subject: request.actingSubject };
-    const { row, flags, record } = await withTenant(this.db, context, async (tx) => ({
-      row: await caseOf(tx, tenant, caseId),
-      flags: await tx
-        .select()
-        .from(reviewFlags)
-        .where(eq(reviewFlags.caseId, caseId))
-        .orderBy(asc(reviewFlags.createdAt), asc(reviewFlags.id)),
-      record: await copilotOf(tx, caseId),
-    }));
+    // One snapshot: the case, its flags, its copilot record and the registry check of the
+    // version the summary is for (spec 07b, #603).
+    const { row, flags, record, checks } = await withTenant(this.db, context, async (tx) => {
+      const found = await caseOf(tx, tenant, caseId);
+      return {
+        row: found,
+        flags: await tx
+          .select()
+          .from(reviewFlags)
+          .where(eq(reviewFlags.caseId, caseId))
+          .orderBy(asc(reviewFlags.createdAt), asc(reviewFlags.id)),
+        record: await copilotOf(tx, caseId),
+        checks: found ? await storedStatuses(tx, caseId, found.currentVersionId) : [],
+      };
+    });
     // The case of a request is never deleted; one invisible here asks nothing of the gateway.
     if (!row) return;
 
-    // The registry check of the version the summary is for (spec 07b, #603).
-    const checks = await withTenant(this.db, context, (tx) =>
-      tx
-        .select({
-          personKey: registryChecks.personKey,
-          system: registryChecks.system,
-          status: registryChecks.status,
-        })
-        .from(registryChecks)
-        .where(
-          and(
-            eq(registryChecks.caseId, caseId),
-            eq(registryChecks.versionId, row.currentVersionId),
-          ),
-        ),
-    );
     const read: ReadContext = { tenant, actingSubject: request.actingSubject, caseId };
     const current = await this.pull(row.declarationId, row.currentVersion, read);
     const previousRef = await this.declarations.findPreviousVersion(

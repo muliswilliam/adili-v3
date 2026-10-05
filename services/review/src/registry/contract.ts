@@ -152,8 +152,8 @@ export type RegistryCheckResult =
 /** A person's status in a registry as stored on the case: what a check changes, what the summary reads. */
 export interface StoredStatus {
   personKey: string;
-  system: string;
-  status: string;
+  system: RegistrySystem;
+  status: RegistryCheckStatus;
 }
 
 /**

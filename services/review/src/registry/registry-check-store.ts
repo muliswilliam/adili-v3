@@ -140,14 +140,7 @@ export async function storeRegistryCheck(
       );
     }
 
-    const before: StoredStatus[] = await tx
-      .select({
-        personKey: registryChecks.personKey,
-        system: registryChecks.system,
-        status: registryChecks.status,
-      })
-      .from(registryChecks)
-      .where(eq(registryChecks.caseId, found.id));
+    const before = await storedStatuses(tx, found.id);
     await tx.delete(registryChecks).where(eq(registryChecks.caseId, found.id));
     // The check's time is the database's, as the timeline's: the case's other entries are too.
     if (match.checks.length > 0) {
@@ -239,15 +232,38 @@ function checkedResult(
 async function storedAt(tx: ReviewTransaction, caseId: string): Promise<string> {
   const [row] = await tx
     .select({
-      at: sql<Date | string>`coalesce(
+      at: sql<Date | string | null>`coalesce(
         (select max(${registryChecks.checkedAt}) from ${registryChecks} where ${registryChecks.caseId} = ${caseId}),
-        (select max(${reviewTimeline.at}) from ${reviewTimeline} where ${reviewTimeline.caseId} = ${caseId} and ${reviewTimeline.kind} = 'registry-checked'),
-        now())`,
+        (select max(${reviewTimeline.at}) from ${reviewTimeline} where ${reviewTimeline.caseId} = ${caseId} and ${reviewTimeline.kind} = 'registry-checked'))`,
     })
     .from(reviewCases)
     .where(eq(reviewCases.id, caseId));
-  if (!row) throw new Error(`case ${caseId} vanished inside its own transaction`);
+  // A stored check always has its timeline entry: one without it is a bug to see, not to mask.
+  if (!row?.at) throw new Error(`case ${caseId} has no stored registry check`);
   return new Date(row.at).toISOString();
+}
+
+/**
+ * The statuses the case's registry check stored, of one version when given: what a new check
+ * compares against, and what the copilot's summary reads (#603).
+ */
+export function storedStatuses(
+  tx: ReviewTransaction,
+  caseId: string,
+  versionId?: string,
+): Promise<StoredStatus[]> {
+  return tx
+    .select({
+      personKey: registryChecks.personKey,
+      system: registryChecks.system,
+      status: registryChecks.status,
+    })
+    .from(registryChecks)
+    .where(
+      versionId === undefined
+        ? eq(registryChecks.caseId, caseId)
+        : and(eq(registryChecks.caseId, caseId), eq(registryChecks.versionId, versionId)),
+    );
 }
 
 /** Whether any person's status in any registry differs between two checks of a case. */
