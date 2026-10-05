@@ -64,6 +64,8 @@ function renderView(props: Partial<ComponentProps<typeof CorpusView>> = {}) {
     setJustPublished: vi.fn(),
     searchAsDeclarants: vi.fn(),
     onUnauthenticated: vi.fn(),
+    scopes: [],
+    chooseScope: vi.fn(),
   };
   render(
     <ToastProvider>

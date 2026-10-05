@@ -13,6 +13,7 @@ export const Route = createFileRoute('/help/')({
   // Search, status and page apply in the browser: the articles are read once per visit.
   validateSearch: articlesSearch,
   shouldReload: ({ cause }) => cause !== 'stay',
+  loaderDeps: ({ search }) => ({ scope: search.scope }),
   loader: async ({ context, location }): Promise<HelpResult<HelpArticle[]> | null> => {
     if (!context.help) return null;
     const result = await listHelpArticles({ data: { scope: context.help.scope } });
