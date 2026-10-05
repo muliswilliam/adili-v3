@@ -18,6 +18,8 @@ export interface ComboboxOption {
   label: string;
   /** A short code shown as a chip before the label in the list, e.g. an issuer code. Also searched. */
   description?: string;
+  /** Supporting information shown beneath the option label. */
+  secondaryText?: string;
 }
 
 export type ComboboxProps = Omit<
@@ -37,6 +39,7 @@ export type ComboboxProps = Omit<
    * Ignored when its value is not `value`.
    */
   selectedOption?: ComboboxOption;
+  onOpenChange?: (open: boolean) => void;
 };
 
 function defaultFilter(option: ComboboxOption, query: string) {
@@ -60,6 +63,7 @@ export function Combobox({
   emptyText = 'No matches',
   filter = defaultFilter,
   selectedOption,
+  onOpenChange,
   id,
   className,
   disabled,
@@ -100,8 +104,13 @@ export function Combobox({
     document.getElementById(optionId(active))?.scrollIntoView({ block: 'nearest' });
   });
 
+  function changeOpen(next: boolean) {
+    setOpen(next);
+    onOpenChange?.(next);
+  }
+
   function close() {
-    setOpen(false);
+    changeOpen(false);
     setActive(-1);
   }
 
@@ -118,13 +127,13 @@ export function Combobox({
     switch (event.key) {
       case 'ArrowDown': {
         event.preventDefault();
-        setOpen(true);
+        changeOpen(true);
         setActive((current) => (matches.length === 0 ? -1 : (current + 1) % matches.length));
         break;
       }
       case 'ArrowUp': {
         event.preventDefault();
-        setOpen(true);
+        changeOpen(true);
         setActive((current) =>
           matches.length === 0 ? -1 : (current <= 0 ? matches.length : current) - 1,
         );
@@ -164,11 +173,11 @@ export function Combobox({
         onChange={(event) => {
           setQuery(event.target.value);
           setEdited(true);
-          setOpen(true);
+          changeOpen(true);
           setActive(-1);
         }}
         onClick={() => {
-          setOpen(true);
+          changeOpen(true);
         }}
         onBlur={(event) => {
           onBlur?.(event);
@@ -218,7 +227,14 @@ export function Combobox({
               }}
               className="flex cursor-default items-center gap-3 rounded-tile p-2.5 text-[14.5px] leading-snug font-medium select-none data-active:bg-muted"
             >
-              <span className="min-w-0 flex-1">{option.label}</span>
+              <span className="min-w-0 flex-1">
+                {option.label}
+                {option.secondaryText ? (
+                  <span className="block text-[13px] font-normal text-muted-foreground">
+                    {option.secondaryText}
+                  </span>
+                ) : null}
+              </span>
               {/* After the label in the DOM so the option is named by it, shown before it. */}
               {option.description ? (
                 <span className="order-first grid h-[26px] min-w-[58px] shrink-0 place-items-center rounded-sm bg-brand-subtle px-1.5 font-mono text-[11.5px] font-semibold tracking-[0.02em] text-brand-subtle-foreground">

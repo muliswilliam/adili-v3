@@ -47,6 +47,8 @@ describe('CommissionStep', () => {
   it('lists every Commission, marks those without a roster, and waits for a choice', () => {
     render(<CommissionStep commissions={COMMISSIONS} />);
 
+    expect(search().getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(search());
     expect(screen.getAllByRole('option')).toHaveLength(3);
     expect(screen.getByRole('option', { name: /Judicial/ }).textContent).toContain(
       'Roster not imported yet',
@@ -60,18 +62,18 @@ describe('CommissionStep', () => {
     fireEvent.change(search(), { target: { value: 'Police' } });
 
     expect(screen.queryByRole('option')).toBeNull();
-    expect(screen.getByText('No match for "Police". Try its short name, e.g. TSC.')).toBeDefined();
+    expect(screen.getByText('No matching Commission. Try its short name, e.g. TSC.')).toBeDefined();
   });
 
-  it('collapses to the chosen Commission and continues to Identify with it', () => {
+  it('shows the chosen Commission in the field and continues to Identify with it', () => {
     render(<CommissionStep commissions={COMMISSIONS} />);
 
     fireEvent.change(search(), { target: { value: 'tsc' } });
+    fireEvent.keyDown(search(), { key: 'ArrowDown' });
     fireEvent.keyDown(search(), { key: 'Enter' });
 
-    expect(screen.queryByRole('combobox')).toBeNull();
-    expect(screen.getByText('Teachers Service Commission')).toBeDefined();
-    expect(document.activeElement?.textContent).toContain('Change');
+    expect((search() as HTMLInputElement).value).toBe('Teachers Service Commission');
+    expect(search().getAttribute('aria-expanded')).toBe('false');
 
     fireEvent.click(continueButton());
     expect(navigate).toHaveBeenCalledWith({
@@ -83,6 +85,7 @@ describe('CommissionStep', () => {
   it('holds Continue for a Commission that has not imported its roster', () => {
     render(<CommissionStep commissions={COMMISSIONS} />);
 
+    fireEvent.click(search());
     fireEvent.click(screen.getByRole('option', { name: /Judicial/ }));
 
     expect(screen.getByRole('alert').textContent).toContain(
@@ -91,18 +94,18 @@ describe('CommissionStep', () => {
     expect(continueButton().disabled).toBe(true);
   });
 
-  it('reopens the search on Change and holds Continue until a choice is made', () => {
+  it('reopens the list and Escape preserves the selected Commission', () => {
     render(<CommissionStep commissions={COMMISSIONS} preselected="psc" />);
     expect(continueButton().disabled).toBe(false);
 
-    fireEvent.click(screen.getByRole('button', { name: /Change/ }));
+    fireEvent.click(search());
 
-    expect(document.activeElement).toBe(search());
+    expect(search().getAttribute('aria-expanded')).toBe('true');
     expect(continueButton().disabled).toBe(true);
 
     // Esc keeps the Commission already chosen.
     fireEvent.keyDown(search(), { key: 'Escape' });
-    expect(screen.getByText('Public Service Commission')).toBeDefined();
+    expect((search() as HTMLInputElement).value).toBe('Public Service Commission');
     expect(continueButton().disabled).toBe(false);
   });
 

@@ -20,7 +20,7 @@
 @source './';
 
 :root {
-  --background: oklch(0.985 0.001 106.4); /* #fafaf9 */
+  --background: #fafafa; /* neutral-50 */
   --foreground: oklch(0.218 0 0); /* #1a1a1a */
   --card: oklch(1 0 0); /* #ffffff */
   --card-foreground: oklch(0.218 0 0);

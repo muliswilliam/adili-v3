@@ -59,7 +59,7 @@ function CommissionForm({
 }) {
   const navigate = useNavigate();
   const [slug, setSlug] = useState(preselected ?? null);
-  const [open, setOpen] = useState(preselected === undefined);
+  const [open, setOpen] = useState(false);
   const selected = commissions.find((entry) => entry.slug === slug);
   const ready = selected?.hasRoster === true && !open;
 
@@ -84,7 +84,6 @@ function CommissionForm({
           commissions={commissions}
           value={slug}
           onValueChange={setSlug}
-          open={open}
           onOpenChange={setOpen}
         />
       </FormField>

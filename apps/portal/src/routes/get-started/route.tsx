@@ -6,7 +6,7 @@ import { OnboardingFrame } from '../../components/onboarding/onboarding-layout';
 export const Route = createFileRoute('/get-started')({
   head: () => ({ meta: [{ title: 'Get started · Adili Online' }] }),
   component: () => (
-    <AuthShell art="onboarding">
+    <AuthShell>
       <OnboardingFrame>
         <Outlet />
       </OnboardingFrame>

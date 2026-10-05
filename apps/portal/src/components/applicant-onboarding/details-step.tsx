@@ -141,20 +141,36 @@ export function DetailsStep({ kind }: { kind: IdentityDocumentKind }) {
       >
         <div className="grid gap-4 min-[520px]:grid-cols-2">
           <FormField label={COPY.surname} error={errors.surname}>
-            <Input {...text('surname')} autoComplete="family-name" maxLength={100} />
+            <Input
+              {...text('surname')}
+              placeholder={COPY.surname}
+              autoComplete="family-name"
+              maxLength={100}
+            />
           </FormField>
           <FormField label={COPY.firstName} error={errors.firstName}>
-            <Input {...text('firstName')} autoComplete="given-name" maxLength={100} />
+            <Input
+              {...text('firstName')}
+              placeholder={COPY.firstName}
+              autoComplete="given-name"
+              maxLength={100}
+            />
           </FormField>
         </div>
         <FormField label={optionalLabel(COPY.otherNames)} error={errors.otherNames}>
-          <Input {...text('otherNames')} autoComplete="additional-name" maxLength={100} />
+          <Input
+            {...text('otherNames')}
+            placeholder={COPY.otherNames}
+            autoComplete="additional-name"
+            maxLength={100}
+          />
         </FormField>
         {passport ? (
           <div className="grid gap-4 min-[520px]:grid-cols-2">
             <FormField label={COPY.passportNumber} error={errors.number}>
               <Input
                 {...text('number')}
+                placeholder={COPY.passportNumber}
                 autoCapitalize="characters"
                 autoComplete="off"
                 spellCheck={false}
@@ -180,7 +196,13 @@ export function DetailsStep({ kind }: { kind: IdentityDocumentKind }) {
           </div>
         ) : (
           <FormField label={COPY.nationalIdNumber} error={errors.number}>
-            <Input {...text('number')} inputMode="numeric" autoComplete="off" maxLength={12} />
+            <Input
+              {...text('number')}
+              placeholder={COPY.nationalIdNumber}
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={12}
+            />
           </FormField>
         )}
         <FormField label={COPY.mobile} hint={COPY.mobileHint} error={errors.phone}>

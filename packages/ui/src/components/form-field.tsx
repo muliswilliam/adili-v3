@@ -65,13 +65,12 @@ export function FormField({
     ownDescribedBy: children.props['aria-describedby'],
   });
 
-  // Two parts, header and body, so a parent grid can line up the controls of fields in one row
-  // with `row-span-2 grid-rows-subgrid` when only some of them have a hint.
+  // Two parts, label and body, so a parent grid can line up controls in one row
+  // with `row-span-2 grid-rows-subgrid`. Hints sit below the control.
   return (
     <div className={cn('grid content-start gap-1.5', className)} {...props}>
       <div className="grid content-start gap-1.5">
         <Label htmlFor={id}>{label}</Label>
-        {hint ? <FieldHint id={hintId}>{hint}</FieldHint> : null}
       </div>
       <div className="grid content-start gap-1.5">
         {cloneElement(children, {
@@ -79,6 +78,7 @@ export function FormField({
           'aria-describedby': describedBy,
           ...(error ? { 'aria-invalid': true } : {}),
         })}
+        {hint ? <FieldHint id={hintId}>{hint}</FieldHint> : null}
         {error ? <FieldError id={errorId}>{error}</FieldError> : null}
       </div>
     </div>

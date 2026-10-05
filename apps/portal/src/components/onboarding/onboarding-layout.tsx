@@ -1,4 +1,4 @@
-import { Button, cn, Icon } from '@adili/ui';
+import { Button, CheckmarkCircleIcon, cn, Icon } from '@adili/ui';
 import { ArrowLeft01Icon, HelpCircleIcon } from '@hugeicons/core-free-icons';
 import { Link, useMatches, useSearch } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
@@ -20,26 +20,33 @@ export function OnboardingFrame({ children }: { children: ReactNode }) {
   });
 
   return (
-    <>
-      {back ? (
-        <Button asChild variant="ghost" size="sm" className="-mt-1.5 mb-3.5 -ml-2.5 self-start">
-          <Link to="/get-started" search={{ commission }}>
-            <Icon icon={ArrowLeft01Icon} />
-            Back
-          </Link>
-        </Button>
+    <div className="min-[1000px]:grid min-[1000px]:grid-cols-[minmax(0,1fr)_420px_minmax(0,1fr)] min-[1000px]:gap-8">
+      {step ? (
+        <aside className="min-[1000px]:col-start-1 min-[1000px]:row-start-1 min-[1000px]:pt-20">
+          <OnboardingStepper step={step} />
+        </aside>
       ) : null}
-      {step ? <OnboardingStepper step={step} /> : null}
-      {children}
-      <HelpLine commissionName={commissionName} />
-    </>
+      <div className="flex min-w-0 flex-col min-[1000px]:col-start-2 min-[1000px]:row-start-1">
+        {step || back ? (
+          <div className={cn('mb-3.5 h-8 shrink-0', !back && 'hidden min-[700px]:block')}>
+            {back ? (
+              <Button asChild variant="ghost" size="sm" className="-ml-2.5">
+                <Link to="/get-started" search={{ commission }}>
+                  <Icon icon={ArrowLeft01Icon} />
+                  Back
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {children}
+        <HelpLine commissionName={commissionName} />
+      </div>
+    </div>
   );
 }
 
-/**
- * One segment per step (the declarant's six unless `names` says otherwise): done steps ink, the
- * current one half ink (the kit's `.stepper`).
- */
+/** Compact progress bars on mobile, and a labelled vertical list on desktop. */
 export function OnboardingStepper({
   step,
   names = STEP_NAMES,
@@ -48,24 +55,54 @@ export function OnboardingStepper({
   names?: readonly string[];
 }) {
   return (
-    <div className="mb-[26px]">
-      <div aria-hidden="true" className="mb-2 flex gap-1.5">
+    <nav aria-label="Onboarding progress" className="mb-8">
+      <div aria-hidden="true" className="mb-2 flex gap-1.5 min-[1000px]:hidden">
         {names.map((name, index) => (
           <span
             key={name}
             data-state={index + 1 < step ? 'done' : index + 1 === step ? 'current' : undefined}
-            className={cn(
-              'h-1 flex-1 rounded-full bg-border data-[state=done]:bg-foreground',
-              'data-[state=current]:bg-[linear-gradient(90deg,var(--foreground)_50%,var(--border)_50%)]',
-            )}
+            className="h-1 flex-1 rounded-full bg-border data-[state=done]:bg-foreground data-[state=current]:bg-[linear-gradient(90deg,var(--foreground)_50%,var(--border)_50%)]"
           />
         ))}
       </div>
-      <p aria-live="polite" className="text-[13px] font-medium text-muted-foreground">
+      <p
+        aria-live="polite"
+        className="text-[13px] font-medium text-muted-foreground min-[1000px]:sr-only"
+      >
         Step {step} of {names.length}
         <span className="sr-only">: {names[step - 1]}</span>
       </p>
-    </div>
+      <ol className="hidden gap-3 min-[1000px]:grid">
+        {names.map((name, index) => {
+          const done = index + 1 < step;
+          const current = index + 1 === step;
+          return (
+            <li
+              key={name}
+              aria-current={current ? 'step' : undefined}
+              className={cn(
+                'flex items-center gap-3 text-sm',
+                current ? 'text-foreground' : 'text-muted-foreground',
+                !done && !current && 'opacity-60',
+              )}
+            >
+              {done ? (
+                <CheckmarkCircleIcon className="size-5 text-green-500" />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="grid size-5 shrink-0 place-items-center rounded-full border border-dashed border-current text-xs"
+                >
+                  {index + 1}
+                </span>
+              )}
+              <span>{name}</span>
+              {done ? <span className="sr-only">Completed</span> : null}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }
 
