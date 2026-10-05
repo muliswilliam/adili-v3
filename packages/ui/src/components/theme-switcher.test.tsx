@@ -2,7 +2,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ThemePreferenceContext, ThemeSwitcher } from './theme-switcher';
+import { ThemePreferenceContext } from './theme-preference';
+import { ThemeSwitcher } from './theme-switcher';
 
 describe('ThemeSwitcher', () => {
   afterEach(() => {

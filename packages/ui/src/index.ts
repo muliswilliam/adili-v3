@@ -492,11 +492,9 @@ export {
 export { Select, SelectGroup, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, SiteHeaderAside, type SiteHeaderProps } from './components/site-header';
-export {
-  ThemePreferenceContext,
-  ThemeSwitcher,
-  type ThemeSwitcherProps,
-} from './components/theme-switcher';
+export { ThemePreferenceContext } from './components/theme-preference';
+export { ThemeSwitcher, type ThemeSwitcherProps } from './components/theme-switcher';
+export { ThemeToggle, type ThemeToggleProps } from './components/theme-toggle';
 export {
   applyThemePreference,
   bootTheme,

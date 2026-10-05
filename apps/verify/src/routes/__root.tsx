@@ -1,4 +1,4 @@
-import { SiteHeader, THEME_SCRIPT, ThemeSwitcher } from '@adili/ui';
+import { SiteHeader, THEME_SCRIPT, ThemeToggle } from '@adili/ui';
 import { createRootRoute, HeadContent, Link, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
@@ -32,7 +32,8 @@ function RootComponent() {
   const theme = Route.useLoaderData();
   return (
     <>
-      <SiteHeader product="Verify" actions={<ThemeSwitcher initial={theme} />} />
+      {/* A toggle, not the menu: the verify page keeps to its script budget. */}
+      <SiteHeader product="Verify" actions={<ThemeToggle initial={theme} />} />
       <main className="mx-auto w-full max-w-[620px] flex-1 px-4 pt-7 pb-12 sm:px-6 sm:pt-14 sm:pb-[72px]">
         <Outlet />
       </main>

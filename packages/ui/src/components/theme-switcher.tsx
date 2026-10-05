@@ -1,20 +1,18 @@
 import { ComputerIcon, Moon02Icon, Sun03Icon } from '@hugeicons/core-free-icons';
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 
 import { cn } from '../lib/cn';
 import { applyThemePreference, parseThemePreference, type ThemePreference } from '../lib/theme';
 import { Button } from './button';
 import { Icon } from './icon';
 import { Menu, MenuContent, MenuRadioGroup, MenuRadioItem, MenuTrigger } from './menu';
+import { ThemePreferenceContext } from './theme-preference';
 
 const OPTIONS = [
   { value: 'system', label: 'System', icon: ComputerIcon },
   { value: 'light', label: 'Light', icon: Sun03Icon },
   { value: 'dark', label: 'Dark', icon: Moon02Icon },
 ] as const satisfies readonly { value: ThemePreference; label: string; icon: unknown }[];
-
-/** The preference the server read from the theme cookie; an app's root provides it once. */
-export const ThemePreferenceContext = createContext<ThemePreference>('system');
 
 export interface ThemeSwitcherProps {
   /** The server-read preference; defaults to `ThemePreferenceContext`. */
