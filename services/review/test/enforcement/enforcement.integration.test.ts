@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import type { EventEnvelope } from '@adili/events';
 import { parse } from '@adili/numbering';
 import { TEMPORAL_CLIENT } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
@@ -402,6 +403,42 @@ describe('enforcement ladder', () => {
       obligationCreatedEvent('psc', onTime, new Date('2027-12-31T20:00:00Z')),
     );
     expect(await ladderOf(api, 'obligation', onTime.obligationId)).toBeNull();
+  });
+
+  it('S5: a ladder started before its officer onboarded gets the person when they do, ladder and steps, once', async () => {
+    api.clock.set(FUTURE);
+    const unonboarded = overdueObligation({ tenant: 'psc', personId: null });
+    api.declarations.givenObligation(unonboarded);
+    await overdue(unonboarded);
+    await stepIs('notice-to-comply', 'proposed', unonboarded.obligationId);
+    expect(
+      (await ladderOf(api, 'obligation', unonboarded.obligationId))?.ladder.personId,
+    ).toBeNull();
+
+    const personId = randomUUID();
+    const onboarded: EventEnvelope = {
+      specversion: '1.0',
+      id: randomUUID(),
+      source: 'adili/directory',
+      type: 'declarant.onboarded.v1',
+      time: new Date().toISOString(),
+      subject: unonboarded.rosterRecordId,
+      datacontenttype: 'application/json',
+      tenant: 'psc',
+      data: {
+        personId,
+        ofr: 'OFR-PSC-2027-0000001-A',
+        rosterRecordId: unonboarded.rosterRecordId,
+        keycloakUserId: randomUUID(),
+        linked: false,
+      },
+    };
+    await api.enforcement.declarantOnboarded(onboarded);
+    await api.enforcement.declarantOnboarded(onboarded);
+
+    const found = await ladderOf(api, 'obligation', unonboarded.obligationId);
+    expect(found?.ladder.personId).toBe(personId);
+    expect(found?.actions.map((action) => action.personId)).toEqual([personId]);
   });
 
   it('S5: the approvals inbox lists the drafted step with its subject for supervisors', async () => {
