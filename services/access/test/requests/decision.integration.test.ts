@@ -201,6 +201,8 @@ describe('Deciding an access request (S6)', () => {
           },
           watermark: { recipientName: 'Mercy Wanjiku Kamau', reference, date: '2027-03-20' },
           downloadWindowDays: 14,
+          // The package is in force for its download window (ADR-010).
+          validUntil: EXPIRES_AT,
           idempotencyKey: expect.any(String) as unknown,
         },
       ]);

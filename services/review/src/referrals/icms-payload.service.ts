@@ -1,10 +1,11 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 
 import { reviewCases } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
+import { enforcementLadders } from '../enforcement/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { withUpstream } from '../internal-api/upstream.js';
 import { systemContext } from '../system-context.js';
@@ -27,8 +28,9 @@ function rosterRecordUnknown(detail: string): ProblemException {
 /**
  * The ICMS payload the reporting service pulls when EACC pushes a sent referral to ICMS
  * (`internalGetReferralIcmsPayload`). The national ID is read from the directory's roster record of
- * the referral's case (as payroll instructions read theirs) each time, and is kept nowhere here:
- * not stored, logged, put in an event or in workflow history.
+ * the referral's case (as payroll instructions read theirs), or for a referral with no case (two
+ * missed cycles) of the ladders on its obligations, each time, and is kept nowhere here: not
+ * stored, logged, put in an event or in workflow history.
  */
 @Injectable()
 export class ReferralIcmsPayloadService {
@@ -47,7 +49,24 @@ export class ReferralIcmsPayloadService {
           .from(referrals)
           .leftJoin(reviewCases, eq(reviewCases.id, referrals.caseId))
           .where(and(eq(referrals.id, referralId), eq(referrals.status, 'sent')));
-        return notFoundIfInvisible(found);
+        const sent = notFoundIfInvisible(found);
+        if (sent.rosterRecordId !== null || sent.referral.caseId !== null) return sent;
+        // No case (two missed cycles): the roster record of the ladders on its obligations, the
+        // later obligation's first.
+        const obligationIds = sent.referral.sources.obligationIds;
+        if (obligationIds.length === 0) return sent;
+        const [ladder] = await tx
+          .select({ rosterRecordId: enforcementLadders.rosterRecordId })
+          .from(enforcementLadders)
+          .where(
+            and(
+              eq(enforcementLadders.subjectKind, 'obligation'),
+              inArray(enforcementLadders.subjectId, obligationIds),
+              isNotNull(enforcementLadders.rosterRecordId),
+            ),
+          )
+          .orderBy(desc(enforcementLadders.startedAt));
+        return { ...sent, rosterRecordId: ladder?.rosterRecordId ?? null };
       },
     );
     const { reference } = referral;

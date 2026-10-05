@@ -4,7 +4,9 @@ import {
   Calendar03Icon,
   ChartColumnIcon,
   CheckListIcon,
+  CustomerSupportIcon,
   File01Icon,
+  FileSearchIcon,
   Flag02Icon,
   HelpCircleIcon,
   InboxIcon,
@@ -71,6 +73,7 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
       },
       { workspace: 'ai-policy', icon: SparklesIcon },
       { workspace: 'platform-help', icon: HelpCircleIcon },
+      { workspace: 'support', icon: CustomerSupportIcon },
     ],
   },
   {
@@ -81,6 +84,11 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
       { workspace: 'referrals-intake', icon: Flag02Icon },
       { workspace: 'open-data', icon: ChartColumnIcon },
     ],
+  },
+  {
+    label: 'Oversight',
+    // Its tabs (events, integrity) all sit under /audit.
+    items: [{ workspace: 'audit', icon: FileSearchIcon, section: '/audit' }],
   },
   {
     label: 'Law enforcement',

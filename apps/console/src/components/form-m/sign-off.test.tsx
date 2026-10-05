@@ -24,7 +24,7 @@ import {
   failNextReportingConfirms,
   mockReportingClient,
   mockReportingDocumentsClient,
-  type ReportingMockSeed,
+  type ReportingStoreSeed,
   resetReportingMock,
   setReportingMockLatency,
 } from '../../server/reporting/mock.server';
@@ -102,7 +102,7 @@ async function show(
     reset = true,
   }: {
     today?: string;
-    seed?: ReportingMockSeed;
+    seed?: ReportingStoreSeed;
     marker?: StepUpMarker | null;
     actions?: SignOffActions;
     /** Seeds the mock afresh (else it stays as the last test step left it). */

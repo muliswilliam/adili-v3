@@ -23,3 +23,4 @@ terraform.tfvars
 *.key
 *.p12
 infra/azure/.terraform/
+.demo/

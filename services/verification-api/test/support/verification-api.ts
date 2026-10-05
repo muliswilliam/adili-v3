@@ -8,7 +8,7 @@ import { Test } from '@nestjs/testing';
 import { RATE_LIMIT_CLOCK, TRUSTED_PROXIES_DEFAULT } from '@adili/api-kit';
 import { createValkey, VALKEY } from '@adili/cache';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
-import type { EventEnvelope } from '@adili/events';
+import { type EventEnvelope, OutboxRelay } from '@adili/events';
 import { asc, sql } from 'drizzle-orm';
 
 import { AppModule } from '../../src/app.module.js';
@@ -72,6 +72,10 @@ export async function startVerificationApi(): Promise<VerificationApi> {
     .useValue(valkey)
     .overrideProvider(RATE_LIMIT_CLOCK)
     .useValue(() => clock.now())
+    // Events stay in the outbox for `outbox()`: a live relay would publish them to the shared
+    // broker.
+    .overrideProvider(OutboxRelay)
+    .useValue({})
     .compile();
   // Proxies trusted as `createService` trusts them: the client address is the socket's unless a
   // private-network proxy (the verify app's server) sends X-Forwarded-For.

@@ -293,3 +293,84 @@ describe('ReplayAdapter', () => {
     expect(recorder().providerClass).toBe('external');
   });
 });
+
+describe('ReplayAdapter with normalised matching', () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'replay-normalised-'));
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  /** A flag explanation request as a fresh run of the same beat makes it: new ids and times. */
+  const flagRequest = (flagId: string, raisedAt: string): StructuredRequest => ({
+    ...structured,
+    messages: [
+      {
+        role: 'user',
+        content: `{"flags":[{"flagId":"${flagId}","raisedAt":"${raisedAt}","kind":"undeclared-vehicle"}]}`,
+      },
+    ],
+  });
+
+  /** Answers with the flag id it was asked about, as the explain-flags task does. */
+  class EchoProvider extends ScriptedProvider {
+    override generateStructured(request?: StructuredRequest): Promise<StructuredResult> {
+      const content = request?.messages[0]?.content;
+      const flagId = /"flagId":"([^"]+)"/.exec(typeof content === 'string' ? content : '')?.[1];
+      return Promise.resolve({
+        status: 'completed',
+        output: { summary: `Flag ${flagId} needs a look.` },
+        model: 'm-1',
+        usage,
+      });
+    }
+  }
+
+  const first = flagRequest('0199a1b2-0000-7000-8000-000000000001', '2026-10-09T09:15:00.123Z');
+  const second = flagRequest('0199a1b2-0000-7000-8000-0000000000ff', '2026-10-09T11:42:07Z');
+
+  it('replays a recording for a request that differs only in run-time ids and times', async () => {
+    await new ReplayAdapter({
+      fixturesDir: dir,
+      mode: 'record',
+      inner: new EchoProvider(),
+      match: 'normalised',
+    }).generateStructured(first);
+
+    const replayed = await new ReplayAdapter({
+      fixturesDir: dir,
+      mode: 'replay',
+      match: 'normalised',
+    }).generateStructured(second);
+
+    expect(replayed).toMatchObject({
+      output: { summary: 'Flag 0199a1b2-0000-7000-8000-0000000000ff needs a look.' },
+    });
+    expect(fixtureKey('generateStructured', first, 'normalised')).toBe(
+      fixtureKey('generateStructured', second, 'normalised'),
+    );
+  });
+
+  it('still tells apart requests whose other content differs', () => {
+    const other = { ...first, system: 'Another prompt.' };
+    expect(fixtureKey('generateStructured', first, 'normalised')).not.toBe(
+      fixtureKey('generateStructured', other, 'normalised'),
+    );
+  });
+
+  it('keeps exact matching the default, so a run-time id misses', async () => {
+    await new ReplayAdapter({
+      fixturesDir: dir,
+      mode: 'record',
+      inner: new EchoProvider(),
+    }).generateStructured(first);
+
+    await expect(
+      new ReplayAdapter({ fixturesDir: dir, mode: 'replay' }).generateStructured(second),
+    ).rejects.toBeInstanceOf(ReplayFixtureMissingError);
+  });
+});

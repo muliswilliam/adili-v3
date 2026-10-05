@@ -18,15 +18,40 @@ export const providerEnvShape = {
    * fixtures, which are committed. Synthetic inputs only; refused in production.
    */
   AI_REPLAY_MODE: z.enum(['replay', 'record']).default('replay'),
+  /**
+   * With `AI_PROVIDER=replay`: `exact` matches recordings byte for byte; `normalised` ignores the
+   * ids and timestamps a fresh run of the same demo beat mints anew (see ReplayMatch).
+   */
+  AI_REPLAY_MATCH: z.enum(['exact', 'normalised']).default('exact'),
   /** Resolved from the working directory. */
   AI_FIXTURES_DIR: z.string().min(1).default('fixtures/ai'),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  /**
+   * A bearer token instead of an API key, for an Anthropic-compatible gateway that authenticates
+   * with `Authorization: Bearer` (a self-hosted LLM Gateway). Takes precedence over ANTHROPIC_API_KEY.
+   */
+  ANTHROPIC_AUTH_TOKEN: z.string().min(1).optional(),
   ANTHROPIC_BASE_URL: z.url().optional(),
   /**
    * `prompted` for an Anthropic-compatible gateway that drops `output_config`: the schema goes
    * into the system prompt instead (see AnthropicAdapter). `native` for the Anthropic API.
    */
   ANTHROPIC_STRUCTURED_OUTPUT: z.enum(['native', 'prompted']).default('native'),
+  /**
+   * What the endpoint takes inline, comma-separated: `image,pdf,text` for the Anthropic API.
+   * `image,text` for a gateway that drops `document` blocks (a self-hosted LLM Gateway): PDFs then
+   * go as one image per page (see AnthropicAdapter).
+   */
+  ANTHROPIC_ATTACHMENTS: z
+    .string()
+    .default('image,pdf,text')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((kind) => kind.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.enum(['image', 'pdf', 'text'])).min(1)),
   AI_PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   /** Model for every task until the routing table (spec 07c BE-3) lands. */
   AI_MODEL: z.string().min(1).default(DEFAULT_AI_MODEL),
@@ -62,11 +87,13 @@ export function checkProviderEnv(env: ParsedProviderEnv, context: z.RefinementCt
     });
   }
   const reachesAnthropic = env.AI_PROVIDER === 'anthropic' || env.AI_REPLAY_MODE === 'record';
-  if (reachesAnthropic && !env.ANTHROPIC_API_KEY) {
+  if (reachesAnthropic && !env.ANTHROPIC_API_KEY && !env.ANTHROPIC_AUTH_TOKEN) {
     context.addIssue({
       code: 'custom',
       path: ['ANTHROPIC_API_KEY'],
-      message: 'ANTHROPIC_API_KEY is required when AI_PROVIDER=anthropic or AI_REPLAY_MODE=record',
+      message:
+        'ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN is required when AI_PROVIDER=anthropic or ' +
+        'AI_REPLAY_MODE=record',
     });
   }
 }

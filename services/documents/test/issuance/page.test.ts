@@ -6,8 +6,10 @@ import {
   kes,
   originalAmount,
 } from '../../src/issuance/templates/declaration-content.js';
+import { restrictedVerifyNote } from '../../src/issuance/templates/letter.js';
 import {
   esc,
+  footerDocument,
   formatDate,
   formatDateTime,
   htmlDocument,
@@ -106,5 +108,52 @@ describe('attestation', () => {
     });
     expect(html).toMatch(/^<section class="sec attest">/);
     expect(CONTENT_STYLES).toContain('.attest{break-inside:avoid}');
+  });
+});
+
+describe('Swahili documents (#592)', () => {
+  const footer = {
+    verificationId: 'ADL-7KQ2-M4XP',
+    verifyUrl: 'https://verify.adili.example/d/ADL-7KQ2-M4XP',
+    issuerName: 'Public Service Commission',
+    issuedAt: new Date('2026-10-05T08:00:00.000Z'),
+    reference: 'CLR-PSC-2026-0000087-0',
+    version: null,
+  };
+
+  it('prints the verification footer in Swahili', async () => {
+    const html = await footerDocument({ ...footer, language: 'sw' });
+    expect(html).toContain('<html lang="sw">');
+    expect(html).toContain('<b>Hakiki hati hii</b> kwenye verify.adili.example kwa msimbo');
+    expect(html).toContain(
+      'Imetolewa na Public Service Commission kupitia Adili Online tarehe 5 Oktoba 2026',
+    );
+    expect(html).toContain('Kumb. <b class="nw">CLR-PSC-2026-0000087-0</b>');
+    expect(html).toContain(
+      'Ukurasa <span class="pageNumber"></span> kati ya <span class="totalPages"></span>',
+    );
+    expect(html).not.toContain('Check this document');
+  });
+
+  it('keeps the English footer by default', async () => {
+    const html = await footerDocument(footer);
+    expect(html).toContain('<html lang="en">');
+    expect(html).toContain('<b>Check this document</b>');
+    expect(html).toContain('Page <span class="pageNumber"></span> of');
+  });
+
+  it('dates the signature in Swahili', () => {
+    expect(formatDateTime('2026-10-05T08:00:00.000Z', 'sw')).toBe('5 Oktoba 2026, 11:00 EAT');
+  });
+
+  it('names the document the verification note is about in Swahili', () => {
+    expect(restrictedVerifyNote('ADL-1', 'letter', 'sw')).toContain('kwamba barua hii ni halali');
+    expect(restrictedVerifyNote('ADL-1', 'receipt', 'sw')).toContain('kwamba risiti hii ni halali');
+    expect(restrictedVerifyNote('ADL-1', 'report', 'sw')).toContain('kwamba hati hii ni halali');
+  });
+
+  it("declares the document's language", () => {
+    expect(htmlDocument('t', '', '<p>x</p>', 'sw')).toContain('<html lang="sw">');
+    expect(htmlDocument('t', '', '<p>x</p>')).toContain('<html lang="en">');
   });
 });

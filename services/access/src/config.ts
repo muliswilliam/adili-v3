@@ -1,4 +1,11 @@
-import { baseEnvSchema, loadConfig } from '@adili/api-kit';
+import {
+  baseEnvSchema,
+  demoModeSetting,
+  demoWindowSetting,
+  demoWindowTenantsSetting,
+  loadConfig,
+  refuseDemoWindowsOutsideDemo,
+} from '@adili/api-kit';
 import { z } from 'zod';
 
 export const SERVICE_NAME = 'access';
@@ -43,8 +50,25 @@ export const envSchema = baseEnvSchema.extend({
    * for, from its receipt (Administrative Mechanism 32).
    */
   SELF_ACCESS_DAYS: z.coerce.number().int().min(1).default(14),
+  /** Demo stack only (#371): allows the demo window below. Off by default. */
+  DEMO_MODE: demoModeSetting,
+  /**
+   * Demo only: how long a grant's document stays in force (ISO-8601 duration, e.g. `PT2M`) instead
+   * of its download window, for documents issued while it is set. Unset: the window.
+   */
+  DEMO_PACKAGE_VALIDITY: demoWindowSetting,
+  /**
+   * Demo only: the Commissions (comma-separated tenant keys) `DEMO_PACKAGE_VALIDITY` applies to;
+   * unset, every Commission. The demo seed expires one Commission's package and keeps another's
+   * in force.
+   */
+  DEMO_WINDOW_TENANTS: demoWindowTenantsSetting,
+});
+
+export const checkedEnvSchema = envSchema.superRefine((env, ctx) => {
+  refuseDemoWindowsOutsideDemo(env, ['DEMO_PACKAGE_VALIDITY', 'DEMO_WINDOW_TENANTS'], ctx);
 });
 
 export type Env = z.infer<typeof envSchema>;
 
-export const config: Env = loadConfig(envSchema);
+export const config: Env = loadConfig(checkedEnvSchema);

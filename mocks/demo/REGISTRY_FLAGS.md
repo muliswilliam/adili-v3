@@ -9,9 +9,10 @@ Seeded records are keyed by national ID. Spec 05b uses the **matches** as pre-fi
 | Imani Wairimu Kamau | 40731125 | Child | IPRS only | No registry flags. |
 | Baraka Kariuki Kamau | 40731126 | Child | IPRS only | No registry flags. |
 | Otieno Juma Odhiambo | 30194427 | Declarant (MOH) | KRA compliant. No vehicles, parcels or companies. | Clean 05b / 07b baseline. |
-| Achieng Atieno Njeri | 28836510 | Declarant (PSC) | KRA compliant. No vehicles, parcels or companies. | Clean 05b / 07b baseline. |
+| Lydia Kwamboka Nyaboke | 28836510 | Declarant (PSC) | KRA compliant. No vehicles, parcels or companies. | Clean 05b / 07b baseline. |
 | Kiprono Kibet Chebet | 22607781 | Declarant (PSC) | KRA PIN A002260778R, **non-compliant**. NTSA: KDA 118Q X-Trail. ArdhiSasa: Nairobi Block 82 leasehold. BRS: 250 shares in Rift Valley Agrovet. | **07b tax non-compliance.** Vehicle and parcel for his own filing. |
 | Amina Halima Hassan | 31552094 | Declarant (PSC) | KRA compliant. Empty NTSA, BRS and ArdhiSasa lists. | Clean officer; empty lists are matches, not flags. |
+| Daniel Kiprop Rotich (roster) / Samuel Kiprotich Langat (IPRS) | 38221907 | PSC roster only | IPRS holds another name for the ID. | **Spec 03 identity mismatch** at onboarding. |
 
 Pause a registry for 07b unavailable / breaker tests:
 

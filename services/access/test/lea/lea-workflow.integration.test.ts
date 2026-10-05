@@ -177,6 +177,8 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
         },
         watermark: { recipientName: 'Peter Mwangi, DCI', reference, date: '2027-01-18' },
         downloadWindowDays: 14,
+        // The package is in force for its download window (ADR-010).
+        validUntil: EXPIRES_AT,
       }),
     ]);
     expect(row).toMatchObject({

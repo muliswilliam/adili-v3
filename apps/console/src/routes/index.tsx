@@ -139,6 +139,7 @@ function Dashboard({ viewer }: { viewer: DashboardViewer }) {
   return (
     <ConsoleShell
       userName={viewer.user.name}
+      organisation={viewer.organisation}
       roles={roles}
       navCounts={rosterNavCounts(viewer.roster)}
     >

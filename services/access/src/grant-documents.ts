@@ -1,7 +1,9 @@
+import { demoWindowFor } from '@adili/api-kit';
 import type { Logger } from '@nestjs/common';
 
 import { invariantBroken, rethrowAsActivityFailure } from './activity-failures.js';
 import { type Clock, nairobiDate } from './clock.js';
+import { config } from './config.js';
 import type { DeclarationsClient } from './declarations/declarations-client.js';
 import type { DirectoryClient } from './directory/directory-client.js';
 import type {
@@ -62,6 +64,21 @@ export interface GrantDocumentDeps {
   logger: Logger;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * When a grant's document stops being in force (ADR-010 `expired`): at the end of its download
+ * window, the time the disclosure was released for; on a demo stack, `DEMO_PACKAGE_VALIDITY`
+ * (milliseconds) after issue when set for the grant's Commission (`DEMO_WINDOW_TENANTS`).
+ */
+export function packageValidUntil(
+  issuedAt: Date,
+  downloadWindowDays: number,
+  demoValidityMs?: number,
+): Date {
+  return new Date(issuedAt.getTime() + (demoValidityMs ?? downloadWindowDays * DAY_MS));
+}
+
 /**
  * The template that tells the recipient their grant's document is ready: a nil letter discloses
  * nothing, so it is not announced as a package (no s.36(4) warning about sharing what it discloses).
@@ -113,6 +130,7 @@ export async function issueGrantDocument(
     }
   }
 
+  const { packageDownloadDays } = await deps.directory.accessPolicy(grant.tenant);
   const shared = {
     tenant: grant.tenant,
     templateVersion: TEMPLATE_VERSION,
@@ -123,7 +141,12 @@ export async function issueGrantDocument(
       reference: grant.reference,
       date: nairobiDate(deps.clock.now()),
     },
-    downloadWindowDays: (await deps.directory.accessPolicy(grant.tenant)).packageDownloadDays,
+    downloadWindowDays: packageDownloadDays,
+    validUntil: packageValidUntil(
+      deps.clock.now(),
+      packageDownloadDays,
+      demoWindowFor(config.DEMO_PACKAGE_VALIDITY, config.DEMO_WINDOW_TENANTS, grant.tenant),
+    ).toISOString(),
   };
   const grantedScope = {
     years: scope.years,

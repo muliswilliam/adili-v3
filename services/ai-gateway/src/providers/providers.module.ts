@@ -9,14 +9,23 @@ import type { ProviderEnv } from './provider-env.js';
 import { ReplayAdapter } from './replay.adapter.js';
 
 function anthropic(env: ProviderEnv): AnthropicAdapter {
+  // A gateway's bearer token replaces the API key; null stops the SDK reading one from the
+  // environment and sending it as x-api-key as well.
+  const credentials = env.ANTHROPIC_AUTH_TOKEN
+    ? { apiKey: null, authToken: env.ANTHROPIC_AUTH_TOKEN }
+    : { apiKey: env.ANTHROPIC_API_KEY };
   const client = new Anthropic({
-    apiKey: env.ANTHROPIC_API_KEY,
+    ...credentials,
     baseURL: env.ANTHROPIC_BASE_URL,
     timeout: env.AI_PROVIDER_TIMEOUT_MS,
     // Retries, backoff and the circuit breaker belong to the job executor, not the SDK.
     maxRetries: 0,
   });
-  return new AnthropicAdapter({ client, structuredOutput: env.ANTHROPIC_STRUCTURED_OUTPUT });
+  return new AnthropicAdapter({
+    client,
+    structuredOutput: env.ANTHROPIC_STRUCTURED_OUTPUT,
+    attachments: env.ANTHROPIC_ATTACHMENTS,
+  });
 }
 
 export function createModelProvider(env: ProviderEnv): ModelProvider {
@@ -24,9 +33,10 @@ export function createModelProvider(env: ProviderEnv): ModelProvider {
     return anthropic(env);
   }
   const fixturesDir = resolve(env.AI_FIXTURES_DIR);
+  const match = env.AI_REPLAY_MATCH;
   return env.AI_REPLAY_MODE === 'record'
-    ? new ReplayAdapter({ fixturesDir, mode: 'record', inner: anthropic(env) })
-    : new ReplayAdapter({ fixturesDir, mode: 'replay' });
+    ? new ReplayAdapter({ fixturesDir, mode: 'record', inner: anthropic(env), match })
+    : new ReplayAdapter({ fixturesDir, mode: 'replay', match });
 }
 
 /**

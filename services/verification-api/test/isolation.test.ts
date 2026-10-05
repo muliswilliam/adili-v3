@@ -29,6 +29,8 @@ describe('verification-api isolation', () => {
         'NODE_ENV',
         'OIDC_AUDIENCE',
         'OIDC_ISSUER_URL',
+        // The same token issuer, reached on another address (api-kit's oidcRealmUrl).
+        'OIDC_INTERNAL_URL',
         'PORT',
         'RABBITMQ_URL',
         'RATE_LIMITS',

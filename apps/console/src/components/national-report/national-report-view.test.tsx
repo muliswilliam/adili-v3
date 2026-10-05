@@ -16,7 +16,7 @@ import {
   setReportingMockLatency,
 } from '../../server/reporting/mock.server';
 import {
-  type NcrMockSeed as ReportingMockSeed,
+  type NcrMockSeed,
   resetNcrMock as resetReportingMock,
 } from '../../server/reporting/ncr-mock.server';
 import type { NationalReport } from '../../server/reporting/types';
@@ -41,7 +41,7 @@ const SUPERVISOR = {
 };
 
 /** The page as the reporting mock answers it for `seed`. */
-async function pageOf(seed: ReportingMockSeed, fy = 2025) {
+async function pageOf(seed: NcrMockSeed, fy = 2025) {
   setReportingMockLatency(0);
   setEaccIntakeMockLatency(0);
   resetFormMMock('2026-10-03');

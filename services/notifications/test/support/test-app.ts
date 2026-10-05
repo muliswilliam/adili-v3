@@ -4,6 +4,7 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
+import { OutboxRelay } from '@adili/events';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
@@ -65,7 +66,10 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
         config.OIDC_AUDIENCE,
         createLocalJWKSet({ keys: [jwk] }),
       ),
-    );
+    )
+    // Events stay in the outbox: a live relay would publish them to the shared broker.
+    .overrideProvider(OutboxRelay)
+    .useValue({});
   if (options.email) builder = builder.overrideProvider(EMAIL_SENDER).useValue(options.email);
   if (options.sms) builder = builder.overrideProvider(SMS_SENDER).useValue(options.sms);
   if (options.contacts) {

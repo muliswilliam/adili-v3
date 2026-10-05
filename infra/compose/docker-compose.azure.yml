@@ -17,7 +17,27 @@ services:
       ADILI_PORTAL_URL: ${ADILI_PORTAL_URL}
       # Notifications run on the host via pnpm, same as local.
       ADILI_NOTIFICATIONS_URL: http://host.docker.internal:4010
-    # Demo vault only. Replace the mount with a host secret dir before a public pitch.
+      # The hackathon demo: demo accounts sign in with one click (#616).
+      ADILI_DEMO_MODE: 'true'
+    # The host's own vault, outside the repo tree (infra/azure/demo-vault.sh): a random demo
+    # ticket secret per host, never the committed development one (#616).
     volumes:
       - ./keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro
-      - ./keycloak/vault-dev:/opt/keycloak/vault:ro
+      - ${ADILI_KEYCLOAK_VAULT:?source infra/azure/demo-vault.sh}:/opt/keycloak/vault:ro
+
+  # Object storage behind Caddy's TLS on :8333 (Caddyfile.cloudapp): browsers on the https portal
+  # and console PUT uploads to presigned https URLs, and only those two origins may (CORS).
+  seaweedfs:
+    command:
+      !override [
+        'server',
+        '-dir=/data',
+        '-s3',
+        '-s3.config=/etc/seaweedfs/s3.json',
+        '-s3.allowedOrigins=${ADILI_PORTAL_URL},${ADILI_CONSOLE_URL}',
+        '-master.volumeSizeLimitMB=1024',
+        '-volume.max=64',
+      ]
+    ports: !override
+      - '127.0.0.1:18333:8333'
+      - '127.0.0.1:9333:9333'

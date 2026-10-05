@@ -377,6 +377,7 @@ describe('S9 issuing an acknowledgement slip', () => {
       sha256: document.sha256,
       issuedAt: document.issuedAt,
       status: 'valid',
+      expiresAt: null,
     });
     // Nothing about who the slip is for, or what they declared.
     const serialised = JSON.stringify(event?.envelope);

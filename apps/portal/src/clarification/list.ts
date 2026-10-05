@@ -162,3 +162,18 @@ export function homeClarifications(list: DeclarantClarification[]): DeclarantCla
   const { open, earlier } = groupClarifications(list);
   return open.length > 0 ? open : earlier.slice(0, 2);
 }
+
+/**
+ * The clarifications about one declaration, matched on the reference of any of its versions:
+ * those needing a response first, soonest due, then the rest, newest first.
+ */
+export function declarationClarifications(
+  list: DeclarantClarification[],
+  references: string[],
+): DeclarantClarification[] {
+  const ours = new Set(references);
+  const { open, earlier } = groupClarifications(
+    list.filter((each) => ours.has(each.declarationReference)),
+  );
+  return [...open, ...earlier];
+}

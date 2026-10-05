@@ -69,6 +69,8 @@ export class PersonsService {
         .select({
           id: persons.id,
           fullName: persons.fullName,
+          email: persons.email,
+          phone: persons.phone,
           createdAt: persons.createdAt,
         })
         .from(persons)
@@ -84,6 +86,7 @@ export class PersonsService {
         ofr,
         fullName: found.fullName,
         commissions: records.map((record) => record.tenant),
+        contactsOnFile: { email: found.email !== null, phone: found.phone !== null },
         createdAt: found.createdAt.toISOString(),
       };
     });

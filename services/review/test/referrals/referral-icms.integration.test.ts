@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -8,7 +10,12 @@ import { asset, declaration, statement } from '../fixtures/declarations.js';
 import { givenAssignedCase } from '../support/cases.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { submittedVersion } from '../support/fake-declarations.js';
-import { givenSentReferral, icmsRegisteredEvent, referralRows } from '../support/referrals.js';
+import {
+  givenLadder,
+  givenSentReferral,
+  icmsRegisteredEvent,
+  referralRows,
+} from '../support/referrals.js';
 import { type Caller, type ReviewApi, startReviewApi } from '../support/review-api.js';
 
 /**
@@ -133,12 +140,45 @@ describe('referrals: ICMS payload and case number (S12)', () => {
       expect((audited?.data as { actor: object }).actor).not.toHaveProperty('onBehalfOf');
     });
 
-    it('S12: a system referral with no case, or a case with no roster record, is 409 roster-record-unknown', async () => {
+    it('S12: a system referral with no case reads the roster record of the ladders on its obligations', async () => {
+      const laterObligation = randomUUID();
+      await givenLadder(api, {
+        tenant: 'psc',
+        subjectKind: 'obligation',
+        subjectId: laterObligation,
+        personId: version.personId,
+        subjectReference: 'biennial:2027',
+        startedAt: new Date('2028-01-02T06:00:00.000Z'),
+        actionReference: 'NTC-PSC-2028-0000001-7',
+        rosterRecordId: version.rosterRecordId,
+      });
       const systemReferral = await givenSentReferral(api, {
         tenant: 'psc',
         personId: version.personId,
         caseId: null,
         reference: 'RFL-PSC-2027-0000002-2',
+        obligationIds: [randomUUID(), laterObligation],
+      });
+
+      const response = await pull(systemReferral, reporting);
+
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.json()).toMatchObject({
+        grounds: 'two-missed-cycles',
+        declarant: { name: 'James Otieno', nationalId: NATIONAL_ID },
+      });
+      expect(api.directory.rosterReads).toEqual([
+        { tenant: 'psc', recordId: version.rosterRecordId },
+      ]);
+    });
+
+    it('S12: a system referral whose obligations have no ladder roster record, or a case with no roster record, is 409 roster-record-unknown', async () => {
+      const systemReferral = await givenSentReferral(api, {
+        tenant: 'psc',
+        personId: version.personId,
+        caseId: null,
+        reference: 'RFL-PSC-2027-0000002-2',
+        obligationIds: [randomUUID()],
       });
       const noCase = await pull(systemReferral, reporting);
       expect(noCase.statusCode, noCase.body).toBe(409);

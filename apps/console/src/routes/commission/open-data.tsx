@@ -60,7 +60,7 @@ function OpenDataPreviewPage() {
 function Layout({ load }: { load: OpenDataPreviewLoad | null }) {
   const { viewer, roles, workspace } = Route.useRouteContext();
   return (
-    <ConsoleShell userName={viewer.user.name} roles={roles}>
+    <ConsoleShell userName={viewer.user.name} organisation={viewer.organisation} roles={roles}>
       <Page narrow>
         <PageHead title={m.title} />
         {!viewer.directory.ok ? (

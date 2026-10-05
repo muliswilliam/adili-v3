@@ -16,8 +16,8 @@ import { Icon } from './icon';
  *   tells complementary cells apart; until then nothing maps to it.
  * - `not-reported`: the Commission has not reported for the year (its figures are `null`,
  *   unsuppressed: a gap, not suppression).
- * - `not-collected`: a figure nobody collects yet (the table's `notCollected`, such as access
- *   requests until spec 10 projects them): `null` for want of data, not suppression.
+ * - `not-collected`: a figure nobody collects yet (the table's `notCollected`, such as the filing
+ *   figures by reporting entity type): `null` for want of data, not suppression.
  */
 export const UNSHOWN_FIGURE_KINDS = [
   'suppressed',

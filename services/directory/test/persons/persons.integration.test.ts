@@ -169,6 +169,7 @@ describe('GET /v1/persons?ofr=', () => {
         ofr: wanjiru.ofr,
         fullName: 'Wanjiru Kamau',
         commissions: ['tsc'],
+        contactsOnFile: { email: true, phone: true },
         createdAt: NOW.toISOString(),
       });
       // No roster contents: file numbers, national IDs, contacts, designations.
@@ -215,6 +216,8 @@ describe('GET /v1/persons?ofr=', () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json<PersonSummary>().commissions).toEqual(['psc', 'tsc']);
+    // Roster rows without contacts leave none verified on file.
+    expect(response.json<PersonSummary>().contactsOnFile).toEqual({ email: false, phone: false });
   });
 
   it('is 404 for a well-formed OFR no person has', async () => {

@@ -1,8 +1,9 @@
-import { SiteHeader } from '@adili/ui';
+import { SiteHeader, THEME_SCRIPT, ThemeToggle } from '@adili/ui';
 import { createRootRoute, HeadContent, Link, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import { verifyMessages as copy } from '../copy';
+import { getTheme } from '../server/theme';
 import appCss from '../styles.css?url';
 
 export const Route = createRootRoute({
@@ -21,14 +22,18 @@ export const Route = createRootRoute({
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
     ],
   }),
+  loader: () => getTheme(),
+  staleTime: Infinity,
   shellComponent: RootDocument,
   component: RootComponent,
 });
 
 function RootComponent() {
+  const theme = Route.useLoaderData();
   return (
     <>
-      <SiteHeader product="Verify" />
+      {/* A toggle, not the menu: the verify page keeps to its script budget. */}
+      <SiteHeader product="Verify" actions={<ThemeToggle initial={theme} />} />
       <main className="mx-auto w-full max-w-[620px] flex-1 px-4 pt-7 pb-12 sm:px-6 sm:pt-14 sm:pb-[72px]">
         <Outlet />
       </main>
@@ -50,8 +55,11 @@ function RootComponent() {
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en">
+    // The head script sets data-theme before React hydrates.
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Sets the theme before the first paint: the shared cookie's choice, or the device's. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <HeadContent />
       </head>
       <body>

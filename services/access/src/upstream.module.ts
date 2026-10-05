@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ServiceTokenClient } from '@adili/api-kit';
+import { oidcRealmUrl, ServiceTokenClient } from '@adili/api-kit';
 import {
   DECLARATIONS_DISCLOSURES_SCOPE,
   DECLARATIONS_INTERNAL_SCOPE,
@@ -26,7 +26,7 @@ import { ReviewClient } from './review/review-client.js';
 /** Client credentials of the access service's own account, for one callee's scope. */
 const tokens = (scope: string) =>
   new ServiceTokenClient({
-    issuerUrl: config.OIDC_ISSUER_URL,
+    issuerUrl: oidcRealmUrl(config),
     clientId: config.KEYCLOAK_CLIENT_ID,
     clientSecret: config.KEYCLOAK_CLIENT_SECRET,
     scopes: [scope],

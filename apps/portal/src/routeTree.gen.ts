@@ -11,11 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GetStartedRouteRouteImport } from './routes/get-started/route'
+import { Route as HealthRouteImport } from './routes/health'
 import { Route as AccessIndexRouteImport } from './routes/access/index'
 import { Route as AccessCertifiedCopiesRouteImport } from './routes/access/certified-copies'
 import { Route as AccessGetStartedRouteRouteImport } from './routes/access/get-started/route'
 import { Route as AccessHistoryRouteImport } from './routes/access/history'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as AuthDemoSwitchRouteImport } from './routes/auth/demo-switch'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as AuthRecoverRouteImport } from './routes/auth/recover'
@@ -74,6 +76,11 @@ const GetStartedRouteRoute = GetStartedRouteRouteImport.update({
   path: '/get-started',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccessIndexRoute = AccessIndexRouteImport.update({
   id: '/access/',
   path: '/access/',
@@ -97,6 +104,11 @@ const AccessHistoryRoute = AccessHistoryRouteImport.update({
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthDemoSwitchRoute = AuthDemoSwitchRouteImport.update({
+  id: '/auth/demo-switch',
+  path: '/auth/demo-switch',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
@@ -346,11 +358,13 @@ const ApiOpenDataFyKindVersionFileRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/get-started': typeof GetStartedRouteRouteWithChildren
+  '/health': typeof HealthRoute
   '/access/get-started': typeof AccessGetStartedRouteRouteWithChildren
   '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren
   '/access/certified-copies': typeof AccessCertifiedCopiesRoute
   '/access/history': typeof AccessHistoryRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/demo-switch': typeof AuthDemoSwitchRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/recover': typeof AuthRecoverRoute
@@ -401,9 +415,11 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/health': typeof HealthRoute
   '/access/certified-copies': typeof AccessCertifiedCopiesRoute
   '/access/history': typeof AccessHistoryRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/demo-switch': typeof AuthDemoSwitchRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/recover': typeof AuthRecoverRoute
@@ -456,11 +472,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/get-started': typeof GetStartedRouteRouteWithChildren
+  '/health': typeof HealthRoute
   '/access/get-started': typeof AccessGetStartedRouteRouteWithChildren
   '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren
   '/access/certified-copies': typeof AccessCertifiedCopiesRoute
   '/access/history': typeof AccessHistoryRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/demo-switch': typeof AuthDemoSwitchRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/recover': typeof AuthRecoverRoute
@@ -514,11 +532,13 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/get-started'
+    | '/health'
     | '/access/get-started'
     | '/declarations/$id'
     | '/access/certified-copies'
     | '/access/history'
     | '/auth/callback'
+    | '/auth/demo-switch'
     | '/auth/login'
     | '/auth/logout'
     | '/auth/recover'
@@ -569,9 +589,11 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/health'
     | '/access/certified-copies'
     | '/access/history'
     | '/auth/callback'
+    | '/auth/demo-switch'
     | '/auth/login'
     | '/auth/logout'
     | '/auth/recover'
@@ -623,11 +645,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/get-started'
+    | '/health'
     | '/access/get-started'
     | '/declarations/$id'
     | '/access/certified-copies'
     | '/access/history'
     | '/auth/callback'
+    | '/auth/demo-switch'
     | '/auth/login'
     | '/auth/logout'
     | '/auth/recover'
@@ -680,11 +704,13 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   GetStartedRouteRoute: typeof GetStartedRouteRouteWithChildren
+  HealthRoute: typeof HealthRoute
   AccessGetStartedRouteRoute: typeof AccessGetStartedRouteRouteWithChildren
   DeclarationsIdRouteRoute: typeof DeclarationsIdRouteRouteWithChildren
   AccessCertifiedCopiesRoute: typeof AccessCertifiedCopiesRoute
   AccessHistoryRoute: typeof AccessHistoryRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthDemoSwitchRoute: typeof AuthDemoSwitchRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   AuthRecoverRoute: typeof AuthRecoverRoute
@@ -731,6 +757,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GetStartedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/access/': {
       id: '/access/'
       path: '/access'
@@ -764,6 +797,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/demo-switch': {
+      id: '/auth/demo-switch'
+      path: '/auth/demo-switch'
+      fullPath: '/auth/demo-switch'
+      preLoaderRoute: typeof AuthDemoSwitchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/login': {
@@ -1170,11 +1210,13 @@ const DeclarationsIdRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GetStartedRouteRoute: GetStartedRouteRouteWithChildren,
+  HealthRoute: HealthRoute,
   AccessGetStartedRouteRoute: AccessGetStartedRouteRouteWithChildren,
   DeclarationsIdRouteRoute: DeclarationsIdRouteRouteWithChildren,
   AccessCertifiedCopiesRoute: AccessCertifiedCopiesRoute,
   AccessHistoryRoute: AccessHistoryRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthDemoSwitchRoute: AuthDemoSwitchRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   AuthRecoverRoute: AuthRecoverRoute,

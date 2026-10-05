@@ -83,11 +83,11 @@ export function OnboardingStepper({
               className={cn(
                 'flex items-center gap-3 text-sm',
                 current ? 'text-foreground' : 'text-muted-foreground',
-                !done && !current && 'opacity-60',
+                !done && !current && 'text-placeholder',
               )}
             >
               {done ? (
-                <CheckmarkCircleIcon className="size-5 text-green-500" />
+                <CheckmarkCircleIcon className="size-5 text-success" />
               ) : (
                 <span
                   aria-hidden="true"

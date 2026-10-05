@@ -8,10 +8,10 @@ describe('the EACC intake mock loaded on its own', () => {
     // A fresh module graph: as when a download is the dev server's first reporting request,
     // before the Form M workspace mock has loaded.
     vi.resetModules();
-    const { mockReportingFileTitle } = await import('./eacc-mock.server');
+    const { mockEaccIntakeFileTitle } = await import('./eacc-mock.server');
     // Bungoma (0), Kiambu (2) and Kirinyaga (3) filed FY 2025's report by today.
     const titles = [0, 2, 3].map((index) =>
-      mockReportingFileTitle(`0199c200-0000-7000-8000-2025${String(index).padStart(8, '0')}`),
+      mockEaccIntakeFileTitle(`0199c200-0000-7000-8000-2025${String(index).padStart(8, '0')}`),
     );
     expect(titles).toEqual([
       'Form M RPT-CPSB039-2026-0000001-K.pdf',
