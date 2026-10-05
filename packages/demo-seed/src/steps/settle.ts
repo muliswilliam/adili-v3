@@ -21,8 +21,9 @@ async function expectedCases(context: SeedContext): Promise<Map<string, number>>
 
 /**
  * Waits until the services' workflows have caught up with the filings: every declaration has
- * its review case (risk scored, registries checked). A checkpoint taken earlier would freeze
- * work in flight.
+ * its review case (risk scored, registries checked) and the personas' acknowledgement slips are
+ * issued. The volume's slips and copilots keep arriving for a few minutes after; a checkpoint
+ * (#621) waits for the workflows to be idle as well.
  */
 export const settle: SeedStep = {
   id: 'settle',
@@ -52,6 +53,20 @@ export const settle: SeedStep = {
       );
       notes.push(`${slug}: ${String(total)} review cases`);
     }
+    // The personas' slips, which the demo opens and verifies: issued, not pending.
+    for (const persona of PERSONAS) {
+      const api = await context.as(persona.demoKey);
+      await waitFor(
+        `${persona.demoKey}'s acknowledgement slips`,
+        async () => {
+          const mine = ok(await api.declarations.GET('/v1/me/declarations'), 'my declarations');
+          const submitted = mine.filter((d) => d.status === 'submitted');
+          return submitted.every((d) => d.acknowledgement?.documentId) ? true : undefined;
+        },
+        { timeoutMs: 15 * 60_000, intervalMs: 3000 },
+      );
+    }
+    notes.push('personas’ acknowledgement slips issued');
     return { changed: 0, notes };
   },
 };
