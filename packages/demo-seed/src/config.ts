@@ -26,7 +26,7 @@ const schema = z.object({
   DEMO_TICKET_SECRET: z.string().default('adili-dev-demo-ticket-secret-change-me-for-real-use'),
   /** The password every demo account has, so it can also sign in by hand. */
   DEMO_PASSWORD: z.string().default('Adili-Demo-2026'),
-  /** Postgres for `demo:fingerprint` only; the seed itself never touches a database. */
+  /** Postgres for the `fingerprint` script only; the seed itself never touches a database. */
   DEMO_FINGERPRINT_DATABASE_URL: z
     .string()
     .default('postgres://postgres:postgres_dev@localhost:55432'),

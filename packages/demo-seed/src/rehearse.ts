@@ -10,7 +10,8 @@
  *    parcel, Afya Bora supplying KEMSA) and the comparison with her previous declaration.
  *
  * It files Wanjiku's declaration, which `0-start` leaves for the live demo: run it on a stack you
- * reset afterwards (`pnpm demo:reset 0-start`), never right before a demo.
+ * reset to `0-start` afterwards (an empty stack and `pnpm demo:seed` until #621's checkpoints),
+ * never right before a demo.
  */
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';

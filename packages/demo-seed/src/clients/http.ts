@@ -13,7 +13,9 @@ export class HttpError extends Error {
 /**
  * `fetch` that rides out a service restarting under it (a dev watcher reloading, a container
  * recreated): network errors and 502/503/504 are retried with backoff, up to about 30 s. Every
- * request the seed retries is safe to repeat: reads, or writes carrying their Idempotency-Key.
+ * request the seed retries is safe to repeat: reads, writes carrying their Idempotency-Key, and
+ * writes the service answers the same way twice (starting a declaration returns the draft there
+ * is, an amendment in progress is answered as it is, a second onboarding session is harmless).
  */
 export async function resilientFetch(
   input: string | URL | Request,
