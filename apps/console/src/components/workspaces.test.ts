@@ -122,8 +122,21 @@ describe('S18 Commissions workspace', () => {
   });
 
   it('leaves workspaces that are not built yet without a link', () => {
-    expect(workspaceFor(['auditor'], 'audit')).toMatchObject({ readOnly: false });
-    expect(workspaceFor(['auditor'], 'audit')?.href).toBeUndefined();
+    expect(workspaceFor(['helpdesk'], 'support')).toMatchObject({ readOnly: false });
+    expect(workspaceFor(['helpdesk'], 'support')?.href).toBeUndefined();
+  });
+
+  it('opens the audit trail for auditors only (ADR-008)', () => {
+    expect(workspaceFor(['auditor'], 'audit')).toMatchObject({ href: '/audit', readOnly: false });
+    for (const role of [
+      'eacc-analyst',
+      'eacc-supervisor',
+      'platform-admin',
+      'reviewer',
+      'helpdesk',
+    ]) {
+      expect(workspaceFor([role], 'audit')).toBeUndefined();
+    }
   });
 
   it('opens Referrals for reviewers and supervisors of the Commission (spec 08)', () => {
