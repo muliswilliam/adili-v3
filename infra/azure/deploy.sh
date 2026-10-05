@@ -29,8 +29,8 @@ PATH="/usr/bin:/usr/local/bin:${HOME}/.local/bin:${HOME}/.local/share/pnpm:${PAT
 export PATH
 cd "$ROOT"
 
-# shellcheck disable=SC1090
 set -a
+# shellcheck disable=SC1090
 . "$PUBLIC_ENV"
 set +a
 export KC_HOSTNAME ADILI_CONSOLE_URL ADILI_PORTAL_URL
