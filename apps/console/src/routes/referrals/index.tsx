@@ -37,6 +37,7 @@ type ReferralsSearch = z.infer<typeof searchSchema>;
  * (`status`, `cursor`), the way back in history state.
  */
 export const Route = createFileRoute('/referrals/')({
+  staticData: { hideBreadcrumbs: true },
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps, location }): Promise<ServiceResult<ReferralsPage> | null> => {

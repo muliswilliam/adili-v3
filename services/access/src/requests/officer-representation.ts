@@ -89,6 +89,8 @@ export const queueItemSchema = z.object({
   reference: z.string(),
   /** The applicant's name (Form K Part I), or the agency's name of a law enforcement request. */
   applicantOrAgency: z.string(),
+  /** Occupation as entered in Form K Part I; absent for law enforcement requests. */
+  applicantOccupation: z.string().optional(),
   /** The officer sought, as the request names them. */
   officerSought: z.string(),
   /** The roster record's full name the officer sought was resolved to; null before. */

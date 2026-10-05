@@ -37,6 +37,7 @@ type IntakeSearch = z.infer<typeof searchSchema>;
  * (`icmsStatus`, `cursor`), the way back in history state.
  */
 export const Route = createFileRoute('/eacc/referrals/')({
+  staticData: { hideBreadcrumbs: true },
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => search,
   loader: async ({

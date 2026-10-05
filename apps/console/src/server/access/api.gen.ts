@@ -908,6 +908,7 @@ export interface components {
             id: string;
             reference: string;
             applicantOrAgency: string;
+            applicantOccupation?: string;
             officerSought: string;
             resolvedName: string | null;
             resolvedFileNumber: string | null;

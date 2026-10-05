@@ -34,6 +34,7 @@ export const Route = createFileRoute('/eacc/reports/')({
     return result;
   },
   staticData: {
+    hideBreadcrumbs: true,
     // Without the workspace the layout leaves its crumb out: this page stands for it.
     crumb: ({ context }) =>
       typeof context === 'object' && context !== null && 'workspace' in context && context.workspace

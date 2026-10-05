@@ -2,18 +2,16 @@ import {
   Badge,
   Button,
   Card,
-  DeadlineChip,
-  deadlineSoonDays,
+  calendarDaysUntil,
+  cn,
+  formatLongDate,
+  formatDate,
+  NewDataTable,
+  NewDataTableToolbar,
+  useToday,
   EmptyState,
   FilterChip,
   Icon,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   TableRowLink,
 } from '@adili/ui';
 import { Search01Icon, SquareLock02Icon } from '@hugeicons/core-free-icons';
@@ -61,7 +59,7 @@ export function QueueList(props: QueueListProps) {
   // The tab bar above (`AccessTabs`) sets the kind in the URL.
   const tab: QueueTab = search.kind ?? 'all';
   return (
-    <Card className="overflow-hidden p-0 sm:p-0">
+    <Card className="min-w-0 overflow-hidden p-4 sm:p-5">
       <Toolbar {...props} tab={tab} />
       {result === null ? (
         <QueueTableSkeleton tab={tab} />
@@ -84,42 +82,52 @@ function Toolbar({ search, onSearchChange, tab }: QueueListProps & { tab: QueueT
   const id = useId();
   const active: QueueFilter = search.filter ?? 'all';
   return (
-    <div role="search" className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
-      <SearchBox
-        id={`${id}-search`}
-        label={m.searchLabel}
-        placeholder={m.searchPlaceholder}
-        maxLength={200}
-        applied={search.search ?? ''}
-        className="max-w-[360px] min-w-[240px]"
-        onSearch={(value) => {
-          onSearchChange(
-            { kind: search.kind, filter: search.filter, search: value || undefined },
-            { replace: true },
-          );
-        }}
-      />
-      <div role="group" aria-label={m.filtersLabel} className="flex flex-wrap gap-1.5">
-        {filtersFor(tab).map((filter) => (
-          <FilterChip
-            key={filter}
-            pressed={active === filter}
-            onPressedChange={() => {
-              onSearchChange({
-                kind: search.kind,
-                filter: filter === 'all' ? undefined : filter,
-                search: search.search,
-              });
-            }}
-          >
-            {filter === 'late' ? (
-              <span aria-hidden="true" className="size-1.5 rounded-full bg-destructive" />
-            ) : null}
-            {m.filters[filter]}
-          </FilterChip>
-        ))}
-      </div>
-    </div>
+    <NewDataTableToolbar
+      filters={
+        <div role="group" aria-label={m.filtersLabel} className="flex flex-wrap gap-1.5">
+          {filtersFor(tab).map((filter) => (
+            <FilterChip
+              key={filter}
+              className={cn(
+                'h-7 px-2 text-sm shadow-none',
+                active === filter
+                  ? 'bg-muted text-foreground'
+                  : 'bg-transparent text-muted-foreground',
+              )}
+              pressed={active === filter}
+              onPressedChange={() => {
+                onSearchChange({
+                  kind: search.kind,
+                  filter: filter === 'all' ? undefined : filter,
+                  search: search.search,
+                });
+              }}
+            >
+              {filter === 'late' ? (
+                <span aria-hidden="true" className="size-1.5 rounded-full bg-destructive" />
+              ) : null}
+              {m.filters[filter]}
+            </FilterChip>
+          ))}
+        </div>
+      }
+      search={
+        <SearchBox
+          id={`${id}-search`}
+          label={m.searchLabel}
+          placeholder={m.searchPlaceholder}
+          maxLength={200}
+          applied={search.search ?? ''}
+          className="max-w-none min-w-0 [&_input]:h-8 [&_input]:text-sm"
+          onSearch={(value) => {
+            onSearchChange(
+              { kind: search.kind, filter: search.filter, search: value || undefined },
+              { replace: true },
+            );
+          }}
+        />
+      }
+    />
   );
 }
 
@@ -170,29 +178,17 @@ function Results({
   );
 }
 
-function Header({ tab }: { tab: QueueTab }) {
-  return (
-    <TableHeader>
-      <TableRow>
-        <TableHead>{m.columnReference}</TableHead>
-        <TableHead>{m.columnWho[tab]}</TableHead>
-        <TableHead>{m.columnOfficer}</TableHead>
-        <TableHead>{m.columnStatus}</TableHead>
-        <TableHead>{m.columnDeadline}</TableHead>
-      </TableRow>
-    </TableHeader>
-  );
-}
-
 function Sub({ children }: { children: ReactNode }) {
-  return (
-    <div className="mt-0.5 text-[13px] whitespace-nowrap text-muted-foreground">{children}</div>
-  );
+  return <div className="mt-1 text-sm text-muted-foreground">{children}</div>;
 }
 
 export function StatusBadge({ status }: { status: QueueItem['status'] }) {
   const { label, tone } = STATUS[status];
-  return <Badge variant={tone}>{label}</Badge>;
+  return (
+    <Badge variant={tone} className="text-sm">
+      {label}
+    </Badge>
+  );
 }
 
 const sameName = (a: string, b: string) =>
@@ -228,41 +224,49 @@ function Officer({ item }: { item: QueueItem }) {
 
 /** The deadline that runs, or when the request was decided or closed. */
 export function QueueDeadline({ item }: { item: QueueItem }) {
+  const today = useToday();
   if (DECIDED.includes(item.status) || CLOSED.includes(item.status)) {
     const text = DECIDED.includes(item.status) ? m.decidedOn : m.closedOn;
     return (
-      <span className="text-[13px] text-muted-foreground">
+      <span className="text-sm text-muted-foreground">
         {item.closedAt ? text(shortDate(item.closedAt)) : STATUS[item.status].label}
       </span>
     );
   }
-  const windowEndsAt = item.status === 'awaiting-representations' ? item.windowEndsAt : null;
-  // A late request shows its decision deadline, late, even while representations are open.
-  if (windowEndsAt && !item.late) {
-    return (
-      <>
-        <DeadlineChip
-          due={windowEndsAt}
-          soonDays={deadlineSoonDays.representations}
-          label={m.representationsClose}
-        />
-        <Sub>{m.closesOn(shortDate(lastInstantOf(windowEndsAt)))}</Sub>
-      </>
-    );
-  }
+  const window = item.status === 'awaiting-representations' ? item.windowEndsAt : null;
+  const due = window && !item.late ? window : item.deadlineAt;
+  const date = window && !item.late ? lastInstantOf(window) : due;
+  const days = calendarDaysUntil(date, today);
+  const late = item.late || days < 0;
+  const count = `${String(Math.abs(days))} ${Math.abs(days) === 1 ? 'day' : 'days'}`;
+  const text = late
+    ? days < 0
+      ? `${count} overdue`
+      : 'Overdue'
+    : days === 0
+      ? window
+        ? 'Closes today'
+        : 'Due today'
+      : `${window ? 'Closes' : 'Due'} in ${count}`;
   return (
     <>
-      <DeadlineChip
-        due={item.deadlineAt}
-        soonDays={item.kind === 'lea' ? deadlineSoonDays.lawEnforcement : deadlineSoonDays.decision}
-        label={m.decisionDue}
-        late={item.late}
-      />
-      <Sub>
-        {windowEndsAt
-          ? m.closesOn(shortDate(lastInstantOf(windowEndsAt)))
-          : m.dueOn(shortDate(item.deadlineAt))}
-      </Sub>
+      <time dateTime={date} data-state={late ? 'late' : 'due'}>
+        {formatLongDate(date)}
+      </time>
+      <div
+        className={cn(
+          'mt-1 text-sm',
+          late ? 'text-destructive' : window ? 'text-warning' : 'text-muted-foreground',
+        )}
+      >
+        {text}
+        {window && item.late ? (
+          <span className="text-muted-foreground">
+            {' · '}
+            {m.closesOn(shortDate(lastInstantOf(window)))}
+          </span>
+        ) : null}
+      </div>
     </>
   );
 }
@@ -277,34 +281,53 @@ function QueueTable({
   tab: QueueTab;
 }) {
   return (
-    <Table caption={m.queueCaption}>
-      <Header tab={tab} />
-      <TableBody>
-        {items.map((item) => (
-          <TableRow key={item.id}>
-            <TableHead scope="row" className="font-normal">
-              <TableRowLink asChild className="font-mono text-[13.5px] font-semibold">
-                {requestLink(item)}
-              </TableRowLink>
-              <Sub>{`${m.kinds[item.kind]} · ${shortDate(item.submittedAt)}`}</Sub>
-            </TableHead>
-            <TableCell className="min-w-[160px]">
-              <div className="font-medium">{item.applicantOrAgency}</div>
-            </TableCell>
-            <TableCell className="min-w-[180px]">
-              <Officer item={item} />
-            </TableCell>
-            <TableCell>
-              <StatusBadge status={item.status} />
-            </TableCell>
-            <TableCell className="whitespace-nowrap">
-              <QueueDeadline item={item} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <NewDataTable
+      caption={m.queueCaption}
+      rows={items}
+      getRowId={(item) => item.id}
+      columns={queueColumns(tab, requestLink)}
+    />
   );
+}
+
+function queueColumns(tab: QueueTab, requestLink: QueueListProps['requestLink']) {
+  return [
+    {
+      id: 'reference',
+      header: m.columnReference,
+      rowHeader: true,
+      cell: (item: QueueItem) => (
+        <>
+          <TableRowLink asChild>{requestLink(item)}</TableRowLink>
+          <Sub>
+            {tab === 'all' ? `${m.kinds[item.kind]} · ` : ''}
+            {tab === 'all' ? formatDate(item.submittedAt) : formatLongDate(item.submittedAt)}
+          </Sub>
+        </>
+      ),
+    },
+    {
+      id: 'applicant',
+      header: m.columnWho[tab],
+      cell: (item: QueueItem) => (
+        <>
+          <div className="font-medium">{item.applicantOrAgency}</div>
+          {item.applicantOccupation ? <Sub>{item.applicantOccupation}</Sub> : null}
+        </>
+      ),
+    },
+    { id: 'officer', header: m.columnOfficer, cell: (item: QueueItem) => <Officer item={item} /> },
+    {
+      id: 'deadline',
+      header: m.columnDeadline,
+      cell: (item: QueueItem) => <QueueDeadline item={item} />,
+    },
+    {
+      id: 'status',
+      header: m.columnStatus,
+      cell: (item: QueueItem) => <StatusBadge status={item.status} />,
+    },
+  ];
 }
 
 /** Below 760px the table becomes a list of cards (the prototype's `.table.cards`). */
@@ -323,13 +346,16 @@ function QueueCards({
           className="relative grid gap-1.5 border-b px-4 py-3.5 transition-colors last:border-b-0 hover:bg-muted/50"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <TableRowLink asChild className="font-mono text-[13.5px] font-semibold">
+            <TableRowLink asChild className="text-sm font-medium">
               {requestLink(item)}
             </TableRowLink>
             <StatusBadge status={item.status} />
           </div>
           <p className="text-sm">
             {item.applicantOrAgency}
+            {item.applicantOccupation ? (
+              <span className="text-muted-foreground"> · {item.applicantOccupation}</span>
+            ) : null}
             <span className="text-muted-foreground"> · </span>
             {item.resolvedName ?? item.officerSought}
           </p>
@@ -342,25 +368,15 @@ function QueueCards({
   );
 }
 
-const SKELETON_WIDTHS = ['w-[190px]', 'w-[150px]', 'w-[160px]', 'w-[120px]', 'w-[90px]'];
-
-/** Placeholder rows under the real header while the page loads; the table is marked busy. */
+/** Loading uses the same column widths and row spacing as the results. */
 export function QueueTableSkeleton({ tab }: { tab: QueueTab }) {
   return (
-    <Table caption={m.queueLoadingCaption} aria-busy="true">
-      <Header tab={tab} />
-      <TableBody>
-        {Array.from({ length: 6 }, (_, row) => (
-          <TableRow key={row}>
-            {SKELETON_WIDTHS.map((width) => (
-              <TableCell key={width} className="py-4">
-                <Skeleton className={width} />
-                <Skeleton className="mt-2 h-3 w-[70px]" />
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <NewDataTable
+      caption={m.queueLoadingCaption}
+      rows={[]}
+      loading
+      getRowId={(item: QueueItem) => item.id}
+      columns={queueColumns(tab, () => null)}
+    />
   );
 }

@@ -37,6 +37,34 @@ beforeEach(() => {
 });
 
 describe('QueueList (spec 10 FE-5)', () => {
+  it('shows occupation below the applicant and uses plain reference and deadline text', async () => {
+    const data = await page();
+    const item = data.items.find((item) => item.kind === 'form-k');
+    if (!item) throw new Error('no Form K request');
+    renderList(
+      {
+        ok: true,
+        data: { items: [{ ...item, applicantOccupation: 'Journalist' }], nextCursor: null },
+      },
+      { kind: 'form-k' },
+    );
+    const table = screen.getByRole('table');
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['Reference code', 'Applicant', 'Officer sought', 'Deadline', 'Status']);
+    const row = within(table).getAllByRole('row')[1];
+    if (!row) throw new Error('no row');
+    expect(row.textContent).toContain('Journalist');
+    expect(within(row).getByRole('link').className).not.toContain('font-mono');
+    const deadline = within(row).getAllByRole('cell')[2];
+    expect(deadline?.querySelector('svg')).toBeNull();
+    expect(deadline?.querySelector('.rounded-full')).toBeNull();
+    const filters = screen.getByRole('group', { name: 'Show' });
+    const search = screen.getByRole('searchbox');
+    expect(filters.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
   it('lists each request with who asked, the officer, its status and the deadline that runs', async () => {
     renderList({ ok: true, data: await page() });
     const table = screen.getByRole('table', { name: 'Access requests, earliest deadline first' });
@@ -47,10 +75,10 @@ describe('QueueList (spec 10 FE-5)', () => {
     expect(late.textContent).toContain('Lilian Wairimu Njoroge');
     expect(late.textContent).toContain('File 20102284');
     expect(late.textContent).toContain('Under decision');
-    // The late badge: the decision deadline, red, days late.
+    // The deadline is plain text with an overdue countdown.
     const chip = late.querySelector('time');
     expect(chip?.dataset.state).toBe('late');
-    expect(chip?.textContent).toMatch(/\d+ days late/);
+    expect(late.textContent).toMatch(/\d+ days overdue/);
     const window = rows.find((row) => row.textContent.includes('Awaiting representations'));
     expect(window?.textContent).toContain('Closes');
     const unresolved = rows.find((row) => row.textContent.includes('Mrs Kamau'));
@@ -67,7 +95,7 @@ describe('QueueList (spec 10 FE-5)', () => {
     const row = within(screen.getByRole('table')).getAllByRole('row')[1];
     const chip = row?.querySelector('time');
     expect(chip?.dataset.state).toBe('late');
-    expect(chip?.textContent).toMatch(/late/i);
+    expect(row?.textContent).toMatch(/overdue/i);
     expect(row?.textContent).toContain('Closes');
   });
 
@@ -143,7 +171,7 @@ describe('QueueList (spec 10 FE-5)', () => {
     const breach = rows[0];
     if (!breach) throw new Error('no rows');
     expect(breach.textContent).toMatch(/^LEA-PSC-2026-/);
-    expect(breach.textContent).toContain('Law enforcement ·');
+    expect(breach.textContent).not.toContain('Law enforcement ·');
     expect(breach.textContent).toContain('Office of the Director of Public Prosecutions');
     expect(breach.textContent).toContain('Received');
     expect(breach.querySelector('time')?.dataset.state).toBe('late');

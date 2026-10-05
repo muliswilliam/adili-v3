@@ -31,7 +31,7 @@ export function PageHead({
 }) {
   return (
     <div className="mb-[22px] flex flex-wrap items-start gap-4">
-      <div className="min-w-0">
+      <div className="min-h-9 min-w-0">
         <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] min-[700px]:text-[26px]">
           {title}
         </h1>

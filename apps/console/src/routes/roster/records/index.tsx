@@ -25,6 +25,7 @@ interface RecordsData extends LoadedFor {
 }
 
 export const Route = createFileRoute('/roster/records/')({
+  staticData: { hideBreadcrumbs: true },
   validateSearch: recordsSearchSchema,
   // Filter changes reload this match in place, not as a new one: see `useReloadingInPlace`.
   shouldReload: true,

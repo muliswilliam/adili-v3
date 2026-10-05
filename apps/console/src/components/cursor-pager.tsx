@@ -36,7 +36,7 @@ export function CursorPager({
   return (
     <nav
       aria-label={labels.pagination}
-      className="flex items-center gap-1.5 border-t px-4 py-2.5 text-[13.5px] text-muted-foreground"
+      className="flex items-center gap-1.5 border-t px-4 py-2.5 text-sm text-muted-foreground"
     >
       <span aria-live="polite" className="mr-auto">
         {range ? labels.pageRange(range.from, range.to) : labels.pageRows(rows)}

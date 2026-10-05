@@ -44,6 +44,7 @@ declare module '@tanstack/react-router' {
 const ANY = 'any';
 
 export const Route = createFileRoute('/commissions/')({
+  staticData: { hideBreadcrumbs: true },
   validateSearch: commissionListSearch,
   // Filter and page changes reload this match in place: see `useReloadingInPlace`.
   shouldReload: true,

@@ -1,6 +1,6 @@
 import { Avatar, Badge, Button, cn, focusRing, Icon, LogoWordmark, SiteFooter } from '@adili/ui';
 import { Logout01Icon, Menu01Icon } from '@hugeicons/core-free-icons';
-import { Link, useLocation } from '@tanstack/react-router';
+import { Link, useLocation, useMatches } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useRef } from 'react';
 
 import { Breadcrumbs } from './breadcrumbs';
@@ -34,6 +34,9 @@ export interface ConsoleShellProps {
 export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleShellProps) {
   const drawer = useRef<HTMLDialogElement>(null);
   const pathname = useLocation({ select: (location) => location.pathname });
+  const hideBreadcrumbs = useMatches({
+    select: (matches) => matches.at(-1)?.staticData.hideBreadcrumbs ?? false,
+  });
 
   // Following a link in the drawer closes it.
   useEffect(() => {
@@ -61,7 +64,12 @@ export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleSh
         {sidebar}
       </dialog>
       <div className="flex min-w-0 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-2.5 border-b bg-background/88 px-4 backdrop-blur-md backdrop-saturate-[1.4] lg:px-7">
+        <header
+          className={cn(
+            'sticky top-0 z-20 flex h-14 items-center gap-2.5 border-b bg-background/88 px-4 backdrop-blur-md backdrop-saturate-[1.4] lg:px-7',
+            hideBreadcrumbs && 'lg:hidden',
+          )}
+        >
           <Button
             variant="ghost"
             size="icon"
@@ -79,7 +87,7 @@ export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleSh
           >
             <LogoWordmark className="h-5" />
           </Link>
-          <Breadcrumbs />
+          {hideBreadcrumbs ? null : <Breadcrumbs />}
         </header>
         {children}
         {/* Lined up with a page's content (`Page`). */}

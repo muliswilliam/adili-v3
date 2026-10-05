@@ -15,6 +15,7 @@ interface Loaded {
 
 /** The officer's requests, latest first (spec 10 FE-6). */
 export const Route = createFileRoute('/lea/requests/')({
+  staticData: { hideBreadcrumbs: true },
   loader: async ({ location, context }): Promise<Loaded | null> => {
     if (!context.workspace) return null;
     const result = await getMyLeaRequests();
