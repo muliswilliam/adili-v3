@@ -9,7 +9,7 @@ import { failureBreakdown } from './onboarding-failures';
 
 const HOUR_MS = 60 * 60 * 1000;
 
-/** `1 Oct 2026, 12:00–13:00`, the hour a count covers, in Kenyan time. */
+/** `1 Oct 2026, 12:00-13:00`, the hour a count covers, in Kenyan time. */
 function hourLabel(windowStart: string): string {
   return m.failuresHour(formatDateTime(windowStart), formatTime(Date.parse(windowStart) + HOUR_MS));
 }
