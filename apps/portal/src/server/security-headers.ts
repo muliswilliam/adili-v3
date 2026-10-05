@@ -2,8 +2,9 @@
  * Response headers for every page and server function of the portal.
  *
  * Scripts run only with the request's nonce ('strict-dynamic' lets them load the app's chunks).
- * The browser talks to this origin only: server functions proxy the services. Nothing may frame
- * the page. Keycloak is a top-level redirect, not a connection from the page.
+ * The browser talks to this origin, where server functions proxy the services, and to the object
+ * store, where it uploads files to presigned URLs. Nothing may frame the page. Keycloak is a
+ * top-level redirect, not a connection from the page; downloads are navigations to the store.
  */
 export interface SecurityHeaderOptions {
   /** A fresh random value per response, on every script tag the server renders. */
@@ -17,6 +18,11 @@ export interface SecurityHeaderOptions {
    * form-action also governs where a submitted form may be redirected.
    */
   identityProvider?: string;
+  /**
+   * The object store's public origin, where the browser PUTs uploads to presigned URLs (the
+   * documents service's S3_PUBLIC_ENDPOINT).
+   */
+  objectStorage?: string;
 }
 
 export function securityHeaders({
@@ -24,7 +30,13 @@ export function securityHeaders({
   dev,
   https,
   identityProvider,
+  objectStorage,
 }: SecurityHeaderOptions): Headers {
+  const connect = [
+    "'self'",
+    ...(objectStorage ? [objectStorage] : []),
+    ...(dev ? ['ws:', 'wss:'] : []),
+  ];
   const csp = [
     "default-src 'none'",
     `script-src 'nonce-${nonce}' 'strict-dynamic'`,
@@ -34,7 +46,7 @@ export function securityHeaders({
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self'",
-    dev ? "connect-src 'self' ws: wss:" : "connect-src 'self'",
+    `connect-src ${connect.join(' ')}`,
     "manifest-src 'self'",
     "base-uri 'none'",
     identityProvider ? `form-action 'self' ${identityProvider}` : "form-action 'self'",
@@ -58,11 +70,11 @@ export function securityHeaders({
   return headers;
 }
 
-/** The origin of an OIDC issuer URL, for form-action; undefined when unset or malformed. */
-export function issuerOrigin(issuer: string | undefined): string | undefined {
-  if (!issuer) return undefined;
+/** The origin of a configured URL, for a CSP source; undefined when unset or malformed. */
+export function urlOrigin(url: string | undefined): string | undefined {
+  if (!url) return undefined;
   try {
-    return new URL(issuer).origin;
+    return new URL(url).origin;
   } catch {
     return undefined;
   }
