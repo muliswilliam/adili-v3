@@ -76,7 +76,7 @@ jobs:
         run: pnpm --filter @adili/schemas lint:forms
       # Services with a `contracts` script export their OpenAPI; each export must equal the
       # committed packages/schemas/internal/<service>.yaml (directory, documents, declarations,
-      # notifications, integration-gateway, review, verification-api, ai-gateway, access,
+      # notifications, integration-gateway, review, verification-api, ai-gateway, access, audit,
       # reporting), and each client generated from a contract must equal its committed copy.
       - name: Internal contracts match the services
         run: pnpm contracts:drift

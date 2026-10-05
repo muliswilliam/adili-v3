@@ -45,7 +45,8 @@ export type WorkspaceHref =
   | '/eacc/reports'
   | '/eacc/referrals'
   | '/eacc/open-data'
-  | '/commission/open-data';
+  | '/commission/open-data'
+  | '/audit';
 
 interface WorkspaceDefinition {
   id: string;
@@ -275,6 +276,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: 'audit',
     title: 'Audit trail',
     description: 'Investigate who did what, and when, across the platform.',
+    href: '/audit',
     roles: [AUDITOR],
   },
   {
