@@ -866,7 +866,11 @@ export const reviewReferral: SeedStep = {
       timeoutMs: 5 * 60_000,
       intervalMs: 3000,
     });
-    if (!received.icmsCaseNumber && !received.pushedAt) {
+    // Not pushed yet, or a push that failed (pushing again retries it).
+    if (
+      !received.icmsCaseNumber &&
+      (received.pushedAt === null || received.icmsStatus === 'push-failed')
+    ) {
       const analyst = await context.as('eacc-analyst');
       ok(
         await analyst.reporting.POST('/v1/eacc/referrals/{referralId}/push', {
