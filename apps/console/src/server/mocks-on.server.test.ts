@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('../server/env.server', () => ({
+vi.mock('./env.server', () => ({
   envSchema: {
     shape: { APP_URL: {}, REVIEW_MOCK: {}, ACCESS_MOCK: {}, REVIEW_MOCK_COPILOT: {} },
   },
@@ -12,9 +12,9 @@ vi.mock('../server/env.server', () => ({
   }),
 }));
 
-const { mocksOn } = await import('./health');
+const { mocksOn } = await import('./mocks-on.server');
 
-describe('the health route', () => {
+describe('mocksOn', () => {
   it('names the mocks that are on, and only the on/off mock settings', () => {
     expect(mocksOn()).toEqual(['REVIEW_MOCK']);
   });
