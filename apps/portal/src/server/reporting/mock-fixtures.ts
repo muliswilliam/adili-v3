@@ -132,18 +132,6 @@ const COMMISSIONS: Commission[] = [
   }),
 ];
 
-const ENTITY_TYPES: [string, number][] = [
-  ['Public school or college', 0.5],
-  ['Ministry or state department', 0.12],
-  ['Police service', 0.16],
-  ['County executive', 0.1],
-  ['County assembly', 0.03],
-  ['State corporation', 0.05],
-  ['Constitutional commission or independent office', 0.02],
-  ['Parliament', 0.012],
-  ['Judiciary', 0.008],
-];
-
 const CYCLE_SECTIONS = ['initial', 'biennial', 'final'] as const;
 
 /** A number in [0, 1) from a key, the same every run. */
@@ -314,6 +302,21 @@ function complianceOf(
   };
 }
 
+interface Access {
+  received: number;
+  granted: number;
+  declined: number;
+}
+
+/** A Commission's Form M section 5 counts: Form K requests received, granted and declined. */
+function accessOf(slug: string, fy: number, kind: string, filed: number): Access {
+  const key = `${slug}-${String(fy)}-${kind}`;
+  const received = Math.round(filed * between(`${key}xr`, 0.0005, 0.002));
+  const decided = Math.round(received * between(`${key}xd`, 0.8, 0.95));
+  const granted = Math.round(decided * between(`${key}xg`, 0.6, 0.85));
+  return { received, granted, declined: decided - granted };
+}
+
 function buildTables(
   fy: number,
   kind: OpenDataRelease['kind'],
@@ -421,27 +424,29 @@ function buildTables(
   );
 
   const national = filingFigures(nationalBy('all'));
-  const entityRows: ByEntityTypeRow[] = ENTITY_TYPES.flatMap(([entityType, share]) =>
-    (['initial', 'biennial', 'final', 'all'] as const).map((cycle): ByEntityTypeRow => {
-      const expected = Math.round(nationalBy(cycle).expected * share);
-      const filed = Math.round(
-        expected * (1 - between(`${String(fy)}${kind}${entityType}${cycle}`, 0.02, 0.09)),
-      );
-      if (expected > 0 && expected < SUPPRESSION_THRESHOLD) {
-        return { entityType, cycle, ...HIDDEN_FILING, suppressed: true };
-      }
-      return { entityType, cycle, ...filingFigures({ expected, filed }), suppressed: false };
-    }),
-  );
+  // Reporting entity types are not collected: the table has no rows and names its filing
+  // figures in notCollected.
+  const entityRows: ByEntityTypeRow[] = [];
 
-  const accessRows: AccessRequestsRow[] = COMMISSIONS.map((commission) => ({
-    commission: commission.slug,
-    commissionName: commission.name,
-    received: null,
-    granted: null,
-    declined: null,
-    suppressed: false,
-  }));
+  // Form M section 5 counts (#493), suppressed with each Commission's other counts.
+  const access = new Map<string, Access>(
+    [...filing].map(([slug, cycles]) => [slug, accessOf(slug, fy, kind, cycles.all.filed)]),
+  );
+  const accessRows: AccessRequestsRow[] = COMMISSIONS.map((commission) => {
+    const counts = access.get(commission.slug);
+    const hidden = Boolean(counts) && hiddenCommissions.has(commission.slug);
+    const figures = (value: (a: Access) => number) => (counts && !hidden ? value(counts) : null);
+    return {
+      commission: commission.slug,
+      commissionName: commission.name,
+      received: figures((a) => a.received),
+      granted: figures((a) => a.granted),
+      declined: figures((a) => a.declined),
+      suppressed: hidden,
+    };
+  });
+  const accessTotal = (pick: (a: Access) => number) =>
+    [...access.values()].reduce((total, a) => total + pick(a), 0);
 
   const totals = [...compliance.values()];
   const count = (pick: (c: Compliance) => number) =>
@@ -469,9 +474,9 @@ function buildTables(
     actionsSalaryStoppage: count((c) => c.stoppage),
     actionsDisciplinaryReferral: count((c) => c.disciplinary),
     referrals: count((c) => c.referrals),
-    accessRequestsReceived: null,
-    accessRequestsGranted: null,
-    accessRequestsDeclined: null,
+    accessRequestsReceived: accessTotal((a) => a.received),
+    accessRequestsGranted: accessTotal((a) => a.granted),
+    accessRequestsDeclined: accessTotal((a) => a.declined),
   };
   const nationalRows: NationalTotalsRow[] = Object.entries(measures).map(([measure, value]) => ({
     measure: measure as NationalMeasure,
@@ -509,19 +514,15 @@ function buildTables(
       'by-entity-type',
       ['entityType', 'cycle', ...filingColumns],
       entityRows,
+      Object.keys(HIDDEN_FILING),
     ),
     'by-cycle': table('by-cycle', ['cycle', ...filingColumns], cycleRows),
     'access-requests': table(
       'access-requests',
       ['commission', 'commissionName', 'received', 'granted', 'declined', 'suppressed'],
       accessRows,
-      ['received', 'granted', 'declined'],
     ),
-    'national-totals': table('national-totals', ['measure', 'value', 'suppressed'], nationalRows, [
-      'accessRequestsReceived',
-      'accessRequestsGranted',
-      'accessRequestsDeclined',
-    ]),
+    'national-totals': table('national-totals', ['measure', 'value', 'suppressed'], nationalRows),
   };
 }
 
