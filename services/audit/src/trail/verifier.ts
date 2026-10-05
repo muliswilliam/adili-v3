@@ -3,7 +3,7 @@ import { type Database, InjectDatabase } from '@adili/data-access';
 import { and, asc, eq, gt } from 'drizzle-orm';
 
 import type { AuditSchema } from '../db/schema.js';
-import { eventHash, GENESIS_HASH, merkleRoot } from './chain.js';
+import { chainDayOf, eventHash, GENESIS_HASH, merkleRoot } from './chain.js';
 import { type AuditRecord, recordOf } from './record.js';
 import { auditAnchors, auditChainHeads, auditEvents } from './schema.js';
 
@@ -106,6 +106,10 @@ export class ChainVerifier {
         if (
           row.eventId !== row.envelope.id ||
           row.eventType !== row.envelope.type ||
+          row.source !== row.envelope.source ||
+          row.occurredAt.getTime() !== new Date(row.envelope.time).getTime() ||
+          // An event joins the chain of the day it is recorded on.
+          chainDayOf(row.recordedAt) !== row.chainDay ||
           RECORD_KEYS.some((key) => !sameValue(record[key], stored[key]))
         ) {
           problems.push({ kind: 'record-mismatch', seq: row.seq });

@@ -66,6 +66,18 @@ describe('chain verification (tamper detection)', () => {
     ]);
   });
 
+  it.each([
+    ['occurred_at', "occurred_at = occurred_at - interval '1 day'"],
+    ['source', "source = 'adili/elsewhere'"],
+    ['recorded_at', "recorded_at = recorded_at - interval '2 days'"],
+  ])('finds %s changed apart from its event', async (_column, change) => {
+    const tenant = await chainOfFive();
+    await api.tamper(`update audit_events set ${change} ${where(tenant, 4)}`);
+    expect((await verifier.verify(tenant, today)).problems).toEqual([
+      { kind: 'record-mismatch', seq: 4 },
+    ]);
+  });
+
   it('finds an event removed from the middle', async () => {
     const tenant = await chainOfFive();
     await api.tamper(`delete from audit_events ${where(tenant, 3)}`);
