@@ -6,6 +6,7 @@ import {
   DeadlineChip,
   deadlineSoonDays,
   formatDate,
+  formatDateTime,
   RegisterTimeline,
 } from '@adili/ui';
 
@@ -19,6 +20,7 @@ import {
 } from '../../server/access-requests';
 import { IdentifyOfficerCard, VerifyApplicantCard } from './action-cards';
 import { DecidedCard } from './decision/decided-card';
+import { FormKDesktop, FormKDesktopProperties } from './form-k-desktop';
 import { PackageCard, usePackageState } from './decision/package-card';
 import { FormKCard, formKOf } from './form-k-card';
 import { messages as m } from './messages';
@@ -42,9 +44,9 @@ const PACKAGE_POLLS = 20;
 
 /**
  * A Form K request as its Commission's access officer works it and its supervisor reads it
- * (spec 10 FE-5, S3): Form K by part and the access register on the left; on the right the step
- * it is at (verify the applicant, identify the officer, wait for representations, decide), the
- * officer identified and the declarant's representations.
+ * (spec 10 FE-5, S3): a desktop reading layout with properties beside it, and the original
+ * part-by-part Form K layout on smaller screens. The request step, package and representations
+ * remain the same interactive components in either layout.
  */
 export function RequestDetailView({
   view,
@@ -71,8 +73,8 @@ export function RequestDetailView({
     isOpen(view) && view.status !== 'awaiting-representations' && view.status !== 'under-decision';
 
   return (
-    <Page>
-      <div className="mb-[22px] flex flex-wrap items-start gap-4">
+    <Page className="min-[1200px]:max-w-none min-[1200px]:px-0 min-[1200px]:pt-0 min-[1200px]:pb-0">
+      <div className="mb-[22px] flex flex-wrap items-start gap-4 min-[1200px]:hidden">
         <div className="min-w-0">
           <div className="mb-1.5 flex flex-wrap items-center gap-2">
             <StatusBadge status={view.status} />
@@ -100,28 +102,72 @@ export function RequestDetailView({
         ) : null}
       </div>
 
-      <div className="grid items-start gap-4 min-[1080px]:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="grid min-w-0 gap-4">
-          <FormKCard view={view} />
-          <Card className="min-w-0 p-0 sm:p-0" role="region" aria-labelledby="register-title">
-            <CardHeader className="border-b px-5 py-4">
-              <CardTitle id="register-title">{m.registerTitle}</CardTitle>
-            </CardHeader>
-            <div className="px-5 py-4.5">
-              <RegisterTimeline entries={timelineOf(view)} label={m.registerLabel} />
+      <div className="grid items-start gap-4 min-[1200px]:grid-cols-[minmax(0,1fr)_minmax(450px,32%)] min-[1200px]:items-stretch min-[1200px]:gap-0 min-[1200px]:overflow-hidden min-[1200px]:bg-card">
+        <div className="contents min-[1200px]:block min-[1200px]:min-w-0">
+          <div className="order-3 min-w-0 min-[1200px]:order-none">
+            <div className="min-[1200px]:hidden">
+              <FormKCard view={view} />
             </div>
-          </Card>
+            <FormKDesktop view={view} />
+          </div>
+          <div className="order-2 min-w-0 min-[1200px]:order-none min-[1200px]:mx-auto min-[1200px]:w-full min-[1200px]:max-w-[720px] min-[1200px]:px-6 min-[1200px]:pb-6">
+            <RepresentationsCard
+              view={view}
+              readOnly={readOnly}
+              readingLayout
+              className="min-[1200px]:rounded-none min-[1200px]:bg-transparent min-[1200px]:shadow-none"
+            />
+          </div>
+          <div className="order-4 min-w-0 min-[1200px]:order-none min-[1200px]:mx-auto min-[1200px]:w-full min-[1200px]:max-w-[720px] min-[1200px]:px-6 min-[1200px]:pb-8">
+            <section
+              className="mb-6 hidden border-t pt-6 min-[1200px]:block"
+              aria-label={m.declarationTitle}
+            >
+              <h2 className="text-sm font-semibold">{m.declarationTitle}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-secondary-foreground">
+                {form.partIV.text}
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {m.declaredAt(formatDateTime(form.partIV.declaredAt))}
+              </p>
+            </section>
+            <Card
+              className="min-w-0 p-0 sm:p-0 min-[1200px]:rounded-none min-[1200px]:border-t min-[1200px]:bg-transparent min-[1200px]:shadow-none"
+              role="region"
+              aria-labelledby="register-title"
+            >
+              <CardHeader className="border-b px-5 py-4 min-[1200px]:border-b-0 min-[1200px]:px-0 min-[1200px]:pt-6 min-[1200px]:pb-3">
+                <CardTitle id="register-title" className="text-sm">
+                  <span className="min-[1200px]:hidden">{m.registerTitle}</span>
+                  <span className="hidden min-[1200px]:inline">{m.activityTitle}</span>
+                </CardTitle>
+              </CardHeader>
+              <div className="px-5 py-4.5 min-[1200px]:px-0 min-[1200px]:pt-0">
+                <RegisterTimeline
+                  entries={timelineOf(view)}
+                  label={m.registerLabel}
+                  className="[&_li>div>div]:text-sm"
+                />
+              </div>
+            </Card>
+          </div>
         </div>
         <aside
-          className="order-first grid min-w-0 gap-4 min-[1080px]:order-none"
+          className="order-1 grid min-w-0 content-start gap-4 min-[1200px]:gap-0 min-[1200px]:border-l min-[1200px]:bg-muted/35"
           aria-label={m.whereItStands}
         >
-          <StepCard view={view} step={step} readOnly={readOnly} now={now} />
+          <div className="grid min-w-0 gap-4 min-[1200px]:p-4 min-[1200px]:pb-0">
+            <StepCard view={view} step={step} readOnly={readOnly} now={now} />
+          </div>
+          <FormKDesktopProperties view={view} readOnly={readOnly} deadlineInHead={deadlineInHead} />
           {pkg ? (
-            <PackageCard state={pkg} recipientName={form.partI.name} reference={view.reference} />
+            <div className="min-[1200px]:p-4">
+              <PackageCard state={pkg} recipientName={form.partI.name} reference={view.reference} />
+            </div>
           ) : null}
-          <OfficerCard view={view} />
-          <RepresentationsCard view={view} readOnly={readOnly} />
+          <div className="min-[1200px]:p-4">
+            <OfficerCard view={view} />
+          </div>
         </aside>
       </div>
     </Page>

@@ -74,15 +74,15 @@ export function usePackageState(
 function Item({ term, children }: { term: ReactNode; children: ReactNode }) {
   return (
     <div>
-      <dt className="text-[13px] text-muted-foreground">{term}</dt>
-      <dd className="mt-0.5 font-medium">{children}</dd>
+      <dt className="text-sm text-muted-foreground">{term}</dt>
+      <dd className="mt-0.5 text-sm font-medium">{children}</dd>
     </div>
   );
 }
 
 function Confidential() {
   return (
-    <Badge variant="destructive">
+    <Badge variant="destructive" className="text-sm">
       <Icon icon={SquareLock02Icon} strokeWidth={2.2} />
       {m.confidential}
     </Badge>
@@ -108,7 +108,12 @@ export function PackageCard({
 }) {
   if (state.state === 'failed') {
     return (
-      <SideCard id="package" title={m.packageTitle} actions={<Confidential />}>
+      <SideCard
+        id="package"
+        title={m.packageTitle}
+        titleClassName="text-sm"
+        actions={<Confidential />}
+      >
         <Alert variant="destructive">
           <Icon icon={AlertCircleIcon} />
           <AlertTitle>{accessMessages.packageFailed}</AlertTitle>
@@ -119,7 +124,12 @@ export function PackageCard({
   }
   if (state.state === 'preparing') {
     return (
-      <SideCard id="package" title={m.packageTitle} actions={<Confidential />}>
+      <SideCard
+        id="package"
+        title={m.packageTitle}
+        titleClassName="text-sm"
+        actions={<Confidential />}
+      >
         <div role="status" className="flex items-start gap-2.5 text-sm">
           <Spinner className="mt-0.5 size-4 shrink-0 text-foreground" />
           {m.preparing}
@@ -134,6 +144,7 @@ export function PackageCard({
     <SideCard
       id="package"
       title={nil ? accessMessages.nilLetter : m.packageTitle}
+      titleClassName="text-sm"
       actions={<Confidential />}
     >
       {nil ? (
@@ -151,13 +162,16 @@ export function PackageCard({
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             {formatDateTime(pkg.downloadExpiresAt)}
             {closed ? (
-              <Badge variant="warning">{m.closedBadge}</Badge>
+              <Badge variant="warning" className="text-sm">
+                {m.closedBadge}
+              </Badge>
             ) : (
               <DeadlineChip
                 due={pkg.downloadExpiresAt}
                 soonDays={deadlineSoonDays.download}
                 label={m.downloadUntil}
                 todayText={m.endsToday}
+                className="text-sm"
               />
             )}
           </span>
@@ -176,7 +190,7 @@ export function PackageCard({
             {/* Each part with its separator stays whole, so a line never starts with "·". */}
             <span className="whitespace-nowrap">{recipientName} ·</span>{' '}
             <span className="whitespace-nowrap">
-              <span className="font-mono text-[13px]">{reference}</span> ·
+              <span className="font-mono text-sm">{reference}</span> ·
             </span>{' '}
             <span className="whitespace-nowrap">{formatDate(pkg.issuedAt)}</span>
           </span>
@@ -185,7 +199,7 @@ export function PackageCard({
           </span>
         </Item>
         <Item term={m.verificationCode}>
-          <span className="font-mono text-[13px] break-all">{pkg.verificationId}</span>
+          <span className="font-mono text-sm break-all">{pkg.verificationId}</span>
         </Item>
       </dl>
       <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
