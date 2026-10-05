@@ -30,6 +30,8 @@ export interface DeclarantReadModel {
 export interface CaseSettings {
   /** The Commission policy's clarification window, from receipt. */
   issueWindowMonths: number;
+  /** Demo stack only (#371): a shorter window from receipt, in milliseconds, instead. */
+  demoIssueWindowMs?: number;
   declarant: DeclarantReadModel;
 }
 
@@ -48,7 +50,7 @@ export async function upsertCase(
   db: Database<ReviewSchema>,
   events: EventPublisher,
   { input, facts, flags }: UpsertCaseRequest,
-  { issueWindowMonths, declarant }: CaseSettings,
+  { issueWindowMonths, demoIssueWindowMs, declarant }: CaseSettings,
 ): Promise<UpsertCaseOutcome> {
   return withTenant(db, systemContext(input.tenant), async (tx) => {
     const caseId = uuidv7();
@@ -69,7 +71,10 @@ export async function upsertCase(
         statementDate: facts.statementDate,
         cycleYear: Number(facts.statementDate.slice(0, 4)),
         receivedAt,
-        windowEndsAt: addMonths(receivedAt, issueWindowMonths),
+        windowEndsAt:
+          demoIssueWindowMs === undefined
+            ? addMonths(receivedAt, issueWindowMonths)
+            : new Date(receivedAt.getTime() + demoIssueWindowMs),
         late: facts.late,
         score: caseScore,
         band: caseBand,

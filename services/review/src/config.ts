@@ -85,6 +85,11 @@ export const envSchema = baseEnvSchema.extend({
   DEMO_LADDER_WARNING_WINDOW: demoWindowSetting,
   /** Demo only: the window after a salary stoppage, instead of the ladder policy's. */
   DEMO_LADDER_STOPPAGE_WINDOW: demoWindowSetting,
+  /**
+   * Demo only: a case's clarification window from receipt, instead of the policy's
+   * `issueWindowMonths`, for cases created while it is set (so the closure sweep can reach them).
+   */
+  DEMO_CASE_ISSUE_WINDOW: demoWindowSetting,
 });
 
 /** The demo window settings, refused outside a demo stack. */
@@ -93,6 +98,7 @@ const DEMO_WINDOWS = [
   'DEMO_LADDER_NOTICE_WINDOW',
   'DEMO_LADDER_WARNING_WINDOW',
   'DEMO_LADDER_STOPPAGE_WINDOW',
+  'DEMO_CASE_ISSUE_WINDOW',
 ] as const;
 
 export const checkedEnvSchema = envSchema.superRefine((env, ctx) => {

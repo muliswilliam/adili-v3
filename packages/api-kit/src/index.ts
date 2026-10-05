@@ -59,6 +59,7 @@ export {
 } from './config.js';
 export {
   demoModeSetting,
+  DemoWindows,
   demoWindowSetting,
   isoDurationMs,
   refuseDemoWindowsOutsideDemo,

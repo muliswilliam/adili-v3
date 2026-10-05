@@ -102,6 +102,102 @@ describe('match', () => {
     ]);
   });
 
+  it('pairs a vehicle, parcel or shareholding by its identifier whatever the descriptions say', () => {
+    const previous = declaration([
+      statement('officer', {
+        assets: [
+          asset({
+            type: 'vehicle',
+            description: 'Toyota Fielder',
+            details: { registration: 'KCX 214J' },
+          }),
+          asset({
+            description: 'Ruiru plot',
+            details: { parcelNumber: 'KIAMBU/RUIRU EAST BLOCK 2/4417' },
+          }),
+          asset({
+            type: 'shareholding',
+            description: '400 shares',
+            details: { issuer: 'Afya Bora Medical Supplies Ltd' },
+          }),
+        ],
+      }),
+    ]);
+    const current = declaration([
+      statement('officer', {
+        assets: [
+          asset({
+            type: 'shareholding',
+            description: 'Shares in a medical supplier',
+            details: { issuer: 'AFYA BORA MEDICAL SUPPLIES LTD.' },
+          }),
+          asset({
+            type: 'vehicle',
+            description: 'Station wagon (logbook)',
+            details: { registration: 'kcx-214j' },
+          }),
+          asset({
+            description: 'Land, Kiambu County',
+            details: { parcelNumber: 'Kiambu/Ruiru East Block 2/4417' },
+          }),
+        ],
+      }),
+    ]);
+
+    const result = match(previous, current);
+
+    expect(
+      result.matched.map((pair) => [pair.previous.description, pair.current.description]),
+    ).toEqual([
+      ['400 shares', 'Shares in a medical supplier'],
+      ['Toyota Fielder', 'Station wagon (logbook)'],
+      ['Ruiru plot', 'Land, Kiambu County'],
+    ]);
+    expect([result.onlyPrevious, result.onlyCurrent]).toEqual([[], []]);
+  });
+
+  it('never pairs two items naming different identifiers, even with the same description', () => {
+    const previous = declaration([
+      statement('officer', {
+        assets: [
+          asset({ type: 'vehicle', description: 'Toyota', details: { registration: 'KCX 214J' } }),
+        ],
+      }),
+    ]);
+    const current = declaration([
+      statement('officer', {
+        assets: [
+          asset({ type: 'vehicle', description: 'Toyota', details: { registration: 'KDK 482M' } }),
+        ],
+      }),
+    ]);
+
+    const result = match(previous, current);
+
+    expect([result.matched.length, result.onlyPrevious.length, result.onlyCurrent.length]).toEqual([
+      0, 1, 1,
+    ]);
+  });
+
+  it('pairs by description when only one side names an identifier', () => {
+    const previous = declaration([
+      statement('officer', { assets: [asset({ type: 'vehicle', description: 'Toyota Fielder' })] }),
+    ]);
+    const current = declaration([
+      statement('officer', {
+        assets: [
+          asset({
+            type: 'vehicle',
+            description: 'Toyota Fielder',
+            details: { registration: 'KCX 214J' },
+          }),
+        ],
+      }),
+    ]);
+
+    expect(match(previous, current).matched).toHaveLength(1);
+  });
+
   it('keeps the same item of two people apart', () => {
     const previous = declaration([
       statement('officer', { assets: [asset()] }),
