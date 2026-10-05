@@ -81,6 +81,9 @@ for app in portal console verify; do
       set_env "$ROOT/apps/$app/.env" "$key" false
     done
 done
+# The console's audit trail mock (#593), named here too in case it lands after this script reads
+# env.server.ts.
+set_env "$ROOT/apps/console/.env" AUDIT_MOCK false
 # Reminders at midday sharp, so a seeded reminder lands when the demo script says.
 set_env "$ROOT/services/declarations/.env" REMINDER_JITTER_HOURS 0
 # The demo Commissions hold synthetic data only, so the copilot may use the external provider.
