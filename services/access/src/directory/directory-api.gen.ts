@@ -2133,6 +2133,11 @@ export interface components {
             fullName: string;
             /** @description Commissions whose roster records the person is linked to */
             commissions: components["schemas"]["Slug"][];
+            /** @description Whether a verified email and phone are on file, so the helpdesk knows where a recovery code can go; never the contacts themselves */
+            contactsOnFile: {
+                email: boolean;
+                phone: boolean;
+            };
             /**
              * Format: date-time
              * @description When the account was created

@@ -46,7 +46,8 @@ export type WorkspaceHref =
   | '/eacc/referrals'
   | '/eacc/open-data'
   | '/commission/open-data'
-  | '/audit';
+  | '/audit'
+  | '/support';
 
 interface WorkspaceDefinition {
   id: string;
@@ -283,6 +284,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: 'support',
     title: 'Account support',
     description: 'Help users unlock accounts and recover access.',
+    href: '/support',
     roles: [HELPDESK],
   },
   {

@@ -4,6 +4,7 @@ import {
   Calendar03Icon,
   ChartColumnIcon,
   CheckListIcon,
+  CustomerSupportIcon,
   File01Icon,
   FileSearchIcon,
   Flag02Icon,
@@ -72,6 +73,7 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
       },
       { workspace: 'ai-policy', icon: SparklesIcon },
       { workspace: 'platform-help', icon: HelpCircleIcon },
+      { workspace: 'support', icon: CustomerSupportIcon },
     ],
   },
   {
