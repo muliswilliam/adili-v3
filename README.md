@@ -59,7 +59,7 @@ Per-service Postgres roles (password is `<role>_dev`): `adili_directory`, `adili
 
 Service ports: directory 4001, declarations 4002, review 4003, access 4004, reporting 4005, documents 4006, verification-api 4007, ai-gateway 4008, integration-gateway 4009, notifications 4010, audit 4011.
 
-**Demo accounts** (password `Adili-Demo-2026`) are listed with role and purpose in [docs/demo-accounts.md](docs/demo-accounts.md). Staff and law-enforcement enrol TOTP on first sign-in. Declarant and applicant SMS OTP is added by the #79 authenticator. The realm file is `infra/compose/keycloak/adili-realm.json`.
+**Demo accounts** (password `Adili-Demo-2026`) are listed with role and purpose in [docs/demo-accounts.md](docs/demo-accounts.md). The realm file is `infra/compose/keycloak/adili-realm.json`.
 
 **Demo roster files** for the console's import wizard (Roster > Import roster): `mocks/demo/rosters/psc-roster.csv` (sign in as `reporting-officer`) and `mocks/demo/rosters/tsc-roster.csv` (as `tsc-reporting-officer`). They hold the HR mock's officers of each Commission (the rows `pnpm db:seed` loads into the HR and IPRS mocks, so onboarding finds them) in the template's columns, plus six planted bad rows each (bad national ID, duplicate file number, future or impossible date, malformed email or phone, missing name, values too long), so the import report and the rejected rows CSV have something to show. They are generated: after changing `mocks/demo/fixtures/rosters/` or the planted rows in `mocks/demo/rosters.py`, run `pnpm --filter @adili/mocks roster:files`. Import rows are purged 30 days after their import ends; the import stays in the history.
 
