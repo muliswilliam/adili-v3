@@ -60,8 +60,9 @@ const SW_MONTHS = [
   'Desemba',
 ];
 
-/** The language a letter prints its own text in: English, or Swahili for a Swahili letter. */
-export type LetterLanguage = 'en' | 'sw';
+/** The languages a letter prints its own text in: English, or Swahili for a Swahili letter. */
+export const LETTER_LANGUAGES = ['en', 'sw'] as const;
+export type LetterLanguage = (typeof LETTER_LANGUAGES)[number];
 
 /** The calendar parts of an instant in Kenyan time. */
 function kenyanParts(date: Date): Record<'year' | 'month' | 'day' | 'hour' | 'minute', number> {
@@ -229,8 +230,13 @@ export function verificationPanel(what: string, verificationId: string, shows: s
 }
 
 /** An HTML document for Gotenberg's main page. */
-export function htmlDocument(title: string, styles: string, body: string): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8" /><title>${esc(title)}</title><style>${BASE}${styles}</style></head><body>${body}</body></html>`;
+export function htmlDocument(
+  title: string,
+  styles: string,
+  body: string,
+  language: LetterLanguage = 'en',
+): string {
+  return `<!doctype html><html lang="${language}"><head><meta charset="utf-8" /><title>${esc(title)}</title><style>${BASE}${styles}</style></head><body>${body}</body></html>`;
 }
 
 /** Who a watermarked document was issued to, for what and when (ADR-010 §6). */
@@ -277,7 +283,48 @@ export interface FooterFields {
   version: number | null;
   /** Disclosure mark printed on every page, e.g. `CONFIDENTIAL`; none for most documents. */
   mark?: string;
+  /** The language of the footer's text; English unless the document is a Swahili letter. */
+  language?: LetterLanguage;
 }
+
+/** The footer's words in each language. */
+const FOOTER_COPY: Record<
+  LetterLanguage,
+  {
+    check: string;
+    at: string;
+    withCode: string;
+    issuedBy: string;
+    through: string;
+    ref: string;
+    version: string;
+    page: string;
+    of: string;
+  }
+> = {
+  en: {
+    check: 'Check this document',
+    at: 'at',
+    withCode: 'with code',
+    issuedBy: 'Issued by',
+    through: 'through Adili Online on',
+    ref: 'Ref',
+    version: 'Version',
+    page: 'Page',
+    of: 'of',
+  },
+  sw: {
+    check: 'Hakiki hati hii',
+    at: 'kwenye',
+    withCode: 'kwa msimbo',
+    issuedBy: 'Imetolewa na',
+    through: 'kupitia Adili Online tarehe',
+    ref: 'Kumb.',
+    version: 'Toleo',
+    page: 'Ukurasa',
+    of: 'kati ya',
+  },
+};
 
 /**
  * The footer Gotenberg repeats on every page: QR code to the verify page, the verification code,
@@ -301,8 +348,10 @@ body{font-size:7pt;line-height:1.45;color:${SOFT};width:100%}
 .code{font-weight:700;color:${INK};font-size:7.4pt}
 .pf-r{text-align:right;white-space:nowrap}
 .pf-mark{font-weight:700;letter-spacing:0.24em;color:${INK};margin-bottom:0.6mm}`;
+  const language = fields.language ?? 'en';
+  const copy = FOOTER_COPY[language];
   const reference = fields.reference
-    ? `<div>Ref <b class="nw">${esc(fields.reference)}</b></div>`
+    ? `<div>${copy.ref} <b class="nw">${esc(fields.reference)}</b></div>`
     : '';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8" /><style>${styles}</style></head><body><footer class="pf"><div class="pf-qr">${qr}</div><div class="pf-t"><div><b>Check this document</b> at ${esc(host)} with code <span class="code mono nw">${esc(fields.verificationId)}</span></div><div>Issued by ${esc(fields.issuerName)} through Adili Online on ${esc(formatDate(fields.issuedAt))}</div>${reference}</div><div class="pf-r">${fields.mark ? `<div class="pf-mark">${esc(fields.mark)}</div>` : ''}${fields.version === null ? '' : `<div>Version ${esc(fields.version)}</div>`}<div>Page <span class="pageNumber"></span> of <span class="totalPages"></span></div></div></footer></body></html>`;
+  return `<!doctype html><html lang="${language}"><head><meta charset="utf-8" /><style>${styles}</style></head><body><footer class="pf"><div class="pf-qr">${qr}</div><div class="pf-t"><div><b>${copy.check}</b> ${copy.at} ${esc(host)} ${copy.withCode} <span class="code mono nw">${esc(fields.verificationId)}</span></div><div>${copy.issuedBy} ${esc(fields.issuerName)} ${copy.through} ${esc(formatDate(fields.issuedAt, language))}</div>${reference}</div><div class="pf-r">${fields.mark ? `<div class="pf-mark">${esc(fields.mark)}</div>` : ''}${fields.version === null ? '' : `<div>${copy.version} ${esc(fields.version)}</div>`}<div>${copy.page} <span class="pageNumber"></span> ${copy.of} <span class="totalPages"></span></div></div></footer></body></html>`;
 }

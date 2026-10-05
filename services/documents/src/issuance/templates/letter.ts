@@ -83,6 +83,12 @@ export function portalLink(url: string): string {
   return `<a href="${esc(url)}"><b>${esc(new URL(url).host)}</b></a>`;
 }
 
+/** `this letter`, `this receipt` in Swahili; any other document is `hati hii` (this document). */
+const SW_DOCUMENT_NAMES: Record<string, string> = {
+  letter: 'barua hii',
+  receipt: 'risiti hii',
+};
+
 /**
  * How to check the letter (or the document `what` names, e.g. `receipt`), and what the check shows
  * of a Restricted document.
@@ -94,7 +100,8 @@ export function restrictedVerifyNote(
 ): string {
   const id = `<span class="mono nw">${esc(verificationId)}</span>`;
   if (language === 'sw') {
-    return `<p class="fine">Hakikisha kwamba barua hii ni halali: changanua msimbo wa QR ulio chini ya ukurasa wowote, au weka ${id} kwenye ukurasa wa uthibitishaji wa Adili Online. Uthibitishaji unaonyesha kumbukumbu, aina, Tume na tarehe pekee.</p>`;
+    const documentName = SW_DOCUMENT_NAMES[what] ?? 'hati hii';
+    return `<p class="fine">Hakikisha kwamba ${documentName} ni halali: changanua msimbo wa QR ulio chini ya ukurasa wowote, au weka ${id} kwenye ukurasa wa uthibitishaji wa Adili Online. Uthibitishaji unaonyesha kumbukumbu, aina, Tume na tarehe pekee.</p>`;
   }
   return `<p class="fine">Check that this ${esc(what)} is genuine: scan the QR code at the foot of any page, or enter ${id} on the Adili Online verify page. The check shows only the reference, type, Commission and date.</p>`;
 }

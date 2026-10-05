@@ -83,6 +83,23 @@ describe('clarification-letter.v1', () => {
       expect(html.match(/AI-assisted draft/g)).toHaveLength(1);
     });
 
+    it('marks no item that does not say it was drafted with AI', () => {
+      const html = renderWith({
+        aiAssisted: true,
+        items: [{ label: 'Assets', requirementLabel: 'Correct the entry', text: 'One.' }],
+      });
+      expect(html).not.toContain('AI-assisted draft');
+    });
+
+    it('passes its language to the page footer and the document', () => {
+      const sw = clarificationLetterV1.payload.parse({
+        ...payload('2026-10-14T06:20:00.000Z'),
+        language: 'sw',
+      });
+      expect(clarificationLetterV1.footer(sw).language).toBe('sw');
+      expect(renderWith({ language: 'sw' })).toContain('<html lang="sw">');
+    });
+
     it('prints the opening paragraph before the items, escaped', () => {
       const html = renderWith({ opening: 'We thank you for filing <on time>.' });
       expect(html).toContain('<p class="opening">We thank you for filing &lt;on time&gt;.</p>');

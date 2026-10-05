@@ -16,6 +16,7 @@ import {
   formatDate,
   htmlDocument,
   INK,
+  LETTER_LANGUAGES,
   type LetterLanguage,
   letterhead,
   LINE,
@@ -52,7 +53,7 @@ export const clarificationLetterPayload = z
           requirementLabel: z.string().trim().min(1).max(200),
           text: z.string().trim().min(1).max(1000),
           /** Drafted with AI (and possibly edited) before the reviewer issued it. */
-          aiAssisted: z.boolean().optional(),
+          aiAssisted: z.boolean().default(false),
         }),
       )
       .min(1)
@@ -65,7 +66,7 @@ export const clarificationLetterPayload = z
      * The language the letter prints its own text in; item labels arrive in it already, the
      * opening and the items' text are the reviewer's. Letters from before it was sent: English.
      */
-    language: z.enum(['en', 'sw']).default('en'),
+    language: z.enum(LETTER_LANGUAGES).default('en'),
     /** Printed before the items; null when the letter has none. */
     opening: z.string().trim().min(1).max(2000).nullable().default(null),
     /** Some of the text was drafted with AI and approved by the issuing reviewer (ADR-007). */
@@ -100,16 +101,14 @@ h2{margin:0 0 2mm}
 .banner{margin:2mm 0 5mm;background:#fdf4e2;color:#6e4000}
 .banner .s{display:block;font-weight:400;font-size:8.6pt}
 .steps{margin:0 0 4mm;padding-left:5mm}
-.steps li{margin-bottom:1.2mm;padding-left:1mm}`;
-
-const AI_STYLES = `
+.steps li{margin-bottom:1.2mm;padding-left:1mm}
 .opening{white-space:pre-line;overflow-wrap:anywhere}
 .ai{display:inline-block;padding:0.2mm 1.6mm;border-radius:0.8mm;background:#eef2fb;color:#23407a;font-size:7.6pt;font-weight:600;margin-left:1.5mm}
 .ai-note{margin:3mm 0 0;font-size:8.6pt}`;
 
 interface LetterCopy {
-  /** The reference block's terms: reference, date, declaration. */
-  refs: [string, string, string];
+  /** The reference block's terms. */
+  refs: { reference: string; date: string; declaration: string };
   subject: string;
   dear: string;
   intro: (declaration: string, reference: string, below: string) => string;
@@ -127,7 +126,7 @@ interface LetterCopy {
 /** The letter's own text in each language (#592); the Swahili awaits the Commission's review. */
 const COPY: Record<LetterLanguage, LetterCopy> = {
   en: {
-    refs: ['Ref', 'Date', 'Declaration'],
+    refs: { reference: 'Ref', date: 'Date', declaration: 'Declaration' },
     subject: 'Request for clarification',
     dear: 'Dear',
     intro: (declaration, reference, below) =>
@@ -150,7 +149,7 @@ const COPY: Record<LetterLanguage, LetterCopy> = {
       'Parts of this letter were drafted with the help of AI and checked and approved by the Commission officer who issued it.',
   },
   sw: {
-    refs: ['Kumb.', 'Tarehe', 'Tamko'],
+    refs: { reference: 'Kumb.', date: 'Tarehe', declaration: 'Tamko' },
     subject: 'Ombi la ufafanuzi',
     dear: 'Mpendwa',
     intro: (declaration, reference, below) =>
@@ -234,6 +233,7 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
       reference: payload.clarificationReference,
       version: null,
       mark: 'RESTRICTED',
+      language: payload.language,
     };
   },
 
@@ -262,9 +262,9 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
     const aiNote = payload.aiAssisted ? `<p class="ai-note">${copy.aiNote}</p>` : '';
     const body = `${letterhead({ name: payload.commission.name, code: payload.commission.issuerCode })}
 ${letterMeta(`<b>${esc(payload.declarantName)}</b>`, [
-  [copy.refs[0], `<span class="mono nw">${reference}</span>`],
-  [copy.refs[1], `<span class="nw">${esc(formatDate(payload.issuedAt, language))}</span>`],
-  [copy.refs[2], `<span class="mono nw">${esc(payload.declarationReference)}</span>`],
+  [copy.refs.reference, `<span class="mono nw">${reference}</span>`],
+  [copy.refs.date, `<span class="nw">${esc(formatDate(payload.issuedAt, language))}</span>`],
+  [copy.refs.declaration, `<span class="mono nw">${esc(payload.declarationReference)}</span>`],
 ])}
 ${subjectLine(`${copy.subject}: ${declaration} ${payload.declarationReference}`)}
 <p>${copy.dear} ${esc(payload.declarantName)},</p>
@@ -284,8 +284,9 @@ ${letterClose(payload.commission.name, signerName, issuedAt, language)}
 </section>`;
     return htmlDocument(
       `${copy.subject} ${payload.clarificationReference}`,
-      STYLES + AI_STYLES,
+      STYLES,
       body,
+      language,
     );
   },
 };
