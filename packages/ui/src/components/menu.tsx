@@ -72,7 +72,9 @@ export function MenuContent({
           if (run) queueMicrotask(run);
         }}
         className={cn(
-          'z-50 flex max-w-[300px] min-w-[200px] flex-col rounded-xl bg-card p-1.5 text-card-foreground shadow-pop',
+          // Items keep their height (`*:shrink-0`): a menu capped in height scrolls, it never squeezes
+          // two-line items into each other.
+          'z-50 flex max-w-[300px] min-w-[200px] flex-col rounded-xl bg-card p-1.5 text-card-foreground shadow-pop *:shrink-0',
           className,
         )}
         {...props}

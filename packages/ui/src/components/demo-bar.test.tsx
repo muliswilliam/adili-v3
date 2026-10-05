@@ -59,7 +59,7 @@ describe('DemoBar', () => {
     // Portalled to the body, so no header or card stacks over it.
     expect(container.contains(menu)).toBe(false);
     expect(menu.className).toContain(
-      'max-h-[min(var(--radix-dropdown-menu-content-available-height),560px)]',
+      'max-h-[min(var(--radix-dropdown-menu-content-available-height),760px)]',
     );
     expect(menu.className).toContain('overflow-y-auto');
   });
