@@ -16,6 +16,7 @@ import {
   formatMoney,
   FormField,
   Icon,
+  type IconProps,
   Input,
   type MoneyInvalidReason,
   Repeater,
@@ -32,11 +33,19 @@ import {
 import {
   Alert02Icon,
   Attachment01Icon,
+  BankIcon,
+  Building03Icon,
+  Car01Icon,
+  ChartLineData01Icon,
   Coins01Icon,
+  File02Icon,
   Globe02Icon,
-  Home01Icon,
   InformationCircleIcon,
   Invoice01Icon,
+  MapsLocation01Icon,
+  Money01Icon,
+  MoneyReceive01Icon,
+  PieChartIcon,
   RefreshIcon,
   Tick02Icon,
   UserMultipleIcon,
@@ -52,6 +61,7 @@ import type {
 } from '../../server/declarations.server';
 import {
   type AssetItem,
+  type AssetType,
   type Draft,
   followsEarlierDeclaration,
   type Statement,
@@ -103,7 +113,30 @@ export const NIL_BLOCKED_COPY = 'Remove the items below first.';
 export const SEPARATED_COPY =
   "You declare what you know of a separated spouse's finances. Say so in the statement if you do not know.";
 
-const ICONS = { income: Coins01Icon, assets: Home01Icon, liabilities: Invoice01Icon } as const;
+const ICONS = { income: Coins01Icon, assets: File02Icon, liabilities: Invoice01Icon } as const;
+/**
+ * A card shows what its item is, e.g. a car for a vehicle. Types not listed here ("Other",
+ * no type yet, and every income and liability type) show the category's icon, which for assets
+ * is a neutral file, as on the summary, so an "Other" asset never shows a house.
+ */
+const TYPE_ICONS: Partial<Record<Category, Partial<Record<string, IconProps['icon']>>>> = {
+  assets: {
+    land: MapsLocation01Icon,
+    building: Building03Icon,
+    vehicle: Car01Icon,
+    securities: ChartLineData01Icon,
+    shareholding: PieChartIcon,
+    'bank-account': BankIcon,
+    cash: Money01Icon,
+    receivable: MoneyReceive01Icon,
+  } satisfies Partial<Record<AssetType, IconProps['icon']>>,
+};
+/** Shown where an item's amount goes until it is entered, like "No description yet". */
+const NO_AMOUNT = {
+  income: 'No amount yet',
+  assets: 'No value yet',
+  liabilities: 'No amount yet',
+} as const;
 const NEW_TITLES = {
   income: 'New income item',
   assets: 'New asset',
@@ -117,6 +150,11 @@ function dateText(iso: string | undefined) {
 function typeLabel(category: Category, item: Item) {
   const type = (item as AnyItem).type;
   return type ? TYPE_LABELS[category][type] : undefined;
+}
+
+function typeIcon(category: Category, item: Item) {
+  const type = (item as AnyItem).type;
+  return type ? TYPE_ICONS[category]?.[type] : undefined;
 }
 
 /** The card heading, which also names the card's buttons: "Land: Quarter-acre plot". */
@@ -627,6 +665,7 @@ function CategoryPanel({
         getKey={(item) => item.id ?? ''}
         getTitle={(item) => itemTitle(category, item)}
         icon={ICONS[category]}
+        getIcon={(item) => typeIcon(category, item)}
         editingKey={editing !== null && items.some((item) => item.id === editing) ? editing : null}
         onEditingKeyChange={onEditingChange}
         onAdd={onAdd}
@@ -657,7 +696,11 @@ function CategoryPanel({
           const cents = (item as AnyItem)[AMOUNT_KEY[category]]?.kesCents;
           return (
             <span className="grid">
-              {cents === undefined ? '-' : formatMoney(cents, { currency: 'KES' })}
+              {cents === undefined ? (
+                <span className="font-normal text-muted-foreground">{NO_AMOUNT[category]}</span>
+              ) : (
+                formatMoney(cents, { currency: 'KES' })
+              )}
               {category === 'assets' && (item as AnyItem).joint?.isJoint ? (
                 <span className="text-xs font-normal text-muted-foreground">whole value</span>
               ) : null}

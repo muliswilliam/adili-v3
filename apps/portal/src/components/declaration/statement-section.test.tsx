@@ -1,5 +1,15 @@
 // @vitest-environment jsdom
-import { act, fireEvent, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { Icon, type IconProps } from '@adili/ui';
+import { Car01Icon, File02Icon, Home01Icon } from '@hugeicons/core-free-icons';
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDeclarationSection, saveDeclarationSection } from '../../server/declarations';
@@ -91,6 +101,15 @@ const shares = {
   change: { changed: false },
 };
 
+/** A vehicle just added: no county and no value yet. */
+const car = {
+  id: 'a0000000-0000-4000-8000-000000000003',
+  type: 'vehicle',
+  description: 'Family car',
+  location: { inKenya: true },
+  joint: { isJoint: false },
+};
+
 const mortgage = {
   id: 'l0000000-0000-4000-8000-000000000001',
   type: 'mortgage',
@@ -126,6 +145,14 @@ function panel() {
 
 function card(title: string) {
   return cardOf(title, { scope: panel() });
+}
+
+/** The drawing an icon renders, to tell icons apart. */
+function drawingOf(icon: IconProps['icon']) {
+  const { container, unmount } = render(<Icon icon={icon} />);
+  const drawing = container.querySelector('svg')?.innerHTML;
+  unmount();
+  return drawing;
 }
 
 function precedes(a: Element, b: Element) {
@@ -218,6 +245,50 @@ describe('StatementSection: your assets', () => {
 
     expect(within(panel()).getByText('Total assets declared (KES estimates)')).toBeTruthy();
     expect(within(panel()).getByText('KES 6,000,000')).toBeTruthy();
+  });
+
+  it("shows each asset with its type's icon", () => {
+    renderStatement(statement({ assets: [land, car] }));
+    openTab(/^Assets/);
+
+    const vehicle = card('Vehicle: Family car').querySelector('svg')?.innerHTML;
+    expect(vehicle).toBe(drawingOf(Car01Icon));
+    expect(vehicle).not.toBe(drawingOf(Home01Icon));
+  });
+
+  it('shows a neutral icon, not a house, for an asset of type Other', () => {
+    renderStatement(
+      statement({ assets: [{ ...car, type: 'other', description: 'Gold jewellery' }] }),
+    );
+    openTab(/^Assets/);
+
+    const jewellery = card('Other: Gold jewellery').querySelector('svg')?.innerHTML;
+    expect(jewellery).toBe(drawingOf(File02Icon));
+    expect(jewellery).not.toBe(drawingOf(Home01Icon));
+  });
+
+  it('says an asset has no value yet instead of a dash', () => {
+    renderStatement(statement({ assets: [car] }), { showErrors: true });
+    openTab(/^Assets/);
+
+    const vehicle = card('Vehicle: Family car');
+    expect(within(vehicle).getByText('No value yet')).toBeTruthy();
+    expect(within(vehicle).queryByText('-')).toBeNull();
+    expect(within(vehicle).getByText(ITEM_MESSAGES.county)).toBeTruthy();
+  });
+
+  it('asks for the value of an asset missing only its value', () => {
+    renderStatement(
+      statement({ assets: [{ ...car, location: { inKenya: true, county: '047' } }] }),
+      {
+        showErrors: true,
+      },
+    );
+    openTab(/^Assets/);
+
+    const vehicle = card('Vehicle: Family car');
+    expect(within(vehicle).getByText('No value yet')).toBeTruthy();
+    expect(within(vehicle).getByText(ITEM_MESSAGES.amount.assets)).toBeTruthy();
   });
 
   it('S11: badges an item from a registry with its source, date and identifier', () => {

@@ -52,6 +52,8 @@ export type RepeaterProps<T> = Omit<ComponentProps<'div'>, 'children'> & {
   emptyText?: ReactNode;
   /** Shown in each card's icon well. */
   icon?: IconProps['icon'];
+  /** A card's own icon, e.g. a car for a vehicle; falls back to `icon` when it gives none. */
+  getIcon?: (item: T, index: number) => IconProps['icon'] | undefined;
   /** Heading level of each card title. Defaults to 3. */
   headingLevel?: 2 | 3 | 4 | 5 | 6;
   /** Disables adding and every action, e.g. while "Nothing to declare" is ticked. */
@@ -82,6 +84,7 @@ export function Repeater<T>({
   doneLabel = 'Done',
   emptyText,
   icon,
+  getIcon,
   headingLevel = 3,
   disabled = false,
   className,
@@ -144,6 +147,7 @@ export function Repeater<T>({
             const editorId = `${baseId}-${key}-editor`;
             const description = renderDescription?.(item, index);
             const aside = renderAside?.(item, index);
+            const cardIcon = getIcon?.(item, index) ?? icon;
 
             return (
               <li
@@ -152,9 +156,9 @@ export function Repeater<T>({
                 className="rounded-item bg-card shadow-card data-editing:shadow-card-editing"
               >
                 <div className="flex items-center gap-3 px-4 py-3.5">
-                  {icon ? (
+                  {cardIcon ? (
                     <span className="grid size-[38px] shrink-0 place-items-center rounded-lg bg-muted text-secondary-foreground max-sm:self-start">
-                      <Icon icon={icon} className="size-[17px]" />
+                      <Icon icon={cardIcon} className="size-[17px]" />
                     </span>
                   ) : null}
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-0.5">
