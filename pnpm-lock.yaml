@@ -1347,6 +1347,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.128.0
         version: 0.128.0(zod@4.6.5)
+      '@napi-rs/canvas':
+        specifier: ^1.0.9
+        version: 1.0.9
       '@nestjs/common':
         specifier: ^12.1.0
         version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
@@ -1405,9 +1408,6 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
-      '@napi-rs/canvas':
-        specifier: ^1.0.9
-        version: 1.0.9
       '@nestjs/platform-fastify':
         specifier: ^12.1.0
         version: 12.1.0(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)

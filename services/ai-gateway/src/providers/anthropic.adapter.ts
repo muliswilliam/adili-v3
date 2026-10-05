@@ -1,12 +1,15 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { transformJSONSchema } from '@anthropic-ai/sdk/lib/transform-json-schema';
 
+import { pdfToPageImages } from './pdf-pages.js';
 import {
   type Attachment,
+  type AttachmentKind,
   type BatchItem,
   type BatchItemOutcome,
   type BatchStatus,
   type ChatMessage,
+  type ContentPart,
   type GenerateRequest,
   type GenerateResult,
   type ModelProvider,
@@ -35,44 +38,56 @@ export interface AnthropicAdapterOptions {
   client: Anthropic;
   /** Defaults to `native`. */
   structuredOutput?: StructuredOutputMode;
+  /**
+   * What the endpoint takes inline; defaults to the API's image, PDF and text. Without `pdf` (a
+   * gateway that drops `document` blocks), each PDF goes as one image per page.
+   */
+  attachments?: readonly AttachmentKind[];
 }
+
+/** What the Anthropic API takes inline. */
+export const ANTHROPIC_ATTACHMENTS: readonly AttachmentKind[] = ['image', 'pdf', 'text'];
 
 /** Adapter over the official Anthropic SDK. Vendor types stay inside this file. */
 export class AnthropicAdapter implements ModelProvider {
   readonly name = PROVIDER;
   readonly providerClass = 'external';
-  readonly capabilities: ProviderCapabilities = {
-    structuredOutput: true,
-    streaming: true,
-    batch: true,
-    promptCaching: true,
-    attachments: ['image', 'pdf', 'text'],
-  };
+  readonly capabilities: ProviderCapabilities;
   private readonly client: Anthropic;
   private readonly mode: StructuredOutputMode;
 
   constructor(options: AnthropicAdapterOptions) {
     this.client = options.client;
     this.mode = options.structuredOutput ?? 'native';
+    this.capabilities = {
+      structuredOutput: true,
+      streaming: true,
+      batch: true,
+      promptCaching: true,
+      attachments: options.attachments ?? ANTHROPIC_ATTACHMENTS,
+    };
   }
 
   async generate(request: GenerateRequest): Promise<GenerateResult> {
+    const prepared = await this.prepare(request);
     const response = await this.call(() =>
-      this.client.messages.create(toParams(request, this.mode)),
+      this.client.messages.create(toParams(prepared, this.mode)),
     );
     return toGenerateResult(response);
   }
 
   async generateStructured(request: StructuredRequest): Promise<StructuredResult> {
+    const prepared = await this.prepare(request);
     const response = await this.call(() =>
-      this.client.messages.create(toParams(request, this.mode)),
+      this.client.messages.create(toParams(prepared, this.mode)),
     );
     return toStructuredResult(response, this.mode);
   }
 
   async *stream(request: GenerateRequest): AsyncIterable<StreamEvent> {
+    const prepared = await this.prepare(request);
     try {
-      const stream = this.client.messages.stream(toParams(request, this.mode));
+      const stream = this.client.messages.stream(toParams(prepared, this.mode));
       for await (const event of stream) {
         if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
           yield { type: 'delta', text: event.delta.text };
@@ -85,14 +100,13 @@ export class AnthropicAdapter implements ModelProvider {
   }
 
   async submitBatch(items: BatchItem[]): Promise<{ batchId: string }> {
-    const batch = await this.call(() =>
-      this.client.messages.batches.create({
-        requests: items.map((item) => ({
-          custom_id: item.customId,
-          params: toParams(item.request, this.mode),
-        })),
-      }),
+    const requests = await Promise.all(
+      items.map(async (item) => ({
+        custom_id: item.customId,
+        params: toParams(await this.prepare(item.request), this.mode),
+      })),
     );
+    const batch = await this.call(() => this.client.messages.batches.create({ requests }));
     return { batchId: batch.id };
   }
 
@@ -109,6 +123,16 @@ export class AnthropicAdapter implements ModelProvider {
       return all;
     });
     return { batchId, status: 'ended', outcomes };
+  }
+
+  /**
+   * The request as this endpoint can take it: PDFs as page images when it takes no PDFs. The
+   * request the caller built (and a replay recording's key) is left as it is.
+   */
+  private async prepare<T extends GenerateRequest | StructuredRequest>(request: T): Promise<T> {
+    if (this.capabilities.attachments.includes('pdf')) return request;
+    const messages = await Promise.all(request.messages.map((message) => pdfsAsImages(message)));
+    return { ...request, messages };
   }
 
   private async call<T>(work: () => Promise<T>): Promise<T> {
@@ -159,6 +183,33 @@ function schemaInstruction(schema: StructuredRequest['schema']): string {
 
 /** A whole answer in one Markdown code fence, as models write JSON when nothing enforces it. */
 const FENCED = /^\s*```(?:json)?\s*\n([\s\S]*?)\n?```\s*$/;
+
+async function pdfsAsImages(message: ChatMessage): Promise<ChatMessage> {
+  if (typeof message.content === 'string') return message;
+  const parts = await Promise.all(
+    message.content.map(async (part): Promise<ContentPart[]> => {
+      if (part.type !== 'attachment' || part.attachment.kind !== 'pdf') return [part];
+      try {
+        const pages = await pdfToPageImages(part.attachment);
+        // Image blocks carry no title: name the document in the text before its pages.
+        const { name } = part.attachment;
+        const heading: ContentPart[] =
+          name === undefined
+            ? []
+            : [{ type: 'text', text: `${name}: ${pages.length} page image(s), in order.` }];
+        return [
+          ...heading,
+          ...pages.map((attachment) => ({ type: 'attachment' as const, attachment })),
+        ];
+      } catch (error) {
+        throw new ProviderError('bad-request', PROVIDER, 'The PDF cannot be sent as page images', {
+          cause: error,
+        });
+      }
+    }),
+  );
+  return { ...message, content: parts.flat() };
+}
 
 function toMessageParam(message: ChatMessage): Anthropic.MessageParam {
   if (typeof message.content === 'string') {

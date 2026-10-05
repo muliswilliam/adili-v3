@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
+import { type DemoInbox, loadDemoInbox } from './inbox.server';
 import {
   DEMO_REGISTRIES,
   type DemoPanelState,
@@ -12,6 +13,7 @@ import {
   setRegistryPaused,
 } from './panel.server';
 
+export type { DemoEmail, DemoInbox, DemoSms } from './inbox.server';
 export type { DemoPanelState, DemoRegistryState, DemoResetResult } from './panel.server';
 
 /** The demo panel's checkpoints and registries (#621); null outside demo mode. */
@@ -41,3 +43,8 @@ export const resetDemo = createServerFn({ method: 'POST' })
   .handler(({ data }): Promise<DemoResetResult | null> =>
     requestDemoReset(getRequest(), data.checkpoint),
   );
+
+/** The latest SMS and email codes the stack sent, for onboarding live (#371); null when not allowed. */
+export const getDemoInbox = createServerFn({ method: 'GET' }).handler(
+  (): Promise<DemoInbox | null> => loadDemoInbox(getRequest()),
+);

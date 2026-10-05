@@ -37,6 +37,21 @@ export const providerEnvShape = {
    * into the system prompt instead (see AnthropicAdapter). `native` for the Anthropic API.
    */
   ANTHROPIC_STRUCTURED_OUTPUT: z.enum(['native', 'prompted']).default('native'),
+  /**
+   * What the endpoint takes inline, comma-separated: `image,pdf,text` for the Anthropic API.
+   * `image,text` for a gateway that drops `document` blocks (a self-hosted LLM Gateway): PDFs then
+   * go as one image per page (see AnthropicAdapter).
+   */
+  ANTHROPIC_ATTACHMENTS: z
+    .string()
+    .default('image,pdf,text')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((kind) => kind.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.enum(['image', 'pdf', 'text'])).min(1)),
   AI_PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   /** Model for every task until the routing table (spec 07c BE-3) lands. */
   AI_MODEL: z.string().min(1).default(DEFAULT_AI_MODEL),

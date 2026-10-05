@@ -12,6 +12,7 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
+  formatTime,
   Icon,
   Spinner,
   Switch,
@@ -19,7 +20,9 @@ import {
 import { useContext, useEffect, useState } from 'react';
 
 import {
+  type DemoInbox,
   type DemoPanelState,
+  getDemoInbox,
   getDemoPanel,
   resetDemo,
   setDemoRegistryPaused,
@@ -29,10 +32,12 @@ import { DemoContext } from './demo-context';
 /** How long the panel waits for the console to go down after asking for a reset. */
 const GOING_DOWN_MS = 45_000;
 const POLL_MS = 3000;
+/** How often the open panel reads the inboxes again. */
+const INBOX_POLL_MS = 4000;
 
 /**
  * The demo panel (#621) beside the role switcher in the console's top bar: reset the stack to a
- * checkpoint, pause and resume each registry mock. Demo mode and a signed-in demo account only;
+ * checkpoint, pause and resume each registry mock, read the demo inboxes. Demo mode and a signed-in demo account only;
  * nothing renders otherwise.
  */
 export function DemoPanel() {
@@ -99,8 +104,8 @@ function DemoPanelContent() {
       <DrawerHeader>
         <DrawerTitle>Demo panel</DrawerTitle>
         <DrawerDescription>
-          Put the demo back to a checkpoint, or take a registry offline to show how filing and
-          review carry on without it.
+          Put the demo back to a checkpoint, take a registry offline to show how filing and review
+          carry on without it, or read the codes the platform just sent.
         </DrawerDescription>
       </DrawerHeader>
       <DrawerBody>
@@ -144,6 +149,11 @@ function DemoPanelContent() {
                       <p className="font-mono text-[13px] font-medium">{checkpoint.name}</p>
                       <p className="text-sm">{checkpoint.state}</p>
                       <p className="text-xs text-muted-foreground">Starts: {checkpoint.beat}</p>
+                      {panel.reset === 'command' ? (
+                        <p className="mt-1.5 font-mono text-xs">
+                          pnpm demo:reset {checkpoint.name}
+                        </p>
+                      ) : null}
                     </div>
                     {panel.reset === 'command' ? (
                       <CopyButton
@@ -151,7 +161,7 @@ function DemoPanelContent() {
                         label={`Copy pnpm demo:reset ${checkpoint.name}`}
                         size="sm"
                         variant="secondary"
-                        showLabel
+                        className="shrink-0"
                       />
                     ) : confirming === checkpoint.name ? (
                       <div className="flex shrink-0 gap-1.5">
@@ -221,10 +231,135 @@ function DemoPanelContent() {
                 ))}
               </ul>
             </section>
+            <DemoInboxSection />
           </>
         )}
       </DrawerBody>
     </DrawerContent>
+  );
+}
+
+/**
+ * The codes the stack just sent by text message and email, newest first and read again every few
+ * seconds while the panel is open: onboarding an officer live on the hosted demo, where neither
+ * inbox is published (#371).
+ */
+function DemoInboxSection() {
+  const [inbox, setInbox] = useState<DemoInbox | null | 'loading'>('loading');
+
+  useEffect(() => {
+    let live = true;
+    const read = () =>
+      void getDemoInbox().then((state) => {
+        if (live) setInbox(state);
+      });
+    read();
+    const timer = setInterval(read, INBOX_POLL_MS);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, []);
+
+  return (
+    <section aria-labelledby="demo-inbox" className="flex flex-col gap-2.5">
+      <h3 id="demo-inbox" className="text-sm font-semibold">
+        Demo inbox
+      </h3>
+      <p className="text-sm text-muted-foreground">
+        The sign-in and onboarding codes the platform just sent, so an officer can onboard live.
+      </p>
+      {inbox === 'loading' ? (
+        <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner /> Loading
+        </p>
+      ) : inbox === null ? null : (
+        <>
+          <InboxList
+            title="Text messages"
+            unreachable="The SMS mock did not answer."
+            messages={inbox.sms?.map((sms) => ({
+              id: sms.id,
+              to: sms.to,
+              heading: null,
+              text: sms.text,
+              code: sms.code,
+              receivedAt: sms.receivedAt,
+            }))}
+          />
+          <InboxList
+            title="Emails"
+            unreachable="Mailpit did not answer."
+            messages={inbox.email?.map((email) => ({
+              id: email.id,
+              to: email.to,
+              heading: email.subject,
+              text: email.text,
+              code: email.code,
+              receivedAt: email.receivedAt,
+            }))}
+          />
+        </>
+      )}
+    </section>
+  );
+}
+
+interface InboxMessage {
+  id: string;
+  to: string;
+  heading: string | null;
+  text: string;
+  code: string | null;
+  receivedAt: string;
+}
+
+function InboxList({
+  title,
+  unreachable,
+  messages,
+}: {
+  title: string;
+  unreachable: string;
+  /** undefined when the inbox did not answer. */
+  messages: InboxMessage[] | undefined;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <h4 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{title}</h4>
+      {messages === undefined ? (
+        <p className="text-sm text-muted-foreground">{unreachable}</p>
+      ) : messages.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nothing sent yet.</p>
+      ) : (
+        <ul className="flex flex-col divide-y rounded-lg border" aria-label={title}>
+          {messages.map((message) => (
+            <li key={message.id} className="flex items-start gap-3 px-3.5 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+                  <span className="truncate">To {message.to}</span>
+                  <time dateTime={message.receivedAt} className="shrink-0 tabular-nums">
+                    {formatTime(message.receivedAt)}
+                  </time>
+                </p>
+                {message.heading ? (
+                  <p className="truncate text-sm font-medium">{message.heading}</p>
+                ) : null}
+                <p className="line-clamp-2 text-sm text-muted-foreground">{message.text}</p>
+              </div>
+              {message.code ? (
+                <div className="flex shrink-0 items-center gap-1">
+                  <span className="font-mono text-base font-semibold tracking-widest tabular-nums">
+                    {message.code}
+                  </span>
+                  <CopyButton value={message.code} label={`Copy code ${message.code}`} size="sm" />
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

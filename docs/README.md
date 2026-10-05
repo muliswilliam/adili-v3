@@ -18,7 +18,7 @@ Adili Online V3, Track 3: **Declaration of Income, Assets and Liabilities (DIALs
 | Learn the domain vocabulary | [CONTEXT.md](../CONTEXT.md) |
 | Look up a code or issuer (`DCB`, `TSC`) | [Glossary](glossary.md) |
 | Build UI: tokens, components and how the prototypes map to code | [Design](design.md) |
-| Run the hackathon demo: accounts, URLs, AI provider, fallbacks | [Demo](demo/README.md) |
+| Run the hackathon demo: quick start, the story beat by beat, checkpoints, fallbacks, demo-day checklist | [Demo](demo/README.md) |
 | Work with agent skills (issue tracker, triage labels, domain docs) | [Agent config](agents/) |
 | Read the legislation | [Legal reference](reference/legal/) |
 

@@ -24,3 +24,20 @@ services:
     volumes:
       - ./keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro
       - ${ADILI_KEYCLOAK_VAULT:?source infra/azure/demo-vault.sh}:/opt/keycloak/vault:ro
+
+  # Object storage behind Caddy's TLS on :8333 (Caddyfile.cloudapp): browsers on the https portal
+  # and console PUT uploads to presigned https URLs, and only those two origins may (CORS).
+  seaweedfs:
+    command:
+      !override [
+        'server',
+        '-dir=/data',
+        '-s3',
+        '-s3.config=/etc/seaweedfs/s3.json',
+        '-s3.allowedOrigins=${ADILI_PORTAL_URL},${ADILI_CONSOLE_URL}',
+        '-master.volumeSizeLimitMB=1024',
+        '-volume.max=64',
+      ]
+    ports: !override
+      - '127.0.0.1:18333:8333'
+      - '127.0.0.1:9333:9333'

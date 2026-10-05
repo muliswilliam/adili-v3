@@ -103,6 +103,31 @@ diagnose() {
 
 case "$cmd" in
   seed) run pnpm demo:seed ;;
+  wipe)
+    # Every volume but ClamAV's goes (databases, Keycloak's realm, storage, OpenBao), then a normal deploy brings
+    # the stack back with the realm imported fresh from the file, and the demo is seeded from
+    # empty. For a host whose realm predates the file. Asks for `wipe yes`.
+    if [ "$arg" != yes ]; then
+      echo "usage: $0 wipe yes  (deletes all demo data)" >&2
+      exit 2
+    fi
+    # The Azure overlay needs the public URLs and this host's Keycloak vault, as in deploy.sh.
+    set -a
+    # shellcheck disable=SC1090
+    . "${ADILI_PUBLIC_ENV:-/etc/adili/public.env}"
+    set +a
+    # shellcheck disable=SC1091
+    . "$ROOT/infra/azure/demo-vault.sh"
+    sudo -n "${ADILI_ROOT_HELPER:-/usr/local/sbin/adili-demo-root}" stop-apps
+    docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.azure.yml \
+      down --remove-orphans
+    # ClamAV's signature database stays: re-downloading it would hold up the seed's uploads.
+    docker volume ls -q --filter label=com.docker.compose.project=adili |
+      grep -v '_clamav-data$' | xargs -r docker volume rm
+    run "$ROOT/infra/azure/deploy.sh"
+    run pnpm db:seed
+    run pnpm demo:seed
+    ;;
   reset)
     if [ -z "$arg" ]; then
       echo "usage: $0 reset <checkpoint>" >&2
@@ -137,7 +162,7 @@ case "$cmd" in
   health) run pnpm health ;;
   diagnose) diagnose ;;
   *)
-    echo "usage: $0 seed|reset <checkpoint>|checkpoints [<from>]|checkpoint [<name>]|ai <mode>|check|health|diagnose" >&2
+    echo "usage: $0 seed|wipe yes|reset <checkpoint>|checkpoints [<from>]|checkpoint [<name>]|ai <mode>|check|health|diagnose" >&2
     exit 2
     ;;
 esac

@@ -16,7 +16,9 @@ pnpm --filter @adili/demo-seed seed --list
 
 - The stack up: `pnpm infra:up` with `ADILI_DEMO_MODE=true` (Keycloak's demo sign-in, #616), and
   the services and mocks running (`pnpm dev`).
-- Demo sign-in applied to an existing realm: `pnpm keycloak:demo-sign-in`.
+- Nothing for the realm: the first step (`demo-sign-in`) applies demo sign-in to a realm imported
+  before it (`scripts/keycloak-demo-sign-in.mjs`, also `pnpm keycloak:demo-sign-in`), including
+  the `demo_key` claim the role switcher reads.
 - The demo's service settings (the hosted stack sets them in `infra/azure/configure-app-env.sh`):
 
 | Service `.env` | Setting | Why |
@@ -86,7 +88,7 @@ confirm); `syntheticOfficers(context)`, `PERSONAS` and `onboardees(context)` giv
 | `reminder-officer` | Faith Mwende, PSC | Initial due tomorrow: reminder sent today (Mailpit, SMS inbox) |
 | `overdue-officer` | Collins Were, PSC | Initial overdue, not filed |
 | `referral-officer` | Samuel Langat, EACC (25813407) | Filed neither 2022 nor 2024: referred after two missed cycles, ICMS case number |
-| (roster only) | Achieng Njeri, PSC (28836510) | Not onboarded: live onboarding with SMS OTP |
+| (roster only) | Lydia Kwamboka Nyaboke, PSC (28836510) | Not onboarded: live onboarding with SMS OTP |
 | (roster only) | Daniel Rotich, PSC (38221907) | IPRS name mismatch: the identity check fails |
 
 ## Access and verify (#620)

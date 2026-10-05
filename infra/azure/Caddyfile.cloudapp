@@ -22,6 +22,11 @@ https://__HOST__:3030 {
   reverse_proxy 127.0.0.1:13030
 }
 
+# Object storage (SeaweedFS S3 on loopback): presigned upload and download URLs.
+https://__HOST__:8333 {
+  reverse_proxy 127.0.0.1:18333
+}
+
 # Keycloak: only what sign-in needs, the adili realm and the theme's resources. The admin
 # console, the admin API and the master realm stay on loopback (127.0.0.1:18080).
 https://__HOST__:8080 {

@@ -5,15 +5,17 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DemoState } from '../../server/demo/demo';
-import type { DemoPanelState } from '../../server/demo/panel';
+import type { DemoInbox, DemoPanelState } from '../../server/demo/panel';
 import { DemoContext } from './demo-context';
 import { DemoPanel } from './demo-panel';
 
 const getDemoPanel = vi.fn<() => Promise<DemoPanelState | null>>();
+const getDemoInbox = vi.fn<() => Promise<DemoInbox | null>>();
 const resetDemo = vi.fn();
 const setDemoRegistryPaused = vi.fn();
 vi.mock('../../server/demo/panel', () => ({
   getDemoPanel: () => getDemoPanel(),
+  getDemoInbox: () => getDemoInbox(),
   resetDemo: (...args: unknown[]) => resetDemo(...args) as unknown,
   setDemoRegistryPaused: (...args: unknown[]) => setDemoRegistryPaused(...args) as unknown,
 }));
@@ -45,6 +47,8 @@ const signedIn: DemoState = { accounts: [], current: 'reviewer' };
 
 beforeEach(() => {
   getDemoPanel.mockReset();
+  getDemoInbox.mockReset();
+  getDemoInbox.mockResolvedValue({ sms: [], email: [] });
   resetDemo.mockReset();
   setDemoRegistryPaused.mockReset();
 });
@@ -141,5 +145,38 @@ describe('DemoPanel (#621)', () => {
       await screen.findByRole('button', { name: 'Copy pnpm demo:reset 2-after-review' }),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull();
+  });
+
+  it('shows the codes just sent by text and email, newest first', async () => {
+    getDemoPanel.mockResolvedValue(panel('button'));
+    getDemoInbox.mockResolvedValue({
+      sms: [
+        {
+          id: 's2',
+          to: '+254700000099',
+          text: 'Your Adili code is 482913',
+          code: '482913',
+          receivedAt: '2026-10-05T07:42:00Z',
+        },
+        {
+          id: 's1',
+          to: '+254700000098',
+          text: 'Welcome to Adili',
+          code: null,
+          receivedAt: '2026-10-05T07:40:00Z',
+        },
+      ],
+      email: null,
+    });
+    renderPanel(signedIn);
+    fireEvent.click(screen.getByRole('button', { name: 'Demo panel' }));
+
+    const sms = await screen.findByRole('list', { name: 'Text messages' });
+    const rows = within(sms).getAllByRole('listitem');
+    expect(rows[0]?.textContent).toContain('482913');
+    expect(rows[0]?.textContent).toContain('10:42');
+    expect(within(sms).getByRole('button', { name: 'Copy code 482913' })).toBeTruthy();
+    expect(rows[1]?.textContent).toContain('Welcome to Adili');
+    expect(screen.getByText('Mailpit did not answer.')).toBeTruthy();
   });
 });

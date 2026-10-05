@@ -22,3 +22,19 @@ export async function serviceScript(
   });
   return stdout.trim().split('\n').at(-1) ?? '';
 }
+
+/**
+ * Runs one of the repo's own scripts (`node <path>`, from the repo root) with extra environment,
+ * and returns the last line it printed (`changed` or `unchanged` by convention).
+ */
+export async function repoScript(
+  path: string,
+  env: Readonly<Record<string, string>>,
+): Promise<string> {
+  const { stdout } = await run(process.execPath, [path], {
+    cwd: REPO_ROOT,
+    env: { ...process.env, ...env },
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  return stdout.trim().split('\n').at(-1) ?? '';
+}
