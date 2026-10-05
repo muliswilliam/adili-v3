@@ -77,6 +77,7 @@ const DROPPABLE = new Set(['FunctionDeclaration', 'ClassDeclaration', 'VariableD
 /** The references that read a variable at run time: not its declaration, not uses as a type. */
 const valueReferences = (variable) =>
   variable.references.filter((r) => !r.init && r.isValueReference !== false);
+/** Whether an import, export or one of their specifiers is `type` only, so erased at build. */
 const isTypeOnly = (node) => node.importKind === 'type' || node.exportKind === 'type';
 
 /** @type {import('eslint').Rule.RuleModule} */
@@ -132,6 +133,7 @@ const rule = {
       return false;
     }
 
+    /** The specifier of an import or export from a `.server` module, else undefined. */
     const serverSource = (node) =>
       node.source?.type === 'Literal' &&
       typeof node.source.value === 'string' &&

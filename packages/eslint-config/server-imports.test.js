@@ -13,9 +13,13 @@ const tester = new RuleTester({
   },
 });
 
+/** Runs the rule over one group of cases. */
+const run = ({ valid = [], invalid = [] }) =>
+  tester.run('no-client-server-imports', rule, { valid, invalid });
+
 describe('adili/no-client-server-imports', () => {
-  it('runs', () => {
-    tester.run('no-client-server-imports', rule, {
+  it('allows type-only imports, and imports between server modules', () => {
+    run({
       valid: [
         // Type-only imports are erased before the bundle is built.
         { code: `import type { Row } from './rows.server';`, filename: 'view.tsx' },
@@ -25,6 +29,13 @@ describe('adili/no-client-server-imports', () => {
         // A server module may import another server module.
         { code: `import { load } from './rows.server'; load();`, filename: 'a/load.server.ts' },
         { code: `import { load } from './rows.server'; load();`, filename: 'a/load.server.tsx' },
+      ],
+    });
+  });
+
+  it('allows server values inside code the client bundle strips', () => {
+    run({
+      valid: [
         // A server function's handler is replaced by an RPC stub in the client bundle.
         {
           code: `
@@ -89,6 +100,13 @@ describe('adili/no-client-server-imports', () => {
           `,
           filename: 'server/m.ts',
         },
+      ],
+    });
+  });
+
+  it('allows server values in helpers that only stripped code uses', () => {
+    run({
+      valid: [
         // Module-level code that only server-only code uses is dropped once that code is stripped.
         {
           code: `
@@ -125,12 +143,24 @@ describe('adili/no-client-server-imports', () => {
           `,
           filename: 'server/rows.ts',
         },
+      ],
+    });
+  });
+
+  it('ignores specifiers that only look like server modules', () => {
+    run({
+      valid: [
         // Specifiers that only look like server modules.
         { code: `import { a } from './observer'; a();`, filename: 'view.ts' },
         { code: `import { a } from './server'; a();`, filename: 'view.ts' },
         { code: `import { a } from './rows.server-types'; a();`, filename: 'view.ts' },
         { code: `import { a } from '@tanstack/react-start/server'; a();`, filename: 'view.ts' },
       ],
+    });
+  });
+
+  it('reports server values that client code imports', () => {
+    run({
       invalid: [
         // #538: a page read constants from a server module.
         {
@@ -171,6 +201,13 @@ describe('adili/no-client-server-imports', () => {
           filename: 'view.ts',
           errors: [{ messageId: 'dynamic' }],
         },
+      ],
+    });
+  });
+
+  it('reports server values that reach the client past a server function', () => {
+    run({
+      invalid: [
         // Used inside a server function and outside it: only the outside use is reported.
         {
           code: `
