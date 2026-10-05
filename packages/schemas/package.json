@@ -12,7 +12,8 @@
   "scripts": {
     "lint:openapi": "redocly lint --config redocly.yaml internal/*.yaml external/*.yaml",
     "lint:forms": "node ./scripts/validate-forms.mjs",
-    "check:drift": "node ./scripts/check-drift.mjs"
+    "check:drift": "node ./scripts/check-drift.mjs",
+    "build:docs": "node ./scripts/build-api-docs.mjs"
   },
   "devDependencies": {
     "@redocly/cli": "^2.54.3",
