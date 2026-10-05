@@ -5,7 +5,7 @@ import type { RegistrySystem } from './registry-results.js';
 import type { SuggestionSource } from './schema.js';
 
 /**
- * Events the declarations service publishes about registry suggestions (spec 05b). Identifiers
+ * Events the declarations service publishes about pre-fill suggestions (spec 05b). Identifiers
  * only: no national ID, registry record or proposed field (ADR-013 §3). The `tenant` extension
  * is the Commission's slug; the subject is the declaration.
  */
@@ -95,4 +95,25 @@ export function declarationSuggestionDismissed(
   data: DeclarationSuggestionDismissedData,
 ): NewEvent<DeclarationSuggestionDismissedData> {
   return { type: DECLARATION_SUGGESTION_DISMISSED, subject: data.declarationId, tenant, data };
+}
+
+export const DECLARATION_EXTRACTION_REQUESTED = 'declaration.extraction-requested.v1';
+
+/**
+ * The declarant asked for an attached document to be read into the form: the audit record of the
+ * request (ADR-008), naming the ai-gateway job that reads it (absent when the file was not one a
+ * reading takes, so nothing was sent). The job is the gateway's own audit record of the reading.
+ */
+export interface DeclarationExtractionRequestedData extends Record<string, unknown> {
+  declarationId: string;
+  attachmentId: string;
+  setId: string;
+  aiJobId: string | null;
+}
+
+export function declarationExtractionRequested(
+  tenant: string,
+  data: DeclarationExtractionRequestedData,
+): NewEvent<DeclarationExtractionRequestedData> {
+  return { type: DECLARATION_EXTRACTION_REQUESTED, subject: data.declarationId, tenant, data };
 }

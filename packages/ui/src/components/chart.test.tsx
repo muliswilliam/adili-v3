@@ -86,6 +86,16 @@ describe('Chart', () => {
         'sr-only',
       );
     });
+
+    it('shows the table instead of the drawing when asked', () => {
+      const { container } = render(<Chart {...props} tableOnly />);
+
+      expect(container.querySelector('[data-chart-plot]')).toBeNull();
+      expect(screen.getByRole('table').closest('[data-chart-table]')?.className).not.toContain(
+        'sr-only',
+      );
+      expect(screen.getByText(props.title, { selector: 'figcaption' })).toBeTruthy();
+    });
   });
 
   describe('bar chart', () => {

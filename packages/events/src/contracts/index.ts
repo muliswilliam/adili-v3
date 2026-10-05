@@ -59,6 +59,13 @@ export {
   type NoticeChannel,
 } from './access.js';
 export {
+  AUDIT_DEMO_SWITCH,
+  DEMO_SWITCH_APPS,
+  type DemoSwitchAccount,
+  type DemoSwitchApp,
+  type DemoSwitchData,
+} from './audit.js';
+export {
   DECLARATION_ACKNOWLEDGED,
   DECLARATION_ACKNOWLEDGEMENT_REQUESTED,
   DECLARATION_SUBMITTED,
@@ -95,6 +102,7 @@ export {
   newVerificationId,
   normalizeVerificationId,
   NOTICE_TO_COMPLY,
+  OPEN_DATA_MANIFEST,
   type PublicPayload,
   REFERRAL_PACKAGE,
   REVOCATION_REASONS,

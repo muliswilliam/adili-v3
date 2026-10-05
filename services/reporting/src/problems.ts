@@ -1,9 +1,11 @@
 import { HttpStatus } from '@nestjs/common';
-import { ProblemException } from '@adili/api-kit';
+import { type ProblemCode, ProblemException } from '@adili/api-kit';
 
 /**
  * The reporting service's problem responses (RFC 9457), built one way. A problem the console
- * acts on carries a `code` extension; `errors` name the fields at fault.
+ * acts on carries a registered `code` (`PROBLEM_CODES` in api-kit, mapped to copy by the console),
+ * thrown through `problem`, so its status and title are the registry's and the contract's
+ * `ProblemDetails.code` lists it; `errors` name the fields at fault.
  */
 
 /** A field at fault, by its path in the request. */
@@ -12,30 +14,40 @@ export interface ProblemError {
   message: string;
 }
 
-/** 400: the request cannot be taken as it is. */
-export function badRequest(
+/**
+ * A problem registered in `PROBLEM_CODES`: its status and title, with the code as `type` and
+ * `code`, `detail` for developers and, when given, the fields at fault and other extension members.
+ */
+export function problem(
+  code: ProblemCode,
   detail: string,
-  options: { code?: string; errors?: readonly ProblemError[] } = {},
+  options: { errors?: readonly ProblemError[]; extensions?: Record<string, unknown> } = {},
 ): ProblemException {
-  const { code, errors } = options;
-  return new ProblemException(
-    {
-      type: 'about:blank',
-      title: 'Bad Request',
-      status: HttpStatus.BAD_REQUEST,
-      detail,
-      ...(errors ? { errors: [...errors] } : {}),
-    },
-    code === undefined ? {} : { code },
-  );
+  const { errors, extensions } = options;
+  return ProblemException.fromCode(code, {
+    detail,
+    extensions: { ...extensions, ...(errors ? { errors: [...errors] } : {}) },
+  });
 }
 
-/** 403: the caller may not do this. */
-export function forbidden(detail: string, code?: string): ProblemException {
-  return new ProblemException(
-    { type: 'about:blank', title: 'Forbidden', status: HttpStatus.FORBIDDEN, detail },
-    code === undefined ? {} : { code },
-  );
+/** 400: the request cannot be taken as it is (for causes no registered code names). */
+export function badRequest(detail: string): ProblemException {
+  return new ProblemException({
+    type: 'about:blank',
+    title: 'Bad Request',
+    status: HttpStatus.BAD_REQUEST,
+    detail,
+  });
+}
+
+/** 403: the caller may not do this (for causes no registered code names). */
+export function forbidden(detail: string): ProblemException {
+  return new ProblemException({
+    type: 'about:blank',
+    title: 'Forbidden',
+    status: HttpStatus.FORBIDDEN,
+    detail,
+  });
 }
 
 /** 404: the same whether the resource is missing or not the caller's to see. */
@@ -50,26 +62,6 @@ export function notFound(
   });
 }
 
-/** 409 `code`: the resource's state refuses the change. */
-export function conflict(code: string, detail: string): ProblemException {
-  return new ProblemException(
-    { type: 'about:blank', title: 'Conflict', status: HttpStatus.CONFLICT, detail },
-    { code },
-  );
-}
-
-/** 502 `code`: an upstream system refused or failed the work; `extensions` say how. */
-export function badGateway(
-  code: string,
-  detail: string,
-  extensions: Record<string, unknown> = {},
-): ProblemException {
-  return new ProblemException(
-    { type: 'about:blank', title: 'Bad Gateway', status: HttpStatus.BAD_GATEWAY, detail },
-    { code, ...extensions },
-  );
-}
-
 /** 503 `directory-unavailable`: the Commission directory cannot be reached. */
 export function directoryUnavailable(): ProblemException {
   return new ProblemException({
@@ -80,6 +72,16 @@ export function directoryUnavailable(): ProblemException {
   });
 }
 
+/** 503 `storage-unavailable`: object storage (the open-data bucket) cannot be reached. */
+export function storageUnavailable(): ProblemException {
+  return new ProblemException({
+    type: 'storage-unavailable',
+    title: 'Upstream service unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The release files could not be reached just now. Try again shortly.',
+  });
+}
+
 /** 503 `workflow-unavailable`: Temporal cannot be reached, so nothing was done. */
 export function workflowUnavailable(detail: string): ProblemException {
   return new ProblemException({
@@ -87,5 +89,15 @@ export function workflowUnavailable(detail: string): ProblemException {
     title: 'Upstream service unavailable',
     status: HttpStatus.SERVICE_UNAVAILABLE,
     detail,
+  });
+}
+
+/** 503 `ai-gateway-unavailable`: the ai-gateway cannot be reached, so nothing was asked of it. */
+export function aiGatewayUnavailable(): ProblemException {
+  return new ProblemException({
+    type: 'ai-gateway-unavailable',
+    title: 'Upstream service unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The AI gateway cannot be reached. Try again shortly.',
   });
 }

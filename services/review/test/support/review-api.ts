@@ -12,7 +12,7 @@ import {
   FieldCipher,
   withTenant,
 } from '@adili/data-access';
-import { FakeCipher } from '@adili/data-access/testing';
+import { FakeCipher, truncateTables } from '@adili/data-access/testing';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
 import { TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
 import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
@@ -116,25 +116,10 @@ export interface ReviewApi {
   close(): Promise<void>;
 }
 
-/** How often `reset` tries to truncate before a lock held for good fails the suite. */
-const RESET_ATTEMPTS = 20;
-
-/**
- * Postgres `lock_not_available` (55P03) or `deadlock_detected` (40P01), as the driver or drizzle's
- * wrapper reports it.
- */
-function isLockConflict(error: unknown): boolean {
-  const codeOf = (value: unknown) =>
-    typeof value === 'object' && value !== null && 'code' in value ? value.code : undefined;
-  const cause =
-    typeof error === 'object' && error !== null && 'cause' in error ? error.cause : undefined;
-  return [codeOf(error), codeOf(cause)].some((code) => code === '55P03' || code === '40P01');
-}
-
 /** Every table of the service, which `reset` empties. */
 const TABLES = Object.values(schema)
   .filter((value) => is(value, PgTable))
-  .map((table) => sql.identifier(getTableName(table)));
+  .map((table) => getTableName(table));
 
 /**
  * The review service over HTTP and at its event inbox, against a real Postgres
@@ -255,17 +240,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
       // activity that locked a later table and then reads one the truncate already holds is a
       // deadlock Postgres does see; when it breaks one by aborting the truncate, that too is tried
       // again.
-      for (let attempt = 1; ; attempt += 1) {
-        try {
-          await db.transaction(async (tx) => {
-            await tx.execute(sql`set local lock_timeout = '2s'`);
-            await tx.execute(sql`truncate ${sql.join(TABLES, sql`, `)}`);
-          });
-          break;
-        } catch (error) {
-          if (attempt >= RESET_ATTEMPTS || !isLockConflict(error)) throw error;
-        }
-      }
+      await truncateTables(db, TABLES);
       declarations.reset();
       directory.reset();
       documents.reset();

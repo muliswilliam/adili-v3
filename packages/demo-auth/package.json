@@ -1,0 +1,33 @@
+{
+  "name": "@adili/demo-auth",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Demo-mode sign-in (#616): mints the signed tickets Keycloak's adili-demo authenticator accepts, and signs a demo account in without a browser.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./accounts": "./src/accounts.ts",
+    "./checkpoints": "./src/checkpoints.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@adili/bff-auth": "workspace:*",
+    "@adili/events": "workspace:*",
+    "amqplib": "^2.0.1",
+    "openid-client": "^6.8.8",
+    "uuid": "^14.0.2"
+  },
+  "devDependencies": {
+    "@adili/eslint-config": "workspace:*",
+    "@adili/tsconfig": "workspace:*",
+    "@types/amqplib": "^0.10.8",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.11.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.1"
+  }
+}

@@ -145,14 +145,15 @@ export const LookupPurposeHeaders = (options: LookupPurposeOptions = {}) =>
     ApiHeader({
       name: 'X-Case-Ref',
       required: options.caseRef === 'required',
-      description: 'Review case the lookup is for; recorded on the result and the audit event',
+      description:
+        'The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event',
       schema: { type: 'string', pattern: CASE_REF.source },
     }),
     ApiHeader({
       name: 'X-Subject-Person',
       required: false,
       description:
-        'Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data',
+        'Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data',
       schema: { type: 'string', format: 'uuid' },
     }),
     ApiProblemResponse(

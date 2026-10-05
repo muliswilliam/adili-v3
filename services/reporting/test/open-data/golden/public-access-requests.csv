@@ -1,0 +1,6 @@
+commission,commissionName,received,granted,declined,_suppressed
+jsc,Judicial Service Commission,,,,false
+nlc,NLC Commission,,,,true
+psc,Public Service Commission,3,2,1,false
+tsc,Teachers Service Commission,1,1,0,false
+wrc,WRC Commission,,,,true

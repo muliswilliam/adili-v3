@@ -1,46 +1,127 @@
-import type { FormMV1 } from '@adili/forms';
+import { FormMSchema, type FormMV1 } from '@adili/forms';
+import { z } from 'zod';
 
 import type { CommissionFacts } from '../directory/directory-client.js';
 import { dueDateOf } from '../financial-year.js';
-import { type Officer, storedOfficer } from '../officer.js';
+import { officerSchema, storedOfficer } from '../officer.js';
 import type { ReportRow } from './reports.js';
-import type { ReportCounts, ReportSource } from './schema.js';
+import { REPORT_SOURCES, REPORT_STATUSES } from './schema.js';
 
 /** reporting.yaml `ReportStatus`: a period without a report is `not-started`. */
-export type ReportStatusView = 'not-started' | 'compiling' | 'draft' | 'reviewed' | 'submitted';
+export const reportStatusSchema = z.enum(['not-started', ...REPORT_STATUSES]);
+export type ReportStatusView = z.infer<typeof reportStatusSchema>;
+
+export const reportSourceSchema = z.enum(REPORT_SOURCES).meta({
+  description: 'Compiled and confirmed on the platform, or submitted by a federated Commission',
+});
+
+/** A count in the contract: a non-negative integer. */
+export const countSchema = z.number().int().min(0);
+
+/** Form M section 5's headline counts, in a report and in the NCR's aggregates. */
+export const accessRequestCountsSchema = z.object({
+  received: countSchema,
+  granted: countSchema,
+  declined: countSchema,
+});
+
+const sectionCountsSchema = z.object({
+  expected: countSchema,
+  declared: countSchema,
+  notDeclared: countSchema,
+});
+
+export const reportCountsSchema = z
+  .object({
+    initial: sectionCountsSchema,
+    biennial: sectionCountsSchema.extend({ noCycleInPeriod: z.boolean() }),
+    final: sectionCountsSchema,
+    clarifications: countSchema,
+    accessRequests: accessRequestCountsSchema,
+  })
+  .meta({ description: 'Headline counts per Form M section, for lists and the intake' });
+
+/**
+ * A draft `form-m.v1` document. A draft need not be complete against form-m.v1 yet (confirming
+ * checks that), so the contract names only its parts; a submitted document is `FormM` itself.
+ */
+export const formMDocumentSchema = z
+  .object({
+    schemaVersion: z.literal('form-m.v1'),
+    partI: z.looseObject({}),
+    partII: z.looseObject({}),
+    partIII: z.looseObject({}),
+    meta: z.looseObject({}).optional(),
+  })
+  .meta({
+    description:
+      'A form-m.v1 document (packages/schemas/forms/form-m.v1.json, also published for federated Commissions)',
+  });
 
 /** reporting.yaml `ComplianceReportSummary`. */
-export interface ComplianceReportSummary {
-  fy: number;
-  status: ReportStatusView;
-  dueDate: string;
-  reference: string | null;
-  submittedAt: string | null;
-  late: boolean | null;
-  previewAvailable: boolean;
-}
+export const complianceReportSummarySchema = z.object({
+  fy: z.number().int().meta({ description: 'Financial year start year' }),
+  status: reportStatusSchema,
+  dueDate: z.iso.date().meta({ description: '31 July after the financial year' }),
+  reference: z.string().nullable(),
+  submittedAt: z.iso.datetime().nullable(),
+  late: z.boolean().nullable(),
+  previewAvailable: z.boolean().meta({
+    description: 'A supervisor may compile the year now (from 1 April of its last half)',
+  }),
+});
+export type ComplianceReportSummary = z.infer<typeof complianceReportSummarySchema>;
 
 /** reporting.yaml `ComplianceReport`. */
-export interface ComplianceReportView {
-  id: string;
-  commission: CommissionFacts;
-  fy: number;
-  status: ReportStatusView;
-  source: ReportSource;
-  compiledAt: string | null;
-  reviewedBy: Officer | null;
-  confirmedBy: Officer | null;
-  submittedAt: string | null;
-  late: boolean | null;
-  reference: string | null;
-  dueDate: string;
-  /** The `form-m.v1` document; null while compiling. */
-  document: FormMV1 | null;
-  counts: ReportCounts | Record<string, never>;
-  formMDocumentId: string | null;
-  receiptDocumentId: string | null;
-  accessDataUnavailable: boolean;
-}
+export const complianceReportSchema = z.object({
+  id: z.uuid(),
+  commission: z.object({ slug: z.string(), issuerCode: z.string(), name: z.string() }),
+  fy: z.number().int().meta({ description: 'Financial year start year' }),
+  status: reportStatusSchema,
+  source: reportSourceSchema,
+  compiledAt: z.iso.datetime().nullable(),
+  reviewedBy: officerSchema.nullable(),
+  confirmedBy: officerSchema.nullable(),
+  submittedAt: z.iso.datetime().nullable(),
+  late: z.boolean().nullable(),
+  reference: z
+    .string()
+    .nullable()
+    .meta({ description: '`RPT-<ISSUER>-<FY end>-<seq>-<check>`, allocated at confirmation' }),
+  dueDate: z.iso.date(),
+  document: formMDocumentSchema.nullable().meta({
+    description:
+      'The form-m.v1 document (draft or frozen); null while compiling, and in the answers to confirmComplianceReport and submitComplianceReport',
+  }),
+  counts: z
+    .union([reportCountsSchema, z.strictObject({})])
+    .meta({ description: 'Empty until the first compile' }),
+  formMDocumentId: z
+    .uuid()
+    .nullable()
+    .meta({ description: 'The Restricted Form M PDF, once issued' }),
+  receiptDocumentId: z
+    .uuid()
+    .nullable()
+    .meta({ description: 'The signed acknowledgement receipt, once issued' }),
+  accessDataUnavailable: z.boolean().meta({
+    description: 'Form M section 5 holds no access request data for the year (zeros with a note)',
+  }),
+});
+export type ComplianceReportView = z.infer<typeof complianceReportSchema>;
+
+/**
+ * A submitted report as filed (`getSubmittedReport`): its document is the frozen `form-m.v1`
+ * (`FormM`, packages/schemas/forms/form-m.v1.json), complete and with its `meta.reference`.
+ */
+export const submittedComplianceReportSchema = complianceReportSchema.extend({
+  document: FormMSchema.meta({
+    description: 'The form-m.v1 document as filed, frozen at submission',
+  }),
+});
+
+/** reporting.yaml `SubmittedComplianceReport`. */
+export type SubmittedReportView = z.infer<typeof submittedComplianceReportSchema>;
 
 export function reportSummary(
   fy: number,

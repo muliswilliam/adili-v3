@@ -107,6 +107,9 @@ function set(
     readyAt: '2026-09-26T07:32:00Z',
     verificationResultId: null,
     aiJobId: null,
+    attachmentId: null,
+    documentKind: null,
+    reason: null,
     suggestions: [],
     ...overrides,
   };

@@ -13,6 +13,7 @@ import { complianceReportReceiptV1 } from './compliance-report-receipt.v1.js';
 import { decisionLetterV1 } from './decision-letter.v1.js';
 import { formMV1 } from './form-m.v1.js';
 import { ncrV1 } from './ncr.v1.js';
+import { openDataManifestV1 } from './open-data-manifest.v1.js';
 import { referralPackageV1 } from './referral-package.v1.js';
 import type { DocumentTemplate } from './template.js';
 
@@ -32,6 +33,7 @@ const TEMPLATES: readonly DocumentTemplate[] = [
   formMV1,
   complianceReportReceiptV1,
   ncrV1,
+  openDataManifestV1,
 ];
 
 /** The template for `type` at `version`, or undefined when there is none. */

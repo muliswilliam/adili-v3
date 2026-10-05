@@ -25,4 +25,20 @@ describe('Badge', () => {
 
     expect(screen.getByText('Draft').className.split(' ')).toContain('bg-muted');
   });
+
+  it('is a 24px pill by default and a 22px square-cornered tag at size tag', () => {
+    render(
+      <>
+        <Badge>Pill</Badge>
+        <Badge size="tag">Act s.31(4)</Badge>
+      </>,
+    );
+
+    expect(screen.getByText('Pill').className.split(' ')).toEqual(
+      expect.arrayContaining(['h-6', 'rounded-full']),
+    );
+    const tag = screen.getByText('Act s.31(4)').className.split(' ');
+    expect(tag).toEqual(expect.arrayContaining(['h-[22px]', 'rounded-md', 'font-semibold']));
+    expect(tag).not.toContain('rounded-full');
+  });
 });

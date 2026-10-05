@@ -28,11 +28,19 @@
     "format:check": "prettier --check .",
     "deps:check": "depcruise services packages apps --config .dependency-cruiser.cjs",
     "contracts": "turbo run build --filter='./services/*^...' --output-logs=errors-only && pnpm --filter './services/*' --if-present contracts",
+    "api:docs": "pnpm --filter @adili/schemas build:docs",
     "contracts:lint": "pnpm --filter @adili/schemas lint:openapi && pnpm --filter @adili/schemas lint:forms",
     "contracts:drift": "turbo run build --filter='./services/*^...' --output-logs=errors-only && pnpm --filter @adili/schemas check:drift",
     "check": "pnpm format:check && pnpm contracts:lint && pnpm contracts:drift && turbo run lint typecheck test && pnpm deps:check",
     "health": "node scripts/health.mjs",
-    "keycloak:check": "node scripts/check-keycloak-realm.mjs"
+    "demo:check": "node scripts/health.mjs --expect-real",
+    "demo:ai": "node scripts/demo-ai.mjs",
+    "keycloak:check": "node scripts/check-keycloak-realm.mjs",
+    "keycloak:demo-sign-in": "node scripts/keycloak-demo-sign-in.mjs",
+    "demo:seed": "pnpm --filter @adili/demo-seed seed",
+    "demo:checkpoints": "pnpm --filter @adili/demo-seed checkpoints",
+    "demo:checkpoint": "./scripts/demo-checkpoint.sh capture",
+    "demo:reset": "./scripts/demo-reset.sh"
   },
   "devDependencies": {
     "dependency-cruiser": "^18.4.0",

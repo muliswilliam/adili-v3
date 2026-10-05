@@ -55,6 +55,7 @@ export const documentEventDataSchema = z.object({
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
   issuedAt: timestamp,
   status: z.enum(DOCUMENT_STATUSES),
+  expiresAt: timestamp.nullable().optional(),
 });
 
 /** `document.issued.v1` data. */

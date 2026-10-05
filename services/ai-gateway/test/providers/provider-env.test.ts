@@ -29,6 +29,20 @@ describe('provider environment', () => {
     expect(() => parse({ ANTHROPIC_STRUCTURED_OUTPUT: 'loose' })).toThrow();
   });
 
+  it('sends PDFs inline unless a gateway takes only images and text', () => {
+    expect(parse({}).ANTHROPIC_ATTACHMENTS).toEqual(['image', 'pdf', 'text']);
+    const provider = createModelProvider(
+      parse({
+        AI_PROVIDER: 'anthropic',
+        ANTHROPIC_AUTH_TOKEN: 'llmgtwy_test',
+        ANTHROPIC_ATTACHMENTS: ' image, text ',
+      }),
+    );
+    expect(provider.capabilities.attachments).toEqual(['image', 'text']);
+    expect(() => parse({ ANTHROPIC_ATTACHMENTS: 'image,video' })).toThrow();
+    expect(() => parse({ ANTHROPIC_ATTACHMENTS: '' })).toThrow();
+  });
+
   it('records from Anthropic in record mode', () => {
     const provider = createModelProvider(
       parse({ AI_REPLAY_MODE: 'record', ANTHROPIC_API_KEY: 'sk-test' }),

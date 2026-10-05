@@ -125,11 +125,15 @@ export const verificationResults = pgTable(
     /** Tenant the lookup acted for; null for lookups that act for no tenant. */
     tenant: text(),
     legalBasis: text({ enum: LEGAL_BASES }).notNull(),
-    /** The review case (or other record) the lookup was for, as the caller named it. */
+    /**
+     * What the lookup was for, as the caller named it (`X-Case-Ref`): the review case, or the
+     * declaration for a `declarant-request` lookup.
+     */
     caseRef: text(),
     /**
-     * The platform person the lookup is about, as the caller named it (`X-Subject-Person`): a
-     * read of the stored result is audited as a read of their data (ADR-008).
+     * The platform person the lookup is for, as the caller named it (`X-Subject-Person`): the
+     * case declarant, or the declarant who asked. A read of the stored result is audited as a read
+     * of their data (ADR-008).
      */
     subjectPersonId: uuid(),
     /**

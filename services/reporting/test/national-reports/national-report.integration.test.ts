@@ -17,6 +17,8 @@ import {
   reportReceipts,
 } from '../../src/db/schema.js';
 import { nationalReportApprovalWorkflowId } from '../../src/national-reports/contract.js';
+import { openDataReleaseWorkflowId } from '../../src/open-data/contract.js';
+import { annualReleaseIdOf } from '../../src/open-data/release-workflows.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { COMMISSION_ADMIN, REPORTING_OFFICER, SUPERVISOR } from '../support/form-m-facts.js';
 import { type Caller, type ReportingApi, startReportingApi } from '../support/reporting-api.js';
@@ -94,7 +96,10 @@ describe('National consolidated report (S11)', () => {
     for (const slug of ['psc', 'tsc', 'jsc']) api.directory.givenCommission(slug);
   });
 
-  const endChase = () => api.endWorkflows([nationalConsolidationWorkflowId(2027)]);
+  /** The workflows an approval started (the PDF's and the annual open-data release's). */
+  const approvals: string[] = [];
+  const endChase = () =>
+    api.endWorkflows([nationalConsolidationWorkflowId(2027), ...approvals.splice(0)]);
 
   /** The Commission's FY 2027 report as submitted, and EACC's receipt of it. */
   async function givenSubmitted(
@@ -151,9 +156,22 @@ describe('National consolidated report (S11)', () => {
     return response.json<NationalReportBody>();
   }
 
-  function approve(caller: Caller, key: string = randomUUID()) {
-    return api.send('POST', `${NCR}/approve`, caller, undefined, { 'idempotency-key': key });
+  async function approve(caller: Caller, key: string = randomUUID()) {
+    const response = await api.send('POST', `${NCR}/approve`, caller, undefined, {
+      'idempotency-key': key,
+    });
+    if (response.statusCode === 200) {
+      const { id } = response.json<NationalReportBody>();
+      approvals.push(
+        nationalReportApprovalWorkflowId(id),
+        openDataReleaseWorkflowId({ releaseId: annualReleaseIdOf(id), fy: 2027, kind: 'annual' }),
+      );
+    }
+    return response;
   }
+
+  /** The NCR PDFs issued (approval also issues the open-data release's manifest, spec 09b). */
+  const ncrPdfs = () => api.documents.issued.filter((issued) => issued.type === 'ncr');
 
   it('S11: an eacc-analyst builds the NCR from the submitted reports: national totals, a row per Commission, rates', async () => {
     const { psc, tsc } = await givenPscAndTscReported();
@@ -399,8 +417,8 @@ describe('National consolidated report (S11)', () => {
       },
       { timeout: 45_000, interval: 250 },
     );
-    expect(api.documents.issued).toHaveLength(1);
-    const [pdf] = api.documents.issued;
+    expect(ncrPdfs()).toHaveLength(1);
+    const [pdf] = ncrPdfs();
     expect(pdf).toMatchObject({
       type: 'ncr',
       issuerTenant: 'eacc',
@@ -474,7 +492,7 @@ describe('National consolidated report (S11)', () => {
     }
     const [row] = await api.asPlatform((tx) => tx.select().from(nationalReports));
     expect(row).toMatchObject({ status: 'approved', reference: approved.reference });
-    expect(api.documents.issued).toHaveLength(1);
+    expect(ncrPdfs()).toHaveLength(1);
   });
 
   it('S11: a chase started after the approval ends at once', async () => {

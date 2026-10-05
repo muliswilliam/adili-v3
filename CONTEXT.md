@@ -97,6 +97,14 @@ _Avoid_: section, schedule
 A change meeting Act s.31(4): 25% or more in value, acquisition or disposal, marital status, directorships or memberships.
 _Avoid_: significant change, delta
 
+**Suggestion**:
+An item (or a person's tax fields) proposed for the declarant to accept, edit and accept, or dismiss, from a registry they asked to be checked or a document they attached; nothing enters the declaration until they accept it, and the item then carries its source.
+_Avoid_: pre-fill (for the item), insertion, recommendation
+
+**Reading (Read into the form)**:
+An attached document (title deed, logbook, payslip, bank letter, share certificate) read by AI into the fields of the item it is attached to, each with a confidence and page, offered as one suggestion the declarant checks field by field. Gated by the Commission's AI policy ("not enabled" otherwise).
+_Avoid_: extraction (in UI copy), OCR, scan, import
+
 **Acknowledgement slip**:
 The signed PDF receipt issued for each submitted version of a declaration, carrying its reference number, version, submission time, verification code and QR code; a later version's slip supersedes it.
 _Avoid_: receipt (alone), certificate, confirmation
@@ -203,6 +211,18 @@ _Avoid_: insight, pattern (alone)
 A narrative paragraph written by AI that the EACC analyst drafting the NCR has not yet edited. Editing it makes it EACC's own text.
 _Avoid_: suggestion, AI text
 
+**Open-data release**:
+A versioned public dataset of a financial year's aggregates (six tables, JSON and CSV, each with its SHA-256) built from the NCR or the live projections. It is a preview until an EACC supervisor publishes it, except the year's first annual release, which is published on NCR approval. A published release can be withdrawn with a reason; a corrected one is the next version, built as a preview and published deliberately.
+_Avoid_: export, dump, open data (alone, for a release)
+
+**Suppression**:
+Hiding an open-data figure that counts fewer officers than the threshold (10), so that no small group of officers can be identified. The figure is published as `null` with a marker and shown as "‹10". A published total is never recomputed from the visible cells, and a total can itself be suppressed.
+_Avoid_: redaction, masking
+
+**Complementary suppression**:
+Hiding a further figure, which may count 10 or more officers, wherever a single suppressed figure could otherwise be worked out from a published total by subtraction.
+_Avoid_: secondary masking
+
 ### Assistance
 
 **Ask Adili**:
@@ -222,7 +242,7 @@ What the completeness check still reports on a draft: the section, the rule and 
 _Avoid_: error, missing field, gap
 
 **Hint**:
-A one-line plain-language rephrasing of a completeness residual on the summary page, linked to its field. It sits above the deterministic text, which stays.
+A one-line plain-language rephrasing of a completeness residual on the summary page, linked to its field. It sits beneath the deterministic text, which stays.
 _Avoid_: tip, suggestion
 
 **Decline**:

@@ -9,12 +9,11 @@ import {
   relationOfPerson,
   statementSectionKey,
 } from '../../../declaration/section-key';
-import { type Item, NIL_KEY } from '../../../declaration/statement';
+import { CATEGORIES, type Category, type Item, NIL_KEY } from '../../../declaration/statement';
 import {
   categoryOf,
   declaredType,
   findMatch,
-  type PatchEntry,
   REGISTRIES,
   type SuggestionKind,
   suggestionKind,
@@ -43,12 +42,16 @@ import { isRecord, json, problem, readJson } from '../../mock-http';
  * - A suggestion whose identifier equals an item's in the statement gets `matchItemId` (S4).
  * - A re-run supersedes the person's `new` suggestions from the registries asked, and does not
  *   suggest again what was accepted or dismissed (S5).
- * - Extraction (S6): reading a linked attachment answers a `pending` `document` set that is
- *   `ready` on a later list call, with one suggestion in the portal's convention (contract gap
- *   3): `fields` = {name: value}, `sourceRef` = {documentKind, fields: [{name, confidence,
- *   page}], warnings}. Every reading has a Low field and an unreadable page. A file name with
- *   "blurred" fails; `setExtractionEnabled(false)` (or `DECLARATIONS_MOCK_AI=off`) is a
- *   Commission without an AI policy, answering 409 `not-enabled`.
+ * - Extraction (S6): reading a linked attachment into the item it is on (its list and type)
+ *   answers a `pending` `document` set that is `ready` on a later list call, with one
+ *   suggestion as the service gives it: `fields` by declaration.v1 path within the item, typed
+ *   (`details.registration`, `outstanding.kesCents`), `sourceRef` = {documentKind, fields:
+ *   [{name, confidence, page}], warnings, attachmentId}, matched to the attached item. Every
+ *   reading has a Low field and an unreadable page. Asking again for the same attachment and
+ *   kind while pending answers that set. A file name with "blurred" fails
+ *   (`document-unreadable`); `setExtractionEnabled(false)` (or `DECLARATIONS_MOCK_AI=off`) is a
+ *   Commission without an AI policy: the set is `not-enabled`.
+ * - Accepting a reading writes its fields at their paths, typed as read.
  * - Accept follows the section save path: `If-Match` (428, 412), then writes the fields (new
  *   item, or the matching item's empty fields unless `overwrite`) with `source` on the item and
  *   bumps the draft version. A spouse's KRA PIN goes to Household; the officer has no KRA
@@ -62,7 +65,11 @@ function isEmpty(value: unknown) {
 }
 
 /** The existing item with each patch entry written where it is empty, or everywhere if `overwrite`. */
-export function applyPatch<T extends object>(target: T, patch: PatchEntry[], overwrite = false): T {
+export function applyPatch<T extends object>(
+  target: T,
+  patch: readonly { path: string; value: unknown }[],
+  overwrite = false,
+): T {
   const next = structuredClone(target) as Record<string, unknown>;
   for (const { path, value } of patch) {
     const keys = path.split('.');
@@ -91,7 +98,9 @@ interface StoredSet extends Omit<SuggestionSet, 'personKey'> {
 interface Extraction {
   attachment: DeclarationAttachment;
   documentKind: DocumentKind;
-  targetItemType: string;
+  /** The list and type of the item the document is on. */
+  list: Category;
+  itemType: string;
 }
 
 export interface SuggestionState {
@@ -228,6 +237,9 @@ function view(set: StoredSet): SuggestionSet {
     readyAt: set.readyAt,
     verificationResultId: set.verificationResultId,
     aiJobId: set.aiJobId,
+    attachmentId: set.attachmentId,
+    documentKind: set.documentKind,
+    reason: set.reason,
     suggestions: set.suggestions.map((each) => ({ ...each })),
   };
 }
@@ -250,28 +262,34 @@ function suggestionSection(personKey: PersonKey, itemType: string) {
 
 interface ReadField {
   name: string;
-  value: string | number;
+  value: string | number | boolean;
   confidence: number;
-  page: number;
+  page: number | null;
 }
 
-/** What "reading" a document finds, per family of target item type (S6). */
+/** What "reading" a document finds, per family of the item's type (S6), by path in the item. */
 const READINGS: Partial<Record<SuggestionKind['key'], ReadField[]>> = {
   vehicle: [
-    { name: 'registration', value: 'KCB 782M', confidence: 0.97, page: 1 },
-    { name: 'make', value: 'Toyota', confidence: 0.93, page: 1 },
-    { name: 'model', value: 'Premio', confidence: 0.72, page: 1 },
-    { name: 'year', value: 2015, confidence: 0.41, page: 2 },
+    { name: 'details.registration', value: 'KCB 782M', confidence: 0.97, page: 1 },
+    { name: 'details.makeModel', value: 'Toyota Premio, 2015', confidence: 0.72, page: 1 },
+    { name: 'description', value: 'Toyota Premio saloon', confidence: 0.88, page: 1 },
+    { name: 'value.kesCents', value: 95_000_000, confidence: 0.41, page: 2 },
   ],
   land: [
-    { name: 'parcelNumber', value: 'Nakuru/Njoro/1187', confidence: 0.95, page: 1 },
-    { name: 'size', value: '1.2 acres', confidence: 0.52, page: 1 },
-    { name: 'location', value: 'Njoro', confidence: 0.8, page: 2 },
-    { name: 'county', value: '032', confidence: 0.9, page: 1 },
+    { name: 'details.parcelNumber', value: 'Nakuru/Njoro/1187', confidence: 0.95, page: 1 },
+    { name: 'details.size', value: '1.2 acres', confidence: 0.52, page: 1 },
+    { name: 'location.detail', value: 'Njoro', confidence: 0.8, page: 2 },
+    { name: 'location.county', value: '032', confidence: 0.9, page: 1 },
+    { name: 'joint.isJoint', value: false, confidence: 0.45, page: 1 },
   ],
   shares: [
-    { name: 'companyName', value: 'Kerio Valley Dairies Ltd', confidence: 0.91, page: 1 },
-    { name: 'shares', value: 1200, confidence: 0.48, page: 1 },
+    { name: 'details.issuer', value: 'Kerio Valley Dairies Ltd', confidence: 0.91, page: 1 },
+    { name: 'details.quantityOrPercent', value: '1,200 shares', confidence: 0.48, page: 1 },
+  ],
+  bank: [
+    { name: 'creditor', value: 'Kenya Commercial Bank', confidence: 0.96, page: 1 },
+    { name: 'outstanding.kesCents', value: 118_000_000, confidence: 0.44, page: 1 },
+    { name: 'description', value: 'Development loan', confidence: 0.7, page: 1 },
   ],
 };
 
@@ -279,8 +297,8 @@ const OTHER_READING: ReadField[] = [
   { name: 'description', value: 'Loan from Kenya Commercial Bank', confidence: 0.55, page: 1 },
 ];
 
-function reading(targetItemType: string): ReadField[] {
-  return READINGS[suggestionKind(targetItemType).key] ?? OTHER_READING;
+function reading(itemType: string): ReadField[] {
+  return READINGS[suggestionKind(itemType).key] ?? OTHER_READING;
 }
 
 /** A `document` set, read (or not) once its time has come (S6). */
@@ -290,28 +308,33 @@ function resolveExtraction(stored: SuggestionDraft, set: StoredSet, now: number)
   set.readyAt = new Date(now).toISOString();
   if (/blurred/i.test(extraction.attachment.fileName)) {
     set.status = 'failed';
+    set.reason = 'document-unreadable';
     return;
   }
-  const found = reading(extraction.targetItemType);
-  const sectionKey = extraction.attachment.sectionKey;
-  const suggestion = {
-    itemType: declaredType(extraction.targetItemType),
-    fields: Object.fromEntries(found.map((field) => [field.name, field.value])),
-  };
+  // A reading supersedes what the attachment's earlier readings still offer.
+  for (const earlier of stored.suggestions.sets) {
+    if (earlier === set || earlier.attachmentId !== set.attachmentId) continue;
+    for (const each of earlier.suggestions) {
+      if (each.status === 'new') each.status = 'superseded';
+    }
+  }
+  const found = reading(extraction.itemType);
   set.status = 'ready';
   set.suggestions.push({
     id: randomUUID(),
     setId: set.id,
     personKey: set.personKey,
-    sectionKey,
-    ...suggestion,
+    sectionKey: extraction.attachment.sectionKey,
+    itemType: extraction.itemType,
+    fields: Object.fromEntries(found.map((field) => [field.name, field.value])),
     sourceRef: {
+      attachmentId: extraction.attachment.id,
       documentKind: extraction.documentKind,
       fields: found.map(({ name, confidence, page }) => ({ name, confidence, page })),
       warnings: ['Page 3 could not be read.'],
     },
     confidence: Math.min(...found.map((field) => field.confidence)),
-    matchItemId: findMatch(suggestion, statementItems(stored, sectionKey, suggestion.itemType)),
+    matchItemId: extraction.attachment.itemId,
     status: 'new',
     acceptedItemId: null,
   });
@@ -418,6 +441,9 @@ export async function requestLookups(request: Request, stored: SuggestionDraft) 
       readyAt: null,
       verificationResultId: null,
       aiJobId: null,
+      attachmentId: null,
+      documentKind: null,
+      reason: null,
       suggestions: [],
       resolveAt: now + (lookupDelay === 0 ? 0 : lookupDelay + index * 400),
       attempt: earlier.length,
@@ -488,7 +514,11 @@ export async function acceptSuggestion(
   if (!isRecord(body) || !isRecord(body.fields)) return problem(400, 'fields are required');
   const applyTo = typeof body.applyToItemId === 'string' ? body.applyToItemId : null;
   const overwrite = body.overwrite === true;
-  const patch = suggestionPatch({ itemType: suggestion.itemType, fields: body.fields });
+  const reading = set.extraction;
+  const patch = reading
+    ? readingPatch(suggestion.fields, body.fields)
+    : suggestionPatch({ itemType: suggestion.itemType, fields: body.fields });
+  if (!patch) return problem(400, 'Not fields the document was read for');
   const source: ItemSource = {
     kind: set.source,
     suggestionId: suggestion.id,
@@ -513,7 +543,7 @@ export async function acceptSuggestion(
     });
     itemId = spouse.id;
   } else {
-    const category = categoryOf(suggestion.itemType);
+    const category = reading?.list ?? categoryOf(suggestion.itemType);
     const statement = stored.contents.get(suggestion.sectionKey);
     if (!category || !statement || stored.archived.has(suggestion.sectionKey)) {
       return problem(404, 'Not found');
@@ -532,7 +562,7 @@ export async function acceptSuggestion(
       itemId = randomUUID();
       const base: Stamped = {
         id: itemId,
-        type: declaredType(suggestion.itemType),
+        type: reading ? reading.itemType : declaredType(suggestion.itemType),
         description: '',
         location: { inKenya: true },
         change: { changed: false },
@@ -595,36 +625,84 @@ export async function requestExtraction(
   if (
     !isRecord(body) ||
     typeof body.documentKindHint !== 'string' ||
-    !(DOCUMENT_KINDS as readonly string[]).includes(body.documentKindHint) ||
-    typeof body.targetItemType !== 'string' ||
-    body.targetItemType === ''
+    !(DOCUMENT_KINDS as readonly string[]).includes(body.documentKindHint)
   ) {
-    return problem(400, 'documentKindHint and targetItemType are required');
+    return problem(400, 'documentKindHint is required');
   }
-  if (!extractionEnabled) {
-    return problem(409, 'Reading documents is not enabled for this Commission', 'not-enabled');
-  }
+  const documentKind = body.documentKindHint as DocumentKind;
+  const target = attachedItem(stored, attachment);
+  if (!target) return problem(404, 'Not found');
+  const underWay = state.sets.find(
+    (each) =>
+      each.attachmentId === attachment.id &&
+      each.documentKind === documentKind &&
+      each.status === 'pending',
+  );
+  if (underWay) return json(202, view(underWay));
 
   const now = Date.now();
   const set: StoredSet = {
     id: randomUUID(),
     personKey: ownerOf(attachment.sectionKey),
     source: 'document',
-    status: 'pending',
+    status: extractionEnabled ? 'pending' : 'not-enabled',
     requestedAt: new Date(now).toISOString(),
-    readyAt: null,
+    readyAt: extractionEnabled ? null : new Date(now).toISOString(),
     verificationResultId: null,
     aiJobId: randomUUID(),
+    attachmentId: attachment.id,
+    documentKind,
+    reason: null,
     suggestions: [],
     resolveAt: now + lookupDelay,
     attempt: 0,
-    extraction: {
-      attachment,
-      documentKind: body.documentKindHint as DocumentKind,
-      targetItemType: body.targetItemType,
-    },
+    extraction: { attachment, documentKind, ...target },
   };
   state.sets.push(set);
   state.requests.set(key, [set.id]);
   return json(202, view(set));
+}
+
+/** The list and type of the item an attachment is on, as saved. */
+function attachedItem(
+  stored: SuggestionDraft,
+  attachment: DeclarationAttachment,
+): { list: Category; itemType: string } | null {
+  const statement = stored.contents.get(attachment.sectionKey);
+  for (const list of CATEGORIES) {
+    const items = statement?.[list];
+    const item = Array.isArray(items)
+      ? (items as Stamped[]).find((each) => each.id === attachment.itemId)
+      : undefined;
+    if (item && typeof item.type === 'string') return { list, itemType: item.type };
+  }
+  return null;
+}
+
+/**
+ * A reading's accepted fields as patch entries at their paths, typed as read (an amount the
+ * declarant edited as text is a number again); null for a field the reading did not give.
+ */
+function readingPatch(
+  read: Record<string, unknown>,
+  accepted: Record<string, unknown>,
+): { path: string; value: unknown }[] | null {
+  const patch: { path: string; value: unknown }[] = [];
+  for (const [path, value] of Object.entries(accepted)) {
+    if (!(path in read)) return null;
+    const like = read[path];
+    if (value === null || (typeof value === 'string' && value.trim() === '')) continue;
+    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+      return null;
+    }
+    const typed =
+      typeof like === 'number'
+        ? Number(String(value).replaceAll(',', ''))
+        : typeof like === 'boolean'
+          ? value === true || value === 'true'
+          : String(value).trim();
+    if (typeof typed === 'number' && !Number.isFinite(typed)) return null;
+    patch.push({ path, value: typed });
+  }
+  return patch;
 }

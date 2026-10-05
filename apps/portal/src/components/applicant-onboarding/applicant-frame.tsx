@@ -15,7 +15,12 @@ import { APPLICANT_STEP_NAMES } from './steps';
 export function ApplicantFrame({ children }: { children: ReactNode }) {
   const step = useMatches({ select: (matches) => matches.at(-1)?.staticData.applicantStep });
   const back = useMatches({ select: (matches) => matches.at(-1)?.staticData.applicantBack });
-  const kind = useSearch({ strict: false, select: (search) => search.kind });
+  // Other routes' search has a `kind` too (Open data's release kind): keep the ID types only.
+  const kind = useSearch({
+    strict: false,
+    select: (search) =>
+      search.kind === 'national-id' || search.kind === 'passport' ? search.kind : undefined,
+  });
 
   return (
     <>

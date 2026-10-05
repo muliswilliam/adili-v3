@@ -1,6 +1,11 @@
 import { type RmqOptions, Transport } from '@nestjs/microservices';
 
-import { EVENTS_EXCHANGE, eventsQueue, eventsQueueArguments } from './topology.js';
+import {
+  EVENTS_EXCHANGE,
+  eventsQueue,
+  eventsQueueArguments,
+  RABBITMQ_CONNECT_TIMEOUT_MS,
+} from './topology.js';
 
 export interface EventsServerOptions {
   service: string;
@@ -24,6 +29,7 @@ export function eventsServerOptions(options: EventsServerOptions): RmqOptions {
       wildcards: true,
       noAck: false,
       prefetchCount: options.prefetchCount ?? 20,
+      socketOptions: { connectionOptions: { timeout: RABBITMQ_CONNECT_TIMEOUT_MS } },
     },
   };
 }

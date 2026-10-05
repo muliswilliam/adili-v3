@@ -7,7 +7,15 @@ http://__HOST__ {
 }
 
 https://__HOST__ {
-  reverse_proxy 127.0.0.1:13010
+  # The API reference (Redoc), built by deploy.sh from packages/schemas (`pnpm api:docs`).
+  redir /api-docs /api-docs/
+  handle_path /api-docs/* {
+    root * /opt/adili/dist/api-docs
+    file_server
+  }
+  handle {
+    reverse_proxy 127.0.0.1:13010
+  }
 }
 
 https://__HOST__:3010 {
@@ -22,6 +30,19 @@ https://__HOST__:3030 {
   reverse_proxy 127.0.0.1:13030
 }
 
+# Object storage (SeaweedFS S3 on loopback): presigned upload and download URLs.
+https://__HOST__:8333 {
+  reverse_proxy 127.0.0.1:18333
+}
+
+# Keycloak: only what sign-in needs, the adili realm and the theme's resources. The admin
+# console, the admin API and the master realm stay on loopback (127.0.0.1:18080).
 https://__HOST__:8080 {
-  reverse_proxy 127.0.0.1:18080
+  @signin path /realms/adili /realms/adili/* /resources/*
+  handle @signin {
+    reverse_proxy 127.0.0.1:18080
+  }
+  handle {
+    respond 404
+  }
 }

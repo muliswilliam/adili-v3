@@ -1,5 +1,7 @@
-import { appendFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { appendFile, readFile } from 'node:fs/promises';
 
+import { type ReadDocument, readDocument } from '../../src/documents/read-document.js';
 import type {
   GenerateRequest,
   GenerateResult,
@@ -12,28 +14,62 @@ import { UnknownTokenError } from '../../src/policy/minimisation.js';
 import { type PreparedPrompt, preparePrompt, streamedRequest } from '../../src/policy/prompt.js';
 import { DECLINED_ANSWER } from '../../src/tasks/answer-declarant-question.js';
 import { TaggedAnswerReader } from '../../src/tasks/tagged-answer.js';
-import type { OutputViolation, TaskDefinition } from '../../src/tasks/task.js';
+import { type OutputViolation, outputSchemaOf, type TaskDefinition } from '../../src/tasks/task.js';
 import type { CaseResult, SoftResult } from './score.js';
+
+/** The synthetic documents golden inputs name (`evals/documents`, see `generate.ts`). */
+const DOCUMENTS_DIR = new URL('../documents/', import.meta.url);
+
+/**
+ * The document a golden input names, read as a job reads it once fetched: the file of
+ * `evals/documents` its download link ends with, which must have the SHA-256 it names.
+ */
+export async function evalDocument(
+  task: TaskDefinition,
+  input: unknown,
+): Promise<ReadDocument | undefined> {
+  if (!task.document) return undefined;
+  const ref = task.document(task.input.parse(input));
+  const file = new URL(ref.downloadUrl).pathname.split('/').at(-1) ?? '';
+  const bytes = await readFile(new URL(file, DOCUMENTS_DIR));
+  if (createHash('sha256').update(bytes).digest('hex') !== ref.sha256) {
+    throw new Error(`${file} does not have the SHA-256 its golden input names`);
+  }
+  return readDocument(bytes, ref.contentType);
+}
 
 /**
  * The prompt a job for this golden input sends: the input as the task parses it, minimised and
- * wrapped as untrusted with the gateway rules (`preparePrompt`, as the job executor builds it).
- * Fixtures are keyed by its request, so the runner and the prune script share it.
+ * wrapped as untrusted with the gateway rules, with its document (`preparePrompt`, as the job
+ * executor builds it). Fixtures are keyed by its request, so the runner and the prune script
+ * share it.
  */
-export function evalPrompt(task: TaskDefinition, input: unknown, model: string): PreparedPrompt {
-  return preparePrompt(task, task.currentPromptVersion, task.input.parse(input), model);
+export function evalPrompt(
+  task: TaskDefinition,
+  input: unknown,
+  model: string,
+  document?: ReadDocument,
+): PreparedPrompt {
+  return preparePrompt(
+    task,
+    task.currentPromptVersion,
+    task.input.parse(input),
+    model,
+    {},
+    document,
+  );
 }
 
 /**
  * The provider request a job for this golden input makes: a streamed task's input (ADR-019) asks
  * for tagged text, without the output schema.
  */
-export function evalRequest(
+export async function evalRequest(
   task: TaskDefinition,
   input: unknown,
   model: string,
-): StructuredRequest | GenerateRequest {
-  const { request } = evalPrompt(task, input, model);
+): Promise<StructuredRequest | GenerateRequest> {
+  const { request } = evalPrompt(task, input, model, await evalDocument(task, input));
   return streamed(task, input) ? streamedRequest(request) : request;
 }
 
@@ -114,12 +150,13 @@ export async function runTask(
   provider: ModelProvider,
   model: string,
 ): Promise<unknown> {
-  const prompt = evalPrompt(task, input, model);
+  const prompt = evalPrompt(task, input, model, await evalDocument(task, input));
   const result = await provider.generateStructured(prompt.request);
   if (result.status !== 'completed') {
     throw new Error(`${task.name}: the provider returned ${result.status}, not an output`);
   }
-  return task.output.parse(prompt.restore(task.output.parse(result.output)));
+  const schema = outputSchemaOf(task, task.input.parse(input));
+  return schema.parse(prompt.restore(schema.parse(result.output)));
 }
 
 /**

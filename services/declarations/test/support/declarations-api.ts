@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import { TokenVerifier } from '@adili/api-kit';
+import { RATE_LIMIT_POLICIES, type RateLimitPolicy, TokenVerifier } from '@adili/api-kit';
 import {
   createDatabase,
   DATABASE,
@@ -14,7 +14,7 @@ import {
   withPerson,
   withTenant,
 } from '@adili/data-access';
-import { FakeCipher } from '@adili/data-access/testing';
+import { FakeCipher, truncateTables } from '@adili/data-access/testing';
 import {
   deadLetterQueue,
   EVENTS_EXCHANGE,
@@ -35,8 +35,10 @@ import { v7 as uuidv7 } from 'uuid';
 import { inject } from 'vitest';
 
 import { AcknowledgementConsumer } from '../../src/acknowledgement/acknowledgement.consumer.js';
+import { AiGatewayClient } from '../../src/ai-gateway/ai-gateway-client.js';
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
+import { config } from '../../src/config.js';
 import type { Transaction } from '../../src/db/transaction.js';
 import { type DeclarationsSchema, schema, tenantPolicyCache } from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
@@ -51,12 +53,20 @@ import {
   CycleOpeningSchedules,
 } from '../../src/obligations/workflow/cycle-opening-schedules.js';
 import { ObligationSteps } from '../../src/obligations/workflow/obligation-steps.js';
+import { DocumentReadingWorkflows } from '../../src/suggestions/document-reading-workflows.js';
+import { ExtractionJobConsumer } from '../../src/suggestions/extraction-job.consumer.js';
+import { RegistryLookupWorkflows } from '../../src/suggestions/registry-lookup-workflows.js';
+import {
+  documentReadingWorkflowId,
+  registryLookupsWorkflowId,
+} from '../../src/suggestions/workflow/contract.js';
 import { ObligationsSweep, SweepSchedule } from '../../src/obligations/workflow/sweep.js';
 import {
   type ObligationChanges,
   ObligationWorkflows,
   type StoppedWorkflow,
 } from '../../src/obligations/workflows.js';
+import { FakeAiGateway } from './fake-ai-gateway.js';
 import { FakeDirectory } from './fake-directory.js';
 import { FakeDocuments } from './fake-documents.js';
 import { FakeIntegrationGateway } from './fake-integration-gateway.js';
@@ -238,6 +248,11 @@ export interface DeclarationsApi {
   notifications: FakeNotifications;
   /** The integration-gateway's registry lookups (spec 05b), run by the lookup workflow. */
   gateway: FakeIntegrationGateway;
+  /**
+   * The ai-gateway: Ask Adili's answer stream (spec 11), recording what it sends and answering it,
+   * and the `extract-document` jobs "Read into the form" asks for (spec 05b).
+   */
+  aiGateway: FakeAiGateway;
   /** What `ObligationWorkflows` was told (`recording` mode only). */
   workflows: RecordingWorkflows;
   /** Starts and signals sent to Temporal (`fake` mode only). */
@@ -249,6 +264,12 @@ export interface DeclarationsApi {
   cycleSchedules: RecordingCycleOpeningSchedules;
   clock: TestClock;
   /**
+   * The rate limits by group, as the service reads them on each request (`RATE_LIMITS` of
+   * vitest.integration.config.ts); a test may change a configured group's, and `reset` puts
+   * them back.
+   */
+  rateLimits: Record<string, RateLimitPolicy>;
+  /**
    * The corpus files the service imports on boot and on a platform-admin re-import; the
    * committed corpus unless a test sets others. `reset` does not re-import.
    */
@@ -257,6 +278,8 @@ export interface DeclarationsApi {
   consumers: DirectoryEventsConsumer;
   /** The acknowledgement slip's event consumers (documents, verification-api), likewise. */
   acknowledgementConsumers: AcknowledgementConsumer;
+  /** The consumer of the ai-gateway's `ai.job.*` events, likewise. */
+  extractionJobs: ExtractionJobConsumer;
   /**
    * Publishes a directory event to the RabbitMQ events exchange, as the directory's outbox relay
    * would (`events` option only): the service's consumers receive it on the suite's own queue.
@@ -271,6 +294,13 @@ export interface DeclarationsApi {
     caller: Caller,
     options?: { headers?: Record<string, string>; body?: unknown },
   ): ReturnType<NestFastifyApplication['inject']>;
+  /** A bearer token for the caller, for requests made over the network (`listen`). */
+  token(caller: Caller): Promise<string>;
+  /**
+   * Starts listening on a free local port, for what `inject` cannot do (a caller that hangs up
+   * midway); the service's base URL. Once per suite: later calls answer the same URL.
+   */
+  listen(): Promise<string>;
   /** `GET` without a bearer token. */
   anonymous(url: string): ReturnType<NestFastifyApplication['inject']>;
   /** Empties every table except seeded reference data. */
@@ -282,7 +312,7 @@ export interface DeclarationsApi {
  * The declarations service over HTTP and at its event inbox, against a real Postgres
  * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied. The
  * directory is `FakeDirectory`, documents `FakeDocuments`, notifications `FakeNotifications`, the
- * integration-gateway `FakeIntegrationGateway`, the field cipher `FakeCipher`, workflows are
+ * integration-gateway `FakeIntegrationGateway`, the ai-gateway `FakeAiGateway`, the field cipher `FakeCipher`, workflows are
  * recorded (see `WorkflowMode`), tokens are signed locally and the outbox relay is off (events stay
  * in the outbox for assertions). The service's Temporal worker polls the suite's own task queue.
  * The test role owns the tables, so FORCE row-level security applies to it as to the service's
@@ -318,10 +348,13 @@ export async function startDeclarationsApi({
   const temporal = new FakeTemporal();
   const notifications = new FakeNotifications();
   const gateway = new FakeIntegrationGateway();
+  const aiGateway = new FakeAiGateway();
   const clock = new TestClock();
   const cycleSchedules = new RecordingCycleOpeningSchedules();
   const cipher = new FakeCipher();
   const corpus = new TestCorpusFiles();
+  const rateLimits = { ...config.RATE_LIMITS };
+  let listening: Promise<string> | undefined;
   let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -335,12 +368,16 @@ export async function startDeclarationsApi({
     .useValue(notifications)
     .overrideProvider(IntegrationGatewayClient)
     .useValue(gateway)
+    .overrideProvider(AiGatewayClient)
+    .useValue(aiGateway)
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(FieldCipher)
     .useValue(cipher)
     .overrideProvider(CorpusFiles)
     .useValue(corpus)
+    .overrideProvider(RATE_LIMIT_POLICIES)
+    .useValue(rateLimits)
     .overrideProvider(OutboxRelay)
     .useValue({})
     // The hourly schedule lives on the shared Temporal; suites run the sweep themselves.
@@ -376,6 +413,7 @@ export async function startDeclarationsApi({
       persistent: true,
     });
   }
+  const suggestionWorkflows = recordSuggestionWorkflows(app);
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
   // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
@@ -388,6 +426,7 @@ export async function startDeclarationsApi({
     documents,
     notifications,
     gateway,
+    aiGateway,
     workflows,
     temporal,
     cipher,
@@ -398,9 +437,11 @@ export async function startDeclarationsApi({
     sweep: app.get(ObligationsSweep),
     cycleSchedules,
     clock,
+    rateLimits,
     corpus,
     consumers: app.get(DirectoryEventsConsumer),
     acknowledgementConsumers: app.get(AcknowledgementConsumer),
+    extractionJobs: app.get(ExtractionJobConsumer),
     async get(path, caller) {
       const token = await signer(caller);
       return app.inject({
@@ -422,22 +463,35 @@ export async function startDeclarationsApi({
       if (!publisher) throw new Error('start the harness with { events: true } to publish');
       await lastValueFrom(publisher.emit(event.type, event), { defaultValue: undefined });
     },
+    token: signer,
+    listen() {
+      listening ??= app
+        .listen(0, '127.0.0.1')
+        .then(() => app.getUrl())
+        .catch((error: unknown) => {
+          listening = undefined;
+          throw error;
+        });
+      return listening;
+    },
     anonymous(path) {
       return app.inject({ method: 'GET', url: path });
     },
     async reset() {
-      await db.execute(
-        sql`truncate help_articles, suggestions, suggestion_sets, suggestion_consents, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
-      );
+      // The suite's suggestion workflows end first, so none acts on the next test's rows.
+      await terminateWorkflows(app.get<Client>(TEMPORAL_CLIENT), suggestionWorkflows);
+      await truncateTables(db, RESET_TABLES);
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
       directory.reset();
       documents.reset();
       notifications.reset();
       gateway.reset();
+      aiGateway.reset();
       workflows.reset();
       temporal.reset();
       clock.reset();
+      Object.assign(rateLimits, config.RATE_LIMITS);
       cipher.calls.length = 0;
       corpus.reset();
     },
@@ -453,6 +507,75 @@ export async function startDeclarationsApi({
     },
   };
 }
+
+/**
+ * Records the id of every suggestion workflow the service starts (registry lookups by consent,
+ * document readings by declaration and job), so `reset` can end them: read back from the tables
+ * they would not be, as the suggestion tables are the declarant's alone under row-level security.
+ */
+function recordSuggestionWorkflows(app: NestFastifyApplication): Set<string> {
+  const started = new Set<string>();
+  const lookups = app.get(RegistryLookupWorkflows);
+  const startLookups = lookups.start.bind(lookups);
+  lookups.start = (input) => {
+    started.add(registryLookupsWorkflowId(input.consentId));
+    return startLookups(input);
+  };
+  const readings = app.get(DocumentReadingWorkflows);
+  const startReading = readings.start.bind(readings);
+  readings.start = (input) => {
+    started.add(documentReadingWorkflowId(input.declarationId, input.jobId));
+    return startReading(input);
+  };
+  return started;
+}
+
+/**
+ * Terminates the suggestion workflows the suite started and forgets them. Left running, a
+ * reading keeps pulling the fake gateway for 15 minutes, taking worker slots and locking the next
+ * test's tables. One never started, or ended already, is skipped.
+ */
+async function terminateWorkflows(temporal: Client, started: Set<string>): Promise<void> {
+  // `FakeTemporal` (the `fake` mode) starts nothing to terminate.
+  if (!('getHandle' in temporal.workflow)) return;
+  for (const id of started) {
+    try {
+      await temporal.workflow.getHandle(id).terminate();
+    } catch {
+      // Never started, or ended already.
+    }
+  }
+  started.clear();
+}
+
+/** Every table `reset` empties. */
+const RESET_TABLES = [
+  'assistant_messages',
+  'assistant_conversations',
+  'assistant_hint_cache',
+  'assistant_theme_counts',
+  'help_articles',
+  'suggestions',
+  'suggestion_sets',
+  'suggestion_consents',
+  'declaration_items',
+  'declaration_versions',
+  'numbering_counters',
+  'idempotency_keys',
+  'obligation_drafts',
+  'declaration_attachments',
+  'declaration_sections',
+  'declarations',
+  'reminder_messages',
+  'obligation_reminders',
+  'filing_obligations',
+  'roster_snapshots',
+  'tenant_policy_cache',
+  'commission_refs',
+  'cycle_openings',
+  'outbox',
+  'inbox',
+] as const;
 
 /** Deletes the suite's own events queue and its dead-letter queue. */
 async function deleteQueues(rabbitmqUrl: string, service: string): Promise<void> {

@@ -21,7 +21,11 @@ packages/schemas/internal/declarations.yaml
 packages/schemas/internal/directory.yaml
 packages/schemas/internal/documents.yaml
 packages/schemas/internal/notifications.yaml
+# Golden files a test writes and compares byte for byte (vitest file snapshots)
+services/*/test/**/golden
 # Recorded Temporal histories (replay fixtures)
 services/*/test/**/workflow-histories
 # Recorded model responses (ai-gateway eval fixtures), rewritten on every recording
 services/ai-gateway/evals/fixtures
+# Recorded model responses for the demo beats (`pnpm demo:ai record`), rewritten the same way
+services/ai-gateway/fixtures/demo/*.json

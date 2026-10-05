@@ -11,7 +11,16 @@ import {
   restrictedVerifyNote,
   subjectLine,
 } from './letter.js';
-import { esc, formatDate, htmlDocument, INK, letterhead, LINE } from './page.js';
+import {
+  esc,
+  formatDate,
+  htmlDocument,
+  INK,
+  LETTER_LANGUAGES,
+  type LetterLanguage,
+  letterhead,
+  LINE,
+} from './page.js';
 import {
   declarationSchemeOf,
   isDeclarationReference,
@@ -43,6 +52,8 @@ export const clarificationLetterPayload = z
           /** What Act s.35(4) requires, e.g. `Explain the discrepancy or inconsistency`. */
           requirementLabel: z.string().trim().min(1).max(200),
           text: z.string().trim().min(1).max(1000),
+          /** Drafted with AI (and possibly edited) before the reviewer issued it. */
+          aiAssisted: z.boolean().default(false),
         }),
       )
       .min(1)
@@ -51,6 +62,15 @@ export const clarificationLetterPayload = z
     dueAt: z.iso.datetime({ offset: true }),
     /** The portal page where the declarant answers this clarification. */
     portalUrl: portalUrlSchema,
+    /**
+     * The language the letter prints its own text in; item labels arrive in it already, the
+     * opening and the items' text are the reviewer's. Letters from before it was sent: English.
+     */
+    language: z.enum(LETTER_LANGUAGES).default('en'),
+    /** Printed before the items; null when the letter has none. */
+    opening: z.string().trim().min(1).max(2000).nullable().default(null),
+    /** Some of the text was drafted with AI and approved by the issuing reviewer (ADR-007). */
+    aiAssisted: z.boolean().default(false),
   })
   .refine(
     (payload) => numberedBy(payload.clarificationReference, CLR, payload.commission.issuerCode),
@@ -65,6 +85,8 @@ export const clarificationLetterPayload = z
   });
 
 export type ClarificationLetterPayload = z.infer<typeof clarificationLetterPayload>;
+/** The payload as review sends it: `language`, `opening` and `aiAssisted` may be missing. */
+export type ClarificationLetterInput = z.input<typeof clarificationLetterPayload>;
 
 const STYLES = `${LETTER_STYLES}
 h2{margin:0 0 2mm}
@@ -79,14 +101,96 @@ h2{margin:0 0 2mm}
 .banner{margin:2mm 0 5mm;background:#fdf4e2;color:#6e4000}
 .banner .s{display:block;font-weight:400;font-size:8.6pt}
 .steps{margin:0 0 4mm;padding-left:5mm}
-.steps li{margin-bottom:1.2mm;padding-left:1mm}`;
+.steps li{margin-bottom:1.2mm;padding-left:1mm}
+.opening{white-space:pre-line;overflow-wrap:anywhere}
+.ai{display:inline-block;padding:0.2mm 1.6mm;border-radius:0.8mm;background:#eef2fb;color:#23407a;font-size:7.6pt;font-weight:600;margin-left:1.5mm}
+.ai-note{margin:3mm 0 0;font-size:8.6pt}`;
+
+interface LetterCopy {
+  /** The reference block's terms. */
+  refs: { reference: string; date: string; declaration: string };
+  subject: string;
+  dear: string;
+  intro: (declaration: string, reference: string, below: string) => string;
+  below: (count: number) => string;
+  need: string;
+  aiItem: string;
+  respondBy: string;
+  window: (days: number) => string;
+  how: string;
+  steps: (portal: string, reference: string) => string[];
+  late: (due: string) => string;
+  aiNote: string;
+}
+
+/** The letter's own text in each language (#592); the Swahili awaits the Commission's review. */
+const COPY: Record<LetterLanguage, LetterCopy> = {
+  en: {
+    refs: { reference: 'Ref', date: 'Date', declaration: 'Declaration' },
+    subject: 'Request for clarification',
+    dear: 'Dear',
+    intro: (declaration, reference, below) =>
+      `Under section 35(2) of the Conflict of Interest Act, 2025, the Commission has reviewed your ${declaration} ${reference}. Please clarify ${below}.`,
+    below: (count) => (count === 1 ? 'the item below' : `the ${String(count)} items below`),
+    need: 'What we need:',
+    aiItem: 'AI-assisted draft',
+    respondBy: 'Respond by',
+    window: (days) =>
+      `You have ${String(days)} day${days === 1 ? '' : 's'} from receipt of this letter to respond (section 35(3)).`,
+    how: 'How to respond',
+    steps: (portal, reference) => [
+      `Sign in to Adili Online at ${portal}.`,
+      `Open Clarifications and select <b class="nw">${reference}</b>.`,
+      'Answer each item. Attach supporting documents if you have them (PDF, JPEG, PNG or HEIC, up to 20&nbsp;MB each).',
+      'Submit your response. You can respond once, so answer every item.',
+    ],
+    late: (due) => `A response after ${due} is still accepted and is recorded as late.`,
+    aiNote:
+      'Parts of this letter were drafted with the help of AI and checked and approved by the Commission officer who issued it.',
+  },
+  sw: {
+    refs: { reference: 'Kumb.', date: 'Tarehe', declaration: 'Tamko' },
+    subject: 'Ombi la ufafanuzi',
+    dear: 'Mpendwa',
+    intro: (declaration, reference, below) =>
+      `Kwa mujibu wa kifungu cha 35(2) cha Sheria ya Mgongano wa Maslahi, 2025, Tume imekagua ${declaration} yako ${reference}. Tafadhali toa ufafanuzi kuhusu ${below}.`,
+    below: (count) =>
+      count === 1
+        ? 'kipengele kilicho hapa chini'
+        : `vipengele ${String(count)} vilivyo hapa chini`,
+    need: 'Tunachohitaji:',
+    aiItem: 'Rasimu iliyosaidiwa na AI',
+    respondBy: 'Jibu kufikia',
+    window: (days) =>
+      `Una siku ${String(days)} tangu kupokea barua hii kujibu (kifungu cha 35(3)).`,
+    how: 'Jinsi ya kujibu',
+    steps: (portal, reference) => [
+      `Ingia kwenye Adili Online kupitia ${portal}.`,
+      `Fungua Ufafanuzi kisha uchague <b class="nw">${reference}</b>.`,
+      'Jibu kila kipengele. Ambatisha nyaraka za kuunga mkono ikiwa unazo (PDF, JPEG, PNG au HEIC, hadi MB&nbsp;20 kila moja).',
+      'Wasilisha jibu lako. Unaweza kujibu mara moja tu, kwa hivyo jibu kila kipengele.',
+    ],
+    late: (due) => `Jibu baada ya ${due} bado linakubaliwa na hurekodiwa kuwa limechelewa.`,
+    aiNote:
+      'Sehemu za barua hii ziliandikwa kwa msaada wa AI na zikakaguliwa na kuidhinishwa na afisa wa Tume aliyeitoa.',
+  },
+};
+
+/** Swahili names of the declaration types, e.g. `tamko la awali` for an initial declaration. */
+const SW_DECLARATIONS: Record<string, string> = {
+  initial: 'tamko la awali',
+  biennial: 'tamko la kila miaka miwili',
+  final: 'tamko la mwisho',
+};
+
+/** The declaration's name in the letter's language, e.g. `initial declaration`. */
+function declarationName(reference: string, language: LetterLanguage): string {
+  const name = declarationSchemeOf(reference).name.toLowerCase();
+  if (language === 'en') return name;
+  return SW_DECLARATIONS[name.replace(/ declaration$/, '')] ?? name;
+}
 
 const CALENDAR = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>`;
-
-/** `the item below`, `the 3 items below`. */
-function itemsBelow(count: number): string {
-  return count === 1 ? 'the item below' : `the ${count} items below`;
-}
 
 /**
  * The clarification letter (Act s.35, spec 07a): the Commission's request that the declarant
@@ -129,12 +233,15 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
       reference: payload.clarificationReference,
       version: null,
       mark: 'RESTRICTED',
+      language: payload.language,
     };
   },
 
   render(payload, { verificationId, issuedAt, signerName }) {
-    const declaration = declarationSchemeOf(payload.declarationReference).name.toLowerCase();
-    const due = esc(formatDate(payload.dueAt));
+    const language = payload.language;
+    const copy = COPY[language];
+    const declaration = declarationName(payload.declarationReference, language);
+    const due = esc(formatDate(payload.dueAt, language));
     // The reply window is the Commission's policy (30 days by default): the letter says the one
     // its due date was set with, not a fixed number.
     const replyDays = Math.round(
@@ -142,38 +249,44 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
     );
     const reference = esc(payload.clarificationReference);
     const items = payload.items
-      .map(
-        (item, index) =>
-          `<li><span class="n" aria-hidden="true">${index + 1}</span><div class="body"><div class="it">${esc(item.label)}</div><span class="req">What we need: ${esc(item.requirementLabel)}</span><p>${esc(item.text)}</p></div></li>`,
-      )
+      .map((item, index) => {
+        const ai = item.aiAssisted ? `<span class="ai">${copy.aiItem}</span>` : '';
+        return `<li><span class="n" aria-hidden="true">${String(index + 1)}</span><div class="body"><div class="it">${esc(item.label)}${ai}</div><span class="req">${copy.need} ${esc(item.requirementLabel)}</span><p>${esc(item.text)}</p></div></li>`;
+      })
       .join('');
+    const opening = payload.opening ? `<p class="opening">${esc(payload.opening)}</p>` : '';
+    const steps = copy
+      .steps(portalLink(payload.portalUrl), reference)
+      .map((step) => `<li>${step}</li>`)
+      .join('\n');
+    const aiNote = payload.aiAssisted ? `<p class="ai-note">${copy.aiNote}</p>` : '';
     const body = `${letterhead({ name: payload.commission.name, code: payload.commission.issuerCode })}
 ${letterMeta(`<b>${esc(payload.declarantName)}</b>`, [
-  ['Ref', `<span class="mono nw">${reference}</span>`],
-  ['Date', `<span class="nw">${esc(formatDate(payload.issuedAt))}</span>`],
-  ['Declaration', `<span class="mono nw">${esc(payload.declarationReference)}</span>`],
+  [copy.refs.reference, `<span class="mono nw">${reference}</span>`],
+  [copy.refs.date, `<span class="nw">${esc(formatDate(payload.issuedAt, language))}</span>`],
+  [copy.refs.declaration, `<span class="mono nw">${esc(payload.declarationReference)}</span>`],
 ])}
-${subjectLine(`Request for clarification: ${declaration} ${payload.declarationReference}`)}
-<p>Dear ${esc(payload.declarantName)},</p>
-<p>Under section 35(2) of the Conflict of Interest Act, 2025, the Commission has reviewed your ${declaration} ${esc(payload.declarationReference)}. Please clarify ${itemsBelow(payload.items.length)}.</p>
+${subjectLine(`${copy.subject}: ${declaration} ${payload.declarationReference}`)}
+<p>${copy.dear} ${esc(payload.declarantName)},</p>
+<p>${copy.intro(declaration, esc(payload.declarationReference), copy.below(payload.items.length))}</p>
+${opening}
 <ol class="items">${items}</ol>
-<div class="banner">${CALENDAR}<div>Respond by ${due}<span class="s">You have ${replyDays} day${replyDays === 1 ? '' : 's'} from receipt of this letter to respond (section 35(3)).</span></div></div>
+<div class="banner">${CALENDAR}<div>${copy.respondBy} ${due}<span class="s">${copy.window(replyDays)}</span></div></div>
 <section class="close">
-<h2>How to respond</h2>
+<h2>${copy.how}</h2>
 <ol class="steps">
-<li>Sign in to Adili Online at ${portalLink(payload.portalUrl)}.</li>
-<li>Open Clarifications and select <b class="nw">${reference}</b>.</li>
-<li>Answer each item. Attach supporting documents if you have them (PDF, JPEG, PNG or HEIC, up to 20&nbsp;MB each).</li>
-<li>Submit your response. You can respond once, so answer every item.</li>
+${steps}
 </ol>
-<p>A response after ${due} is still accepted and is recorded as late.</p>
-${restrictedVerifyNote(verificationId)}
-${letterClose(payload.commission.name, signerName, issuedAt)}
+<p>${copy.late(due)}</p>
+${aiNote}
+${restrictedVerifyNote(verificationId, 'letter', language)}
+${letterClose(payload.commission.name, signerName, issuedAt, language)}
 </section>`;
     return htmlDocument(
-      `Request for clarification ${payload.clarificationReference}`,
+      `${copy.subject} ${payload.clarificationReference}`,
       STYLES,
       body,
+      language,
     );
   },
 };

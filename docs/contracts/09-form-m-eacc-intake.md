@@ -1,0 +1,142 @@
+# Spec 09 contract convergence: Form M and EACC intake
+
+How the contracts drafted for spec 09 (#214, contract PR #215) compare with what was built, after #446, #458, #482 and #484.
+Each difference below was decided in the ticket named; the generated contract in `packages/schemas/internal/<service>.yaml` is now the source of truth.
+
+## State
+
+| Contract | Source | Drafts left | Drift check |
+|---|---|---|---|
+| `internal/reporting.yaml` | exported from `services/reporting` (`pnpm --filter @adili/reporting contracts`, since #238) | none (`getOpenDataReleaseEacc`, the last 09b draft, implemented in #491) | `pnpm contracts:drift` |
+| `internal/integration-gateway.yaml` | exported | none | same |
+| `internal/declarations.yaml` | exported | `drafts/declarations.yaml`: specs 05b and 11 only | same |
+| `internal/review.yaml` | exported | none | same |
+| `internal/directory.yaml` | exported | none | same |
+| `internal/documents.yaml` | exported | none | same |
+| `internal/notifications.yaml` | exported | none | same |
+| `forms/form-m.v1.json` | hand-written | n/a | `pnpm --filter @adili/schemas lint:forms` (meta-validation and compile), fixtures in `forms/fixtures/form-m.v1` (valid and invalid) checked by `@adili/forms` tests (`form-m.test.ts`, every file in the folder) |
+
+Every operation #215 drafted for spec 09 is built, under the operation id and path it drafted: 16 in reporting, 2 in the integration-gateway. Reporting also serves spec 07c's `getAiUsage` (#272).
+With reporting, every service that serves an internal API exports its contract.
+The console's reporting client (`apps/console/src/server/reporting/api.gen.ts`) is generated from it, for the spec 09 screens (#222, #225, #229), and the drift check fails when it is stale.
+
+## Reporting (`internal/reporting.yaml`)
+
+Until #238 this file was hand-written: the backend PRs (#446, #234, #237, #272) edited it next to the code, and the integration tests checked the answers against it.
+It is now exported from the controllers and Zod schemas (`services/reporting/src/openapi.ts`).
+Each representation the service answers with is typed from the schema that documents it (`z.infer`, as in the other services), and the integration tests still validate the answers against the exported file.
+
+Operations: none added, none dropped, none moved. Changed:
+
+- **Request bodies are documented.** The hand-written file had them, but the code did not: a client generated from the code alone would have sent untyped bodies. `ManualFields` gains the limits the service enforces: `emailAddress` at most 254 characters, at most 500 `complaints`. Confirm's optional body is the named `ConfirmReport`.
+- **Success bodies are named schemas** instead of the code's bare descriptions.
+- **Problems documented that the draft left out:**
+  - 400 when `fy` is not a financial year, on `getComplianceReport`, `compileComplianceReport` and the four NCR operations.
+  - 422 (Idempotency-Key reused with another request) on `approveNationalReport` and `pushReferralToIcms`, as on the other keyed writes.
+- `submitComplianceReport`: the body is the named `FormM`, the full `form-m.v1` schema (from `@adili/forms` `FormMSchema`, as documents' `FormMPayload`), instead of any object. The service validates it against `forms/form-m.v1.json` (`invalid-document`).
+- `getSubmittedReport` answers `SubmittedComplianceReport`: a `ComplianceReport` whose `document` is the frozen `FormM`. The Commission's own `getComplianceReport` keeps the loose `FormMDocument`, because a draft need not be complete yet. `FormM`'s parts are not named components: naming the declaration section makes Zod export biennial's intersection as an `allOf` of two closed objects, which no document satisfies. documents' `FormMPayload` had that defect, fixed in #238.
+- `listReferralIntake`: `icmsStatus` is an inline enum, and `cursor` (1 to 200 characters) is documented as the previous page's `nextCursor`.
+- `getEaccIntake`: `status` refers to `IntakeStatus`, `fy` is described.
+- The draft's shared `parameters` (`Slug`, `FinancialYear`, `IdempotencyKey`) and `responses` (`NotFound`, `Forbidden`) are inlined per operation (code-first export). The 09b drafts keep using them, from `drafts/reporting.yaml`.
+
+Schemas changed:
+
+- New: `ReportCounts` (was `counts: object`), `NationalAggregates` (was `aggregates: object`), `FormMDocument` (was `document: object`, for drafts), `FormM` (its parts unnamed, see below), `SubmittedComplianceReport`, `ConfirmReport`, `ReferralIntakePage` (was inline).
+- `ComplianceReport.counts` and `NationalReport.aggregates` are the typed shape, or `{}` before the first compile or build.
+- Every field the draft listed is there, with the same names and required fields; descriptions added from the code.
+- Nullables are exported as `anyOf [..., null]` rather than `type: [..., 'null']`, and `Officer | null` as `anyOf` rather than `oneOf`.
+- `ProblemDetails.code` is the shared enum of `@adili/api-kit` `PROBLEM_CODES`, as in every exported contract, instead of the hand-written `string`. Reporting's codes are now registered there (#238): `report-submitted`, `report-compiling`, `preview-not-available`, `not-reviewed`, `invalid-remarks`, `invalid-document`, `inconsistent-document`, `tenant-mismatch`, `ncr-approved`, `no-submitted-reports`, `icms-push-failed` and `separation-of-duties`, next to the already registered `incomplete` (now titled "Form incomplete", as it covers Form M too) and `step-up-required`.
+  - Every coded problem goes through `problem(code, ...)` (`ProblemException.fromCode`), so the registry's status and title are on the wire and the code is the `type`, as in access. The `about:blank` types and generic titles are gone.
+  - `problem` takes a `ProblemCode`, so a code reporting sends through its helpers must be registered first. api-kit does not enforce this for every service: `ProblemExtensions.code` is still a free string, and review sends unregistered codes (#501).
+  - Every contract and client is regenerated with the longer enum.
+
+### Spec 09b drafts
+
+`getNationalReportCandidates`, `draftNationalReportNarrative`, `listOpenDataReleasesEacc`, `buildOpenDataSnapshot`, `publishOpenDataRelease`, `withdrawOpenDataRelease`, `getCommissionOpenDataPreview` and the public `listOpenDataReleases`, `getOpenDataRelease`, `getOpenDataTable` moved unchanged into `drafts/reporting.yaml`, with `PatternCandidate`, `OpenDataTable`, `OpenDataRelease` and the parameters and responses they use.
+The export marks them `x-draft: true`.
+
+PR #491 (spec 09b backend) edits `internal/reporting.yaml` and `internal/documents.yaml` by hand. Once #238 merges, both files are generated, so #491's rebase conflicts on them. Taking the generated files as they are would drop #491's contract. The rule for the rebase:
+
+- **Into code:** every operation, component and problem code #491 adds or changes. Operations are documented on its controllers, components are Zod schemas in `OPENAPI_SCHEMAS` whose `z.infer` types the answers, and codes are registered in `PROBLEM_CODES`.
+- **In the drafts:** `drafts/reporting.yaml` keeps only what is still unimplemented. The export refuses an operation or component that the draft and the code both define (`withDraft` in api-kit `contract.ts`). A draft may `$ref` implemented components.
+- **Never hand-edited:** the generated files. Run `pnpm --filter <service> contracts` for reporting and documents, then `pnpm contracts:drift`, and regenerate the clients.
+
+Known specifics as of #491's head `adc5e4b6` (3 October), as examples:
+
+- **Operations implemented:** 7, all to move out of the draft: `getNationalReportCandidates`, `draftNationalReportNarrative`, `listOpenDataReleasesEacc`, `buildOpenDataRelease` (the draft's `buildOpenDataSnapshot`, renamed), `publishOpenDataRelease`, `withdrawOpenDataRelease`, `getCommissionOpenDataPreview`. Only the public `listOpenDataReleases`, `getOpenDataRelease` and `getOpenDataTable` stay drafted.
+- **Components:** `PatternCandidate`, `OpenDataRelease` and `OpenDataTable` become Zod schemas, because the public drafts still reference them.
+- **Changes to converged operations:**
+  - `NationalReport.narrativeDraft` and the new `NarrativeDraft` schema go into `nationalReportSchema`.
+  - The new `getNationalReport` description goes on `national-reports.controller.ts`.
+- **Problem codes to register:**
+  - `ai-not-enabled`, `narrative-validation`, `no-pattern-candidates`, `aggregates-rebuilt`, `narrative-draft-failed`, `ncr-not-built`, `ncr-not-approved`
+  - `reconciliation-failed`, `release-not-preview`, `release-not-published`, `annual-release-published`, `manifest-revocation-refused`
+- **Problem helpers:**
+  - #491 calls `conflict(code, ...)` and `badGateway(code, ...)`, which #238 replaced with `problem(code, ...)` (`ProblemException.fromCode`).
+  - Its raw `new ProblemException({...}, { code })` sites go through `problem` as well. Its `aiGatewayUnavailable()` (a `type` with no code) stays as it is, like `directoryUnavailable()`.
+- **Documents:**
+  - #491's documents changes (the `open-data-manifest` type, `OpenDataManifestPayload`, the download and issue descriptions) go into documents' code.
+  - Its hand-edited `documents.yaml` collides with #238's `FormMPayload` fix, so take #238's file and re-export it from the code.
+
+#238 adds no migrations, so #491's 0009 and 0010 do not conflict with it.
+
+### Spec 09b in code (#491)
+
+#491 merged #238 and #493 as above:
+
+- **Operations:** all ten #491 implements are documented on its controllers, the public ones too: `listOpenDataReleases`, `getOpenDataRelease`, `getOpenDataTable` and `getOpenDataTableCsv` (the `.csv` download, its own route) have no security requirement (`security: []`). Their 200s state `ETag`, `Last-Modified`, `Cache-Control`, `Access-Control-Allow-Origin` and the `RateLimit-*` headers, their 304s the cache and CORS headers, and every problem and the 429 the CORS header, inline in each response: no shared `components.headers`, which a draft cannot carry (#517).
+- **Components:** Zod schemas `PatternCandidate`, `NarrativeDraft` (with `jobs`, one or two per draft), `OpenDataTable`, `OpenDataRelease`, `OpenDataTableFile` (the stored table, `getOpenDataTable`'s JSON), `CommissionOpenDataPreview` and `PublicOpenDataRelease`; `NationalReport.narrativeDraft`.
+- **Problem codes:** the twelve listed above and `fy-not-started`, `release-building` and `manifest-refused`, registered in `PROBLEM_CODES` and sent through `problem(...)`.
+- **Drafts:** only `getOpenDataReleaseEacc` and `OpenDataReleaseDetail`, drafted by #350 for the console's release page and not implemented yet.
+- **Migrations:** #493's `0009_access_request_facts` first; #491's follow as 0010 to 0015.
+- **Access requests:** with `access_request_facts`, the open-data `access-requests` table and the national `accessRequests*` measures carry Form M section 5 as the reports filed it (the NCR's aggregates, or the live projections for a mid-year snapshot), suppressed with each Commission's other counts and reconciled; no table names them in `notCollected` any more. The narrative task input carries them too (`accessRequestsReceived`, `accessRequestsGranted`, `accessRequestsDeclined`).
+
+### PR #493 (Form M section 5 from access events, #467)
+
+#493 changed section 5 after this PR merged, and was merged second, so it carries both the looser rule and its sentence in `federated-reports.controller.ts`:
+
+- `federated-submission.ts` accepts decline reasons that add up to at least declined, and `submitComplianceReport`'s description in `federated-reports.controller.ts` states it: "the decline reasons count at least every decline (a denial citing several grounds counts under each)" replaces #238's "the decline reasons add up to declined". `internal/reporting.yaml` and the console client are re-exported from it, never edited by hand.
+- Its other changes (the `access_request_facts` projection, migration 0009, `form-m.ts` compiling section 5, `dataUnavailable` false for hosted reports) touch no HTTP contract. `ComplianceReport.accessDataUnavailable` and `ReportCounts.accessRequests` keep their shape.
+- It updates `docs/contracts/10-access-requests.md`, which this PR does not touch.
+
+## Integration-gateway (`internal/integration-gateway.yaml`)
+
+- `submitIcmsReferral`, `getIcmsReferral` (#219): scope `icms`, held by reporting only; no `X-Acting-Tenant` (the referring Commission is in the referral, ADR-013 §8.7). `X-Legal-Basis` is required and only `regs-r20-referral` (an inline enum, not the shared `LegalBasis`); `X-Case-Ref` optional.
+- No `Idempotency-Key`: idempotent by `referralReference`. The same reference for another declarant or Commission is 409 `referral-reference-conflict`; for the same one, 200 and the stored registration, without calling ICMS.
+- 503 `upstream-unavailable` when ICMS is down, timed out, paused or its breaker is open: nothing is registered, and reporting retries with backoff.
+- `IcmsReferralRequest` gains patterns and lengths: `referralReference` (up to 40 characters), `nationalId` (5 to 10 digits), `referringCommission` (the issuer code), `fullName` and `grounds` (1 to 200), and refuses unknown keys. Only the national ID is kept, as a keyed hash.
+- `IcmsReferral.status` keeps `registered | pending | failed`, but ICMS registers as it receives, so the gateway answers `registered` with a case number today; pending and failed, and a null `caseNumber` or `registeredAt`, are reserved.
+- `getIcmsReferral`: `referralReference` has the request's pattern; 403 and 404 documented.
+
+## Declarations, review and directory (#220, in #458)
+
+The spec drafted these internal reads for Form M in the BE detail, not in #215; #458 built them from `drafts/declarations.yaml` and `drafts/directory.yaml`.
+
+- Declarations `internalObligationDetails` (`POST /internal/v1/obligations/details`): the officers behind 1 to 1,000 obligations, obligations of another Commission left out, audited with the ids returned.
+- Review `internalClarificationDetails` (`POST /internal/v1/review/clarifications/details`): Form M section 4's officer and the kinds of requirement asked for, never the content, audited with the ids returned.
+- Review `internalGetReferralIcmsPayload` (#237, in #444): what reporting pulls to push a referral to ICMS (see `08-determination-actions.md`).
+- Directory `internalListCommissionStaff` (`GET /internal/v1/commissions/{slug}/staff?role=`): enabled accounts holding `reporting-officer`, `supervisor` or `commission-admin` with a verified email; `role` is an enum.
+- Dropped: the review "action summary by person" the BE detail planned. Reporting takes each non-filer's latest action step and compliance status from its projection of review's `action.*` and `determination.approved.v1` events instead (ADR-013: projections from events).
+
+## Documents (`internal/documents.yaml`)
+
+- `DocumentType` gained `form-m`, `compliance-report-receipt` and `ncr`, as drafted (#218, in #484), with `FormMPayload`, `ComplianceReportReceiptPayload` and `NcrPayload`. The reporting service sends the payload (the frozen `form-m.v1` document, the receipt's reference, SHA-256 and time, the approved NCR's aggregates and narrative); none has a subject person.
+- `getDocumentDownload`: a Commission's supervisor, commission-admin, reporting officer or federated system downloads its own Form M and receipt; EACC analysts and supervisors every Commission's, the referral packages a Commission sent EACC (the intake's `packageDocumentId`, BE-3, S12), and the NCR. An analyst or supervisor whom a package refers is refused it, once their token carries their person id (`person_id`; staff tokens do not yet, #486).
+
+## Notifications (`internal/notifications.yaml`)
+
+- `TemplateId` gained `form-m-draft-ready-email`, `form-m-reminder-email`, `form-m-receipt-email` and `form-m-chase-email`, as drafted (#218, in #484). Emails only, to a Commission's staff, each with a `financialYear` (`2027/2028`); they attach nothing.
+
+## Events
+
+Built as the spec lists them (ids, counts and references only):
+
+- `compliance-report.drafted.v1`, `.reviewed.v1`, `.submitted.v1`, `.reminder-sent.v1`, `.chased.v1`.
+- `ncr.drafted.v1`, `ncr.approved.v1`.
+- `referral.icms-pushed.v1`, `.icms-registered.v1` (review consumes it to show the case number), `.icms-push-failed.v1`.
+
+Their types live in the reporting service (`src/*/events.ts`), as review's do.
+
+## Follow-ups
+
+- Review still sends codes `PROBLEM_CODES` does not hold (`not-proposed`, `supervisor-required`, ...), so its generated clients mistype them. Ticket: #501.

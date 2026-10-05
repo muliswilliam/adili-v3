@@ -133,7 +133,7 @@ export const COPY = {
   submittedDue: (at: string, due: string) => `Response submitted ${at} · due ${due}`,
   wasDue: (due: string) => `Was due ${due}. You can still respond.`,
   dueDay: (due: string, day: number, of: number) =>
-    `Due ${due} · day ${String(day)} of ${String(of)}`,
+    `Due ${due} · day\u00a0${String(day)}\u00a0of\u00a0${String(of)}`,
 
   letter: 'Letter',
   verificationCode: 'Verification code',
@@ -168,6 +168,7 @@ export const LIST_COPY = {
   all: 'All clarifications',
   viewAll: 'View all',
   viewAllLabel: 'View all clarifications',
+  onDeclaration: 'Clarifications on this declaration',
 
   rowTitle: (points: number, declaration: string) =>
     `${plural(points, 'point')} on your ${declaration}`,

@@ -6,6 +6,7 @@ import type { Client } from '@temporalio/client';
 import { asc, eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { demoWindows } from '../../src/demo/demo-windows.js';
 import type { CaseDetail } from '../../src/cases/representation.js';
 import { clarificationWorkflowId } from '../../src/clarifications/contract.js';
 import { CopilotDraftPurge } from '../../src/copilot/copilot-draft-purge.js';
@@ -291,6 +292,34 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
       verificationId: letter?.document.verificationId,
       status: 'issued',
     });
+  });
+
+  it('#371 demo windows: a reply window switched short while the service runs applies to clarifications issued then, and the legal one after it is switched back; the switch itself is absent without DEMO_MODE', async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const short = (await draft(caseId)).json<ClarificationView>();
+    const legal = (await draft(caseId)).json<ClarificationView>();
+
+    demoWindows.set({ DEMO_CLARIFICATION_REPLY_WINDOW: 'PT2M' });
+    try {
+      expect((await issue(short.id)).json<ClarificationView>().dueAt).toBe(
+        '2027-12-20T08:02:00.000Z',
+      );
+    } finally {
+      demoWindows.set({ DEMO_CLARIFICATION_REPLY_WINDOW: null });
+    }
+    expect((await issue(legal.id)).json<ClarificationView>().dueAt).toBe(
+      '2028-01-19T08:00:00.000Z',
+    );
+
+    const admin = { sub: 'platform-admin', tenant: 'platform', roles: ['platform-admin'] };
+    expect((await api.get('/v1/demo/windows', admin)).statusCode).toBe(404);
+    expect(
+      (
+        await api.send('PUT', '/v1/demo/windows', admin, {
+          windows: { DEMO_CLARIFICATION_REPLY_WINDOW: 'PT2M' },
+        })
+      ).statusCode,
+    ).toBe(404);
   });
 
   it('S12: the next clarification of the Commission that year takes the next number', async () => {
@@ -991,10 +1020,13 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     const caseId = await givenAssignedCase(api, version);
     const unissued = (await draft(caseId)).json<ClarificationView>();
     const { id } = (await draft(caseId)).json<ClarificationView>();
+    // Documents produces the letter in the issue workflow; held back, the record has none yet.
+    api.documents.holdIssues();
     expect((await issue(id)).statusCode).toBe(200);
     const letter = `/v1/review/clarifications/${id}/letter/download`;
     // Before documents has produced the letter there is nothing to download.
     expect((await api.get(letter, reviewerA)).statusCode).toBe(404);
+    api.documents.releaseIssues();
     await vi.waitFor(
       async () => {
         const [row] = await api.asPlatform((tx) =>

@@ -72,44 +72,66 @@ export async function seedDemoCommissions(db: Database<DirectorySchema>): Promis
   });
 }
 
+/** What a demo policy version changes; anything left out keeps the current version's value. */
+export interface DemoPolicy {
+  tenant: string;
+  reminderOffsetsDays?: number[];
+  obligationsStartDate?: string;
+  /** Biennial statement and due month-days, e.g. `{ statementDate: '06-30', dueDate: '12-31' }`. */
+  biennial?: { statementDate: string; dueDate: string };
+}
+
 /**
- * For the local reminder demo (#92): puts a policy version with `reminderOffsetsDays` in force for
- * a demo Commission, the rest copied from the current one, and announces it
- * (`directory.policy.changed.v1`) so the declarations service pulls it. Obligations created from
- * then on are reminded at those offsets, e.g. 29 days before the due date for an officer appointed
- * yesterday (an initial due in 29 days), so the reminder goes out today. `obligationsStartDate`
- * (default: the current one) must not be after the demo officer's appointment, or no initial is
- * owed; the seed sets it to the day the Commission was created. Changes nothing when both are in
- * force already. Never run against real data: the product changes the
- * obligations-start date only (spec 04).
+ * For the demos: puts a policy version in force for a Commission with the reminder offsets,
+ * obligations-start date and biennial month-days given, the rest copied from the current one, and
+ * announces it (`directory.policy.changed.v1`) so the declarations service pulls it. Changes
+ * nothing when all of them are in force already, so it is safe to run again.
+ *
+ * - The local reminder demo (#92) shortens the offsets, e.g. 29 days before the due date for an
+ *   officer appointed yesterday (an initial due in 29 days), so the reminder goes out today.
+ * - The demo seed (#617) moves the biennial statement date so its demo cycles have passed their
+ *   statement date, and the start date back so the cycles reach the officers.
+ *
+ * `obligationsStartDate` must not be after a demo officer's appointment, or no initial is owed.
+ * Never run against real data: the product changes the obligations-start date only (spec 04).
  */
-export async function useDemoReminderOffsets(
+export async function useDemoPolicy(
   db: Database<DirectorySchema>,
   events: EventPublisher,
-  {
-    tenant,
-    reminderOffsetsDays,
-    obligationsStartDate,
-  }: { tenant: string; reminderOffsetsDays: number[]; obligationsStartDate?: string },
-): Promise<void> {
-  await withTenant(db, { tenant: PLATFORM_TENANT, subject: SEEDED_BY }, async (tx) => {
+  { tenant, reminderOffsetsDays, obligationsStartDate, biennial }: DemoPolicy,
+): Promise<boolean> {
+  return withTenant(db, { tenant: PLATFORM_TENANT, subject: SEEDED_BY }, async (tx) => {
     const current = await readCurrentPolicy(tx, tenant);
     const startDate = obligationsStartDate ?? current.obligationsStartDate;
-    if (
-      sameOffsets(current.reminderOffsetsDays, reminderOffsetsDays) &&
-      startDate === current.obligationsStartDate
-    ) {
-      return;
+    const offsetsInForce =
+      !reminderOffsetsDays || sameOffsets(current.reminderOffsetsDays, reminderOffsetsDays);
+    const biennialInForce =
+      !biennial ||
+      (current.biennial.statementDate === biennial.statementDate &&
+        current.biennial.dueDate === biennial.dueDate);
+    if (offsetsInForce && biennialInForce && startDate === current.obligationsStartDate) {
+      return false;
     }
     await createPolicyVersion(tx, events, {
       tenant,
       obligationsStartDate: startDate,
       effectiveFrom: new Date(),
       createdBy: SEEDED_BY,
-      createdByName: 'Reminder demo',
-      reminderOffsetsDays,
+      createdByName: 'Demo policy',
+      ...(reminderOffsetsDays && { reminderOffsetsDays }),
+      ...(biennial && { biennial }),
     });
+    return true;
   });
+}
+
+/** The local reminder demo (#92): `useDemoPolicy` with short reminder offsets. */
+export async function useDemoReminderOffsets(
+  db: Database<DirectorySchema>,
+  events: EventPublisher,
+  options: { tenant: string; reminderOffsetsDays: number[]; obligationsStartDate?: string },
+): Promise<void> {
+  await useDemoPolicy(db, events, options);
 }
 
 function sameOffsets(a: readonly number[], b: readonly number[]): boolean {

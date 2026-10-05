@@ -48,7 +48,7 @@ export function WorkspaceLayout({
   children: ReactNode;
 }) {
   return (
-    <ConsoleShell userName={viewer.user.name} roles={roles}>
+    <ConsoleShell userName={viewer.user.name} organisation={viewer.organisation} roles={roles}>
       {viewer.directory.ok && (workspace || open) ? (
         children
       ) : (

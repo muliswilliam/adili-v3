@@ -13,7 +13,10 @@ import {
 import type { Unauthenticated } from './results';
 import { reviewClient, type ReviewClient } from './review/client.server';
 
-/** Server functions for the declarant's clarifications (spec 07a). Tokens stay on the server. */
+/**
+ * Server functions for the declarant's clarifications (spec 07a), and the list as the streamed
+ * cards load it. Tokens stay on the server.
+ */
 
 function asDeclarant<T>(call: (client: ReviewClient) => Promise<T>) {
   return asDeclarantOf(reviewClient, call);
@@ -31,6 +34,17 @@ export const getMyClarifications = createServerFn({ method: 'GET' }).handler(
     now: new Date().toISOString(),
   }),
 );
+
+/**
+ * The list for a card that streams in: an ended session or a failed call reads as unavailable,
+ * so the card stays away instead of the page failing.
+ */
+export async function myClarificationsOrUnavailable(): Promise<MyClarificationsLoad> {
+  const load = await getMyClarifications().catch(
+    () => ({ status: 'unavailable', now: new Date().toISOString() }) as const,
+  );
+  return load.status === 'unauthenticated' ? { status: 'unavailable', now: load.now } : load;
+}
 
 export const getMyClarification = createServerFn({ method: 'GET' })
   .validator(z.object({ clarificationId: z.uuid() }))

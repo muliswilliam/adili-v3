@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { demoWindows } from '../../src/demo/demo-windows.js';
 import { inbox, outbox, reviewCases, reviewFlags, reviewTimeline } from '../../src/db/schema.js';
 import { asset, declaration, income, statement } from '../fixtures/declarations.js';
 import { processedFromInbox, untilProcessed } from '../support/cases.js';
@@ -43,6 +44,19 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     api.asPlatform((tx) =>
       tx.select().from(reviewCases).where(eq(reviewCases.declarationId, declarationId)),
     );
+
+  it('#371 demo windows: a case created while the demo case window is switched short has that window from receipt', async () => {
+    const version = firstDeclaration();
+    api.declarations.given(version);
+
+    demoWindows.set({ DEMO_CASE_ISSUE_WINDOW: 'PT2M' });
+    try {
+      const created = await processedFromInbox(api, version);
+      expect(created.windowEndsAt.toISOString()).toBe('2027-12-15T09:32:00.000Z');
+    } finally {
+      demoWindows.set({ DEMO_CASE_ISSUE_WINDOW: null });
+    }
+  });
 
   it('S5: version 1 becomes an unassigned case with flags, score, receipt, window, read model, roster record and reporting entity; review.case.created.v1', async () => {
     const version = firstDeclaration();

@@ -17,6 +17,7 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 
 import { referenceParts } from '../../declaration/reference-parts';
 import type { Declaration, DeclarationVersion } from '../../server/declarations/types';
@@ -56,6 +57,8 @@ export interface SubmittedViewProps {
   slip: SlipCardProps['context'];
   /** Today, for the amend line; the real clock when left out. */
   now?: number;
+  /** The declaration's clarifications, under the slip (spec 07a FE-5, story 31). */
+  clarifications?: ReactNode;
 }
 
 const NEXT_ICONS = [File01Icon, Message01Icon, PencilEdit02Icon];
@@ -63,9 +66,15 @@ const NEXT_ICONS = [File01Icon, Message01Icon, PencilEdit02Icon];
 /**
  * The submission success page (spec 06 FE-3): the reference number with its breakdown and a
  * copy button, the version, when it was submitted and whether late, the acknowledgement slip as
- * it gets prepared, then what happens next.
+ * it gets prepared, the declaration's clarifications, then what happens next.
  */
-export function SubmittedView({ declaration, version, slip, now }: SubmittedViewProps) {
+export function SubmittedView({
+  declaration,
+  version,
+  slip,
+  now,
+  clarifications,
+}: SubmittedViewProps) {
   const today = useToday(now);
   return (
     <div>
@@ -93,6 +102,7 @@ export function SubmittedView({ declaration, version, slip, now }: SubmittedView
         </div>
       </header>
       <SlipCard declaration={declaration} version={version} context={slip} />
+      {clarifications}
       <Card asChild className="mt-5">
         <section aria-labelledby="next-heading">
           <h2 id="next-heading" className="text-base font-semibold tracking-[-0.01em]">

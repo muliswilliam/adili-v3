@@ -1,5 +1,5 @@
 import { checkCharacter } from '@adili/numbering';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { outbox } from '../../src/db/schema.js';
@@ -169,6 +169,7 @@ describe('GET /v1/persons?ofr=', () => {
         ofr: wanjiru.ofr,
         fullName: 'Wanjiru Kamau',
         commissions: ['tsc'],
+        contactsOnFile: { email: true, phone: true },
         createdAt: NOW.toISOString(),
       });
       // No roster contents: file numbers, national IDs, contacts, designations.
@@ -181,7 +182,10 @@ describe('GET /v1/persons?ofr=', () => {
     const audited = await api.db
       .select({ envelope: outbox.envelope })
       .from(outbox)
-      .where(eq(outbox.eventType, 'audit.read.v1'));
+      .where(eq(outbox.eventType, 'audit.read.v1'))
+      // In the order recorded: without one, rows come back in any order (the outbox relay
+      // updating a row moves it).
+      .orderBy(asc(outbox.id));
     expect(audited.map(({ envelope }) => envelope.data)).toMatchObject([
       {
         action: 'person.looked-up',
@@ -212,6 +216,8 @@ describe('GET /v1/persons?ofr=', () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json<PersonSummary>().commissions).toEqual(['psc', 'tsc']);
+    // Roster rows without contacts leave none verified on file.
+    expect(response.json<PersonSummary>().contactsOnFile).toEqual({ email: false, phone: false });
   });
 
   it('is 404 for a well-formed OFR no person has', async () => {

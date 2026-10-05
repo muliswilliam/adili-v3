@@ -4,11 +4,19 @@ import {
   Calendar03Icon,
   ChartColumnIcon,
   CheckListIcon,
+  CustomerSupportIcon,
+  File01Icon,
+  FileSearchIcon,
+  Flag02Icon,
+  HelpCircleIcon,
+  InboxIcon,
   Key01Icon,
+  Legal01Icon,
   PlugSocketIcon,
   Shield01Icon,
   SquareLock02Icon,
   SparklesIcon,
+  StampIcon,
   UserGroupIcon,
 } from '@hugeicons/core-free-icons';
 
@@ -64,7 +72,23 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
         to: '/platform/integrations',
       },
       { workspace: 'ai-policy', icon: SparklesIcon },
+      { workspace: 'platform-help', icon: HelpCircleIcon },
+      { workspace: 'support', icon: CustomerSupportIcon },
     ],
+  },
+  {
+    label: 'EACC',
+    // The intake, its reports and the national report all sit under /eacc/reports.
+    items: [
+      { workspace: 'compliance', icon: InboxIcon, section: '/eacc/reports' },
+      { workspace: 'referrals-intake', icon: Flag02Icon },
+      { workspace: 'open-data', icon: ChartColumnIcon },
+    ],
+  },
+  {
+    label: 'Oversight',
+    // Its tabs (events, integrity) all sit under /audit.
+    items: [{ workspace: 'audit', icon: FileSearchIcon, section: '/audit' }],
   },
   {
     label: 'Law enforcement',
@@ -88,11 +112,21 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
         writeOnly: true,
       },
       { workspace: 'obligations', icon: Calendar03Icon },
+      { workspace: 'help', icon: HelpCircleIcon },
     ],
   },
   {
     label: 'Review',
-    items: [{ workspace: 'review', icon: CheckListIcon }],
+    items: [
+      { workspace: 'review', icon: CheckListIcon },
+      { workspace: 'approvals', icon: StampIcon },
+      { workspace: 'actions', icon: Legal01Icon },
+      { workspace: 'referrals', icon: Flag02Icon },
+    ],
+  },
+  {
+    label: 'Reporting',
+    items: [{ workspace: 'form-m', icon: File01Icon }],
   },
 ];
 
@@ -103,16 +137,22 @@ export function navFor(roles: readonly string[]): NavGroup[] {
       workspace.href ? [[workspace.id, { ...workspace, href: workspace.href }] as const] : [],
     ),
   );
+  // A page two workspaces share (Help articles, for a platform admin who also holds a Commission
+  // role) is listed once, in the first group that has it.
+  const listed = new Set<string>();
   return NAV.flatMap((group) => {
     const items = group.items.flatMap(
       ({ workspace, icon, label, to, writeOnly, section }): NavItem[] => {
         const entry = open.get(workspace);
         if (!entry || (writeOnly && entry.readOnly)) return [];
+        const href = to ?? entry.href;
+        if (listed.has(href)) return [];
+        listed.add(href);
         return [
           {
             label: label ?? entry.title,
             icon,
-            to: to ?? entry.href,
+            to: href,
             ...(section ? { section } : {}),
           },
         ];

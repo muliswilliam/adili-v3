@@ -12,12 +12,14 @@ import { evalModel, evalRequest, streamed } from './lib/run.js';
 
 const FIXTURES_DIR = 'evals/fixtures';
 const wanted = new Set(
-  SUITES.flatMap((suite) =>
-    suite.cases.map((golden) => {
-      const request = evalRequest(suite.task, golden.input, evalModel(suite));
-      const operation = streamed(suite.task, golden.input) ? 'stream' : 'generateStructured';
-      return `${fixtureKey(operation, request)}.json`;
-    }),
+  await Promise.all(
+    SUITES.flatMap((suite) =>
+      suite.cases.map(async (golden) => {
+        const request = await evalRequest(suite.task, golden.input, evalModel(suite));
+        const operation = streamed(suite.task, golden.input) ? 'stream' : 'generateStructured';
+        return `${fixtureKey(operation, request)}.json`;
+      }),
+    ),
   ),
 );
 

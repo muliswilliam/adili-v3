@@ -7,6 +7,7 @@ import {
   DocumentsClient,
   DocumentsUnavailable,
   UploadNotClean,
+  type UploadDownload,
   UploadNotFound,
 } from './documents-client.js';
 
@@ -38,13 +39,26 @@ const internalUploadSchema = z.object({
   size: z.int().nonnegative().nullable(),
 });
 
+/** The fields of `UploadDownload` a reading needs. */
+const uploadDownloadSchema = z
+  .object({
+    downloadUrl: z.url(),
+    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    detectedType: z.string().min(1),
+  })
+  .transform(({ downloadUrl, sha256, detectedType }): UploadDownload => ({
+    downloadUrl,
+    sha256,
+    contentType: detectedType,
+  }));
+
 /**
  * The documents internal API through the client generated from its contract
  * (packages/schemas/internal/documents.yaml → documents-api.gen.ts via `pnpm generate:api`) on
  * api-kit's service client: the service's own token (client credentials, `documents:internal`),
  * the Commission in `X-Acting-Tenant` (documents answers 404 for another Commission's upload),
  * answers validated at the boundary. The upload is read through the internal metadata read, which
- * is not an audited download.
+ * is not an audited download; `getDownload` is one, for the declarant who asked to read it.
  */
 export class HttpDocumentsClient extends DocumentsClient {
   private readonly documents: ServiceClient<paths>;
@@ -82,6 +96,19 @@ export class HttpDocumentsClient extends DocumentsClient {
       sha256,
       size,
     };
+  }
+
+  getDownload(tenant: string, uploadId: string, actingSubject: string): Promise<UploadDownload> {
+    return this.documents.call(
+      (api) =>
+        api.GET('/internal/v1/uploads/{id}/download', {
+          params: {
+            path: { id: uploadId },
+            header: { 'X-Acting-Tenant': tenant, 'X-Acting-Subject': actingSubject },
+          },
+        }),
+      { status: 200, schema: uploadDownloadSchema, otherwise: this.refusals(uploadId) },
+    );
   }
 
   async markLinked(tenant: string, uploadId: string): Promise<void> {

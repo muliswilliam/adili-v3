@@ -153,6 +153,27 @@ if (otpConfig && !otpConfig.clientSecret?.startsWith('${vault.')) {
   fail('adili-otp clientSecret must be a vault expression, not a literal');
 }
 
+// Demo sign-in (#616): a signed ticket signs in an account with a demo_key attribute, with no
+// password or code. The authenticator is inert unless Keycloak runs with ADILI_DEMO_MODE=true;
+// here it may only be the first alternative of the top-level browser flow (before the SSO cookie,
+// so a switch never reuses the previous account's session), keyed by a vault secret.
+for (const flow of realm.authenticationFlows ?? []) {
+  for (const execution of flow.authenticationExecutions ?? []) {
+    if (execution.authenticator !== 'adili-demo') continue;
+    if (flow.alias !== 'adili browser' || execution.requirement !== 'ALTERNATIVE') {
+      fail(`adili-demo may only be an ALTERNATIVE in adili browser, not ${flow.alias}`);
+    } else if (
+      flow.authenticationExecutions.some((other) => (other.priority ?? 0) < execution.priority)
+    ) {
+      fail('adili-demo must come first in adili browser, before the SSO cookie');
+    }
+    const demoConfig = configs.get(execution.authenticatorConfig);
+    if (!demoConfig?.ticketSecret?.startsWith('${vault.')) {
+      fail('adili-demo ticketSecret must be a vault expression, not a literal');
+    }
+  }
+}
+
 if (!hasAuthenticator('adili declarant otp', 'conditional-user-role')) {
   fail('adili declarant otp must be gated on the declarant role');
 }
@@ -296,7 +317,8 @@ if (directory) {
 // law-enforcement officers from the directory, asks declarations for disclosures, issues packages
 // and certified copies with documents and sends messages.
 for (const [id, needed] of [
-  // Registry pre-fill (spec 05b): the declarant's national ID and the registry lookups.
+  // Registry pre-fill (spec 05b): the declarant's national ID and the registry lookups. Ask Adili
+  // (spec 11): the ai-gateway's answer stream.
   [
     'declarations',
     [
@@ -305,6 +327,7 @@ for (const [id, needed] of [
       'messages',
       'documents:internal',
       'registry',
+      'ai:internal',
     ],
   ],
   // Form M (spec 09): Commissions and staff, officer and clarification details, its PDFs, emails.
@@ -492,7 +515,8 @@ const attributes = new Map(
   (profile.attributes ?? []).map((attribute) => [attribute.name, attribute]),
 );
 // Staff provisioning (spec 01), declarant accounts (spec 03), and law-enforcement and applicant
-// accounts (spec 10). person_id is an access claim (spec 04): a user who could edit it could read
+// accounts (spec 10). demo_key marks a demo account a demo ticket can sign in (#616): a user who
+// could set it could be signed in without a password. person_id is an access claim (spec 04): a user who could edit it could read
 // another person's data; so is agency, which names the agency an officer requests for.
 // identityStatus is an access officer's verification of a passport applicant.
 for (const name of [
@@ -505,6 +529,7 @@ for (const name of [
   'person_id',
   'agency',
   'identityStatus',
+  'demo_key',
 ]) {
   const attribute = attributes.get(name);
   if (!attribute) {

@@ -40,6 +40,10 @@ export const personSummarySchema = z.object({
   commissions: z
     .array(slugSchema)
     .meta({ description: 'Commissions whose roster records the person is linked to' }),
+  contactsOnFile: z.object({ email: z.boolean(), phone: z.boolean() }).meta({
+    description:
+      'Whether a verified email and phone are on file, so the helpdesk knows where a recovery code can go; never the contacts themselves',
+  }),
   createdAt: z.iso.datetime().meta({ description: 'When the account was created' }),
 });
 export type PersonSummary = z.infer<typeof personSummarySchema>;

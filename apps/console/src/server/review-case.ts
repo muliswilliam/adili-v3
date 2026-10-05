@@ -11,6 +11,7 @@ import {
   type CaseView,
   claim,
   loadCaseView,
+  loadComparison,
   loadRegistry,
   loadRegistryStatus,
   loadReviewers,
@@ -21,7 +22,7 @@ import {
   release,
   type Reviewer,
 } from './review-case.server';
-import type { CaseListItem, Note } from './review/types';
+import type { CaseListItem, Note, VersionComparison } from './review/types';
 import type { ServiceResult } from './service-call';
 
 /**
@@ -81,6 +82,16 @@ export const getCaseAttachmentLink = createServerFn({ method: 'GET' })
   .validator(z.object({ caseId: id, uploadId: id }))
   .handler(({ data }): Promise<ServiceResult<{ downloadUrl: string; expiresAt: string }>> =>
     asReviewer((client) => attachmentLink(client, data.caseId, data.uploadId)),
+  );
+
+/**
+ * The current version against the previous one (S10): an audited read of both, so the case view
+ * asks for it when the reviewer turns Compare on. Null when there is nothing to compare with.
+ */
+export const getCaseComparison = createServerFn({ method: 'GET' })
+  .validator(caseInput)
+  .handler(({ data }): Promise<ServiceResult<VersionComparison | null>> =>
+    asReviewer((client) => loadComparison(client, data.caseId)),
   );
 
 const staffMember = z.object({ subject: z.string().min(1).max(200), name: z.string().max(200) });

@@ -5,25 +5,83 @@ import { opensOwnPolicy, readsCommissionPolicy, workspaceFor, workspacesFor } fr
 const ids = (roles: string[]) => workspacesFor(roles).map((workspace) => workspace.id);
 
 describe('workspacesFor', () => {
-  it('gives reviewers the review queue and obligations', () => {
-    expect(ids(['reviewer', 'default-roles-adili'])).toEqual(['review', 'obligations']);
-  });
-
-  it('gives supervisors review, approvals, access requests and obligations, once each', () => {
-    expect(ids(['supervisor', 'reviewer'])).toEqual([
+  it('gives reviewers the review queue, actions, referrals and obligations', () => {
+    expect(ids(['reviewer', 'default-roles-adili'])).toEqual([
       'review',
-      'approvals',
-      'access',
+      'actions',
+      'referrals',
       'obligations',
     ]);
   });
 
-  it('gives EACC analysts Commissions, national obligations and compliance reports but not the review queue', () => {
-    expect(ids(['eacc-analyst'])).toEqual(['commissions', 'national-obligations', 'compliance']);
+  it('gives supervisors review, approvals, actions, referrals, access requests, obligations and Form M, once each', () => {
+    expect(ids(['supervisor', 'reviewer'])).toEqual([
+      'review',
+      'approvals',
+      'actions',
+      'referrals',
+      'access',
+      'obligations',
+      'form-m',
+    ]);
+  });
+
+  it('opens Form M to its supervisor and commission-admin, read-only to the reporting officer (spec 09)', () => {
+    expect(workspaceFor(['supervisor'], 'form-m')).toMatchObject({
+      href: '/form-m',
+      readOnly: false,
+    });
+    expect(workspaceFor(['commission-admin'], 'form-m')?.readOnly).toBe(false);
+    expect(workspaceFor(['reporting-officer'], 'form-m')?.readOnly).toBe(true);
+    for (const roles of [['reviewer'], ['access-officer'], ['eacc-analyst'], ['platform-admin']]) {
+      expect(workspaceFor(roles, 'form-m')).toBeUndefined();
+    }
+  });
+
+  it('gives EACC analysts Commissions, national obligations, compliance reports, referrals received and open data but not the review queue', () => {
+    expect(ids(['eacc-analyst'])).toEqual([
+      'commissions',
+      'national-obligations',
+      'compliance',
+      'referrals-intake',
+      'open-data',
+    ]);
+  });
+
+  it('opens Open data to EACC analysts and supervisors only (spec 09b, #350)', () => {
+    expect(workspaceFor(['eacc-supervisor'], 'open-data')?.href).toBe('/eacc/open-data');
+    for (const roles of [['platform-admin'], ['supervisor'], ['commission-admin']]) {
+      expect(workspaceFor(roles, 'open-data')).toBeUndefined();
+    }
   });
 
   it('gives declarants nothing in the console', () => {
     expect(ids(['declarant'])).toEqual([]);
+  });
+});
+
+describe('Help articles workspace (spec 11)', () => {
+  it("opens for a Commission's administrators to write and its reporting officers to read", () => {
+    expect(workspaceFor(['commission-admin'], 'help')).toMatchObject({
+      href: '/help',
+      readOnly: false,
+    });
+    expect(workspaceFor(['reporting-officer'], 'help')).toMatchObject({
+      href: '/help',
+      readOnly: true,
+    });
+  });
+
+  it("opens the platform's articles and the corpus for platform admins only", () => {
+    expect(workspaceFor(['platform-admin'], 'platform-help')).toMatchObject({
+      href: '/help',
+      readOnly: false,
+    });
+    expect(workspaceFor(['platform-admin'], 'help')).toBeUndefined();
+    for (const role of ['reviewer', 'supervisor', 'eacc-analyst', 'access-officer']) {
+      expect(workspaceFor([role], 'help')).toBeUndefined();
+      expect(workspaceFor([role], 'platform-help')).toBeUndefined();
+    }
   });
 });
 
@@ -64,8 +122,44 @@ describe('S18 Commissions workspace', () => {
   });
 
   it('leaves workspaces that are not built yet without a link', () => {
-    expect(workspaceFor(['supervisor'], 'approvals')).toMatchObject({ readOnly: false });
-    expect(workspaceFor(['supervisor'], 'approvals')?.href).toBeUndefined();
+    expect(workspaceFor(['commission-admin'], 'commission')).toMatchObject({ readOnly: false });
+    expect(workspaceFor(['commission-admin'], 'commission')?.href).toBeUndefined();
+  });
+
+  it('opens account support for the helpdesk only (spec 03)', () => {
+    expect(workspaceFor(['helpdesk'], 'support')).toMatchObject({
+      href: '/support',
+      readOnly: false,
+    });
+    expect(workspaceFor(['reviewer'], 'support')).toBeUndefined();
+  });
+
+  it('opens the audit trail for auditors only (ADR-008)', () => {
+    expect(workspaceFor(['auditor'], 'audit')).toMatchObject({ href: '/audit', readOnly: false });
+    for (const role of [
+      'eacc-analyst',
+      'eacc-supervisor',
+      'platform-admin',
+      'reviewer',
+      'helpdesk',
+    ]) {
+      expect(workspaceFor([role], 'audit')).toBeUndefined();
+    }
+  });
+
+  it('opens Referrals for reviewers and supervisors of the Commission (spec 08)', () => {
+    expect(workspaceFor(['reviewer'], 'referrals')).toMatchObject({ href: '/referrals' });
+    expect(workspaceFor(['supervisor'], 'referrals')).toMatchObject({ href: '/referrals' });
+    expect(workspaceFor(['commission-admin'], 'referrals')).toBeUndefined();
+    expect(workspaceFor(['eacc-analyst'], 'referrals')).toBeUndefined();
+  });
+
+  it('opens Approvals for supervisors only (spec 08)', () => {
+    expect(workspaceFor(['supervisor'], 'approvals')).toMatchObject({
+      href: '/approvals',
+      readOnly: false,
+    });
+    expect(workspaceFor(['reviewer'], 'approvals')).toBeUndefined();
   });
 });
 
@@ -218,6 +312,22 @@ describe("the policy card on a Commission's page (spec 04 FE-4)", () => {
   );
 });
 
+describe('S15 Compliance reports workspace (EACC intake)', () => {
+  it.each(['eacc-analyst', 'eacc-supervisor'])('opens for %s', (role) => {
+    expect(workspaceFor([role], 'compliance')).toMatchObject({
+      href: '/eacc/reports',
+      readOnly: false,
+    });
+  });
+
+  it.each(['platform-admin', 'supervisor', 'commission-admin', 'reporting-officer', 'reviewer'])(
+    'stays closed for %s',
+    (role) => {
+      expect(workspaceFor([role], 'compliance')).toBeUndefined();
+    },
+  );
+});
+
 describe('S16 National obligations workspace', () => {
   it.each(['platform-admin', 'eacc-analyst', 'eacc-supervisor'])('opens for %s', (role) => {
     expect(workspaceFor([role], 'national-obligations')).toEqual({
@@ -255,5 +365,50 @@ describe('S16 AI policy workspace', () => {
     'auditor',
   ])('stays closed for %s', (role) => {
     expect(workspaceFor([role], 'ai-policy')).toBeUndefined();
+  });
+});
+
+describe('S12 referrals received (EACC intake)', () => {
+  it('opens for EACC analysts, who push to ICMS', () => {
+    expect(workspaceFor(['eacc-analyst'], 'referrals-intake')).toMatchObject({
+      title: 'Referrals received',
+      href: '/eacc/referrals',
+      readOnly: false,
+    });
+  });
+
+  it('opens read-only for EACC supervisors (spec 09 FE access table)', () => {
+    expect(workspaceFor(['eacc-supervisor'], 'referrals-intake')).toMatchObject({
+      href: '/eacc/referrals',
+      readOnly: true,
+    });
+  });
+
+  it.each(['supervisor', 'reviewer', 'commission-admin', 'platform-admin', 'auditor'])(
+    'stays closed for %s',
+    (role) => {
+      expect(workspaceFor([role], 'referrals-intake')).toBeUndefined();
+    },
+  );
+});
+
+describe('spec 09b Open data preview', () => {
+  it("opens for commission admins, on their Commission's preview", () => {
+    expect(workspaceFor(['commission-admin'], 'open-data-preview')).toMatchObject({
+      title: 'Open data preview',
+      href: '/commission/open-data',
+      readOnly: false,
+    });
+  });
+
+  it.each([
+    'reporting-officer',
+    'reviewer',
+    'supervisor',
+    'eacc-analyst',
+    'eacc-supervisor',
+    'platform-admin',
+  ])('stays closed for %s', (role) => {
+    expect(workspaceFor([role], 'open-data-preview')).toBeUndefined();
   });
 });

@@ -29,16 +29,35 @@ PATH="/usr/bin:/usr/local/bin:${HOME}/.local/bin:${HOME}/.local/share/pnpm:${PAT
 export PATH
 cd "$ROOT"
 
-# shellcheck disable=SC1090
 set -a
+# shellcheck disable=SC1090
 . "$PUBLIC_ENV"
 set +a
 export KC_HOSTNAME ADILI_CONSOLE_URL ADILI_PORTAL_URL
+
+# shellcheck disable=SC1091
+. "$ROOT/infra/azure/demo-vault.sh"
+adili_prepare_demo_vault "$ROOT"
+
+# The Keycloak image carries the login theme and the authenticators: rebuild it when they change,
+# before the apps stop, so the build does not lengthen the downtime.
+keycloak_inputs="$(cd "$ROOT" && find apps/keycloak-extension/src apps/keycloak-extension/pom.xml \
+  apps/keycloak-theme/src packages/ui/src infra/docker/keycloak.Dockerfile -type f -exec sha256sum {} + | sort | sha256sum)"
+keycloak_stamp="$HOME/.adili-keycloak-image"
+if [ "$(cat "$keycloak_stamp" 2>/dev/null || true)" != "$keycloak_inputs" ]; then
+  docker compose -f "$COMPOSE" -f "$OVERLAY" build keycloak
+  printf '%s\n' "$keycloak_inputs" >"$keycloak_stamp"
+fi
 
 sudo -n "$ROOT_HELPER" stop-apps
 
 echo "Compose stack"
 docker compose -f "$COMPOSE" -f "$OVERLAY" up -d
+if ! docker compose -f "$COMPOSE" -f "$OVERLAY" exec -T keycloak \
+  bash -c 'test -r /opt/keycloak/vault/adili_demo-ticket-secret'; then
+  echo "Keycloak cannot read its vault in $ADILI_KEYCLOAK_VAULT (owner must be its uid, 1000)." >&2
+  exit 1
+fi
 
 python3 "$ROOT/infra/azure/patch-realm.py" "$ROOT/infra/compose/keycloak/adili-realm.json"
 
@@ -48,12 +67,23 @@ fi
 
 echo "App dependencies and migrations"
 pnpm bootstrap
+# Keycloak's master admin gets this host's own password instead of the bootstrap admin_dev; the
+# admin API is reachable on loopback only (Caddyfile.cloudapp).
+KEYCLOAK_URL=http://127.0.0.1:18080 node infra/azure/keycloak-admin-password.mjs
+# The realm import skips an existing realm: apply demo sign-in (#616) to the live one.
+KEYCLOAK_URL=http://127.0.0.1:18080 KEYCLOAK_ADMIN_PASSWORD="$(cat "$ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE")" \
+  node scripts/keycloak-demo-sign-in.mjs
 ./infra/azure/configure-app-env.sh
+# The API reference Caddy serves at /api-docs/. A failed build leaves the last one up.
+pnpm api:docs || echo "WARNING: API reference not rebuilt; /api-docs/ serves the previous build." >&2
 pnpm db:migrate
 if [ -f mocks/uv.lock ]; then
   (cd mocks && uv sync --locked)
 fi
 
 sudo -n "$ROOT_HELPER" restart-apps
+
+echo "Nightly database backup"
+"$ROOT/infra/azure/install-backup-cron.sh"
 
 echo "Deployed $ROOT. Apps restart under adili-apps; demo data is left as-is."

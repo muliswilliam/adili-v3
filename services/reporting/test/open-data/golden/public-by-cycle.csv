@@ -1,0 +1,5 @@
+cycle,expected,filed,nonFilers,filingRate,_suppressed
+initial,43,40,3,0.9302,false
+biennial,300,245,55,0.8167,false
+final,26,22,4,0.8462,false
+all,369,307,62,0.832,false

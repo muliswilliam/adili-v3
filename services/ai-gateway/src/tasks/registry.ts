@@ -1,6 +1,7 @@
 import { answerDeclarantQuestion } from './answer-declarant-question.js';
 import { draftClarification } from './draft-clarification.js';
 import { explainFlags } from './explain-flags.js';
+import { extractDocument } from './extract-document.js';
 import { narrateComplianceReport } from './narrate-compliance-report.js';
 import { summarizeDeclaration } from './summarize-declaration.js';
 import type { TaskDefinition, TaskName } from './task.js';
@@ -15,6 +16,7 @@ export const TASKS: Readonly<Record<TaskName, TaskDefinition>> = {
   'draft-clarification': draftClarification,
   'narrate-compliance-report': narrateComplianceReport,
   'answer-declarant-question': answerDeclarantQuestion,
+  'extract-document': extractDocument,
 };
 
 export function findTask(name: string): TaskDefinition | undefined {

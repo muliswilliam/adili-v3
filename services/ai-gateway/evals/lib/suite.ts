@@ -1,7 +1,8 @@
 import { afterAll, describe, expect, it } from 'vitest';
 
+import type { GenerateRequest } from '../../src/providers/port.js';
 import type { OutputViolation, TaskDefinition } from '../../src/tasks/task.js';
-import { evalProvider, publish, report, runCase } from './run.js';
+import { evalProvider, evalRequest, publish, report, runCase } from './run.js';
 import { type CaseResult, type Score, hardFailures, softResults } from './score.js';
 
 export interface GoldenCase<TExpected> {
@@ -18,13 +19,15 @@ export interface EvalSuite<TExpected> {
   cases: readonly GoldenCase<TExpected>[];
   /**
    * A method, so suites with different expectations fit one list (SUITES). `violations` are what
-   * the gateway's own checks find in the output (`TaskSpec.validate`, a streamed answer's grammar).
+   * the gateway's own checks find in the output (`TaskSpec.validate`, a streamed answer's grammar);
+   * `request` is what the provider was sent, minimised, for scorers of what leaves the platform.
    */
   score(
     input: Record<string, unknown>,
     output: unknown,
     expected: TExpected,
     violations?: readonly OutputViolation[],
+    request?: GenerateRequest,
   ): Score[];
   /** Mean each soft scorer must reach over the cases. */
   thresholds: Readonly<Record<string, number>>;
@@ -47,7 +50,8 @@ export function evalSuite<TExpected>(suite: EvalSuite<TExpected>): void {
     for (const golden of suite.cases) {
       it(golden.name, async () => {
         const { output, violations } = await runCase(suite.task, golden.input, provider, model);
-        const scores = suite.score(golden.input, output, golden.expected, violations);
+        const request = await evalRequest(suite.task, golden.input, model);
+        const scores = suite.score(golden.input, output, golden.expected, violations, request);
         results.push({ caseName: golden.name, scores });
         expect(hardFailures(scores)).toEqual([]);
       });

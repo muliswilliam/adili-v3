@@ -1,7 +1,20 @@
 import { bffEnvSchema, parseEnv } from '@adili/bff-auth';
 import { z } from 'zod';
 
+/** How the Ask Adili mock's gateway can behave (`./declarations/mock/assistant.ts`). */
+export const ASSISTANT_MOCK_MODES = ['ok', 'unavailable', 'fail-midway', 'rate-limited'] as const;
+
 export const envSchema = bffEnvSchema.extend({
+  /**
+   * The hackathon demo (#616): a banner that says the data is synthetic and a role switcher that
+   * signs a demo account in with one click, no password or code (Keycloak's demo ticket). Off by
+   * default; never on outside the demo.
+   */
+  DEMO_MODE: z.stringbool().default(false),
+  /** With DEMO_MODE: Keycloak's `demo-ticket-secret`, which signs the switcher's tickets. */
+  DEMO_TICKET_SECRET: z.string().min(16).optional(),
+  /** With DEMO_MODE: the broker every switch is recorded on, for the audit trail. */
+  RABBITMQ_URL: z.url().default('amqp://adili:adili_dev@localhost:55672'),
   DIRECTORY_API_URL: z.url(),
   /**
    * Serve the directory from in-memory fixtures until it implements spec 03 (#67). Honoured in
@@ -32,6 +45,18 @@ export const envSchema = bffEnvSchema.extend({
    * service's obligations. Honoured in `vite dev` and tests only, like the other mocks.
    */
   DECLARATIONS_MOCK: z.stringbool().default(false),
+  /**
+   * Serve Ask Adili (conversations, streamed answers, feedback) and help search from in-memory
+   * canned answers, to work on the panel without the declarations service's assistant and the
+   * ai-gateway. Works with real drafts too. Honoured in `vite dev` and tests only, like the
+   * other mocks.
+   */
+  ASSISTANT_MOCK: z.stringbool().default(false),
+  /**
+   * How the Ask Adili mock's gateway behaves, to see the panel's other states: `unavailable`
+   * (help search), `fail-midway` (an answer that stops part-way), `rate-limited` (429).
+   */
+  ASSISTANT_MOCK_MODE: z.enum(ASSISTANT_MOCK_MODES).default('ok'),
   REVIEW_API_URL: z.url(),
   /**
    * Serve the declarant's clarifications from in-memory fixtures until the review service
@@ -39,6 +64,14 @@ export const envSchema = bffEnvSchema.extend({
    * DECLARATIONS_MOCK too. Honoured in `vite dev` and tests only, like the other mocks.
    */
   REVIEW_MOCK: z.stringbool().default(false),
+  /**
+   * With REVIEW_MOCK, how far the mock's clarification ladder has gone with the declarant's
+   * salary (spec 08, #208): `none` stops at the warning; `stopped`, `disciplinary`,
+   * `reinstating` and `reinstated` show the salary stoppage notices.
+   */
+  REVIEW_MOCK_SALARY: z
+    .enum(['none', 'stopped', 'disciplinary', 'reinstating', 'reinstated'])
+    .default('none'),
   ACCESS_API_URL: z.url(),
   /**
    * Serve the applicant's access requests (Form K, My requests, withdraw) and the Commissions
@@ -46,6 +79,20 @@ export const envSchema = bffEnvSchema.extend({
    * Honoured in `vite dev` and tests only, like the other mocks.
    */
   ACCESS_MOCK: z.stringbool().default(false),
+  /** The reporting service, whose public open-data API (spec 09b) the Open data page reads. */
+  REPORTING_API_URL: z.url(),
+  /**
+   * Where the public reaches that API (the public gateway path), as the About this data page
+   * documents it. Defaults to REPORTING_API_URL.
+   */
+  OPEN_DATA_API_PUBLIC_URL: z.url().optional(),
+  /**
+   * Serve the open-data releases and their tables from in-memory fixtures, to work on the Open
+   * data page without the reporting service. Named for what it serves, the public open-data API
+   * only: the portal reads nothing else from reporting. Honoured in `vite dev` and tests only, like the
+   * other mocks.
+   */
+  OPEN_DATA_MOCK: z.stringbool().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,0 +1,6 @@
+commission,commissionName,determinationsCompliant,determinationsNonCompliant,determinationsFurtherAction,clarificationsIssued,clarificationsResolved,actionsNoticeToComply,actionsWarning,actionsSalaryStoppage,actionsDisciplinaryReferral,referrals,_suppressed
+jsc,Judicial Service Commission,,,,,,,,,,,false
+nlc,NLC Commission,,,,,,,,,,,true
+psc,Public Service Commission,2,1,0,6,1,2,1,0,0,1,false
+tsc,Teachers Service Commission,1,0,1,3,0,1,0,0,0,0,false
+wrc,WRC Commission,,,,,,,,,,,true

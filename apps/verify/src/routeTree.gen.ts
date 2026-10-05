@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as HealthRouteImport } from './routes/health'
 import { Route as VIndexRouteImport } from './routes/v.index'
 import { Route as VVerificationIdRouteImport } from './routes/v.$verificationId'
 
@@ -22,6 +23,11 @@ const IndexRoute = IndexRouteImport.update({
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VIndexRoute = VIndexRouteImport.update({
@@ -38,12 +44,14 @@ const VVerificationIdRoute = VVerificationIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/health': typeof HealthRoute
   '/v/$verificationId': typeof VVerificationIdRoute
   '/v/': typeof VIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/health': typeof HealthRoute
   '/v/$verificationId': typeof VVerificationIdRoute
   '/v': typeof VIndexRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/health': typeof HealthRoute
   '/v/$verificationId': typeof VVerificationIdRoute
   '/v/': typeof VIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/v/$verificationId' | '/v/'
+  fullPaths: '/' | '/about' | '/health' | '/v/$verificationId' | '/v/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/v/$verificationId' | '/v'
-  id: '__root__' | '/' | '/about' | '/v/$verificationId' | '/v/'
+  to: '/' | '/about' | '/health' | '/v/$verificationId' | '/v'
+  id: '__root__' | '/' | '/about' | '/health' | '/v/$verificationId' | '/v/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  HealthRoute: typeof HealthRoute
   VVerificationIdRoute: typeof VVerificationIdRoute
   VIndexRoute: typeof VIndexRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v/': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  HealthRoute: HealthRoute,
   VVerificationIdRoute: VVerificationIdRoute,
   VIndexRoute: VIndexRoute,
 }

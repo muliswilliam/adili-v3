@@ -64,9 +64,33 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           install -m 644 infra/azure/known_hosts ~/.ssh/known_hosts
       - name: Sync repo to /opt/adili
+        # AI fixtures recorded on the VM (`pnpm demo:ai record`) survive the --delete.
         run: |
           rsync -az --delete --exclude-from=infra/azure/rsync-exclude \
+            --filter='P services/ai-gateway/fixtures/demo/*.json' \
             ./ "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}:/opt/adili/"
+      - name: AI provider settings
+        # Over stdin into a file only adili reads; never on a command line or in the log. Either
+        # an Anthropic API key, or a self-hosted LLM Gateway's token with its URL (repo variables).
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ vars.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_STRUCTURED_OUTPUT: ${{ vars.ANTHROPIC_STRUCTURED_OUTPUT }}
+          ANTHROPIC_ATTACHMENTS: ${{ vars.ANTHROPIC_ATTACHMENTS }}
+          AI_MODEL: ${{ vars.AI_MODEL }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$ANTHROPIC_AUTH_TOKEN" ]; then
+            echo '::warning::Neither repo secret ANTHROPIC_API_KEY nor ANTHROPIC_AUTH_TOKEN is set. The demo AI stays on replay unless /etc/adili/secrets.env on the VM has one.'
+            exit 0
+          fi
+          for name in ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL \
+            ANTHROPIC_STRUCTURED_OUTPUT ANTHROPIC_ATTACHMENTS AI_MODEL; do
+            value=$(printenv "$name" || true)
+            if [ -n "$value" ]; then printf '%s=%s\n' "$name" "$value"; fi
+          done |
+            ssh "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}" \
+              'umask 077 && mkdir -p ~/.config/adili && cat > ~/.config/adili/secrets.env'
       - name: Run deploy.sh
         run: ssh "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}" '/opt/adili/infra/azure/deploy.sh'
       - name: Check HTTPS
@@ -87,3 +111,16 @@ jobs:
           exit 1
       - name: Check security headers
         run: ./infra/azure/check-security-headers.sh "https://${AZURE_DEMO_HOST}"
+      - name: Check the real backend
+        # Every app with mocks off and the AI provider real (#615). A warning, not a failed
+        # deploy: the AI provider is replay until a key is installed.
+        continue-on-error: true
+        run: |
+          for _ in $(seq 1 12); do
+            if ssh "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}" '/opt/adili/infra/azure/demo-command.sh check'; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo '::warning::The hosted demo is not on the real backend; see the output above.'
+          exit 1

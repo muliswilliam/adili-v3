@@ -1,12 +1,10 @@
-import { Button, Card, CardTitle } from '@adili/ui';
-import { Link } from '@tanstack/react-router';
 import { Suspense, use } from 'react';
 
 import { LIST_COPY as COPY } from '../../clarification/copy';
 import { homeClarifications } from '../../clarification/list';
 import type { MyClarificationsLoad } from '../../server/clarifications';
 import type { DeclarantClarification } from '../../server/review/types';
-import { ClarificationRows } from '../clarification/clarification-list';
+import { ClarificationRows, ClarificationsCardFrame } from '../clarification/clarification-list';
 
 /**
  * The dashboard's "Clarifications" card (spec 07a FE-5): shown only once the declarant has
@@ -41,24 +39,12 @@ export function ClarificationsCard({
   now: string;
 }) {
   return (
-    <Card asChild className="overflow-hidden p-0 sm:p-0">
-      <section aria-labelledby="dashboard-clarifications">
-        <div className="flex items-center gap-3 border-b border-border px-5 py-4 sm:px-6 sm:py-[18px]">
-          <CardTitle id="dashboard-clarifications" className="flex-1">
-            {COPY.title}
-          </CardTitle>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/clarifications" aria-label={COPY.viewAllLabel}>
-              {COPY.viewAll}
-            </Link>
-          </Button>
-        </div>
-        <ClarificationRows
-          clarifications={homeClarifications(clarifications)}
-          all={clarifications}
-          now={now}
-        />
-      </section>
-    </Card>
+    <ClarificationsCardFrame titleId="dashboard-clarifications" title={COPY.title}>
+      <ClarificationRows
+        clarifications={homeClarifications(clarifications)}
+        all={clarifications}
+        now={now}
+      />
+    </ClarificationsCardFrame>
   );
 }

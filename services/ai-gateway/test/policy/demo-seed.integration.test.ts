@@ -3,7 +3,11 @@ import { eq, sql } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { auditRecords } from '../../src/db/schema.js';
-import { DEMO_GATE_CHANGE, seedDemoGatePolicies } from '../../src/policy/demo-seed.js';
+import {
+  DEMO_DOCUMENT_GATE_CHANGE,
+  DEMO_GATE_CHANGE,
+  seedDemoGatePolicies,
+} from '../../src/policy/demo-seed.js';
 import { GatePolicies } from '../../src/policy/gate-policies.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
@@ -25,7 +29,7 @@ describe('demo gate seed', () => {
     t.db.select().from(auditRecords).where(eq(auditRecords.tenant, tenant));
 
   it('allows external providers on the demo tenant’s synthetic data, audited and announced', async () => {
-    expect(await gate.admits('psc', 'synthetic', 'external')).toBe(false);
+    expect(await gate.admits('psc', 'synthetic', 'external', 'summarize-declaration')).toBe(false);
 
     expect(await seedDemoGatePolicies(gate)).toEqual(['psc']);
 
@@ -34,13 +38,14 @@ describe('demo gate seed', () => {
         dataClass: 'synthetic',
         providerClass: 'external',
         allowed: true,
+        tasks: null,
         approvalRef: DEMO_GATE_CHANGE.approvalRef,
         changedBy: 'system:demo-seed',
         changedByName: 'Demo seed',
         changedAt: expect.any(String) as string,
       },
     ]);
-    expect(await gate.admits('psc', 'restricted', 'external')).toBe(false);
+    expect(await gate.admits('psc', 'restricted', 'external', 'summarize-declaration')).toBe(false);
     const [change] = await changesOf('psc');
     expect(change).toMatchObject({
       action: 'ai.gate-policy.changed',
@@ -79,6 +84,62 @@ describe('demo gate seed', () => {
 
     expect(await seedDemoGatePolicies(gate, ['closeddemo'])).toEqual([]);
 
-    expect(await gate.admits('closeddemo', 'synthetic', 'external')).toBe(false);
+    expect(await gate.admits('closeddemo', 'synthetic', 'external', 'summarize-declaration')).toBe(
+      false,
+    );
+  });
+
+  it('lets the demo tenant read its synthetic documents into the form (spec 05b)', async () => {
+    expect(await seedDemoGatePolicies(gate, ['docdemo'], DEMO_DOCUMENT_GATE_CHANGE)).toEqual([
+      'docdemo',
+    ]);
+
+    expect(
+      await gate.admits('docdemo', 'highly-confidential', 'external', 'extract-document'),
+    ).toBe(true);
+    // The approval is the document task's alone: every other task keeps the default, blocked.
+    for (const task of [
+      'summarize-declaration',
+      'explain-flags',
+      'draft-clarification',
+      'narrate-compliance-report',
+      'answer-declarant-question',
+    ] as const) {
+      expect(await gate.admits('docdemo', 'highly-confidential', 'external', task)).toBe(false);
+    }
+    expect(await gate.admits('docdemo', 'restricted', 'external', 'extract-document')).toBe(false);
+    expect(await gate.rules('docdemo')).toMatchObject([
+      {
+        dataClass: 'highly-confidential',
+        providerClass: 'external',
+        tasks: ['extract-document'],
+        approvalRef: DEMO_DOCUMENT_GATE_CHANGE.approvalRef,
+      },
+    ]);
+    expect(await seedDemoGatePolicies(gate, ['docdemo'], DEMO_DOCUMENT_GATE_CHANGE)).toEqual([]);
+  });
+
+  it("brings the seed's own earlier rule up to date, and leaves a platform admin's", async () => {
+    const wide = {
+      ...DEMO_DOCUMENT_GATE_CHANGE,
+      rules: [
+        {
+          dataClass: 'highly-confidential' as const,
+          providerClass: 'external' as const,
+          allowed: true,
+          tasks: null,
+        },
+      ],
+    };
+    // As an earlier seed recorded it, before rules named tasks: open for every task.
+    await gate.set('olddemo', wide, { subject: 'system:demo-seed', name: 'Demo seed' });
+    await gate.set('admindemo', wide, { subject: 'platform-admin-1', name: null });
+
+    expect(
+      await seedDemoGatePolicies(gate, ['olddemo', 'admindemo'], DEMO_DOCUMENT_GATE_CHANGE),
+    ).toEqual(['olddemo']);
+
+    expect(await gate.rules('olddemo')).toMatchObject([{ tasks: ['extract-document'] }]);
+    expect(await gate.rules('admindemo')).toMatchObject([{ tasks: null }]);
   });
 });

@@ -1,0 +1,2 @@
+# The served CSV files, byte for byte: CRLF line ends (RFC 4180) stay as they are.
+*.csv -text

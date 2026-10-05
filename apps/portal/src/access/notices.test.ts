@@ -106,7 +106,7 @@ describe('the window', () => {
     expect(windowView(notice(), NOW)).toMatchObject({
       open: true,
       title: '4 days left',
-      detail: 'Respond by 6 Oct 2026, 10:00 · day 3 of 7',
+      detail: 'Respond by 6 Oct 2026, 10:00 · day\u00a03\u00a0of\u00a07',
       tone: 'warning',
       day: 3,
       of: 7,

@@ -18,6 +18,9 @@ function kraSet(
     readyAt: '2026-09-26T07:32:00Z',
     verificationResultId: null,
     aiJobId: null,
+    attachmentId: null,
+    documentKind: null,
+    reason: null,
     suggestions: suggestions.map((each, index) => ({
       id: `k${String(index)}`,
       setId: 'kra-1',

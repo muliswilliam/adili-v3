@@ -11,6 +11,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import type { NationalAggregates } from './aggregates.js';
+import type { DraftFailureReason } from './narrative-draft.js';
 
 /**
  * EACC's national consolidated report (NCR, spec 09): one per financial year, built by an EACC
@@ -35,7 +36,8 @@ const timestamps = {
 };
 
 /** reporting.yaml `NationalReport.status`. */
-export type NationalReportStatus = 'draft' | 'approved';
+export const NATIONAL_REPORT_STATUSES = ['draft', 'approved'] as const;
+export type NationalReportStatus = (typeof NATIONAL_REPORT_STATUSES)[number];
 
 /** The narrative's sections, in the order the report prints them. */
 export const NARRATIVE_SECTIONS = ['overview', 'findings', 'recommendations'] as const;
@@ -123,8 +125,54 @@ export const nationalReportParagraphs = pgTable(
   ],
 );
 
+/** reporting.yaml `draftNationalReportNarrative` `section`: one section, or the whole narrative. */
+export const DRAFT_SCOPES = [...NARRATIVE_SECTIONS, 'all'] as const;
+export type DraftScope = (typeof DRAFT_SCOPES)[number];
+
+/** reporting.yaml `NarrativeDraft.jobs[]`: an ai-gateway job and the section(s) it drafts. */
+export interface DraftJob {
+  section: DraftScope;
+  jobId: string;
+}
+
+/** reporting.yaml `NarrativeDraft.status`. */
+export const NARRATIVE_DRAFT_STATUSES = ['drafting', 'inserted', 'failed'] as const;
+export type NarrativeDraftStatus = (typeof NARRATIVE_DRAFT_STATUSES)[number];
+
+/**
+ * The report's latest AI narrative draft (spec 09b): the ai-gateway job writing it and what to do
+ * with its paragraphs once it ends, so a draft not ready within the request's wait is completed
+ * when the report is read again. One per report; a new draft request replaces it, and the job of
+ * a replaced draft is never inserted. `aggregatesBuiltAt` is the build the task input came from:
+ * a draft that ends after a rebuild is discarded (`aggregates-rebuilt`), as its figures are old.
+ * No text or figures: the paragraphs go into `national_report_paragraphs` once inserted.
+ */
+export const nationalReportNarrativeDrafts = pgTable('national_report_narrative_drafts', {
+  nationalReportId: uuid()
+    .primaryKey()
+    .references(() => nationalReports.id, { onDelete: 'cascade' }),
+  /**
+   * The ai-gateway jobs writing it, each with the section it drafts: one, or for `all` in a year
+   * with no pattern candidates, the overview's and the recommendations' (the task drafts findings
+   * only from a candidate).
+   */
+  jobs: jsonb().$type<DraftJob[]>().notNull(),
+  section: text().$type<DraftScope>().notNull(),
+  /** Replace every paragraph of the section(s), not only those still AI drafts. */
+  replaceAll: boolean().notNull(),
+  status: text().$type<NarrativeDraftStatus>().notNull(),
+  /** Why a failed draft was discarded: the gateway's job reason, or the service's own. */
+  failureReason: text().$type<DraftFailureReason>(),
+  aggregatesBuiltAt: timestamp({ withTimezone: true }).notNull(),
+  /** Who asked for the draft: the paragraphs are theirs, and they become a contributor. */
+  requestedBy: text().notNull(),
+  requestedAt: timestamp({ withTimezone: true }).notNull(),
+  finishedAt: timestamp({ withTimezone: true }),
+});
+
 export const nationalReportsSchema = {
   nationalReports,
   nationalReportAggregates,
   nationalReportParagraphs,
+  nationalReportNarrativeDrafts,
 };

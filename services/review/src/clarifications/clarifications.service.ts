@@ -20,6 +20,7 @@ import {
 } from '../cases/schema.js';
 import { Clock, nairobiDate, nairobiYear } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
+import { demoWindows } from '../demo/demo-windows.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import {
@@ -234,7 +235,11 @@ export class ClarificationsService {
         issuer: commission.issuerCode,
         period: nairobiYear(now),
       });
-      const dueAt = clarificationDueAt(now, policy.replyWindowDays);
+      const dueAt = clarificationDueAt(
+        now,
+        policy.replyWindowDays,
+        demoWindows.get('DEMO_CLARIFICATION_REPLY_WINDOW'),
+      );
       const [issued] = await tx
         .update(clarifications)
         .set({ status: 'issued', reference, issuedAt: now, dueAt, letter })

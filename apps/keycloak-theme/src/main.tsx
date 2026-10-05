@@ -1,3 +1,4 @@
+import { bootTheme } from '@adili/ui';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -21,6 +22,9 @@ if (import.meta.env.DEV && !window.kcContext) {
           overrides: {},
         });
 }
+
+// The theme the portal, console and verify picked (shared cookie), or the device's.
+bootTheme();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element');

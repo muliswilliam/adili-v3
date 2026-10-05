@@ -36,3 +36,18 @@ export function english<T extends Record<string, { en: unknown; sw: unknown }>>(
     Object.entries(table).map(([key, entry]) => [key, entry.en]),
   ) as English<T>;
 }
+
+export type Language = 'en' | 'sw';
+
+/** A table read in a language: each entry's Swahili, or its English while the slot is empty. */
+export function inLanguage<T extends Record<string, { en: unknown; sw: unknown }>>(
+  table: T,
+  language: Language,
+): English<T> {
+  return Object.fromEntries(
+    Object.entries(table).map(([key, entry]) => [
+      key,
+      language === 'sw' && entry.sw !== '' ? entry.sw : entry.en,
+    ]),
+  ) as English<T>;
+}

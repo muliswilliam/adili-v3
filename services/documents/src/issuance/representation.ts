@@ -20,6 +20,7 @@ import { certifiedCopyPayload } from './templates/certified-copy.v1.js';
 import { complianceReportReceiptPayload } from './templates/compliance-report-receipt.v1.js';
 import { formMPayload } from './templates/form-m.v1.js';
 import { ncrPayload } from './templates/ncr.v1.js';
+import { openDataManifestPayload } from './templates/open-data-manifest.v1.js';
 
 /**
  * Request and response shapes of the issuance API, mirroring
@@ -71,12 +72,16 @@ export const issueDocumentBody = z.strictObject({
     }),
   subjectPersonId: z.uuid().nullable().meta({
     description:
-      'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package, a form-m, a compliance-report-receipt and an ncr',
+      'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package, a form-m, a compliance-report-receipt, an ncr and an open-data-manifest',
   }),
   watermark: watermarkSchema.optional(),
   downloadWindowDays: z.int().min(1).max(MAX_DOWNLOAD_WINDOW_DAYS).optional().meta({
     description:
-      'Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package and access-nil-letter',
+      'Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. The window never runs past `validUntil`: a document no longer in force is not downloadable. None: no window. Required for access-package and access-nil-letter',
+  }),
+  validUntil: z.iso.datetime({ offset: true }).optional().meta({
+    description:
+      'When the document stops being in force (ADR-010): from then on the verify page answers `expired`. Must be after the issue. None: in force until superseded or revoked',
   }),
   additionalDownloaders: z
     .array(z.string().trim().min(1).max(255))
@@ -106,6 +111,7 @@ export const issueDocumentBody = z.strictObject({
       formMPayload,
       complianceReportReceiptPayload,
       ncrPayload,
+      openDataManifestPayload,
     ])
     .meta({
       description:
