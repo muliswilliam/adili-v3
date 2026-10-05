@@ -6298,6 +6298,17 @@ components:
           items:
             $ref: '#/components/schemas/Slug'
           description: Commissions whose roster records the person is linked to
+        contactsOnFile:
+          type: object
+          properties:
+            email:
+              type: boolean
+            phone:
+              type: boolean
+          required:
+            - email
+            - phone
+          description: Whether a verified email and phone are on file, so the helpdesk knows where a recovery code can go; never the contacts themselves
         createdAt:
           type: string
           format: date-time
@@ -6307,6 +6318,7 @@ components:
         - ofr
         - fullName
         - commissions
+        - contactsOnFile
         - createdAt
     PersonContacts:
       type: object

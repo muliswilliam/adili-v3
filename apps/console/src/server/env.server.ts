@@ -136,6 +136,12 @@ export const envSchema = bffEnvSchema.extend({
    * tests only, like REVIEW_MOCK.
    */
   AUDIT_MOCK: z.stringbool().default(false),
+  /**
+   * Serve the helpdesk's person lookup (the directory's `GET /v1/persons`) from in-memory
+   * fixtures, so Account support runs without the directory. Honoured in `vite dev` and tests
+   * only, like REVIEW_MOCK.
+   */
+  HELPDESK_MOCK: z.stringbool().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -25,6 +25,7 @@ import { Route as PlatformRouteRouteImport } from './routes/platform/route'
 import { Route as ReferralsRouteRouteImport } from './routes/referrals/route'
 import { Route as ReviewRouteRouteImport } from './routes/review/route'
 import { Route as RosterRouteRouteImport } from './routes/roster/route'
+import { Route as SupportRouteRouteImport } from './routes/support/route'
 import { Route as AccessIndexRouteImport } from './routes/access/index'
 import { Route as AccessCertifiedCopiesRouteRouteImport } from './routes/access/certified-copies/route'
 import { Route as AccessLeaRequestsRouteRouteImport } from './routes/access/lea-requests/route'
@@ -71,6 +72,7 @@ import { Route as RosterImportRouteImport } from './routes/roster/import'
 import { Route as RosterImportsRouteRouteImport } from './routes/roster/imports/route'
 import { Route as RosterRecordsRouteRouteImport } from './routes/roster/records/route'
 import { Route as RosterTemplateRouteImport } from './routes/roster/template'
+import { Route as SupportIndexRouteImport } from './routes/support/index'
 import { Route as AccessCertifiedCopiesIndexRouteImport } from './routes/access/certified-copies/index'
 import { Route as AccessCertifiedCopiesApplicationIdRouteImport } from './routes/access/certified-copies/$applicationId'
 import { Route as AccessCertifiedCopiesNewRouteImport } from './routes/access/certified-copies/new'
@@ -196,6 +198,11 @@ const ReviewRouteRoute = ReviewRouteRouteImport.update({
 const RosterRouteRoute = RosterRouteRouteImport.update({
   id: '/roster',
   path: '/roster',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRouteRoute = SupportRouteRouteImport.update({
+  id: '/support',
+  path: '/support',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccessIndexRoute = AccessIndexRouteImport.update({
@@ -429,6 +436,11 @@ const RosterTemplateRoute = RosterTemplateRouteImport.update({
   id: '/template',
   path: '/template',
   getParentRoute: () => RosterRouteRoute,
+} as any)
+const SupportIndexRoute = SupportIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SupportRouteRoute,
 } as any)
 const AccessCertifiedCopiesIndexRoute =
   AccessCertifiedCopiesIndexRouteImport.update({
@@ -700,6 +712,7 @@ export interface FileRoutesByFullPath {
   '/referrals': typeof ReferralsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
+  '/support': typeof SupportRouteRouteWithChildren
   '/health': typeof HealthRoute
   '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
   '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
@@ -746,6 +759,7 @@ export interface FileRoutesByFullPath {
   '/platform/': typeof PlatformIndexRoute
   '/referrals/': typeof ReferralsIndexRoute
   '/roster/': typeof RosterIndexRoute
+  '/support/': typeof SupportIndexRoute
   '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
   '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
@@ -829,6 +843,7 @@ export interface FileRoutesByTo {
   '/platform': typeof PlatformIndexRoute
   '/referrals': typeof ReferralsIndexRoute
   '/roster': typeof RosterIndexRoute
+  '/support': typeof SupportIndexRoute
   '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
   '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
@@ -888,6 +903,7 @@ export interface FileRoutesById {
   '/referrals': typeof ReferralsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
+  '/support': typeof SupportRouteRouteWithChildren
   '/health': typeof HealthRoute
   '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
   '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
@@ -935,6 +951,7 @@ export interface FileRoutesById {
   '/platform/': typeof PlatformIndexRoute
   '/referrals/': typeof ReferralsIndexRoute
   '/roster/': typeof RosterIndexRoute
+  '/support/': typeof SupportIndexRoute
   '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
   '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
@@ -1000,6 +1017,7 @@ export interface FileRouteTypes {
     | '/referrals'
     | '/review'
     | '/roster'
+    | '/support'
     | '/health'
     | '/access/certified-copies'
     | '/access/lea-requests'
@@ -1046,6 +1064,7 @@ export interface FileRouteTypes {
     | '/platform/'
     | '/referrals/'
     | '/roster/'
+    | '/support/'
     | '/access/lea-requests/$leaRequestId'
     | '/access/requests/$requestId'
     | '/commissions/$slug/obligations'
@@ -1129,6 +1148,7 @@ export interface FileRouteTypes {
     | '/platform'
     | '/referrals'
     | '/roster'
+    | '/support'
     | '/access/certified-copies/$applicationId'
     | '/access/certified-copies/new'
     | '/api/mock-files/$id'
@@ -1187,6 +1207,7 @@ export interface FileRouteTypes {
     | '/referrals'
     | '/review'
     | '/roster'
+    | '/support'
     | '/health'
     | '/access/certified-copies'
     | '/access/lea-requests'
@@ -1234,6 +1255,7 @@ export interface FileRouteTypes {
     | '/platform/'
     | '/referrals/'
     | '/roster/'
+    | '/support/'
     | '/access/lea-requests/$leaRequestId'
     | '/access/requests/$requestId'
     | '/commissions/$slug/obligations'
@@ -1298,6 +1320,7 @@ export interface RootRouteChildren {
   ReferralsRouteRoute: typeof ReferralsRouteRouteWithChildren
   ReviewRouteRoute: typeof ReviewRouteRouteWithChildren
   RosterRouteRoute: typeof RosterRouteRouteWithChildren
+  SupportRouteRoute: typeof SupportRouteRouteWithChildren
   HealthRoute: typeof HealthRoute
   EaccOpenDataRouteRoute: typeof EaccOpenDataRouteRouteWithChildren
   EaccReferralsRouteRoute: typeof EaccReferralsRouteRouteWithChildren
@@ -1426,6 +1449,13 @@ declare module '@tanstack/react-router' {
       path: '/roster'
       fullPath: '/roster'
       preLoaderRoute: typeof RosterRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/access/': {
@@ -1749,6 +1779,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/roster/template'
       preLoaderRoute: typeof RosterTemplateRouteImport
       parentRoute: typeof RosterRouteRoute
+    }
+    '/support/': {
+      id: '/support/'
+      path: '/'
+      fullPath: '/support/'
+      preLoaderRoute: typeof SupportIndexRouteImport
+      parentRoute: typeof SupportRouteRoute
     }
     '/access/certified-copies/': {
       id: '/access/certified-copies/'
@@ -2518,6 +2555,18 @@ const RosterRouteRouteWithChildren = RosterRouteRoute._addFileChildren(
   RosterRouteRouteChildren,
 )
 
+interface SupportRouteRouteChildren {
+  SupportIndexRoute: typeof SupportIndexRoute
+}
+
+const SupportRouteRouteChildren: SupportRouteRouteChildren = {
+  SupportIndexRoute: SupportIndexRoute,
+}
+
+const SupportRouteRouteWithChildren = SupportRouteRoute._addFileChildren(
+  SupportRouteRouteChildren,
+)
+
 interface EaccOpenDataRouteRouteChildren {
   EaccOpenDataReleaseIdRoute: typeof EaccOpenDataReleaseIdRoute
   EaccOpenDataIndexRoute: typeof EaccOpenDataIndexRoute
@@ -2587,6 +2636,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReferralsRouteRoute: ReferralsRouteRouteWithChildren,
   ReviewRouteRoute: ReviewRouteRouteWithChildren,
   RosterRouteRoute: RosterRouteRouteWithChildren,
+  SupportRouteRoute: SupportRouteRouteWithChildren,
   HealthRoute: HealthRoute,
   EaccOpenDataRouteRoute: EaccOpenDataRouteRouteWithChildren,
   EaccReferralsRouteRoute: EaccReferralsRouteRouteWithChildren,

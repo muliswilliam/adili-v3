@@ -122,8 +122,16 @@ describe('S18 Commissions workspace', () => {
   });
 
   it('leaves workspaces that are not built yet without a link', () => {
-    expect(workspaceFor(['helpdesk'], 'support')).toMatchObject({ readOnly: false });
-    expect(workspaceFor(['helpdesk'], 'support')?.href).toBeUndefined();
+    expect(workspaceFor(['commission-admin'], 'commission')).toMatchObject({ readOnly: false });
+    expect(workspaceFor(['commission-admin'], 'commission')?.href).toBeUndefined();
+  });
+
+  it('opens account support for the helpdesk only (spec 03)', () => {
+    expect(workspaceFor(['helpdesk'], 'support')).toMatchObject({
+      href: '/support',
+      readOnly: false,
+    });
+    expect(workspaceFor(['reviewer'], 'support')).toBeUndefined();
   });
 
   it('opens the audit trail for auditors only (ADR-008)', () => {
