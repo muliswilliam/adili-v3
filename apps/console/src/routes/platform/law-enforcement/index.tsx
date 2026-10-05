@@ -11,7 +11,6 @@ import { getLeaAgencies } from '../../../server/lea-accounts';
 
 /** The law enforcement agencies and their officer accounts (spec 10 FE-6). */
 export const Route = createFileRoute('/platform/law-enforcement/')({
-  staticData: { hideBreadcrumbs: true },
   loader: async ({ location, context }) => {
     if (!context.workspace) return null;
     const result = await getLeaAgencies();

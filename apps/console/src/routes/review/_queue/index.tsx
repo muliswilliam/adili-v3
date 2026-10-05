@@ -20,7 +20,6 @@ const queueLayout = getRouteApi('/review/_queue');
  * heading are the layout's, so a filter change reloads the list alone.
  */
 export const Route = createFileRoute('/review/_queue/')({
-  staticData: { hideBreadcrumbs: true },
   validateSearch: queueUrlSchema,
   // Filter changes reload this match in place, not as a new one: see `useReloadingInPlace`.
   shouldReload: true,

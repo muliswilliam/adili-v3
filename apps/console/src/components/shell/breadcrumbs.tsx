@@ -22,8 +22,6 @@ export interface CrumbTrail {
 
 declare module '@tanstack/react-router' {
   interface StaticDataRouteOption {
-    /** List pages omit the breadcrumb bar; detail pages retain it. */
-    hideBreadcrumbs?: boolean;
     /** Breadcrumb label in the console top bar; null leaves the route out of the trail. */
     crumb?: string | ((match: CrumbMatch) => string | CrumbTrail | null);
   }

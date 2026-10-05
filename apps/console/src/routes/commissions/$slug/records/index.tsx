@@ -15,7 +15,6 @@ import type { DirectoryResult, RosterRecordPage } from '../../../../server/direc
 import { listRosterRecords } from '../../../../server/roster-records';
 
 export const Route = createFileRoute('/commissions/$slug/records/')({
-  staticData: { hideBreadcrumbs: true },
   validateSearch: recordsSearchSchema,
   // Filter changes reload this match in place, not as a new one: see `useReloadingInPlace`.
   shouldReload: true,

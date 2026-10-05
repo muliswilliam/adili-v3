@@ -36,7 +36,6 @@ const historySearch = z.object({ cursor: z.string().max(500).optional().catch(un
 type HistorySearch = z.infer<typeof historySearch>;
 
 export const Route = createFileRoute('/roster/imports/')({
-  staticData: { hideBreadcrumbs: true },
   validateSearch: historySearch,
   // A page change reloads this match in place, not as a new one: see `useReloadingInPlace`.
   shouldReload: true,

@@ -41,7 +41,6 @@ interface ActionsLoad {
 
 /** The Commission's administrative action ladders (spec 08 FE-5), filtered and paged in the URL. */
 export const Route = createFileRoute('/actions/')({
-  staticData: { hideBreadcrumbs: true },
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => search,
   loader: async ({ deps, context, location }): Promise<ActionsLoad | null> => {

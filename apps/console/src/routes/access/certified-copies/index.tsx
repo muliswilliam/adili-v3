@@ -33,7 +33,6 @@ const searchSchema = z.object({ cursor: z.string().max(500).optional().catch(und
 type ListSearch = z.infer<typeof searchSchema>;
 
 export const Route = createFileRoute('/access/certified-copies/')({
-  staticData: { hideBreadcrumbs: true },
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => search,
   loader: async ({ deps, location, context }): Promise<SelfAccessResult<SelfAccessPage> | null> => {

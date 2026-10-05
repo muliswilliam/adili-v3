@@ -37,7 +37,6 @@ declare module '@tanstack/react-router' {
 const PATH = '/access/requests';
 
 export const Route = createFileRoute('/access/requests/')({
-  staticData: { hideBreadcrumbs: true },
   validateSearch: queueSearchSchema,
   loaderDeps: ({ search }) => search,
   loader: async ({ deps, location, context }): Promise<AccessResult<QueuePage> | null> => {

@@ -35,7 +35,6 @@ type ApprovalsSearch = z.infer<typeof searchSchema>;
  * `cursor`), the way back in history state.
  */
 export const Route = createFileRoute('/approvals/')({
-  staticData: { hideBreadcrumbs: true },
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => ({ kind: search.kind, cursor: search.cursor }),
   loader: async ({ context, deps, location }) => {

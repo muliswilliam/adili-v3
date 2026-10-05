@@ -14,7 +14,6 @@ import { getNationalObligationsSummary } from '../../../server/obligations';
 import { OpenOwnObligations } from './route';
 
 export const Route = createFileRoute('/obligations_/national/')({
-  staticData: { hideBreadcrumbs: true },
   // Order and page are applied in the browser: the summary is read once per visit.
   validateSearch: nationalSearchSchema,
   shouldReload: ({ cause }) => cause !== 'stay',

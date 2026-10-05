@@ -12,7 +12,6 @@ import {
 
 /** EACC's open-data releases and Build snapshot (spec 09b FE-3, #350). */
 export const Route = createFileRoute('/eacc/open-data/')({
-  staticData: { hideBreadcrumbs: true },
   loader: async ({ context, location }) => {
     // The layout shows why there is no workspace; do not fetch the releases.
     if (!context.workspace) return null;

@@ -10,7 +10,7 @@ import {
   ThemeSwitcher,
 } from '@adili/ui';
 import { Logout01Icon, Menu01Icon } from '@hugeicons/core-free-icons';
-import { Link, useLocation, useMatches } from '@tanstack/react-router';
+import { Link, useLocation } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useRef } from 'react';
 
 import { Breadcrumbs } from './breadcrumbs';
@@ -55,9 +55,6 @@ export function ConsoleShell({
 }: ConsoleShellProps) {
   const drawer = useRef<HTMLDialogElement>(null);
   const pathname = useLocation({ select: (location) => location.pathname });
-  const hideBreadcrumbs = useMatches({
-    select: (matches) => matches.at(-1)?.staticData.hideBreadcrumbs ?? false,
-  });
 
   // Following a link in the drawer closes it.
   useEffect(() => {
