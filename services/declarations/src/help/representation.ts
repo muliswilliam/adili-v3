@@ -69,20 +69,26 @@ export const helpPassageQuery = z.object({
 
 export type HelpPassageQuery = z.infer<typeof helpPassageQuery>;
 
+/** The longest `HelpPassage` id `GET /v1/help/passages/{passageId}` takes. */
+export const HELP_PASSAGE_ID_MAX = 100;
+
 /** `GET /v1/help/passages/{passageId}` path: a `HelpPassage` id as search and citations give it. */
-export const helpPassageIdParam = z.string().min(1).max(100);
+export const helpPassageIdParam = z.string().min(1).max(HELP_PASSAGE_ID_MAX);
 
 export const helpPassageDetailSchema = z
   .object({
     id: z.string(),
     source: z.enum([...CORPUS_SOURCE_VALUES, 'help']),
     citation: z.string().meta({ examples: ['Act s.31(4)', 'Help: Joint assets'] }),
-    title: z.string().meta({ description: 'In `language`' }),
+    title: z.string().meta({
+      description:
+        'The stored title: help articles and corpus passages have no Swahili title yet, so it is in English even when `language` is `sw` (#677)',
+    }),
     text: z.string().meta({
       description: 'The whole passage or article body, in `language`; statutory text as published',
     }),
     language: helpLanguageSchema.meta({
-      description: 'The language of the title and text; `en` when the passage has no Swahili text',
+      description: 'The language of the text; `en` when the passage has no Swahili text',
     }),
     tags: z.array(helpTagSchema).meta({
       description: 'Section kinds, statement item types and topics it covers',

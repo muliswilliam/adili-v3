@@ -38,6 +38,7 @@ import {
   type CorpusPassageView,
   type HelpArticle,
   type HelpPassage,
+  HELP_PASSAGE_ID_MAX,
   type HelpPassageDetail,
   helpPassageIdParam,
   type HelpPassageQuery,
@@ -97,7 +98,7 @@ export class HelpController {
   @ApiParam({
     name: 'passageId',
     description: 'A `HelpPassage` id, as `searchHelp` and answer citations give it',
-    schema: { type: 'string', minLength: 1, maxLength: 100 },
+    schema: { type: 'string', minLength: 1, maxLength: HELP_PASSAGE_ID_MAX },
   })
   @ApiQueryParameters(helpPassageQuery)
   @ApiOkResponse({ description: 'The passage', schema: schemaRef('HelpPassageDetail') })

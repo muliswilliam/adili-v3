@@ -1753,11 +1753,11 @@ export interface components {
              * @example Help: Joint assets
              */
             citation: string;
-            /** @description In `language` */
+            /** @description The stored title: help articles and corpus passages have no Swahili title yet, so it is in English even when `language` is `sw` (#677) */
             title: string;
             /** @description The whole passage or article body, in `language`; statutory text as published */
             text: string;
-            /** @description The language of the title and text; `en` when the passage has no Swahili text */
+            /** @description The language of the text; `en` when the passage has no Swahili text */
             language: components["schemas"]["HelpLanguage"];
             /** @description Section kinds, statement item types and topics it covers */
             tags: components["schemas"]["HelpTag"][];

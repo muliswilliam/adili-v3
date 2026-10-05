@@ -1,7 +1,9 @@
-import { sql } from 'drizzle-orm';
+import { type SQL, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../db/transaction.js';
+import { isUuid } from '../guards.js';
 import type { CorpusSource, CorpusTag } from './corpus.js';
+import type { HelpPassageDetail } from './representation.js';
 import {
   ENGLISH_SYNONYMS,
   expand,
@@ -99,27 +101,6 @@ export function searchTerms(
   };
 }
 
-/** One passage or article in full (#549), as `passageById` reads it. */
-export interface PassageDetailRow {
-  id: string;
-  source: CorpusSource | 'help';
-  citation: string;
-  title: string;
-  /** The whole passage or article body, in `language`. */
-  text: string;
-  /**
-   * `sw` when Swahili was asked and the passage has a Swahili text (an article's Swahili body or
-   * a corpus wording's Swahili text), else `en`.
-   */
-  language: HelpLanguage;
-  tags: CorpusTag[];
-  effectiveFrom: string;
-  effectiveTo: string | null;
-  /** The Commission of a Commission's article: its slug, and its reference from the read model. */
-  tenant: string | null;
-  commission: { slug: string; issuerCode: string; name: string } | null;
-}
-
 /**
  * One passage or article in full (#549), by the id search and citations give it, as help search
  * would read it: a corpus wording in force on `date`, or a published article in force on `date`
@@ -127,13 +108,20 @@ export interface PassageDetailRow {
  * own Commissions), with its Commission. The text in `language` where the passage has it, else in
  * English. `undefined` when there is no such passage.
  */
+/** A corpus wording or help article in force on `day` (`effective_to` exclusive). */
+function inForceOn(table: 'p' | 'a', day: SQL): SQL {
+  const t = sql.raw(table);
+  return sql`${t}.effective_from <= ${day} and (${t}.effective_to is null or ${t}.effective_to > ${day})`;
+}
+
 export async function passageById(
   tx: Transaction,
   query: { id: string; language: HelpLanguage; date: string },
-): Promise<PassageDetailRow | undefined> {
+): Promise<HelpPassageDetail | undefined> {
+  // Ids are uuids: anything else is no passage, and the primary keys are matched as uuids.
+  if (!isUuid(query.id)) return undefined;
   const swahili = query.language === 'sw';
-  const inForceOn = (table: string) =>
-    sql`${sql.raw(table)}.effective_from <= ${query.date}::date and (${sql.raw(table)}.effective_to is null or ${sql.raw(table)}.effective_to > ${query.date}::date)`;
+  const day = sql`${query.date}::date`;
   const result = await tx.execute<{
     id: string;
     source: CorpusSource | 'help';
@@ -154,7 +142,7 @@ export async function passageById(
       p.effective_from::text as effective_from, p.effective_to::text as effective_to,
       null::text as tenant, null::text as issuer_code, null::text as commission_name
     from corpus_passages p
-    where p.id::text = ${query.id} and ${inForceOn('p')}
+    where p.id = ${query.id}::uuid and ${inForceOn('p', day)}
     union all
     select a.id::text, 'help', 'Help: ' || a.title, a.title, a.tags,
       case when ${swahili} and a.body_sw is not null then a.body_sw else a.body_en end,
@@ -162,10 +150,15 @@ export async function passageById(
       a.effective_from::text, a.effective_to::text, a.tenant, c.issuer_code, c.name
     from help_articles a
     left join commission_refs c on c.slug = a.tenant
-    where a.id::text = ${query.id} and a.published and ${inForceOn('a')}
+    where a.id = ${query.id}::uuid and a.published and ${inForceOn('a', day)}
   `);
   const [row] = result.rows;
   if (!row) return undefined;
+  // The read model holds every Commission (as `commissionOf` in disclosures): a gap is a
+  // transient fault to retry, not a reason to hide the article.
+  if (row.tenant !== null && (row.issuer_code === null || row.commission_name === null)) {
+    throw new Error(`No Commission reference for ${row.tenant}`);
+  }
   return {
     id: row.id,
     source: row.source,
@@ -176,11 +169,10 @@ export async function passageById(
     tags: row.tags,
     effectiveFrom: row.effective_from,
     effectiveTo: row.effective_to,
-    tenant: row.tenant,
     commission:
-      row.tenant !== null && row.issuer_code !== null && row.commission_name !== null
-        ? { slug: row.tenant, issuerCode: row.issuer_code, name: row.commission_name }
-        : null,
+      row.tenant === null || row.issuer_code === null || row.commission_name === null
+        ? null
+        : { slug: row.tenant, issuerCode: row.issuer_code, name: row.commission_name },
   };
 }
 
@@ -202,10 +194,6 @@ export async function retrieve(
     );
   const boosted = (table: string) =>
     sql`${rank(table)} * ${matched(table)} * (1 + ${sql.raw(String(TAG_BOOST))} * cardinality(array(select unnest(${sql.raw(table)}.tags) intersect select unnest(${boost}))))`;
-  const inForce = (table: string) =>
-    sql.raw(
-      `${table}.effective_from <= q.day and (${table}.effective_to is null or ${table}.effective_to > q.day)`,
-    );
   const matches = (table: string) =>
     sql.raw(`(${table}.search_en @@ q.en or ${table}.search_sw @@ q.sw)`);
 
@@ -252,13 +240,13 @@ export async function retrieve(
         p.text_en as body_en, null::text as body_sw, false as sw_hit,
         ${boosted('p')} as score
       from corpus_passages p, q
-      where ${matches('p')} and ${inForce('p')}
+      where ${matches('p')} and ${inForceOn('p', sql`q.day`)}
       union all
       select a.id, 'help', 'Help: ' || a.title, a.title, a.tags, a.effective_from, a.effective_to,
         a.body_en, a.body_sw, coalesce(a.search_sw @@ q.sw and a.body_sw is not null, false),
         ${boosted('a')}
       from help_articles a, q
-      where a.published and ${matches('a')} and ${inForce('a')}
+      where a.published and ${matches('a')} and ${inForceOn('a', sql`q.day`)}
         ${query.tenant === undefined ? sql`` : sql`and (a.tenant is null or a.tenant = ${query.tenant})`}
     ),
     top as (

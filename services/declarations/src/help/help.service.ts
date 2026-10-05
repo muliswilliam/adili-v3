@@ -113,13 +113,7 @@ export class HelpService {
         date: query.date ?? nairobiDate(this.clock.now()),
       }),
     );
-    const { tenant, commission, ...detail } = notFoundIfInvisible(found);
-    // The read model holds every Commission (as `commissionOf` in disclosures): a gap is a
-    // transient fault to retry, not a reason to hide the article.
-    if (tenant !== null && commission === null) {
-      throw new Error(`No Commission reference for ${tenant}`);
-    }
-    return { ...detail, commission };
+    return notFoundIfInvisible(found);
   }
 
   listCommissionArticles(principal: Principal, slug: string): Promise<HelpArticle[]> {

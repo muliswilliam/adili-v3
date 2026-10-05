@@ -4366,12 +4366,12 @@ components:
             - 'Help: Joint assets'
         title:
           type: string
-          description: In `language`
+          description: 'The stored title: help articles and corpus passages have no Swahili title yet, so it is in English even when `language` is `sw` (#677)'
         text:
           type: string
           description: The whole passage or article body, in `language`; statutory text as published
         language:
-          description: The language of the title and text; `en` when the passage has no Swahili text
+          description: The language of the text; `en` when the passage has no Swahili text
           $ref: '#/components/schemas/HelpLanguage'
         tags:
           type: array
