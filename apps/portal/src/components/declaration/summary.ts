@@ -108,12 +108,13 @@ const FIELD_LABELS: Record<string, string> = {
   ...DETAIL_FIELD_LABELS,
   ...PERSON_FIELD_LABELS,
   value: 'Value',
+  amount: 'Amount',
   type: 'Type',
   sharePercent: 'Share',
 };
 
 /** Pointer parts that hold a field's value rather than name it (`/value/kesCents`). */
-const VALUE_PARTS = new Set(['kesCents', 'amount', 'currency']);
+const VALUE_PARTS = new Set(['kesCents', 'currency']);
 
 const ITEM_NOUNS: Record<Category, string> = {
   income: 'Income',
