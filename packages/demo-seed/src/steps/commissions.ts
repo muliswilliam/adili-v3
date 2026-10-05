@@ -39,7 +39,10 @@ export const commissions: SeedStep = {
         changed++;
       }
       const officer = demo.reportingOfficer;
-      if (commission.reportingOfficer?.email !== officer.email) {
+      if (
+        commission.reportingOfficer?.email !== officer.email ||
+        commission.reportingOfficer.name !== officer.name
+      ) {
         ok(
           await admin.directory.PUT('/v1/commissions/{slug}/reporting-officer', {
             params: { path: { slug: demo.slug }, header: { 'Idempotency-Key': randomUUID() } },
