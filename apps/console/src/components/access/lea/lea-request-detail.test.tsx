@@ -12,10 +12,9 @@ import {
   setAccessMockLatency,
 } from '../../../server/access/mock.server';
 import type { LeaRequest } from '../../../server/access/types';
-import { findLeaRosterCandidates, recordLeaNotice, verifyLea } from '../../../server/lea-requests';
+import { findLeaRosterCandidates, verifyLea } from '../../../server/lea-requests';
 import {
   loadLeaRequest,
-  recordLeaWrittenNotice,
   searchLeaRoster,
   verifyLeaRequest,
   withdrawLeaRequest,
@@ -51,7 +50,6 @@ vi.mock('../../../server/access-requests', () => ({}));
 vi.mock('../../../server/lea-requests', () => ({
   findLeaRosterCandidates: vi.fn(),
   verifyLea: vi.fn(),
-  recordLeaNotice: vi.fn(),
 }));
 
 const client = () => mockAccessClient([ACCESS_OFFICER]);
@@ -83,9 +81,6 @@ afterAll(() => {
 });
 beforeEach(() => {
   resetAccessMock();
-  vi.mocked(recordLeaNotice).mockImplementation(({ data }) =>
-    recordLeaWrittenNotice(client(), data.requestId, data.notifiedOn, data.idempotencyKey),
-  );
   invalidate.mockClear();
   vi.mocked(findLeaRosterCandidates).mockImplementation(({ data }) =>
     searchLeaRoster(client(), data.requestId, data.q),
@@ -110,7 +105,7 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     renderDetail(await requestOf(L.received));
     expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/^LEA-PSC-2026-/);
     expect(screen.getByText('Law enforcement')).toBeTruthy();
-    expect(screen.getByText('The declarant is told only after a grant.')).toBeTruthy();
+    expect(screen.getByText('The declarant is not told of law enforcement requests.')).toBeTruthy();
     const written = screen.getByRole('region', { name: 'Written request' });
     expect(written.textContent).toContain('Directorate of Criminal Investigations');
     expect(written.textContent).toContain('DCI/ECU/142/2026');
@@ -214,7 +209,7 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     expect(within(side()).queryByRole('button')).toBeNull();
     expect(within(side()).queryByRole('link')).toBeNull();
     expect(
-      screen.getByText('The declarant was not told. The request was withdrawn before a decision.'),
+      screen.getByText('The declarant is not told. The request was withdrawn before a decision.'),
     ).toBeTruthy();
     expect(screen.queryByText('Decision due')).toBeNull();
   });
@@ -237,13 +232,12 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     expect(verification.textContent).toContain('Peter Mwangi Kamau');
   });
 
-  it('S11: after a grant, says the declarant was notified and shows the package', async () => {
+  it('S11: after a grant, never tells the declarant and shows the package', async () => {
     renderDetail(await requestOf(L.granted));
-    expect(screen.getByText(/^Declarant notified after grant, on /)).toBeTruthy();
-    // The register's received entry reads as it did at receipt; the notice has its own entry.
+    expect(screen.getByText('The declarant is not told of law enforcement requests.')).toBeTruthy();
     const register = screen.getByRole('list', { name: 'Access register' });
-    expect(register.textContent).toContain('Declarant not told yet.');
-    expect(register.textContent).toContain('Declarant notified after grant');
+    expect(register.textContent).toContain('The declarant is not told.');
+    expect(register.textContent).not.toContain('Declarant notified');
     const pkg = within(side()).getByRole('region', { name: 'Package' });
     expect(pkg.textContent).toContain('Suleiman Ali, DCI');
     expect(pkg.textContent).toContain('Downloads1');
@@ -254,9 +248,9 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
 
   it('after a denial, says the declarant was not told and the agency got the reasons', async () => {
     renderDetail(await requestOf(L.denied));
-    expect(screen.getByText('The declarant was not told. DCI received the reasons.')).toBeTruthy();
+    expect(screen.getByText('The declarant is not told. DCI received the reasons.')).toBeTruthy();
     const register = screen.getByRole('list', { name: 'Access register' });
-    expect(register.textContent).toMatch(/Case [^.]+\. Declarant not told yet\./);
+    expect(register.textContent).toMatch(/Case [^.]+\. The declarant is not told\./);
     expect(within(side()).queryByRole('region', { name: 'Package' })).toBeNull();
   });
 
@@ -267,44 +261,11 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     expect(screen.getByText('Read only')).toBeTruthy();
   });
 
-  it('decision 2: a grant to an officer with no account: the access officer records the written notice', async () => {
+  it('decision 2: a grant to an officer with no account asks nothing of the access officer', async () => {
     renderDetail(await requestOf(L.noAccount));
-    expect(
-      screen.getByText(
-        'The declarant has no Adili account: serve them a written notice of the grant and record the day.',
-      ),
-    ).toBeTruthy();
-    const card = within(side()).getByRole('region', { name: 'Notify in writing' });
-    expect(card.textContent).toContain('Samuel Kiprotich Rotich has no Adili account');
-    expect(card.textContent).toContain('never its reason');
-    // No window for representations after a law enforcement grant.
-    const field = within(card).getByRole('textbox', { name: /Day the notice was served/ });
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(
-      new Date(),
-    );
-    fireEvent.change(field, { target: { value: today.split('-').reverse().join('/') } });
-    expect(within(card).queryByText(/Representations will close/)).toBeNull();
-    fireEvent.click(within(card).getByRole('button', { name: 'Record written notice' }));
-    await waitFor(() => {
-      expect(vi.mocked(recordLeaNotice)).toHaveBeenCalledWith({
-        data: {
-          requestId: L.noAccount,
-          notifiedOn: today,
-          idempotencyKey: expect.any(String) as unknown,
-        },
-      });
-    });
-    expect(await screen.findByText('Written notice recorded.')).toBeTruthy();
-    const after = await requestOf(L.noAccount);
-    expect(after.declarantNotice).toMatchObject({ channel: 'written', notifiedOn: today });
-  });
-
-  it('decision 2: the supervisor waits for the written notice of the grant', async () => {
-    renderDetail(await requestOf(L.noAccount), true);
-    expect(side().textContent).toContain(
-      'Waiting for the access officer to record the written notice of the grant.',
-    );
     expect(within(side()).queryByRole('region', { name: 'Notify in writing' })).toBeNull();
+    expect(screen.queryByText(/written notice/i)).toBeNull();
+    expect(screen.getByText('The declarant is not told of law enforcement requests.')).toBeTruthy();
   });
 
   it('decision 2: verifies to a roster record with no account', async () => {

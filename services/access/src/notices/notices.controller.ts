@@ -32,7 +32,7 @@ export class NoticesController {
     operationId: 'listMyAccessNotices',
     summary: 'Requests the declarant has been notified about, with windows and outcomes',
     description:
-      "Their own only, latest notified first: Form K requests from notification on; law enforcement requests (kind `lea`: the agency, its case reference, the outcome and the dates only, never the agency's reason or the decision's reasons or grounds; no representations) only once granted and the declarant told (r.23(2)). Form K notices carry the applicant's reason verbatim.",
+      "Their own only, latest notified first: Form K requests from notification on. A law enforcement request is never among them (product decision, 2026-10-05; #614). Form K notices carry the applicant's reason verbatim.",
   })
   @ApiOkResponse({
     description: 'Notices',

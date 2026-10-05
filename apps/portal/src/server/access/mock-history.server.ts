@@ -223,21 +223,20 @@ function requestCopy(request: Request, body: unknown, now: number): Response {
 }
 
 /** Notices whose grant found nothing in its scope: the nil letter was issued (decision 1). */
-const NIL_LETTER_NOTICES: ReadonlySet<string> = new Set([MOCK_NOTICE_IDS.leaPartial]);
+const NIL_LETTER_NOTICES: ReadonlySet<string> = new Set([MOCK_NOTICE_IDS.partial]);
 
 /** The history entries a notice gives, as the service's register would hold them. */
 function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry[] {
   const base = {
-    subjectKind: notice.kind === 'lea' ? ('lea-request' as const) : ('access-request' as const),
+    subjectKind: 'access-request' as const,
     subjectId: notice.requestId,
     reference: notice.reference,
     commission: notice.commission,
-    requester: notice.kind === 'lea' ? notice.agency.name : notice.applicantName,
-    caseReference: notice.kind === 'lea' ? notice.caseReference : null,
-    purposeInGeneralTerms: notice.kind === 'form-k' ? notice.purposeInGeneralTerms : null,
+    requester: notice.applicantName,
+    purposeInGeneralTerms: notice.purposeInGeneralTerms,
     certifiedCopy: null,
   };
-  const askedScope = notice.kind === 'form-k' ? notice.scope : null;
+  const askedScope = notice.scope;
   const entries: AccessHistoryEntry[] = [];
   const add = (
     kind: AccessHistoryEntry['kind'],
@@ -248,7 +247,6 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
     // The mock's notice served on paper: its notice and its letter were both in writing.
     const inWriting =
       (kind === 'notified' || kind === 'representations') &&
-      notice.kind === 'form-k' &&
       notice.representations?.receivedInWriting;
     entries.push({
       ...base,
@@ -265,45 +263,32 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
       ...extra,
     });
   };
-  if (notice.kind === 'form-k') {
+  add(
+    'notified',
+    notice.notifiedAt,
+    notice.noticeChannel === 'written' ? 'Declarant notified in writing' : 'Declarant notified',
+  );
+  const sent = notice.representations;
+  if (sent) {
     add(
-      'notified',
-      notice.notifiedAt,
-      notice.noticeChannel === 'written' ? 'Declarant notified in writing' : 'Declarant notified',
+      'representations',
+      sent.submittedAt,
+      sent.receivedInWriting ? 'Representations received in writing' : 'Representations received',
     );
-    const sent = notice.representations;
-    if (sent) {
-      add(
-        'representations',
-        sent.submittedAt,
-        sent.receivedInWriting ? 'Representations received in writing' : 'Representations received',
-      );
-      if (sent.updatedAt !== sent.submittedAt) {
-        add('representations', sent.updatedAt, 'Representations received');
-      }
-    }
-    if (notice.status === 'withdrawn') {
-      const at = sent ? Date.parse(sent.updatedAt) + 2 * DAY : Date.parse(notice.notifiedAt) + DAY;
-      add('withdrawn', new Date(at).toISOString(), 'Request withdrawn', {
-        actor: notice.applicantName,
-      });
+    if (sent.updatedAt !== sent.submittedAt) {
+      add('representations', sent.updatedAt, 'Representations received');
     }
   }
-  const decided =
-    notice.kind === 'lea'
-      ? { outcome: notice.outcome, decidedAt: notice.decidedAt }
-      : notice.decision;
+  if (notice.status === 'withdrawn') {
+    const at = sent ? Date.parse(sent.updatedAt) + 2 * DAY : Date.parse(notice.notifiedAt) + DAY;
+    add('withdrawn', new Date(at).toISOString(), 'Request withdrawn', {
+      actor: notice.applicantName,
+    });
+  }
+  const decided = notice.decision;
   if (decided) {
-    // From the decision on, an entry carries the scope granted (none after a denial); a
-    // law-enforcement grant's is what was disclosed.
-    const grantedScope =
-      notice.kind === 'lea'
-        ? notice.grantedScope
-        : notice.decision
-          ? notice.decision.outcome === 'deny'
-            ? null
-            : (notice.decision.grantedScope ?? notice.scope)
-          : null;
+    // From the decision on, an entry carries the scope granted (none after a denial).
+    const grantedScope = decided.outcome === 'deny' ? null : (decided.grantedScope ?? notice.scope);
     add('decided', decided.decidedAt, 'Decision recorded', {
       outcome: decided.outcome,
       scope: grantedScope,
@@ -320,7 +305,7 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
       const downloadedAt = issuedAt + DAY - 3 * HOUR;
       if (downloadedAt < now) {
         add('downloaded', new Date(downloadedAt).toISOString(), `${what} downloaded`, {
-          actor: notice.kind === 'lea' ? null : notice.applicantName,
+          actor: notice.applicantName,
           packageKind,
           scope: grantedScope,
         });
@@ -350,7 +335,6 @@ function copyEntry(copy: MockCopy): AccessHistoryEntry | null {
     subjectId: copy.id,
     commission: copy.commission,
     requester: null,
-    caseReference: null,
     purposeInGeneralTerms: null,
     scope: null,
     outcome: null,

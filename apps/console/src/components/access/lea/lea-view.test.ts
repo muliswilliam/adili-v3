@@ -47,7 +47,7 @@ describe('isBreached (S11: breach flag at day 14)', () => {
 });
 
 describe('leaTimelineOf', () => {
-  it('names the officer with their agency, and the declarant notice after the grant', () => {
+  it('names the officer with their agency, and the declarant notice of an older request', () => {
     const entries = leaTimelineOf(
       request({
         resolvedName: 'Grace Nyambura Kamau',
@@ -94,13 +94,14 @@ describe('leaTimelineOf', () => {
     );
     expect(entries[0]).toMatchObject({
       actor: 'Suleiman Ali (DCI)',
-      summary: 'Case DCI/ECU/142/2026. Declarant not told yet.',
+      summary: 'Case DCI/ECU/142/2026. The declarant is not told.',
     });
     expect(entries[1]).toMatchObject({
       title: 'Request verified',
       summary: 'Officer identified: Grace Nyambura Kamau.',
     });
     expect(entries[2]).toMatchObject({ outcome: 'deny', summary: 'DCI told with reasons.' });
+    // A request granted before 2026-10-05 still shows the notice it had then.
     expect(entries[3]).toMatchObject({ title: 'Declarant notified after grant' });
   });
 
@@ -116,26 +117,10 @@ describe('leaTimelineOf', () => {
     };
     const summaryOf = (over: Partial<LeaRequest>) =>
       leaTimelineOf(request({ timeline: [received], ...over }))[0]?.summary;
-    const notice = (channel: 'online' | 'written') =>
-      ({
-        channel,
-        notifiedAt: NOW,
-        notifiedOn: null,
-        recordedBy: null,
-      }) as LeaRequest['declarantNotice'];
-    const atReceipt = 'Case DCI/ECU/142/2026. Declarant not told yet.';
+    const atReceipt = 'Case DCI/ECU/142/2026. The declarant is not told.';
     expect(summaryOf({ status: 'received' })).toBe(atReceipt);
     expect(summaryOf({ status: 'verified' })).toBe(atReceipt);
-    expect(
-      summaryOf({ status: 'granted', declarantNotifiedAt: NOW, declarantNotice: notice('online') }),
-    ).toBe(atReceipt);
-    expect(
-      summaryOf({
-        status: 'granted',
-        declarantNotifiedAt: NOW,
-        declarantNotice: notice('written'),
-      }),
-    ).toBe(atReceipt);
+    expect(summaryOf({ status: 'granted' })).toBe(atReceipt);
     expect(summaryOf({ status: 'denied' })).toBe(atReceipt);
     expect(summaryOf({ status: 'withdrawn' })).toBe(atReceipt);
   });

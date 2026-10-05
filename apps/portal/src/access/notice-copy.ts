@@ -26,10 +26,6 @@ const NOTICES = {
 
   someone: en('Someone has requested access to your declaration'),
   from: en((applicant: string) => `Access request from ${applicant}`),
-  lea: en(
-    (verb: string, date: string, agency: string, caseReference: string) =>
-      `A law-enforcement agency was ${verb} on ${date} (${agency}, case ${caseReference})`,
-  ),
   notifiedOn: en((date: string) => `Notified ${date}`),
   notifiedInWritingOn: en((date: string) => `Notified in writing ${date}`),
   decidedOn: en((date: string) => `Decided ${date}`),
@@ -39,7 +35,6 @@ const NOTICES = {
     days <= 0 ? 'closes today' : days === 1 ? '1 day left' : `${String(days)} days left`,
   ),
   openRequest: en((reference: string) => `Open access request ${reference}`),
-  openLeaRequest: en((reference: string) => `Open law-enforcement request ${reference}`),
   disclosed: en((scope: string) => `Disclosed: ${scope}`),
 
   statusAwaiting: en('Waiting for your response'),
@@ -47,7 +42,6 @@ const NOTICES = {
   statusUnderDecision: en('Under decision'),
   statusWithdrawn: en('Withdrawn'),
   statusClosed: en('Closed'),
-  statusLea: en('Law enforcement'),
 
   you: en('You'),
   spouses: en('spouse'),
@@ -62,7 +56,6 @@ export const NOTICES_COPY = english(NOTICES);
 const NOTICE = {
   back: en('Access requests'),
   pageTitle: en('Access request'),
-  leaTitle: en('Law-enforcement access'),
   notified: en((date: string) => `Notified ${date}`),
   notifiedInWriting: en((date: string) => `Notified in writing ${date}`),
   granted: en((date: string) => `Granted ${date}`),
@@ -93,24 +86,16 @@ const NOTICE = {
   bannerDecided: en(
     (commission: string, verb: string, date: string) => `${commission} ${verb} on ${date}.`,
   ),
-  whyNow: en('Why now'),
-  leaWhyNow: en(
-    'Law-enforcement requests are shown after access is granted, so investigations are not prejudiced.',
-  ),
 
   request: en('Request'),
   applicant: en('Applicant'),
-  agency: en('Agency'),
-  caseReference: en('Case reference'),
   commission: en('Commission'),
   outcome: en('Outcome'),
-  grantedOn: en('Granted on'),
   notifiedOn: en('Notified on'),
   purpose: en('Purpose'),
   scopeAsked: en('Scope asked'),
   scopeAskedAndGranted: en('Scope asked and granted'),
   scopeGranted: en('Scope granted'),
-  scopeDisclosed: en('Scope granted (what was disclosed)'),
   years: en('Declaration year'),
   people: en('People'),
   sections: en('Sections'),
@@ -122,7 +107,6 @@ const NOTICE = {
   withheld: en('Withheld'),
   notReleased: en('not released'),
   notAsked: en('not asked'),
-  notDisclosed: en('not disclosed'),
 
   decision: en('Decision'),
   grounds: en('Grounds'),
@@ -152,11 +136,6 @@ const NOTICE = {
   youEdited: en('You · edited'),
   youInWriting: en('You · received in writing'),
   officerOf: en((commission: string) => `Access officer, ${commission}`),
-  agencyGranted: en(
-    (agency: string, verb: string, caseReference: string) =>
-      `${agency} was ${verb} (case ${caseReference})`,
-  ),
-  youWereNotified: en('You were notified'),
 
   notFoundTitle: en('Access request not found'),
   notFoundText: en('The link may be wrong, or it is not about your declaration.'),

@@ -45,7 +45,6 @@ export type FormKDeclarantNotice = Schemas['FormKDeclarantNotice'];
  * outcome, its dates and the scope granted (what was disclosed), never the agency's reason or the
  * decision's reasons or grounds.
  */
-export type LeaDeclarantNotice = Schemas['LeaDeclarantNotice'];
 export type Representations = Schemas['Representations'];
 export type RepresentationsInput = Schemas['RepresentationsInput'];
 export type RepresentationStance = Representations['stance'];

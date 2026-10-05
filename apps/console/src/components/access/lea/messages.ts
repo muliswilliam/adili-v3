@@ -19,25 +19,10 @@ export const en = {
   tryAgain: 'Try again',
 
   // Who is told
-  toldAfterGrant: 'The declarant is told only after a grant.',
-  declarantNotified: (date: string) => `Declarant notified after grant, on ${date}.`,
-  declarantNotifiedInWriting: (date: string) =>
-    `Declarant notified in writing after grant, served ${date}.`,
-  declarantBeingNotified: 'The declarant is being notified of the grant.',
-  declarantNoAccount:
-    'The declarant has no Adili account: serve them a written notice of the grant and record the day.',
-
-  // Written notice of the grant (officer with no account)
-  noticeIntro: (name: string) =>
-    `${name} has no Adili account, so the grant is told on paper (Regulation 23(2)): the agency and that access was granted, never its reason. Serve the notice, then record the day it was served.`,
-  noticeDayEarly: (date: string) =>
-    `The day cannot be before ${date}, when the request was granted.`,
-  noticeDayHint: 'Not in the future, nor before the grant.',
-  noticeRecorded: 'Written notice recorded.',
-  waitingNotice: 'Waiting for the access officer to record the written notice of the grant.',
+  neverTold: 'The declarant is not told of law enforcement requests.',
   notifiedAfterGrantInWriting: 'Declarant notified in writing after grant',
-  notToldDenied: (agency: string) => `The declarant was not told. ${agency} received the reasons.`,
-  notToldWithdrawn: 'The declarant was not told. The request was withdrawn before a decision.',
+  notToldDenied: (agency: string) => `The declarant is not told. ${agency} received the reasons.`,
+  notToldWithdrawn: 'The declarant is not told. The request was withdrawn before a decision.',
 
   // Withdrawn
   closedTitle: 'Closed',
@@ -68,8 +53,8 @@ export const en = {
   registerTitle: 'Register',
   registerLabel: 'Access register',
   whereItStands: 'Where the request stands',
-  /** As it read at receipt: the declarant hears of a request only after a grant. */
-  receivedSummary: (caseReference: string) => `Case ${caseReference}. Declarant not told yet.`,
+  /** The declarant never hears of a law enforcement request (#614). */
+  receivedSummary: (caseReference: string) => `Case ${caseReference}. The declarant is not told.`,
   requestVerified: 'Request verified',
   officerIdentifiedSummary: (name: string) => `Officer identified: ${name}.`,
   notifiedAfterGrant: 'Declarant notified after grant',
@@ -132,7 +117,7 @@ export const en = {
   notVerifiedTitle: 'Not verified yet',
   notVerified:
     'The request is not verified, so it can only be denied. Open the request to verify it first.',
-  finalityGrant: 'The declarant is notified after the grant.',
+  finalityGrant: "The agency's officer gets the package. The declarant is not notified.",
   finalityDeny: (agency: string) =>
     `${agency} is told with your reasons. The declarant is not notified.`,
   reasonsHint: 'Sent to the agency.',

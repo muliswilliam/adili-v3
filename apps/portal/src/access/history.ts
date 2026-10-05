@@ -10,10 +10,10 @@ import { OUTCOMES, STANCES } from './notice-copy';
  */
 
 /** What an entry is about, for the filters. */
-export type HistoryGroup = 'form-k' | 'lea' | 'copy';
+export type HistoryGroup = 'form-k' | 'copy';
 export type HistoryFilter = 'all' | HistoryGroup;
 
-export const HISTORY_FILTERS: HistoryFilter[] = ['all', 'form-k', 'lea', 'copy'];
+export const HISTORY_FILTERS: HistoryFilter[] = ['all', 'form-k', 'copy'];
 export const HISTORY_PAGE_SIZE = 10;
 
 /**
@@ -34,8 +34,6 @@ export function groupOf(entry: AccessHistoryEntry): HistoryGroup {
   switch (entry.subjectKind) {
     case 'access-request':
       return 'form-k';
-    case 'lea-request':
-      return 'lea';
     case 'self-access':
       return 'copy';
   }
@@ -45,7 +43,6 @@ export function countByFilter(entries: AccessHistoryEntry[]): Record<HistoryFilt
   const counts: Record<HistoryFilter, number> = {
     all: entries.length,
     'form-k': 0,
-    lea: 0,
     copy: 0,
   };
   for (const entry of entries) counts[groupOf(entry)] += 1;
@@ -81,8 +78,7 @@ function isFirstResponse(entry: AccessHistoryEntry, all: AccessHistoryEntry[]): 
 
 /**
  * One entry in the declarant's words, as `RegisterList` / `RegisterTimeline` show it: who did
- * what, and who acted as far as the declarant may know (staff only by their role, law
- * enforcement officers not at all). `notices` gives the stance of their response; `all` is
+ * what, and who acted as far as the declarant may know (staff only by their role). `notices` gives the stance of their response; `all` is
  * every entry, to tell a first response from an edit.
  */
 export function toRegisterEntry(
@@ -92,7 +88,6 @@ export function toRegisterEntry(
 ): RegisterEntry {
   const commission = entry.commission.name;
   const who = entry.requester ?? COPY.someone;
-  const lea = entry.subjectKind === 'lea-request';
   // A grant that found nothing in its scope delivered the nil letter, not a package (decision 1).
   const nilLetter = entry.packageKind === 'nil-letter';
   const base = { id: entry.id, kind: entry.kind, at: entry.at, reference: entry.reference };
@@ -116,14 +111,6 @@ export function toRegisterEntry(
       };
     }
     case 'decided':
-      if (lea) {
-        return {
-          ...base,
-          title: COPY.agencyGranted(who, OUTCOMES[entry.outcome ?? 'grant'].verb.en),
-          actor: entry.caseReference ? COPY.caseOf(entry.caseReference) : null,
-          tone: 'info',
-        };
-      }
       return entry.outcome
         ? {
             ...base,
@@ -150,7 +137,7 @@ export function toRegisterEntry(
       return {
         ...base,
         title: (nilLetter ? COPY.downloadedNilLetter : COPY.downloaded)(entry.actor ?? who),
-        actor: lea ? COPY.agency : COPY.applicant,
+        actor: COPY.applicant,
       };
     case 'expired':
       return { ...base, title: COPY.expired, actor: null, tone: 'default' };

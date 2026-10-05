@@ -55,6 +55,15 @@ Schemas changed:
 - `Scope.years` and `Scope.sections` lost `uniqueItems` (Zod cannot express it); form-k.v1 still enforces uniqueness on submit (#244).
 - Nullables are exported as `anyOf [..., null]` rather than `type: [..., 'null']` (code-first export).
 
+### Law enforcement requests are not the declarant's to see (product decision, 2026-10-05)
+
+The user decided that a law enforcement request is never shown to the declarant (#614 lists it as a deviation from Regs r.23(2), which has the declarant told after a grant). The declarant is not notified (no `lea-grant-notice` email or SMS, no `lea.request.notified.v1`), not invited to onboard because of one, and sees none in their notices or in "Who accessed my declaration". The access officer, the requesting officer and the audit trail are unchanged.
+
+- Dropped: `recordLeaWrittenNotice` (`POST /v1/lea/requests/{id}/written-notice`), the `LeaDeclarantNotice` schema (`DeclarantNotice` is Form K only), and `LeaRequest.declarantNotifiedAt`, `declarantOnboarded`, `declarantInvitedAt` and `declarantNotice`.
+- `AccessHistoryEntry`: `subjectKind` is `access-request` or `self-access`; `caseReference` dropped.
+- Row-level security: migration 0013 drops `lea_requests_person_read`, so the person context reads no law enforcement request, and through `access_register_subject_read` none of its register entries. Rows recorded before the change (a `notified` entry, `declarant_notified_at`) stay in the database for the audit trail and stay hidden from the declarant.
+- `LeaRequestWorkflow`: runs started since the `lea-declarant-not-told` patch skip telling the declarant; runs started before replay their old path, and `notifyDeclarantOfLeaGrant` now tells nobody.
+
 ## Declarations (`internal/declarations.yaml`)
 
 - `internalRenderDisclosure`: `tenant` moved from the body to `X-Acting-Tenant` (an unknown body key is 400). The response is the named `DisclosureDocument`, with `DisclosedVersion`, `DisclosureSection`, `GrantReference` and `LegalBasis` (#257).

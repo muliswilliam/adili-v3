@@ -20,7 +20,7 @@
  * service is down. Saves take about as long as the service would (the mock's latency).
  */
 import { addDays } from '@adili/ui';
-import { ARQ, format, LEA } from '@adili/numbering/references';
+import { ARQ, format } from '@adili/numbering/references';
 
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
@@ -29,7 +29,6 @@ import type {
   Decision,
   DeclarantNotice,
   FormKDeclarantNotice,
-  LeaDeclarantNotice,
   Representations,
   RepresentationStance,
   Scope,
@@ -57,8 +56,6 @@ export const MOCK_NOTICE_IDS = {
   denied: 'b7e10000-0000-4000-8000-000000000006',
   granted: 'b7e10000-0000-4000-8000-000000000007',
   withdrawn: 'b7e10000-0000-4000-8000-000000000008',
-  lea: 'b7e10000-0000-4000-8000-000000000009',
-  leaPartial: 'b7e10000-0000-4000-8000-000000000010',
   /** Served on paper before the declarant had an account; their letter entered by the officer. */
   inWriting: 'b7e10000-0000-4000-8000-000000000011',
 } as const;
@@ -133,23 +130,6 @@ function seed(now: number) {
     canRespond: false,
     representations: null,
     decision: null,
-    noticeChannel: 'online',
-    ...fields,
-  });
-  const lea = (
-    id: string,
-    sequence: number,
-    decidedAt: string,
-    fields: Pick<LeaDeclarantNotice, 'agency' | 'caseReference' | 'outcome' | 'grantedScope'>,
-  ): LeaDeclarantNotice => ({
-    requestId: id,
-    reference: reference(sequence, LEA),
-    kind: 'lea',
-    commission: TSC,
-    status: 'granted',
-    decidedAt,
-    // The declarant hears of a grant shortly after it.
-    notifiedAt: new Date(Date.parse(decidedAt) + HOUR).toISOString(),
     noticeChannel: 'online',
     ...fields,
   });
@@ -266,18 +246,6 @@ function seed(now: number) {
         'I was not on the tender committee for the 2025 works. The committee minutes are with the Board of Management.',
         ago(128),
       ),
-    }),
-    lea(ids.lea, 7, ago(26, 1), {
-      agency: { code: 'ARA', name: 'Asset Recovery Agency' },
-      caseReference: 'ARA/INV/2026/014',
-      outcome: 'grant',
-      grantedScope: scope([2025, 2026], true, true, ['income', 'assets', 'liabilities']),
-    }),
-    lea(ids.leaPartial, 4, ago(140), {
-      agency: { code: 'DCI', name: 'Directorate of Criminal Investigations' },
-      caseReference: 'DCI/ECU/2026/0331',
-      outcome: 'partial-grant',
-      grantedScope: scope([2025], false, false, ['assets']),
     }),
   ];
   notices.clear();

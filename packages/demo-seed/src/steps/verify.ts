@@ -195,7 +195,7 @@ async function expiringPackage(context: SeedContext): Promise<string> {
 async function grantedPackage(context: SeedContext): Promise<string> {
   const otieno = await context.as('otieno');
   const notices = ok(await otieno.access.GET('/v1/me/access-notices'), 'my access notices');
-  const granted = notices.find((n) => n.kind === 'form-k' && n.decision?.outcome === 'grant');
+  const granted = notices.find((n) => n.decision?.outcome === 'grant');
   if (!granted) throw new Error('Otieno has no granted request; run the access step first');
   const officer = await context.as('access-officer');
   const view = ok(

@@ -8,6 +8,7 @@ import {
   condition,
   defineSignal,
   log,
+  patched,
   proxyActivities,
   setHandler,
   sleep,
@@ -62,10 +63,10 @@ interface RunState {
  * to end (a rolled-back receipt ends it as `missing`). While the access officer verifies and
  * decides, the access officers are reminded at day ten, and at the fourteen-day deadline an
  * undecided request is flagged as breached. Once decided, the agency's officer is told; a grant
- * (full or partial) is then told to the declarant (only now, r.23(2)), its scoped disclosure is
- * issued as the officer's Confidential, watermarked package, the officer is told it is ready,
- * and it expires at the end of its download window. A denial is told to the officer only, with
- * its reasons behind sign-in; the declarant never hears of it. The filing officer may withdraw
+ * (full or partial) then has its scoped disclosure issued as the officer's Confidential,
+ * watermarked package, the officer is told it is ready, and it expires at the end of its download
+ * window. A denial is told to the officer only, with its reasons behind sign-in. The declarant
+ * never hears of the request either way (product decision, 2026-10-05; #614). The filing officer may withdraw
  * it before the decision: the run tells the access officers and ends.
  *
  * The wait for the decision recovers from a lost signal by reading the request every
@@ -198,15 +199,17 @@ async function passOver<T>(
 }
 
 /**
- * The decision is final: the agency's officer is told. A grant is told to the declarant, then
- * its package issued, announced to the officer, and expired at the end of its download window.
- * A declarant with no account is told once they onboard or the access officer records the
- * written notice, alongside the package.
+ * The decision is final: the agency's officer is told. A grant then has its package issued,
+ * announced to the officer, and expired at the end of its download window.
+ *
+ * Runs started before `LEA_DECLARANT_NOT_TOLD` also told the declarant of the grant (r.23(2)),
+ * waiting for one with no account to onboard or be told in writing; they replay that path.
  */
 async function afterDecision(input: LeaRequestWorkflowInput, state: RunState): Promise<Stop> {
   const decided = await leaDecisionNotice(input);
   if (decided === 'missing') return 'missing';
   if (decided === 'denied') return 'decided';
+  if (patched(LEA_DECLARANT_NOT_TOLD)) return packageCourse(input);
 
   const told = await notifyDeclarantOfLeaGrant(input);
   if (told === 'missing') return 'missing';
@@ -216,6 +219,9 @@ async function afterDecision(input: LeaRequestWorkflowInput, state: RunState): P
   ]);
   return stop;
 }
+
+/** The patch that stopped telling the declarant of a law enforcement grant (2026-10-05, #614). */
+const LEA_DECLARANT_NOT_TOLD = 'lea-declarant-not-told';
 
 /**
  * Waits for the declarant with no account to onboard (`onboarded`, or the directory read at each

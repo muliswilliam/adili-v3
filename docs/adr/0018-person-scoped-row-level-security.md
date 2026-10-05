@@ -1,6 +1,6 @@
 # ADR-018: Person-scoped row-level security for a declarant's own records
 
-- **Status:** Accepted; amended 2026-10-01: declarants write their own drafts through the person axis (decision 5, spec #108); amended 2026-10-02: access requests' person tables and the declarant's representations (decision 6), and the law enforcement officer axis (decision 7, spec 10); amended 2026-10-03: the declarant's conversations with Ask Adili (decision 8, spec 11); amended 2026-10-04: counting a declarant's question in their Commission's anonymised theme counts (decision 9, #339)
+- **Status:** Accepted; amended 2026-10-01: declarants write their own drafts through the person axis (decision 5, spec #108); amended 2026-10-02: access requests' person tables and the declarant's representations (decision 6), and the law enforcement officer axis (decision 7, spec 10); amended 2026-10-03: the declarant's conversations with Ask Adili (decision 8, spec 11); amended 2026-10-04: counting a declarant's question in their Commission's anonymised theme counts (decision 9, #339); amended 2026-10-05: no person policy on law enforcement requests (decision 6, #614)
 - **Date:** 2026-09-29
 - **Deciders:** Adili V3 DIALs team
 - **Supersedes:** [ADR-006](0006-multi-tenancy-and-hierarchy.md) decision 5 (isolation) in part: row-level security gains a second axis, the person, next to the tenant: read-only, except for a declarant's own drafts (decision 5), representations (decision 6) and conversations with Ask Adili (decision 8), and the count of their question in its Commission's theme counts (decision 9); and a third, the law enforcement officer, read-only (decision 7). The rest of ADR-006 still stands.
@@ -28,7 +28,7 @@ A declarant is not a tenant member in that sense. The person is global (ADR-006 
 
 6. **Access requests through the person axis (spec 10).** *Amended 2026-10-02.* The access service's tables follow decision 2 for the persons a request concerns. An applicant is a person too (kind `applicant`, no tenant, `person_id` in the token), so reads admit the applicant's own rows as well as the declarant's:
    - `access_requests_person_read`: the applicant's own Form K requests, at any Commission, and the requests about a declarant once the declarant has been notified (`notified_at`), never before;
-   - `lea_requests_person_read`: a law enforcement request about a declarant only once granted (r.23(2));
+   - `lea_requests_person_read`: a law enforcement request about a declarant only once granted (r.23(2)). *Amended 2026-10-05 (#614):* dropped (access migration 0013): by product decision a law enforcement request is never the declarant's to see, so the person context reads none, granted or not, nor its register entries;
    - `certified_copies_person_read`: the declarant's own certified copies;
    - `access_register_subject_read`: the register entries of a request the caller may read, and the declarant's own self-access entries.
 

@@ -109,10 +109,6 @@ describe('Law enforcement requests (S11)', () => {
         resolvedName: null,
         verification: null,
         decision: null,
-        declarantNotifiedAt: null,
-        declarantOnboarded: null,
-        declarantInvitedAt: null,
-        declarantNotice: null,
         package: null,
         packageFailedAt: null,
         timeline: [

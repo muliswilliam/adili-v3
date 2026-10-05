@@ -163,21 +163,3 @@ export async function packageDownload(
   }
   return result;
 }
-
-/** `POST .../written-notice`: the day the written notice of a grant was served on the declarant. */
-export function recordLeaWrittenNotice(
-  client: AccessClient,
-  requestId: string,
-  notifiedOn: string,
-  idempotencyKey: string,
-): Promise<AccessResult<LeaRequest>> {
-  return callService(() =>
-    client.POST('/v1/lea/requests/{leaRequestId}/written-notice', {
-      params: {
-        path: { leaRequestId: requestId },
-        header: { 'Idempotency-Key': idempotencyKey },
-      },
-      body: { notifiedOn },
-    }),
-  );
-}

@@ -14,7 +14,6 @@ import {
   RegisterTimeline,
   SCOPE_SECTIONS,
   scopeSectionLabels,
-  Tooltip,
   useToast,
   useIdempotencyKey,
 } from '@adili/ui';
@@ -24,9 +23,7 @@ import {
   Calendar03Icon,
   Cancel01Icon,
   Clock01Icon,
-  InformationCircleIcon,
   Notification01Icon,
-  PoliceBadgeIcon,
   Stamp01Icon,
   Tick02Icon,
   UnavailableIcon,
@@ -36,16 +33,11 @@ import { Link, useRouter } from '@tanstack/react-router';
 import { type ReactNode, type RefObject, useRef, useState } from 'react';
 
 import { NOTICE_COPY as COPY, OUTCOMES, RESPONSE_COPY } from '../../access/notice-copy';
-import { badgeState, historyOf, leaTitle, windowOpen, windowView } from '../../access/notices';
+import { badgeState, historyOf, windowOpen, windowView } from '../../access/notices';
 import { accessReferenceParts } from '../../access/reference';
 import { checkRepresentations } from '../../access/representation-form';
 import { submitMyRepresentations } from '../../server/access-notices';
-import type {
-  DeclarantNotice,
-  FormKDeclarantNotice,
-  LeaDeclarantNotice,
-  Scope,
-} from '../../server/access/types';
+import type { DeclarantNotice, FormKDeclarantNotice, Scope } from '../../server/access/types';
 import { loginHref } from '../sign-in';
 import { GroundsList } from '../access/request-parts';
 import { NoticeStateBadge } from './notice-parts';
@@ -62,38 +54,11 @@ import {
  * A request someone made to see the declarant's declaration (spec 10 FE-4, S4): what was asked,
  * by whom and why in general terms, the window for their response with the form (object,
  * consent or add context, with documents) and their response once sent, editable until the
- * window closes; after the decision, the outcome with its grounds and reasons. A law-enforcement
- * grant shows once access was granted, without a form, and only its agency, case reference,
- * outcome, the scope granted (what was disclosed) and dates: never the agency's reason, the
- * decision's reasons or its grounds (spec 10 decision 4, round 2).
+ * window closes; after the decision, the outcome with its grounds and reasons. Law enforcement
+ * requests are never shown to the declarant (product decision, 2026-10-05; #614).
  */
 export function NoticePage({ notice, now }: { notice: DeclarantNotice; now: string }) {
-  return notice.kind === 'lea' ? (
-    <LeaNoticePage notice={notice} now={now} />
-  ) : (
-    <FormKNoticePage notice={notice} now={now} />
-  );
-}
-
-function LeaNoticePage({ notice, now }: { notice: LeaDeclarantNotice; now: string }) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  return (
-    <main className="mx-auto grid w-full max-w-[1000px] flex-1 content-start gap-6 px-4 pt-5 pb-16 sm:px-7 sm:pt-8">
-      <Header notice={notice} now={now} headingRef={headingRef} />
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="grid min-w-0 gap-5">
-          <LeaBanner notice={notice} />
-          <LeaRequestCard notice={notice} />
-        </div>
-        <aside className="grid gap-5">
-          <Card className="gap-4">
-            <CardTitle>{COPY.history}</CardTitle>
-            <RegisterTimeline entries={historyOf(notice)} label={COPY.history} />
-          </Card>
-        </aside>
-      </div>
-    </main>
-  );
+  return <FormKNoticePage notice={notice} now={now} />;
 }
 
 function FormKNoticePage(props: { notice: FormKDeclarantNotice; now: string }) {
@@ -177,7 +142,6 @@ function Header({
   now: string;
   headingRef: RefObject<HTMLHeadingElement | null>;
 }) {
-  const lea = notice.kind === 'lea';
   return (
     <div className="grid gap-3">
       <Button asChild variant="ghost" size="sm" className="justify-self-start">
@@ -191,26 +155,20 @@ function Header({
         tabIndex={-1}
         className="text-[26px] leading-tight font-semibold tracking-[-0.02em] outline-none sm:text-[28px]"
       >
-        {lea ? COPY.leaTitle : COPY.pageTitle}
+        {COPY.pageTitle}
       </h1>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        {lea ? (
-          <span className="font-mono text-[13.5px]">{notice.reference}</span>
-        ) : (
-          <ReferenceChip
-            reference={notice.reference}
-            parts={accessReferenceParts(notice.commission.name)}
-            size="sm"
-          />
-        )}
+        <ReferenceChip
+          reference={notice.reference}
+          parts={accessReferenceParts(notice.commission.name)}
+          size="sm"
+        />
         <NoticeStateBadge state={badgeState(notice, now)} />
         <span className="inline-flex items-center gap-1.5 text-[14px] text-muted-foreground [&_svg]:size-4">
           <Icon icon={Calendar03Icon} />
-          {notice.kind === 'lea'
-            ? COPY.granted(formatDate(notice.decidedAt))
-            : notice.noticeChannel === 'written'
-              ? COPY.notifiedInWriting(formatDate(notice.notifiedAt))
-              : COPY.notified(formatDate(notice.notifiedAt))}
+          {notice.noticeChannel === 'written'
+            ? COPY.notifiedInWriting(formatDate(notice.notifiedAt))
+            : COPY.notified(formatDate(notice.notifiedAt))}
         </span>
       </div>
     </div>
@@ -245,23 +203,6 @@ const DECIDED_BANNERS = {
   'partial-grant': { variant: 'warning', icon: Stamp01Icon },
   deny: { variant: 'success', icon: UnavailableIcon },
 } as const;
-
-/** The grant, and why the declarant hears of it only now. */
-function LeaBanner({ notice }: { notice: LeaDeclarantNotice }) {
-  return (
-    <BannerBox variant="info" icon={PoliceBadgeIcon} lead={`${leaTitle(notice)}.`}>
-      <Tooltip content={COPY.leaWhyNow}>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 align-bottom font-medium underline decoration-current/40 underline-offset-3 hover:decoration-current [&_svg]:size-3.5"
-        >
-          <Icon icon={InformationCircleIcon} />
-          {COPY.whyNow}
-        </button>
-      </Tooltip>
-    </BannerBox>
-  );
-}
 
 /** What happened and what happens next, for every state the declarant can see. */
 function Banner({
@@ -506,36 +447,6 @@ function RequestCard({ notice }: { notice: FormKDeclarantNotice }) {
             {partial ? COPY.scopeAskedAndGranted : COPY.scopeAsked}
           </p>
           <ScopeView scope={notice.scope} granted={partial} />
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-/**
- * A law-enforcement grant: the agency, its case reference, the outcome, its dates and the scope
- * granted, which is what was disclosed. The scope the agency asked for is not shown.
- */
-function LeaRequestCard({ notice }: { notice: LeaDeclarantNotice }) {
-  return (
-    <Card className="gap-0 p-0 sm:p-0">
-      <div className="border-b border-border px-5 py-4 sm:px-6">
-        <CardTitle>{COPY.request}</CardTitle>
-      </div>
-      <div className="grid gap-5 px-5 py-5 sm:px-6">
-        <Rows>
-          <Row term={COPY.agency}>{notice.agency.name}</Row>
-          <Row term={COPY.caseReference}>
-            <span className="font-mono">{notice.caseReference}</span>
-          </Row>
-          <Row term={COPY.commission}>{notice.commission.name}</Row>
-          <Row term={COPY.outcome}>{OUTCOMES[notice.outcome].label.en}</Row>
-          <Row term={COPY.grantedOn}>{formatDate(notice.decidedAt)}</Row>
-          <Row term={COPY.notifiedOn}>{formatDate(notice.notifiedAt)}</Row>
-        </Rows>
-        <div className="grid gap-2.5 border-t border-border pt-5">
-          <p className="text-[13.5px] font-medium">{COPY.scopeDisclosed}</p>
-          <ScopeView scope={notice.grantedScope} granted={null} absent={COPY.notDisclosed} />
         </div>
       </div>
     </Card>
