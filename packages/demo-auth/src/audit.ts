@@ -1,31 +1,13 @@
+import {
+  AUDIT_DEMO_SWITCH,
+  type DemoSwitchAccount,
+  type DemoSwitchData,
+} from '@adili/events/contracts';
 import amqp from 'amqplib';
 import { v7 as uuidv7 } from 'uuid';
 
-import type { DemoApp } from './accounts.ts';
-
-/**
- * The audit event for a role switch (#616), as the audit service files it (`audit.demo-switch.v1`
- * in `@adili/events/contracts`, #593): kind `auth`, action `demo.account-switched`.
- */
-export const AUDIT_DEMO_SWITCH = 'audit.demo-switch.v1';
-
 /** Topic exchange every domain event goes to (`EVENTS_EXCHANGE` in `@adili/events`). */
 const EVENTS_EXCHANGE = 'adili.events';
-
-export interface DemoSwitchAccount extends Record<string, unknown> {
-  username: string;
-  subject: string | null;
-  tenant: string | null;
-  roles: string[];
-}
-
-export interface DemoSwitchData extends Record<string, unknown> {
-  app: DemoApp;
-  /** Who was signed in; null when nobody was. */
-  from: DemoSwitchAccount | null;
-  to: DemoSwitchAccount;
-  outcome: 'success';
-}
 
 /** The CloudEvents envelope (ADR-005) of a switch. */
 export function demoSwitchEvent(data: DemoSwitchData, now = new Date()) {
@@ -44,24 +26,34 @@ export function demoSwitchEvent(data: DemoSwitchData, now = new Date()) {
 
 export type DemoSwitchEvent = ReturnType<typeof demoSwitchEvent>;
 
+export { AUDIT_DEMO_SWITCH, type DemoSwitchAccount, type DemoSwitchData };
+
 /**
  * Publishes `event` to the events exchange and waits for the broker's confirm, so a switch is
- * recorded before it happens. The body is how Nest's RabbitMQ client frames an emitted event,
- * which the services' consumers read.
+ * recorded before it happens (the audit service's queue holds it). The body is how Nest's
+ * RabbitMQ client frames an emitted event, which the services' consumers read.
  */
 export async function publishDemoSwitch(rabbitmqUrl: string, event: DemoSwitchEvent) {
   const connection = await amqp.connect(rabbitmqUrl);
   try {
     const channel = await connection.createConfirmChannel();
     await channel.assertExchange(EVENTS_EXCHANGE, 'topic', { durable: true });
+    // Mandatory: with no queue bound for it (the audit service never started), the broker returns
+    // the message before it confirms, and the switch is refused instead of going unrecorded.
+    const delivery = { returned: false };
+    channel.on('return', () => {
+      delivery.returned = true;
+    });
     channel.publish(
       EVENTS_EXCHANGE,
       event.type,
       Buffer.from(JSON.stringify({ pattern: event.type, data: event })),
-      { persistent: true, contentType: 'application/json', messageId: event.id },
+      { persistent: true, mandatory: true, contentType: 'application/json', messageId: event.id },
     );
     await channel.waitForConfirms();
     await channel.close();
+    if (delivery.returned)
+      throw new Error(`no queue receives ${event.type}; is the audit service running?`);
   } finally {
     await connection.close();
   }

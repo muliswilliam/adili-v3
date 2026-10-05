@@ -652,6 +652,9 @@ importers:
       '@adili/bff-auth':
         specifier: workspace:*
         version: link:../bff-auth
+      '@adili/events':
+        specifier: workspace:*
+        version: link:../events
       amqplib:
         specifier: ^2.0.1
         version: 2.0.1
