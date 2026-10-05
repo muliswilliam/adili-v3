@@ -4,6 +4,7 @@ import { cycles, policies } from './cycles.js';
 import { filings } from './filings.js';
 import { onboarding } from './onboarding.js';
 import { rosters } from './rosters.js';
+import { reviewClarifications, reviewClosure, reviewQueue, reviewTeam } from './review.js';
 import { settle } from './settle.js';
 import { syntheticPeople } from './synthetic.js';
 
@@ -21,4 +22,8 @@ export const STEPS: readonly SeedStep[] = [
   onboarding,
   filings,
   settle,
+  reviewTeam,
+  reviewQueue,
+  reviewClarifications,
+  reviewClosure,
 ];

@@ -677,6 +677,9 @@ importers:
       '@adili/roles':
         specifier: workspace:*
         version: link:../roles
+      '@temporalio/client':
+        specifier: ^1.24.0
+        version: 1.24.0
       openapi-fetch:
         specifier: ^0.17.0
         version: 0.17.0

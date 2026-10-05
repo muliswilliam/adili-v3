@@ -15,6 +15,9 @@ const schema = z.object({
   MOCKS_URL: z.url().default('http://localhost:8000'),
   MAILPIT_URL: z.url().default('http://localhost:8025'),
   KEYCLOAK_URL: z.url().default('http://localhost:8080'),
+  /** Temporal, for triggering the services' daily sweeps instead of waiting for them. */
+  TEMPORAL_ADDRESS: z.string().default('localhost:7233'),
+  TEMPORAL_NAMESPACE: z.string().default('adili'),
   KEYCLOAK_REALM: z.string().default('adili'),
   KEYCLOAK_ADMIN_USER: z.string().default('admin'),
   KEYCLOAK_ADMIN_PASSWORD: z.string().default('admin_dev'),
