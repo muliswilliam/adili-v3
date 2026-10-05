@@ -149,7 +149,7 @@ The committed `vault-dev` secrets are for local and this demo only (ADR-012), ex
 
 ## OpenBao state
 
-OpenBao holds the per-tenant transit keys that seal declaration fields, the document signing keys and the demo root CA. It runs as a persistent server: integrated storage on the `openbao-data` volume (`/openbao/file` in the container), unsealed on start by the static seal key committed in `infra/compose/openbao/server/demo-seal.key`. That key is demo-only (ADR-012); a real deployment uses an HSM or KMS seal.
+OpenBao holds the per-tenant transit keys that seal declaration fields, the document signing keys and the demo root CA. It runs as a persistent server: integrated storage on the `openbao-data` volume (`/openbao/file` in the container), unsealed on start by the static seal key committed in `infra/compose/openbao/server/demo-seal-key.txt`. That key is demo-only (ADR-012); a real deployment uses an HSM or KMS seal.
 
 - Restarts, reboots and redeploys keep every key, so sealed data stays readable.
 - Demo checkpoints capture `openbao-data` together with the Postgres databases (see [Demo checkpoints](#demo-checkpoints)). Restoring one without the other leaves ciphertext that no key opens.
