@@ -42,6 +42,7 @@ import {
 import { messages as m } from '../../../components/commissions/messages';
 import { resendOutcome } from '../../../components/commissions/resend';
 import { RosterCard } from '../../../components/commissions/roster-card';
+import { OnboardingFailuresCard } from '../../../components/roster/onboarding-failures-card';
 import { CursorPager } from '../../../components/cursor-pager';
 import { CommissionObligationsCard } from '../../../components/obligations/commission-obligations-card';
 import { messages as obligationMessages } from '../../../components/obligations/messages';
@@ -68,10 +69,12 @@ import type {
 import type {
   Commission,
   DirectoryResult,
+  OnboardingFailures,
   RosterImportPage,
   TenantPolicyHistory,
 } from '../../../server/directory/client';
 import { getCommissionObligationsSummary } from '../../../server/obligations';
+import { getOnboardingFailures } from '../../../server/onboarding-failures';
 import { createTenantPolicyVersion, getTenantPolicy } from '../../../server/policy';
 import { listRosterImports } from '../../../server/roster-imports';
 
@@ -92,6 +95,8 @@ interface DetailData {
   obligations: DeclarationsResult<CommissionObligationsSummary>;
   /** Null for EACC staff, who do not see the policy. */
   policy: DirectoryResult<TenantPolicyHistory> | null;
+  /** Failed onboarding attempts in the last 24 hours (spec 03, story 30). */
+  failures: DirectoryResult<OnboardingFailures>;
 }
 
 export const Route = createFileRoute('/commissions/$slug/')({
@@ -100,22 +105,23 @@ export const Route = createFileRoute('/commissions/$slug/')({
   loader: async ({ params, deps, location, context }): Promise<DetailData | null> => {
     // The layout shows no Commission without the workspace; do not fetch its imports.
     if (!context.workspace) return null;
-    const [imports, obligations, policy] = await Promise.all([
+    const [imports, obligations, policy, failures] = await Promise.all([
       listRosterImports({ data: { slug: params.slug, cursor: deps.imports } }),
       getCommissionObligationsSummary({ data: { slug: params.slug } }),
       // The policy card is the platform admin's; EACC sees counts only.
       readsCommissionPolicy(context.roles)
         ? getTenantPolicy({ data: { slug: params.slug } })
         : null,
+      getOnboardingFailures({ data: { slug: params.slug } }),
     ]);
     if (
-      [imports, obligations, policy].some(
+      [imports, obligations, policy, failures].some(
         (result) => result && !result.ok && result.error.kind === 'unauthenticated',
       )
     ) {
       throw signInRedirect(location.href);
     }
-    return { imports, obligations, policy };
+    return { imports, obligations, policy, failures };
   },
   component: CommissionDetail,
 });
@@ -167,6 +173,7 @@ function Detail({ commission }: { commission: Commission }) {
               }
             />
           ) : null}
+          {data ? <OnboardingFailuresCard result={data.failures} /> : null}
         </div>
         <RosterCard
           commission={commission}

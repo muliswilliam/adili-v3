@@ -616,6 +616,20 @@ export const en = {
     `${formatNumber(from)}-${formatNumber(to)} of ${formatNumber(total)}`,
   coveragePageRows: (count: number) =>
     `${formatNumber(count)} reporting ${count === 1 ? 'entity' : 'entities'}`,
+  // Failed onboarding attempts (spec 03, story 30)
+  failuresTitle: 'Failed onboarding attempts',
+  failuresWindow: 'Last 24 hours',
+  failuresWhat:
+    'Attempts whose identifiers matched nobody on the roster (wrong, unknown or exited), and sessions that ran out of codes or resends. Many may mean a stale roster or someone guessing.',
+  failuresNone: 'No failed attempts in the last 24 hours.',
+  failuresError: 'Failed attempts could not be loaded.',
+  failuresAttempts: (count: number) =>
+    `${formatNumber(count)} ${count === 1 ? 'attempt' : 'attempts'}`,
+  failuresHour: (from: string, to: string) => `${from}–${to}`,
+  failuresPeak: (hour: string, count: number) =>
+    `Busiest hour: ${hour} (${formatNumber(count)} ${count === 1 ? 'attempt' : 'attempts'})`,
+  failuresByHour: 'Show by hour',
+  failuresByHourList: 'Failed attempts by hour',
 } as const;
 
 /** Swahili translations, key by key; empty until reviewed. */
