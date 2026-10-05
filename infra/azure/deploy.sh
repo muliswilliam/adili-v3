@@ -35,6 +35,10 @@ set -a
 set +a
 export KC_HOSTNAME ADILI_CONSOLE_URL ADILI_PORTAL_URL
 
+# shellcheck disable=SC1091
+. "$ROOT/infra/azure/demo-vault.sh"
+adili_prepare_demo_vault "$ROOT"
+
 # The Keycloak image carries the login theme and the authenticators: rebuild it when they change,
 # before the apps stop, so the build does not lengthen the downtime.
 keycloak_inputs="$(cd "$ROOT" && find apps/keycloak-extension/src apps/keycloak-extension/pom.xml \
@@ -49,6 +53,11 @@ sudo -n "$ROOT_HELPER" stop-apps
 
 echo "Compose stack"
 docker compose -f "$COMPOSE" -f "$OVERLAY" up -d
+if ! docker compose -f "$COMPOSE" -f "$OVERLAY" exec -T keycloak \
+  bash -c 'test -r /opt/keycloak/vault/adili_demo-ticket-secret'; then
+  echo "Keycloak cannot read its vault in $ADILI_KEYCLOAK_VAULT (owner must be its uid, 1000)." >&2
+  exit 1
+fi
 
 python3 "$ROOT/infra/azure/patch-realm.py" "$ROOT/infra/compose/keycloak/adili-realm.json"
 
