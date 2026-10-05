@@ -217,14 +217,19 @@ describe('S2 draftNationalReportNarrative', () => {
     resetNarrativeDraftMock('failed');
     expect(await draft({ section: 'all', replaceAll: false })).toMatchObject({
       ok: false,
-      error: { kind: 'unavailable' },
+      error: { kind: 'unavailable', code: 'narrative-draft-failed', reason: 'provider' },
+    });
+
+    resetNarrativeDraftMock('failed', { failureReason: 'budget' });
+    expect(await draft({ section: 'all', replaceAll: false })).toMatchObject({
+      ok: false,
+      error: { kind: 'unavailable', code: 'narrative-draft-failed', reason: 'budget' },
     });
 
     resetNarrativeDraftMock('unavailable');
-    expect(await draft({ section: 'all', replaceAll: false })).toMatchObject({
-      ok: false,
-      error: { kind: 'unavailable' },
-    });
+    const unavailable = await draft({ section: 'all', replaceAll: false });
+    expect(unavailable).toMatchObject({ ok: false, error: { kind: 'unavailable' } });
+    expect(unavailable).not.toHaveProperty('error.reason');
   });
 
   it('has no findings to draft without pattern candidates', async () => {
