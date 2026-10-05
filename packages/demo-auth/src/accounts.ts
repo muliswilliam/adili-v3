@@ -105,7 +105,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
     role: 'Helpdesk',
     organisation: 'Platform',
     app: 'console',
-    purpose: 'Looks people up to unlock accounts',
+    purpose: 'Looks people up by officer reference to help them sign in',
   },
   {
     demoKey: 'platform-admin',

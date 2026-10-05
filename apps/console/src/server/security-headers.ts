@@ -12,9 +12,19 @@ export interface SecurityHeaderOptions {
   dev: boolean;
   /** The visitor reached the app over https (directly or through the edge proxy). */
   https: boolean;
+  /**
+   * Keycloak's origin. Sign-out and the demo switch are form posts that redirect there, and
+   * form-action also governs where a submitted form may be redirected.
+   */
+  identityProvider?: string;
 }
 
-export function securityHeaders({ nonce, dev, https }: SecurityHeaderOptions): Headers {
+export function securityHeaders({
+  nonce,
+  dev,
+  https,
+  identityProvider,
+}: SecurityHeaderOptions): Headers {
   const csp = [
     "default-src 'none'",
     `script-src 'nonce-${nonce}' 'strict-dynamic'`,
@@ -27,14 +37,17 @@ export function securityHeaders({ nonce, dev, https }: SecurityHeaderOptions): H
     dev ? "connect-src 'self' ws: wss:" : "connect-src 'self'",
     "manifest-src 'self'",
     "base-uri 'none'",
-    "form-action 'self'",
+    identityProvider ? `form-action 'self' ${identityProvider}` : "form-action 'self'",
     "frame-ancestors 'none'",
     "object-src 'none'",
   ].join('; ');
   const headers = new Headers({
     'content-security-policy': csp,
     'x-content-type-options': 'nosniff',
-    'referrer-policy': 'no-referrer',
+    // same-origin, not no-referrer: no-referrer makes browsers send `Origin: null` on the app's own
+    // form posts, so logout and the demo switch, which refuse foreign origins, refused every post.
+    // Other origins still get no referrer.
+    'referrer-policy': 'same-origin',
     'x-frame-options': 'DENY',
     'permissions-policy':
       'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
@@ -43,6 +56,16 @@ export function securityHeaders({ nonce, dev, https }: SecurityHeaderOptions): H
   });
   if (https) headers.set('strict-transport-security', 'max-age=31536000; includeSubDomains');
   return headers;
+}
+
+/** The origin of an OIDC issuer URL, for form-action; undefined when unset or malformed. */
+export function issuerOrigin(issuer: string | undefined): string | undefined {
+  if (!issuer) return undefined;
+  try {
+    return new URL(issuer).origin;
+  } catch {
+    return undefined;
+  }
 }
 
 /** 128 random bits, base64: a CSP nonce. */

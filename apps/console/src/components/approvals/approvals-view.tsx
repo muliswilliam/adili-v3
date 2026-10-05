@@ -13,7 +13,7 @@ import {
   TabsNav,
   useToast,
 } from '@adili/ui';
-import { LockIcon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { CheckListIcon, LockIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { Link, useRouter } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 
@@ -127,7 +127,17 @@ export function ApprovalsView({
 
   return (
     <Page>
-      <PageHead title={t.title}>
+      <PageHead
+        title={t.title}
+        actions={
+          <Button asChild variant="secondary" size="sm">
+            <Link to="/approvals/bulk-closure">
+              <Icon icon={CheckListIcon} />
+              {t.bulkClosure}
+            </Link>
+          </Button>
+        }
+      >
         {total !== null ? (
           <p className="mt-1 text-sm text-muted-foreground">{t.summary(total)}</p>
         ) : null}

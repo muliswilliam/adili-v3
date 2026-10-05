@@ -11,6 +11,8 @@ export const messages = {
   summary: (count: number) =>
     count === 0 ? 'Nothing waits for approval' : `${formatNumber(count)} awaiting approval`,
   tabsLabel: 'Kinds of approval',
+  /** Bulk closures are not inbox items: the low-risk clean cases the sweep proposes (#202). */
+  bulkClosure: 'Bulk closure',
   age: {
     label: 'Waiting',
     under7Days: 'Under 7 days',
