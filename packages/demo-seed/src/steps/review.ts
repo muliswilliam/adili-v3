@@ -6,7 +6,9 @@ import { triggerSchedule } from '../clients/temporal.js';
 import type { SeedContext } from '../context.js';
 import { CURRENT_CYCLE, PERSONAS, PREVIOUS_CYCLE } from '../data/personas.js';
 import {
+  EACC_HR_SUPERVISOR,
   EXTRA_PSC_REVIEWERS,
+  REFERRAL_OFFICER,
   PSC_REVIEWERS,
   PSC_SUPERVISOR,
   TEXT,
@@ -196,7 +198,7 @@ async function declarantOf(context: SeedContext, item: CaseItem): Promise<string
  */
 export const reviewTeam: SeedStep = {
   id: 'review-team',
-  title: 'PSC review team: two more reviewers',
+  title: "PSC review team: two more reviewers; EACC's own staff supervisor",
   async run(context) {
     let changed = 0;
     for (const reviewer of EXTRA_PSC_REVIEWERS) {
@@ -211,7 +213,18 @@ export const reviewTeam: SeedStep = {
       });
       if (created) changed++;
     }
-    return { changed, notes: [PSC_REVIEWERS.join(', ')] };
+    // EACC's supervisor for its own staff: approves the referral of its officer (spec 08).
+    const eaccSupervisor = await context.keycloak.ensureStaffAccount({
+      username: EACC_HR_SUPERVISOR.demoKey,
+      email: `${EACC_HR_SUPERVISOR.demoKey}@demo.adili.go.ke`,
+      firstName: EACC_HR_SUPERVISOR.firstName,
+      lastName: EACC_HR_SUPERVISOR.lastName,
+      role: 'supervisor',
+      tenant: REFERRAL_OFFICER.commission,
+      demoKey: EACC_HR_SUPERVISOR.demoKey,
+    });
+    if (eaccSupervisor) changed++;
+    return { changed, notes: [PSC_REVIEWERS.join(', '), EACC_HR_SUPERVISOR.demoKey] };
   },
 };
 
@@ -479,16 +492,16 @@ async function determined(
   return changed;
 }
 
-/** PSC's enforcement ladders (spec 08). */
-async function laddersOf(api: Apis) {
+/** A Commission's enforcement ladders (spec 08). */
+async function laddersOf(api: Apis, slug = PSC) {
   const items = [];
   let cursor: string | undefined;
   do {
     const page = ok(
       await api.review.GET('/v1/commissions/{slug}/actions', {
-        params: { path: { slug: PSC }, query: { limit: 100, ...(cursor && { cursor }) } },
+        params: { path: { slug }, query: { limit: 100, ...(cursor && { cursor }) } },
       }),
-      'PSC ladders',
+      `${slug} ladders`,
     );
     items.push(...page.items);
     cursor = page.nextCursor ?? undefined;
@@ -767,6 +780,110 @@ export const reviewClosure: SeedStep = {
       notes: [
         `${String(cohort.length)} filed, ${String(proposed.eligibleProposed)} proposed, ${String(proposed.sampled)} sampled, ${String(result.approved)} approved`,
       ],
+    };
+  },
+};
+
+type Referral = Awaited<ReturnType<typeof referralsOf>>[number];
+
+/** EACC's referrals of its own staff (spec 08). */
+async function referralsOf(context: SeedContext) {
+  const api = await context.as(EACC_HR_SUPERVISOR.demoKey);
+  return ok(
+    await api.review.GET('/v1/commissions/{slug}/referrals', {
+      params: { path: { slug: REFERRAL_OFFICER.commission }, query: { limit: 100 } },
+    }),
+    'EACC referrals',
+  ).items.filter((referral) => referral.grounds === 'two-missed-cycles');
+}
+
+/**
+ * A referral after two consecutive missed cycles (spec 08 S12, Regs r.20(2)), with its ICMS case
+ * number (spec 09): EACC's officer filed neither the 2022 nor the 2024 declaration, so his
+ * overdue obligations hold ladders; the referral sweep (triggered rather than waited for)
+ * proposes `two-missed-cycles`, EACC's staff supervisor approves it, the package goes to EACC
+ * intake, and an EACC analyst pushes it to ICMS, which assigns the case number.
+ */
+export const reviewReferral: SeedStep = {
+  id: 'review-referral',
+  title: 'Referral after two missed cycles, pushed to ICMS',
+  async run(context) {
+    let changed = 0;
+    let referral: Referral | undefined = (await referralsOf(context))[0];
+    if (referral?.icmsCaseNumber)
+      return unchanged(`${String(referral.reference)}: ${referral.icmsCaseNumber}`);
+    if (!referral) {
+      // The sweep only looks at officers with a ladder on an overdue obligation.
+      await waitFor(
+        "the referral officer's ladders",
+        async () => {
+          const ladders = await laddersOf(
+            await context.as(EACC_HR_SUPERVISOR.demoKey),
+            REFERRAL_OFFICER.commission,
+          );
+          return ladders.filter((l) => l.subjectKind === 'obligation').length >= 2
+            ? true
+            : undefined;
+        },
+        { timeoutMs: 5 * 60_000, intervalMs: 3000 },
+      );
+      referral = await waitFor(
+        'the two-missed-cycles referral',
+        async () => {
+          await triggerSchedule(context.config, 'referral-sweep-schedule:review');
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+          return (await referralsOf(context))[0];
+        },
+        { timeoutMs: 5 * 60_000, intervalMs: 10_000 },
+      );
+      changed++;
+    }
+    if (referral.status === 'proposed') {
+      const supervisor = await context.as(EACC_HR_SUPERVISOR.demoKey);
+      ok(
+        await supervisor.review.POST('/v1/review/referrals/{referralId}/approve', {
+          params: { path: { referralId: referral.id }, header: key() },
+        }),
+        `approve referral ${referral.id}`,
+      );
+      changed++;
+    }
+    const referralId = referral.id;
+    await waitFor(
+      'the referral sent to EACC',
+      async () =>
+        (await referralsOf(context)).find((r) => r.id === referralId && r.status === 'sent'),
+      { timeoutMs: 5 * 60_000, intervalMs: 3000 },
+    );
+    const intake = async () => {
+      const analyst = await context.as('eacc-analyst');
+      return ok(
+        await analyst.reporting.GET('/v1/eacc/referrals', { params: { query: { limit: 100 } } }),
+        'EACC referral intake',
+      ).items.find((item) => item.referralId === referralId);
+    };
+    const received = await waitFor('the referral in EACC intake', intake, {
+      timeoutMs: 5 * 60_000,
+      intervalMs: 3000,
+    });
+    if (!received.icmsCaseNumber && !received.pushedAt) {
+      const analyst = await context.as('eacc-analyst');
+      ok(
+        await analyst.reporting.POST('/v1/eacc/referrals/{referralId}/push', {
+          params: { path: { referralId }, header: key() },
+        }),
+        `push referral ${referralId} to ICMS`,
+      );
+      changed++;
+    }
+    const registered = await waitFor(
+      'the ICMS case number on the referral',
+      async () => (await referralsOf(context)).find((r) => r.id === referralId && r.icmsCaseNumber),
+      { timeoutMs: 5 * 60_000, intervalMs: 5000 },
+    );
+    return {
+      changed,
+      notes: [`${String(registered.reference)}: ${String(registered.icmsCaseNumber)}`],
     };
   },
 };

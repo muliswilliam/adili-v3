@@ -60,3 +60,24 @@ export const TEXT = {
   kipronoEdit:
     ' Please attach your current KRA tax compliance certificate, or proof of an application for one.',
 } as const;
+
+/**
+ * The officer the demo refers to EACC after two missed cycles (spec 08 S12, Regs r.20(2)): EACC's
+ * own staff member (EACC is the responsible Commission for its staff), who filed neither the
+ * 2022 nor the 2024 declaration. His row is in the EACC roster fixture.
+ */
+export const REFERRAL_OFFICER = {
+  commission: 'eacc',
+  nationalId: '25813407',
+  demoKey: 'referral-officer',
+} as const;
+
+/** The cycle before the demo's previous one: EACC's obligations start there, so two can be missed. */
+export const EARLIER_CYCLE = 2022;
+
+/** EACC's own staff supervisor (spec 08 approvals for EACC as a Commission), a seeded demo account. */
+export const EACC_HR_SUPERVISOR = {
+  demoKey: 'eacc-hr-supervisor',
+  firstName: 'Lilian',
+  lastName: 'Chepkoech',
+} as const;

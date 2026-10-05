@@ -1,5 +1,6 @@
 import { DEMO_COMMISSIONS } from '../data/commissions.js';
 import { CURRENT_CYCLE, PREVIOUS_CYCLE } from '../data/personas.js';
+import { EARLIER_CYCLE, REFERRAL_OFFICER } from '../data/review.js';
 import { serviceScript } from '../repo.js';
 import type { SeedStep } from '../step.js';
 
@@ -14,7 +15,9 @@ import type { SeedStep } from '../step.js';
  * - the cycle calendar gains 2024 (the previous declaration, closed) and 2026 (open, due
  *   31 December 2026: what Wanjiku files live, on time);
  * - the obligations-start date moves back to the 2024 statement date so the cycles reach every
- *   officer, and reminders add a 1-day offset so the reminder officer's goes out today.
+ *   officer, and reminders add a 1-day offset so the reminder officer's goes out today;
+ * - EACC, whose roster holds only the officer the demo refers after two missed cycles (#618),
+ *   starts at the 2022 statement date, and the calendar gains 2022, so he has two to miss.
  *
  * No API changes these (the product changes the obligations-start date alone, spec 04): the
  * services' own demo scripts write them, refused in production.
@@ -25,7 +28,14 @@ export const DEMO_POLICY = {
   reminderOffsetsDays: [30, 14, 7, 1],
 } as const;
 
-/** Lead days that have opened both demo cycles (2024 opened in 2023, 2026 in 2025). */
+/** A Commission's obligations-start date: EACC's reaches back one more cycle. */
+export function obligationsStartDate(slug: string): string {
+  return slug === REFERRAL_OFFICER.commission
+    ? `${String(EARLIER_CYCLE)}-06-30`
+    : DEMO_POLICY.obligationsStartDate;
+}
+
+/** Lead days that have opened every demo cycle (2022 opened in 2021, 2026 in 2025). */
 const OPENING_LEAD_DAYS = 400;
 
 export const policies: SeedStep = {
@@ -38,7 +48,7 @@ export const policies: SeedStep = {
         JSON.stringify({
           tenant: commission.slug,
           biennial: DEMO_POLICY.biennial,
-          obligationsStartDate: DEMO_POLICY.obligationsStartDate,
+          obligationsStartDate: obligationsStartDate(commission.slug),
           reminderOffsetsDays: DEMO_POLICY.reminderOffsetsDays,
         }),
       ]);
@@ -50,10 +60,10 @@ export const policies: SeedStep = {
 
 export const cycles: SeedStep = {
   id: 'cycles',
-  title: `Demo cycles ${String(PREVIOUS_CYCLE)} and ${String(CURRENT_CYCLE)} open`,
+  title: `Demo cycles ${String(EARLIER_CYCLE)}, ${String(PREVIOUS_CYCLE)} and ${String(CURRENT_CYCLE)} open`,
   async run() {
     const outcome = await serviceScript('@adili/declarations', 'demo:cycles', [
-      `${String(PREVIOUS_CYCLE)},${String(CURRENT_CYCLE)}`,
+      `${String(EARLIER_CYCLE)},${String(PREVIOUS_CYCLE)},${String(CURRENT_CYCLE)}`,
       String(OPENING_LEAD_DAYS),
     ]);
     return { changed: outcome === 'changed' ? 1 : 0 };
