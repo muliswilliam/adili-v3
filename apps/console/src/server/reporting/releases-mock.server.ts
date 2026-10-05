@@ -2,7 +2,8 @@
  * The open-data releases part of the reporting mock (`mock.server.ts` hands it every
  * `/v1/eacc/open-data/releases` request): an in-memory stand-in for the reporting service's EACC
  * releases endpoints (reporting.yaml `listOpenDataReleasesEacc`, `buildOpenDataRelease`,
- * `getOpenDataReleaseEacc`), used when REPORTING_MOCK is set. It follows #491's rules
+ * `getOpenDataReleaseEacc`), used when REPORTING_MOCK is set. The Commission open-data preview
+ * (`open-data-mock.server.ts`) reads the same store, through `commissionPreviewRelease`. It follows #491's rules
  * (`services/reporting/src/open-data`):
  *
  * - EACC analysts and supervisors of tenant `eacc` only (403 for anyone else).
@@ -183,7 +184,7 @@ function seedFromEnv(): ReleasesMockSeed {
  * release, the one built last; a withdrawn one never. Null while there is none; `unavailable` for
  * the `unavailable` seed, the files out of reach.
  */
-export function currentReleaseOf():
+export function commissionPreviewRelease():
   { release: OpenDataRelease; tables: TableFiles } | 'unavailable' | null {
   const data = ensureSeeded();
   if (data.seed === 'unavailable') return 'unavailable';
@@ -193,7 +194,7 @@ export function currentReleaseOf():
     .sort(
       (a, b) =>
         b.release.fy - a.release.fy ||
-        b.release.builtAt.localeCompare(a.release.builtAt) ||
+        Date.parse(b.release.builtAt) - Date.parse(a.release.builtAt) ||
         b.release.version - a.release.version,
     );
   return current ? { release: current.release, tables: current.tables } : null;

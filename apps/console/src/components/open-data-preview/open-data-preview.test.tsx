@@ -30,22 +30,33 @@ afterAll(() => {
   setReportingMockLatency(1);
 });
 
+type ReleasesScenario = 'published' | 'preview' | 'none' | 'unavailable';
+
 /**
  * What EACC has done in the releases mock: `published`, FY 2025/2026's annual release, published
- * on the NCR's approval; `history`, that year's mid-year snapshots only; `preview`, the history
- * and a FY 2026/2027 snapshot built since; `none` and `unavailable`, those seeds.
+ * on the NCR's approval; `preview`, a FY 2026/2027 snapshot built since that year's mid-year
+ * snapshots; `none` built yet; `unavailable`, its files out of reach.
  */
-type Releases = 'published' | 'preview' | Exclude<ReleasesMockSeed, 'documents-unavailable'>;
+const SCENARIOS: Record<
+  ReleasesScenario,
+  { ncr: Parameters<typeof resetNcrMock>[0]; releases: ReleasesMockSeed; build2026: boolean }
+> = {
+  published: { ncr: 'approved', releases: 'history', build2026: false },
+  preview: { ncr: 'not-built', releases: 'history', build2026: true },
+  none: { ncr: 'not-built', releases: 'none', build2026: false },
+  unavailable: { ncr: 'not-built', releases: 'unavailable', build2026: false },
+};
 
 /** The page as the route renders it, for `tenant`'s admin, from the mock through the real loader. */
 async function renderPreview(
-  releases: Releases,
+  scenario: ReleasesScenario,
   { tenant = 'tsc', roles = [COMMISSION_ADMIN] }: { tenant?: string; roles?: string[] } = {},
 ) {
+  const { ncr, releases, build2026 } = SCENARIOS[scenario];
   resetReportingMock('2026-10-03');
-  resetNcrMock(releases === 'published' ? 'approved' : 'not-built');
-  resetReleasesMock(releases === 'published' || releases === 'preview' ? 'history' : releases);
-  if (releases === 'preview') {
+  resetNcrMock(ncr);
+  resetReleasesMock(releases);
+  if (build2026) {
     const analyst = mockReportingClient([EACC_ANALYST], { tenant: 'eacc' });
     if (!(await buildOpenDataSnapshot(analyst, 2026, crypto.randomUUID())).ok) {
       throw new Error('The FY 2026/2027 snapshot did not build');

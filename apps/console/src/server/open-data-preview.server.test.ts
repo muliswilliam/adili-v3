@@ -37,11 +37,15 @@ const reset = (releases: ReleasesMockSeed = 'history') => {
   resetReleasesMock(releases);
 };
 
-async function eaccReleases() {
-  const result = await listOpenDataReleases(analyst());
+/** A call's data; it throws when the call failed. */
+async function unwrapped<T>(call: Promise<{ ok: true; data: T } | { ok: false; error: unknown }>) {
+  const result = await call;
   if (!result.ok) throw new Error(JSON.stringify(result.error));
   return result.data;
 }
+
+const preview = (client: ReportingClient, slug = 'psc') =>
+  unwrapped(loadCommissionOpenDataPreview(client, slug));
 
 beforeAll(() => {
   setReportingMockLatency(0);
@@ -50,24 +54,13 @@ afterAll(() => {
   setReportingMockLatency(1);
 });
 
-/** EACC's step on the releases mock, its answer unwrapped. */
-async function eacc<T>(step: Promise<{ ok: true; data: T } | { ok: false; error: unknown }>) {
-  const result = await step;
-  if (!result.ok) throw new Error(JSON.stringify(result.error));
-  return result.data;
-}
-
-async function preview(client: ReportingClient, slug = 'psc') {
-  const result = await loadCommissionOpenDataPreview(client, slug);
-  if (!result.ok) throw new Error(JSON.stringify(result.error));
-  return result.data;
-}
-
 describe("a Commission's open-data preview (spec 09b S6)", () => {
   it("shows the release EACC's list has as current, never a withdrawn one", async () => {
     reset();
     const data = await preview(pscAdmin());
-    const current = (await eaccReleases()).find((each) => each.status === 'published');
+    const current = (await unwrapped(listOpenDataReleases(analyst()))).find(
+      (each) => each.status === 'published',
+    );
     expect(data.release).toMatchObject({ fy: 2025, kind: 'snapshot', version: 2 });
     expect(data.release.id).toBe(current?.id);
     expect(data.release.manifestVerificationId).toBe(current?.manifestVerificationId);
@@ -76,17 +69,17 @@ describe("a Commission's open-data preview (spec 09b S6)", () => {
 
   it('follows what EACC builds, publishes and withdraws', async () => {
     reset();
-    const built = await eacc(buildOpenDataSnapshot(analyst(), 2026, crypto.randomUUID()));
+    const built = await unwrapped(buildOpenDataSnapshot(analyst(), 2026, crypto.randomUUID()));
     expect((await preview(pscAdmin())).release).toMatchObject({ id: built.id, status: 'preview' });
 
-    await eacc(publishOpenDataRelease(supervisor(), built.id, crypto.randomUUID()));
+    await unwrapped(publishOpenDataRelease(supervisor(), built.id, crypto.randomUUID()));
     expect((await preview(pscAdmin())).release).toMatchObject({
       id: built.id,
       status: 'published',
     });
 
     const reason = 'Counted a board twice.';
-    await eacc(withdrawOpenDataRelease(supervisor(), built.id, reason, crypto.randomUUID()));
+    await unwrapped(withdrawOpenDataRelease(supervisor(), built.id, reason, crypto.randomUUID()));
     expect((await preview(pscAdmin())).release).toMatchObject({
       fy: 2025,
       kind: 'snapshot',
@@ -111,7 +104,7 @@ describe("a Commission's open-data preview (spec 09b S6)", () => {
 
   it('gives a preview built since the last publication, its suppressed rows marked', async () => {
     reset();
-    await eacc(buildOpenDataSnapshot(analyst(), 2026, crypto.randomUUID()));
+    await unwrapped(buildOpenDataSnapshot(analyst(), 2026, crypto.randomUUID()));
     const data = await preview(
       mockReportingClient([COMMISSION_ADMIN], { tenant: 'cpsb042' }),
       'cpsb042',

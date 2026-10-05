@@ -1,7 +1,7 @@
 import { COMMISSION_ADMIN, FORM_M_ROLES } from '@adili/roles';
 
 import { json, mockCallerOf, problem } from '../mock-http';
-import { currentReleaseOf } from './releases-mock.server';
+import { commissionPreviewRelease } from './releases-mock.server';
 
 /**
  * The reporting service's Commission open-data preview (spec 09b S6,
@@ -31,7 +31,7 @@ export function mockOpenDataFetch(request: Request): Response | null {
   const formM = caller.roles.some((role) => (FORM_M_ROLES as readonly string[]).includes(role));
   if (caller.tenant !== slug || !formM) return problem(404, 'Not found');
   if (!caller.roles.includes(COMMISSION_ADMIN)) return problem(403, 'Forbidden');
-  const shown = currentReleaseOf();
+  const shown = commissionPreviewRelease();
   if (shown === 'unavailable') return problem(503, 'Upstream service unavailable');
   if (!shown) return problem(404, 'Not found');
   return json(200, {
