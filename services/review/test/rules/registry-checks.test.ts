@@ -406,6 +406,75 @@ describe('matchRegistries: vehicles (NTSA)', () => {
   });
 });
 
+describe('matchRegistries: holdings acquired after the statement date', () => {
+  it('a vehicle, parcel or company role registered after the statement date is not undeclared; one held then still is', () => {
+    // 30 June 2024: before the Prado (Nov 2024) and the Kajiado parcel (Jan 2025), after the
+    // Fielder, the Kiambu parcel and the Afya Bora directorship.
+    const input = wanjiku((h) => {
+      h.officer.assets = [];
+    });
+    input.document = { ...input.document, statementDate: '2024-06-30' };
+    const undeclared = (match: RegistryMatch) =>
+      match.flags
+        .filter(
+          (flag) =>
+            flag.ruleId.endsWith('-undeclared') &&
+            flag.itemRefs.some((ref) => ref.personKey === 'officer'),
+        )
+        .map((flag) => String(Object.values(flag.evidence)[0]))
+        .sort();
+
+    expect(undeclared(run(input))).toEqual(['KCX 214J', 'KIAMBU/RUIRU EAST BLOCK 2/4417']);
+
+    // Afya Bora's directorship (Feb 2022) left out of paragraph 9: undeclared on 30 June 2024,
+    // not on 31 December 2021.
+    const withoutDirectorships = (statementDate: string): RegistryMatchInput => {
+      const base = wanjiku((h) => {
+        h.officer.assets = [land('KIAMBU/RUIRU EAST BLOCK 2/4417'), vehicle('KCX 214J')];
+      });
+      const { otherInformation } = base.document;
+      return {
+        ...base,
+        document: {
+          ...base.document,
+          statementDate,
+          otherInformation: {
+            ...otherInformation,
+            registrableInterests: {
+              ...otherInformation.registrableInterests,
+              directorships: [],
+            },
+          },
+        },
+      };
+    };
+    expect(undeclared(run(withoutDirectorships('2024-06-30')))).toEqual(['PVT-9XYZ2L4Q']);
+    expect(undeclared(run(withoutDirectorships('2021-12-31')))).toEqual([]);
+  });
+
+  it('a holding registered on the statement date itself was held then', () => {
+    const input = wanjiku((h) => {
+      h.officer.assets = [land('KIAMBU/RUIRU EAST BLOCK 2/4417'), vehicle('KCX 214J')];
+    });
+    input.document = { ...input.document, statementDate: '2024-11-04' };
+
+    expect(
+      summary(run(input).flags.filter((flag) => flag.ruleId === 'registry-vehicle-undeclared')),
+    ).toEqual(['registry-vehicle-undeclared medium']);
+  });
+
+  it('a declared holding acquired after the statement date is still compared against the registry', () => {
+    const input = wanjiku((h) => {
+      h.officer.assets = [vehicle('KDK 482M'), vehicle('KCA 123A')];
+    });
+    input.document = { ...input.document, statementDate: '2024-06-30' };
+
+    expect(
+      summary(run(input).flags.filter((flag) => flag.ruleId === 'declared-vehicle-not-found')),
+    ).toEqual(['declared-vehicle-not-found low']);
+  });
+});
+
 describe('matchRegistries: companies (BRS)', () => {
   it.each([
     [

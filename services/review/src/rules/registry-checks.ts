@@ -165,6 +165,10 @@ export function householdIds(
  * number, vehicles by registration, companies by registration number (or exact name, which is
  * what a BRS pre-fill writes), KRA by PIN presence, compliance and income. Pure: the lookups are
  * made before and passed in. Evidence holds identifiers, counts, percentages and statuses only.
+ *
+ * A declaration states what the person held on its statement date, so a parcel or vehicle
+ * registered, or a company role taken, after that date is not "undeclared": the registry answers
+ * as of today, and holdings acquired since belong to the next declaration.
  */
 export function matchRegistries(input: RegistryMatchInput): RegistryMatch {
   const match: RegistryMatch = { flags: [], checks: [] };
@@ -182,14 +186,15 @@ export function matchRegistries(input: RegistryMatchInput): RegistryMatch {
         continue;
       }
       const person = { statement, document: input.document };
+      const heldOn = (since: string) => since <= input.document.statementDate;
       const found =
         system === 'kra'
           ? kra(person, result as KraResult)
           : system === 'ntsa'
-            ? vehicles(person, result as NtsaResult)
+            ? vehicles(person, result as NtsaResult, heldOn)
             : system === 'brs'
-              ? companies(person, result as BrsResult, input.suppliers)
-              : parcels(person, result as ArdhisasaResult);
+              ? companies(person, result as BrsResult, heldOn, input.suppliers)
+              : parcels(person, result as ArdhisasaResult, heldOn);
       match.flags.push(...found.flags);
       // An info flag is a note on what could not be compared, not a mismatch.
       const mismatched = found.flags.some((flag) => flag.severity !== 'info');
@@ -242,12 +247,15 @@ const identifierKey = (value: string) => value.toUpperCase().replace(/[\s/.,-]+/
  * sectional title), so its parcel missing from the person's list is no indicator. Land declared
  * without a parcel number cannot be compared.
  */
-function parcels({ statement }: Person, result: ArdhisasaResult): SystemMatch {
+function parcels({ statement }: Person, result: ArdhisasaResult, heldOn: HeldOn): SystemMatch {
   return byIdentifier(statement, {
     system: 'ardhisasa',
     types: ['land', 'building'],
     identifier: (item) => item.details?.parcelNumber,
     registry: result.parcels.map((parcel) => parcel.parcelNumber),
+    heldOnStatementDate: result.parcels
+      .filter((parcel) => heldOn(parcel.registeredOn))
+      .map((parcel) => parcel.parcelNumber),
     evidenceKey: 'parcelNumber',
     undeclared: ['registry-parcel-undeclared', 'high'],
     notFound: ['declared-parcel-not-found', 'medium', ['land']],
@@ -256,12 +264,15 @@ function parcels({ statement }: Person, result: ArdhisasaResult): SystemMatch {
 }
 
 /** Vehicles by registration; a vehicle declared without one cannot be compared. */
-function vehicles({ statement }: Person, result: NtsaResult): SystemMatch {
+function vehicles({ statement }: Person, result: NtsaResult, heldOn: HeldOn): SystemMatch {
   return byIdentifier(statement, {
     system: 'ntsa',
     types: ['vehicle'],
     identifier: (item) => item.details?.registration,
     registry: result.vehicles.map((vehicle) => vehicle.registrationNumber),
+    heldOnStatementDate: result.vehicles
+      .filter((vehicle) => heldOn(vehicle.registeredOn))
+      .map((vehicle) => vehicle.registrationNumber),
     evidenceKey: 'registrationNumber',
     undeclared: ['registry-vehicle-undeclared', 'medium'],
     notFound: ['declared-vehicle-not-found', 'low', ['vehicle']],
@@ -269,11 +280,17 @@ function vehicles({ statement }: Person, result: NtsaResult): SystemMatch {
   });
 }
 
+/** Whether a registry entry dated `since` (registered, appointed) was held on the statement date. */
+type HeldOn = (since: string) => boolean;
+
 interface IdentifierRule {
   system: RegistrySystem;
   types: AssetItem['type'][];
   identifier: (item: AssetItem) => string | undefined;
+  /** Every identifier the registry holds now: a declared one missing from it is "not found". */
   registry: string[];
+  /** Those held on the statement date already: one of them left out is "undeclared". */
+  heldOnStatementDate: string[];
   evidenceKey: string;
   undeclared: [RuleId, Severity];
   /** The rule and severity for a declared identifier the registry does not hold, of these types. */
@@ -290,12 +307,13 @@ function byIdentifier(statement: Statement, rule: IdentifierRule): SystemMatch {
     return identifier ? [{ item, identifier }] : [];
   });
   const registry = uniqueBy(rule.registry, identifierKey);
+  const held = uniqueBy(rule.heldOnStatementDate, identifierKey);
   const [notFoundRule, notFoundSeverity, notFoundTypes] = rule.notFound;
   const isDeclared = (id: string) => identified.some((d) => sameIdentifier(d.identifier, id));
   const inRegistry = (id: string) => registry.some((r) => sameIdentifier(r, id));
   return {
     flags: [
-      ...registry
+      ...held
         .filter((id) => !isDeclared(id))
         .map((id) =>
           flag(...rule.undeclared, { [rule.evidenceKey]: id }, [statementRef(personKey)]),
@@ -356,6 +374,7 @@ function declaredCompanies({ statement, document }: Person): DeclaredCompany[] {
 function companies(
   person: Person,
   result: BrsResult,
+  heldOn: HeldOn,
   suppliers: RegistryMatchInput['suppliers'] = {},
 ): SystemMatch {
   const { personKey } = person.statement;
@@ -373,6 +392,8 @@ function companies(
       role: record.role,
     };
     if (declaring(record).length === 0) {
+      // A role taken after the statement date belongs to the next declaration.
+      if (!heldOn(record.appointedOn)) continue;
       flags.push(
         flag('registry-directorship-undeclared', 'medium', evidence, [statementRef(personKey)]),
       );
