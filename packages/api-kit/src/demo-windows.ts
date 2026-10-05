@@ -46,6 +46,35 @@ export const demoWindowSetting = z
   })
   .optional();
 
+/**
+ * `DEMO_WINDOW_TENANTS`: the Commissions (tenant keys, comma-separated) whose windows the demo
+ * window settings shorten; unset, every Commission's. One demo stack can then hold a state past a
+ * short window in one Commission and the same state inside its legal window in another, with no
+ * restart between them.
+ */
+export const demoWindowTenantsSetting = z
+  .string()
+  .transform((value) =>
+    value
+      .split(',')
+      .map((tenant) => tenant.trim())
+      .filter((tenant) => tenant !== ''),
+  )
+  .optional();
+
+/**
+ * The demo window (milliseconds) for a window started in `tenant`: `windowMs` when set and the
+ * tenant is among `tenants` (or `tenants` is unset), else undefined, i.e. the legal window.
+ */
+export function demoWindowFor(
+  windowMs: number | undefined,
+  tenants: readonly string[] | undefined,
+  tenant: string,
+): number | undefined {
+  if (windowMs === undefined) return undefined;
+  return tenants === undefined || tenants.includes(tenant) ? windowMs : undefined;
+}
+
 /** `DEMO_MODE`: off by default; demo window settings are refused unless it is on. */
 export const demoModeSetting = z.stringbool().default(false);
 

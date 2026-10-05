@@ -2,6 +2,7 @@ import {
   baseEnvSchema,
   demoModeSetting,
   demoWindowSetting,
+  demoWindowTenantsSetting,
   loadConfig,
   refuseDemoWindowsOutsideDemo,
 } from '@adili/api-kit';
@@ -56,10 +57,16 @@ export const envSchema = baseEnvSchema.extend({
    * of its download window, for documents issued while it is set. Unset: the window.
    */
   DEMO_PACKAGE_VALIDITY: demoWindowSetting,
+  /**
+   * Demo only: the Commissions (comma-separated tenant keys) `DEMO_PACKAGE_VALIDITY` applies to;
+   * unset, every Commission. The demo seed expires one Commission's package and keeps another's
+   * in force.
+   */
+  DEMO_WINDOW_TENANTS: demoWindowTenantsSetting,
 });
 
 export const checkedEnvSchema = envSchema.superRefine((env, ctx) => {
-  refuseDemoWindowsOutsideDemo(env, ['DEMO_PACKAGE_VALIDITY'], ctx);
+  refuseDemoWindowsOutsideDemo(env, ['DEMO_PACKAGE_VALIDITY', 'DEMO_WINDOW_TENANTS'], ctx);
 });
 
 export type Env = z.infer<typeof envSchema>;

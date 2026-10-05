@@ -54,7 +54,9 @@ export { type BaseEnv, baseEnvSchema, loadConfig, TRUSTED_PROXIES_DEFAULT } from
 export {
   demoModeSetting,
   DemoWindows,
+  demoWindowFor,
   demoWindowSetting,
+  demoWindowTenantsSetting,
   isoDurationMs,
   refuseDemoWindowsOutsideDemo,
 } from './demo-windows.js';

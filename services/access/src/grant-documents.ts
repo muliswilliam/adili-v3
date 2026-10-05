@@ -1,3 +1,4 @@
+import { demoWindowFor } from '@adili/api-kit';
 import type { Logger } from '@nestjs/common';
 
 import { invariantBroken, rethrowAsActivityFailure } from './activity-failures.js';
@@ -68,7 +69,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /**
  * When a grant's document stops being in force (ADR-010 `expired`): at the end of its download
  * window, the time the disclosure was released for; on a demo stack, `DEMO_PACKAGE_VALIDITY`
- * (milliseconds) after issue when set.
+ * (milliseconds) after issue when set for the grant's Commission (`DEMO_WINDOW_TENANTS`).
  */
 export function packageValidUntil(
   issuedAt: Date,
@@ -144,7 +145,7 @@ export async function issueGrantDocument(
     validUntil: packageValidUntil(
       deps.clock.now(),
       packageDownloadDays,
-      config.DEMO_PACKAGE_VALIDITY,
+      demoWindowFor(config.DEMO_PACKAGE_VALIDITY, config.DEMO_WINDOW_TENANTS, grant.tenant),
     ).toISOString(),
   };
   const grantedScope = {
