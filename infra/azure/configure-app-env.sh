@@ -115,6 +115,10 @@ seed_env="$ROOT/packages/demo-seed/.env"
 set_env "$seed_env" KEYCLOAK_URL "${KC_HOSTNAME%/}"
 set_env "$seed_env" DEMO_SIGN_IN_REDIRECT_URI "${ADILI_PORTAL_URL%/}/auth/callback"
 set_env_from_file "$seed_env" DEMO_TICKET_SECRET "$ADILI_DEMO_TICKET_SECRET_FILE"
+# Its admin calls (demo_key attributes, staff accounts) go to the loopback: Caddy keeps the admin
+# API off the public URL. With this host's admin password (deploy.sh sets it in Keycloak).
+set_env "$seed_env" KEYCLOAK_ADMIN_URL http://127.0.0.1:18080
+set_env_from_file "$seed_env" KEYCLOAK_ADMIN_PASSWORD "$ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE"
 
 set_env "$ROOT/services/documents/.env" S3_PUBLIC_ENDPOINT "$s3_public"
 # QR codes on issued documents open the public verify app.

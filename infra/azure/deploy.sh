@@ -67,8 +67,12 @@ fi
 
 echo "App dependencies and migrations"
 pnpm bootstrap
+# Keycloak's master admin gets this host's own password instead of the bootstrap admin_dev; the
+# admin API is reachable on loopback only (Caddyfile.cloudapp).
+KEYCLOAK_URL=http://127.0.0.1:18080 node infra/azure/keycloak-admin-password.mjs
 # The realm import skips an existing realm: apply demo sign-in (#616) to the live one.
-KEYCLOAK_URL=http://127.0.0.1:18080 node scripts/keycloak-demo-sign-in.mjs
+KEYCLOAK_URL=http://127.0.0.1:18080 KEYCLOAK_ADMIN_PASSWORD="$(cat "$ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE")" \
+  node scripts/keycloak-demo-sign-in.mjs
 ./infra/azure/configure-app-env.sh
 pnpm db:migrate
 if [ -f mocks/uv.lock ]; then
