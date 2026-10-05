@@ -45,7 +45,7 @@ pnpm --filter @adili/demo-seed seed --list
 | `rosters` | Every Commission's roster: personas, roster-only officers, timed officers, volume | roster file import as the reporting officer |
 | `onboarding` | Every officer but the roster-only ones onboarded, each a demo account | public onboarding API, codes from Mailpit and the SMS inbox |
 | `filings` | Personas' declarations, the volume's (on time, late, missing, registry mismatches) | the portal's draft and submit API, as each declarant |
-| `settle` | Waits for every declaration's review case and the personas' slips | review queue summary, declarant's slips |
+| `settle` | Waits for every declaration's review case and the personas' slips | review and declarations APIs |
 | `review-team` | Two more PSC reviewers (Brian Kiptoo, Mercy Wanjala) and EACC's own staff supervisor (Lilian Chepkoech) | Keycloak admin (no API creates Commission staff) |
 | `review-queue` | 22 PSC volume cases across the bands claimed by the three reviewers; Amina's amended case with the second; copilot summaries the seeding burst failed asked again | review API (claim, copilot refresh) |
 | `review-clarifications` | Kiprono's AI-drafted clarification, edited and issued, awaiting his reply (legal window); one answered, resolved and determined compliant (approved); Otieno's case proposed compliant, awaiting the supervisor; one unanswered past its window with the ladder at a notice and a warning; one carried to a salary stoppage the payroll mock acknowledged | review API as reviewer, declarant and supervisor; short windows through review's demo windows |
