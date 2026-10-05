@@ -34,7 +34,11 @@ export function createContext(
     config,
     log,
     async as(demoKey, options) {
-      return apis(config, await tokens.user(demoKey, options));
+      // A fresh step-up is for the call at hand; otherwise each request asks the cache, which
+      // signs in again before the token runs out.
+      if (options?.fresh) return apis(config, await tokens.user(demoKey, options));
+      await tokens.user(demoKey);
+      return apis(config, () => tokens.user(demoKey));
     },
     token(demoKey) {
       return tokens.user(demoKey);

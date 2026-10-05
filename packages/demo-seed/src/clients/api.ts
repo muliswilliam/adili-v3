@@ -22,10 +22,20 @@ export interface Apis {
   aiGateway: Client<AiGatewayPaths>;
 }
 
-/** The APIs as one caller: `token` is sent on every request, or none for public routes. */
-export function apis(config: SeedConfig, token?: string): Apis {
-  const headers = token ? { authorization: `Bearer ${token}` } : undefined;
-  const fetch = resilientFetch;
+/**
+ * The APIs as one caller: `token` is sent on every request, or none for public routes. A function
+ * is asked on every request, so a client held across a long wait never sends an expired token.
+ */
+export function apis(config: SeedConfig, token?: string | (() => Promise<string>)): Apis {
+  const fetch: typeof resilientFetch =
+    typeof token === 'function'
+      ? async (input, init) => {
+          const request = new Request(input, init);
+          request.headers.set('authorization', `Bearer ${await token()}`);
+          return resilientFetch(request);
+        }
+      : resilientFetch;
+  const headers = typeof token === 'string' ? { authorization: `Bearer ${token}` } : undefined;
   return {
     directory: createClient<DirectoryPaths>({ baseUrl: config.DIRECTORY_URL, headers, fetch }),
     declarations: createClient<DeclarationsPaths>({

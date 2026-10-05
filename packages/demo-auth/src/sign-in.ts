@@ -39,6 +39,37 @@ export interface DemoTokens {
  * mode off, a bad secret, or an account without that `demo_key`).
  */
 export async function demoSignIn(options: DemoSignInOptions): Promise<DemoTokens> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await signInOnce(options);
+    } catch (error) {
+      // A connection dropped mid-exchange (the hosted VM reaches Keycloak through its own public
+      // address, and a reused keep-alive socket can be closed under it). Each attempt mints a
+      // fresh ticket, since a used one is refused.
+      if (attempt >= SIGN_IN_ATTEMPTS || !isDroppedConnection(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** (attempt - 1)));
+    }
+  }
+}
+
+const SIGN_IN_ATTEMPTS = 4;
+
+/** True when the error, or anything in its cause chain, is a connection closed under a request. */
+export function isDroppedConnection(error: unknown): boolean {
+  for (let current: unknown = error, depth = 0; current && depth < 8; depth++) {
+    const { message = '', code = '' } = current as { message?: unknown; code?: unknown };
+    if (
+      /terminated|other side closed|socket hang up|fetch failed/i.test(String(message)) ||
+      /UND_ERR_SOCKET|ECONNRESET|EPIPE/.test(String(code))
+    ) {
+      return true;
+    }
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+async function signInOnce(options: DemoSignInOptions): Promise<DemoTokens> {
   const issuer = new URL(options.issuerUrl);
   const config = await oidc.discovery(issuer, options.clientId, options.clientSecret, undefined, {
     // Local Keycloak is plain HTTP; deprecated only as a warning sign.
