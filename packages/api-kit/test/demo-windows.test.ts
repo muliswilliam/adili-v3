@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import {
   demoModeSetting,
+  DemoWindows,
   demoWindowSetting,
   isoDurationMs,
   refuseDemoWindowsOutsideDemo,
@@ -58,5 +59,33 @@ describe('demo windows', () => {
 
   it('refuses a malformed window', () => {
     expect(schema.safeParse({ DEMO_MODE: 'true', DEMO_WINDOW: '2m' }).success).toBe(false);
+  });
+});
+
+describe('DemoWindows', () => {
+  const settings = { DEMO_A: undefined, DEMO_B: 60_000 } as const;
+
+  it('starts from the settings', () => {
+    const windows = new DemoWindows<keyof typeof settings>(settings);
+    expect(windows.get('DEMO_A')).toBeUndefined();
+    expect(windows.get('DEMO_B')).toBe(60_000);
+    expect(windows.view()).toEqual({ DEMO_A: null, DEMO_B: 60_000 });
+  });
+
+  it('sets a window to a duration, or back to the legal one with null', () => {
+    const windows = new DemoWindows<keyof typeof settings>(settings);
+    windows.set({ DEMO_A: 'PT2M', DEMO_B: null });
+    expect(windows.view()).toEqual({ DEMO_A: 120_000, DEMO_B: null });
+  });
+
+  it('refuses unknown names and malformed durations, changing nothing', () => {
+    const windows = new DemoWindows<keyof typeof settings>(settings);
+    expect(() => {
+      windows.set({ DEMO_A: 'PT2M', DEMO_C: 'PT1M' });
+    }).toThrow(/Unknown/);
+    expect(() => {
+      windows.set({ DEMO_A: 'PT2M', DEMO_B: 'two minutes' });
+    }).toThrow(/ISO-8601/);
+    expect(windows.view()).toEqual({ DEMO_A: null, DEMO_B: 60_000 });
   });
 });
