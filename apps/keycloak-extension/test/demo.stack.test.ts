@@ -48,6 +48,12 @@ const VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
 
 /** Exchanges the code in a console callback URL; returns the access token's claims. */
 async function exchange(callback: string | undefined): Promise<Record<string, unknown>> {
+  return payloadOf((await exchangeTokens(callback)).access_token);
+}
+
+async function exchangeTokens(
+  callback: string | undefined,
+): Promise<{ access_token: string; refresh_token: string }> {
   const code = new URL(callback ?? '').searchParams.get('code') ?? '';
   const response = await fetch(`${ISSUER}/protocol/openid-connect/token`, {
     method: 'POST',
@@ -62,7 +68,23 @@ async function exchange(callback: string | undefined): Promise<Record<string, un
     }),
   });
   if (!response.ok) throw new Error(`token: ${response.status} ${await response.text()}`);
-  return payloadOf(((await response.json()) as { access_token: string }).access_token);
+  return (await response.json()) as { access_token: string; refresh_token: string };
+}
+
+/** A refresh token grant for the console; returns the HTTP status. */
+async function refreshStatus(refreshToken: string): Promise<number> {
+  const response = await fetch(`${ISSUER}/protocol/openid-connect/token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: CONSOLE.clientId,
+      client_secret: CONSOLE.clientSecret,
+    }),
+  });
+  await response.body?.cancel();
+  return response.status;
 }
 
 /** Where the request ends: the console's callback with a code, or a Keycloak page. */
@@ -130,13 +152,18 @@ describe('demo sign-in (#616)', () => {
       mintDemoTicket({ demoKey: 'reporting-officer', secret: SECRET }),
       browser,
     );
-    expect((await exchange(first.location)).preferred_username).toBe('reporting-officer');
+    const previous = await exchangeTokens(first.location);
+    expect(payloadOf(previous.access_token).preferred_username).toBe('reporting-officer');
 
     const switched = await signInWith(
       mintDemoTicket({ demoKey: 'eacc-analyst', secret: SECRET }),
       browser,
     );
     expect((await exchange(switched.location)).preferred_username).toBe('eacc-analyst');
+
+    // The previous account's session is over: another app holding its tokens cannot refresh
+    // them (into the new account's session either).
+    expect(await refreshStatus(previous.refresh_token)).toBe(400);
 
     // No ticket: the SSO cookie now signs in the account switched to, not the previous one.
     const again = await browser.get(authorizeUrl({}));

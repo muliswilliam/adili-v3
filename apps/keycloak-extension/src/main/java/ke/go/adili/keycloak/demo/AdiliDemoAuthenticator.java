@@ -14,6 +14,8 @@ import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.authenticators.util.AcrStore;
 import org.keycloak.common.util.Time;
+import org.keycloak.cookie.CookieProvider;
+import org.keycloak.cookie.CookieType;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -110,6 +112,12 @@ public final class AdiliDemoAuthenticator implements Authenticator {
             AuthenticationManager.backchannelLogout(session, signedIn.session(), true);
             AuthenticationManager.expireIdentityCookie(session);
             new AuthenticationSessionManager(session).removeAuthenticationSession(context.getRealm(), authSession, true);
+            // Keycloak names a new user session after the browser's auth session cookie: drop it,
+            // so the new account's session never takes the previous one's id (and with it the
+            // previous account's refresh tokens).
+            CookieProvider cookies = session.getProvider(CookieProvider.class);
+            cookies.expire(CookieType.AUTH_SESSION_ID);
+            cookies.expire(CookieType.AUTH_SESSION_ID_HASH);
             context.forceChallenge(Response.seeOther(again).build());
             return;
         }
