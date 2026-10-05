@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createNonce, isHttps, securityHeaders } from './security-headers';
+import { createNonce, isHttps, issuerOrigin, securityHeaders } from './security-headers';
 
 describe('securityHeaders', () => {
   it('lets only the nonce-carrying scripts run and refuses framing', () => {
@@ -14,10 +14,25 @@ describe('securityHeaders', () => {
     expect(csp).toContain("connect-src 'self';");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).not.toMatch(/script-src[^;]*unsafe/);
-    expect(headers.get('referrer-policy')).toBe('no-referrer');
+    expect(headers.get('referrer-policy')).toBe('same-origin');
     expect(headers.get('x-frame-options')).toBe('DENY');
     expect(headers.get('x-content-type-options')).toBe('nosniff');
     expect(headers.get('strict-transport-security')).toContain('max-age=');
+  });
+
+  it('lets sign-out and the demo switch, form posts redirected to Keycloak, leave for Keycloak only', () => {
+    const csp =
+      securityHeaders({
+        nonce: 'abc',
+        dev: false,
+        https: true,
+        identityProvider: issuerOrigin('https://auth.example.ke:8080/realms/adili'),
+      }).get('content-security-policy') ?? '';
+    expect(csp).toContain("form-action 'self' https://auth.example.ke:8080;");
+    expect(
+      securityHeaders({ nonce: 'abc', dev: false, https: true }).get('content-security-policy'),
+    ).toContain("form-action 'self';");
+    expect(issuerOrigin('not a url')).toBeUndefined();
   });
 
   it('allows what Vite needs in development only', () => {
