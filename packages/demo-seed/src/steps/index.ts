@@ -5,6 +5,15 @@ import { cycles, policies } from './cycles.js';
 import { filings } from './filings.js';
 import { mockFixtures } from './mock-fixtures.js';
 import { onboarding } from './onboarding.js';
+import {
+  eaccAiPolicy,
+  formM,
+  formMChase,
+  formMOfficers,
+  icmsReferrals,
+  nationalConsolidatedReport,
+  openDataReleases,
+} from './reporting.js';
 import { rosters } from './rosters.js';
 import {
   reviewClarifications,
@@ -13,6 +22,7 @@ import {
   reviewReferral,
   reviewTeam,
 } from './review.js';
+import { reviewVolume } from './review-volume.js';
 import { settle } from './settle.js';
 import { syntheticPeople } from './synthetic.js';
 import { verify } from './verify.js';
@@ -38,5 +48,13 @@ export const STEPS: readonly SeedStep[] = [
   reviewClosure,
   reviewReferral,
   access,
+  formMOfficers,
+  reviewVolume,
+  formMChase,
+  formM,
+  eaccAiPolicy,
+  nationalConsolidatedReport,
+  openDataReleases,
+  icmsReferrals,
   verify,
 ];

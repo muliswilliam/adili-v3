@@ -25,6 +25,11 @@ const schema = z.object({
   DEMO_SIGN_IN_CLIENT_ID: z.string().default('portal'),
   DEMO_SIGN_IN_CLIENT_SECRET: z.string().default('portal-dev-secret'),
   DEMO_SIGN_IN_REDIRECT_URI: z.url().default('http://localhost:3010/auth/callback'),
+  /**
+   * The federated Commission's reports client secret (`tsc-reports`, ADR-009): its own system
+   * files Form M with it. The realm file holds the development value.
+   */
+  FEDERATED_REPORTS_CLIENT_SECRET: z.string().default('tsc-reports-dev-secret'),
   /** Signs demo sign-in tickets; the Keycloak demo authenticator holds the same secret. */
   DEMO_TICKET_SECRET: z.string().default('adili-dev-demo-ticket-secret-change-me-for-real-use'),
   /** The password every demo account has, so it can also sign in by hand. */

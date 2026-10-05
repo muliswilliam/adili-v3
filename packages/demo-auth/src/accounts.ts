@@ -60,6 +60,14 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
     purpose: 'Confirms and submits Form M; Commission settings',
   },
   {
+    demoKey: 'jsc-commission-admin',
+    name: 'Anne Atieno',
+    role: 'Commission admin',
+    organisation: 'JSC',
+    app: 'console',
+    purpose: "A submitted Form M; the Commission's open-data preview",
+  },
+  {
     demoKey: 'access-officer',
     name: 'Halima Yusuf',
     role: 'Access officer',
