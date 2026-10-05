@@ -85,6 +85,7 @@ export const en = {
   partIII: 'Part III · Information sought',
   scopeRequested: 'Scope requested',
   partIV: 'Part IV · Declaration',
+  declarationTitle: 'Declaration',
   name: 'Name',
   identity: 'Identity',
   occupation: 'Occupation',
@@ -114,9 +115,9 @@ export const en = {
   iprsMatch: 'IPRS match',
   verifiedByOfficer: 'Verified by officer',
   pendingVerification: 'Pending verification',
-  registerTitle: 'Register',
+  registerTitle: 'Activity',
   whereItStands: 'Where the request stands',
-  registerLabel: 'Access register',
+  registerLabel: 'Request activity',
 
   // Verify applicant identity
   verifyTitle: 'Verify applicant identity',

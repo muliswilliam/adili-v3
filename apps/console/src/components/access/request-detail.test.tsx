@@ -142,7 +142,11 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     }
     expect(within(form).getByText('IPRS match')).toBeTruthy();
     expect(within(form).getByText('Officer, spouses and children')).toBeTruthy();
-    expect(screen.getByRole('list', { name: 'Access register' })).toBeTruthy();
+    const desktop = screen.getByRole('article');
+    expect(within(desktop).getByText('Seeking declaration(s) made by')).toBeTruthy();
+    expect(within(desktop).getByText('Specific information requested')).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Request properties' })).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'Request activity' })).toBeTruthy();
   });
 
   it('S3: searches the roster by name or file number and identifies the officer, notifying the declarant', async () => {
@@ -409,10 +413,10 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     const officer = within(side()).getByRole('region', { name: 'Officer identified' });
     expect(officer.textContent).toMatch(/In writing, served /);
     expect(officer.textContent).toMatch(/Recorded by Lucy Wambui/);
-    const reps = within(side()).getByRole('region', { name: 'Representations' });
+    const reps = screen.getByRole('region', { name: 'Representations' });
     expect(within(reps).getByText('Received in writing')).toBeTruthy();
     expect(within(reps).getByText(/^Entered by Lucy Wambui · /)).toBeTruthy();
-    const register = screen.getByRole('list', { name: 'Access register' });
+    const register = screen.getByRole('list', { name: 'Request activity' });
     expect(within(register).getByText('Declarant notified in writing')).toBeTruthy();
     expect(within(register).getByText('Representations received in writing')).toBeTruthy();
 
@@ -451,7 +455,7 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
 
   it('decision 2: the supervisor reads representations received in writing but enters none', async () => {
     renderDetail(await viewOf(R.writtenNotice), true);
-    const reps = within(side()).getByRole('region', { name: 'Representations' });
+    const reps = screen.getByRole('region', { name: 'Representations' });
     expect(within(reps).getByText('Received in writing')).toBeTruthy();
     expect(within(reps).queryByRole('button', { name: /letter|received in writing/ })).toBeNull();
   });
@@ -554,7 +558,7 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
       error: { kind: 'unavailable', detail: null },
     });
     renderDetail(await viewOf(R.objection));
-    const card = within(side()).getByRole('region', { name: 'Representations' });
+    const card = screen.getByRole('region', { name: 'Representations' });
     expect(within(card).getByText('Object')).toBeTruthy();
     expect(card.textContent).toContain('Edited');
     const files = within(card).getByRole('list', { name: 'Attachments' });
@@ -571,7 +575,7 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
 
   it('says when nothing came in the window, and when consent closed it early', async () => {
     renderDetail(await viewOf(R.noReply));
-    expect(within(side()).getByText(/None received\. The window closed/)).toBeTruthy();
+    expect(screen.getByText(/None received\. The window closed/)).toBeTruthy();
   });
 
   it('S16: the supervisor reads everything but takes no step', async () => {
@@ -587,7 +591,7 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
   it('S16: the supervisor reads the representations; only the access officer decides', async () => {
     renderDetail(await viewOf(R.objection), true);
     expect(within(side()).getByText('Only the access officer decides.')).toBeTruthy();
-    expect(within(side()).getByRole('region', { name: 'Representations' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Representations' })).toBeTruthy();
   });
 
   it('#260: under decision, the access officer opens the decision form; in the window it is locked', async () => {
@@ -691,7 +695,11 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
 
   it('closed requests say how they closed', async () => {
     renderDetail(await viewOf(R.cannot));
-    expect(within(side()).getByText('Cannot identify officer')).toBeTruthy();
+    expect(
+      within(within(side()).getByRole('region', { name: 'Closed' })).getByText(
+        'Cannot identify officer',
+      ),
+    ).toBeTruthy();
     expect(within(side()).getByText(/Applicant notified\./)).toBeTruthy();
   });
 });

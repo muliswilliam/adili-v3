@@ -5,6 +5,7 @@ import {
   Card,
   CardHeader,
   CardTitle,
+  cn,
   DeadlineChip,
   deadlineSoonDays,
   formatDate,
@@ -55,27 +56,41 @@ export function SideCard({
   id,
   title,
   actions,
+  className,
+  headerClassName,
+  bodyClassName,
+  titleClassName,
   children,
 }: {
   id: string;
   title?: ReactNode;
   actions?: ReactNode;
+  className?: string;
+  headerClassName?: string;
+  bodyClassName?: string;
+  titleClassName?: string;
   children: ReactNode;
 }) {
   const headingId = `${id}-title`;
   return (
     <Card
-      className="min-w-0 p-0 sm:p-0"
+      className={cn('min-w-0 p-0 sm:p-0', className)}
       role={title ? 'region' : undefined}
       aria-labelledby={title ? headingId : undefined}
     >
       {title ? (
-        <CardHeader className="flex-row items-center gap-2 border-b px-5 py-4">
-          <CardTitle id={headingId}>{title}</CardTitle>
+        <CardHeader
+          className={cn('flex-row items-center gap-2 border-b px-5 py-4', headerClassName)}
+        >
+          <CardTitle id={headingId} className={titleClassName}>
+            {title}
+          </CardTitle>
           {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
         </CardHeader>
       ) : null}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 px-5 py-4.5">{children}</div>
+      <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-3 px-5 py-4.5', bodyClassName)}>
+        {children}
+      </div>
     </Card>
   );
 }
@@ -289,9 +304,13 @@ const STANCE_STYLE: Record<
 export function RepresentationsCard({
   view,
   readOnly,
+  className,
+  readingLayout = false,
 }: {
   view: OfficerRequestView;
   readOnly: boolean;
+  className?: string;
+  readingLayout?: boolean;
 }) {
   const { toast } = useToast();
   const [entering, setEntering] = useState(false);
@@ -321,7 +340,20 @@ export function RepresentationsCard({
   };
 
   return (
-    <SideCard id="representations" title={m.representationsTitle}>
+    <SideCard
+      id="representations"
+      title={m.representationsTitle}
+      className={cn(className, readingLayout && 'min-[1200px]:border-t')}
+      headerClassName={
+        readingLayout
+          ? 'min-[1200px]:border-b-0 min-[1200px]:px-0 min-[1200px]:pt-6 min-[1200px]:pb-3'
+          : undefined
+      }
+      bodyClassName={
+        readingLayout ? 'min-[1200px]:px-0 min-[1200px]:pt-0 min-[1200px]:pb-0' : undefined
+      }
+      titleClassName="text-sm"
+    >
       {canEnter && entering ? (
         <WrittenRepresentationsDialog view={view} open={entering} onOpenChange={setEntering} />
       ) : null}
@@ -334,22 +366,22 @@ export function RepresentationsCard({
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={STANCE_STYLE[reps.stance].variant}>
+            <Badge variant={STANCE_STYLE[reps.stance].variant} className="text-sm">
               <Icon icon={STANCE_STYLE[reps.stance].icon} strokeWidth={2.2} />
               {m.stance[reps.stance]}
             </Badge>
             {reps.receivedInWriting ? (
-              <Badge>
+              <Badge className="text-sm">
                 <Icon icon={File01Icon} strokeWidth={2.2} />
                 {m.receivedInWriting}
               </Badge>
             ) : null}
             {reps.receivedInWriting ? null : (
-              <span className="text-[13px] text-muted-foreground">{when}</span>
+              <span className="text-sm text-muted-foreground">{when}</span>
             )}
           </div>
           {reps.receivedInWriting ? (
-            <p className="-mt-1 text-[13px] text-muted-foreground">
+            <p className="-mt-1 text-sm text-muted-foreground">
               {reps.recordedBy ? `${m.enteredBy(reps.recordedBy)} · ${when}` : when}
             </p>
           ) : null}
@@ -379,7 +411,7 @@ export function RepresentationsCard({
             />
           ) : null}
           {reps.stance === 'consent' ? (
-            <p className="text-[13px] text-muted-foreground">{m.consentClosedEarly}</p>
+            <p className="text-sm text-muted-foreground">{m.consentClosedEarly}</p>
           ) : null}
         </>
       )}
