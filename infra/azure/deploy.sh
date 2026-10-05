@@ -56,4 +56,7 @@ fi
 
 sudo -n "$ROOT_HELPER" restart-apps
 
+echo "Nightly database backup"
+"$ROOT/infra/azure/install-backup-cron.sh"
+
 echo "Deployed $ROOT. Apps restart under adili-apps; demo data is left as-is."

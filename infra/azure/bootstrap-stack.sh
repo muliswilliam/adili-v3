@@ -33,6 +33,8 @@ docker compose -f "$COMPOSE" -f "$OVERLAY" up -d --wait postgres valkey rabbitmq
 docker compose -f "$COMPOSE" -f "$OVERLAY" up -d --wait keycloak temporal temporal-ui seaweedfs gotenberg clamav || true
 docker compose -f "$COMPOSE" -f "$OVERLAY" up -d
 
+"$ROOT/infra/azure/install-backup-cron.sh"
+
 echo "Keycloak issuer: $KC_HOSTNAME/realms/adili"
 echo "Set APP_URL / OIDC_ISSUER_URL on portal and console to the public URLs in /etc/adili/public.env"
 echo "Then from $ROOT: pnpm bootstrap && $ROOT/infra/azure/configure-app-env.sh && pnpm db:migrate && pnpm db:seed"

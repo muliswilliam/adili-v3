@@ -95,14 +95,14 @@ Caddy terminates TLS with Let's Encrypt. Set `letsencrypt_email` in `terraform.t
 `.github/workflows/azure-demo.yml` deploys when the CI workflow succeeds on `main` (`workflow_run`) and on `workflow_dispatch`:
 
 1. rsync the checkout to `/opt/adili` (keeps `.env`, `node_modules`, `.venv`)
-2. `/opt/adili/infra/azure/deploy.sh` as `adili` - Compose `up`, Caddy reload, `pnpm bootstrap`, migrate, restart `adili-apps`
+2. `/opt/adili/infra/azure/deploy.sh` as `adili` - Compose `up`, Caddy reload, `pnpm bootstrap`, migrate, restart `adili-apps`, install the nightly backup cron
 3. curl the HTTPS portal, console and Keycloak issuer until they return 200
 
 It does **not** re-seed, re-issue certificates, or `terraform apply`. The SSH host key is pinned in `infra/azure/known_hosts`.
 
 ## Backups
 
-Dumps live in `/home/adili/adili-backups/<utc-stamp>/` (override with `ADILI_BACKUP_ROOT`). That path is outside `/opt/adili`, so the deploy rsync cannot delete them. Each directory has one custom-format dump per demo database plus `SHA256SUMS`. `adili_test` is not included.
+Dumps live in `/home/adili/adili-backups/<utc-stamp>/` (override with `ADILI_BACKUP_ROOT`). That path is outside `/opt/adili`, so the deploy rsync cannot delete them. Each directory has one custom-format dump per demo database plus `SHA256SUMS`, readable only by the user who ran the backup. `adili_test` is not included. Retention removes stamp directories older than 7 days and leaves anything else under the backup root alone.
 
 ```sh
 ./infra/azure/backup-databases.sh
@@ -117,10 +117,11 @@ ADILI_RESTORE_CONFIRM=yes ./infra/azure/restore-databases.sh /home/adili/adili-b
 sudo systemctl start adili-apps
 ```
 
-Nightly, as `adili` (backup, then a restore check against the newest stamp; 7 days are kept):
+`deploy.sh` and `bootstrap-stack.sh` install this into `adili`'s crontab, so a VM rebuild gets the schedule again on the next deploy. Output, including a failed backup or restore check, is appended to `/home/adili/adili-backup.log`:
 
 ```cron
-15 2 * * * /opt/adili/infra/azure/backup-databases.sh && /opt/adili/infra/azure/verify-restore.sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+15 2 * * * /opt/adili/infra/azure/backup-databases.sh >>/home/adili/adili-backup.log 2>&1 && /opt/adili/infra/azure/verify-restore.sh >>/home/adili/adili-backup.log 2>&1
 ```
 
 Repo secret (Actions -> Secrets):

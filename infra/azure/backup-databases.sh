@@ -6,8 +6,9 @@
 #   ./infra/azure/backup-databases.sh
 #   ADILI_BACKUP_ROOT=/home/adili/adili-backups ./infra/azure/backup-databases.sh
 #
-# Keeps 7 days of backups under the backup root.
+# Keeps 7 days of stamp directories under the backup root.
 set -eu
+umask 077
 
 ROOT="$(CDPATH='' cd -- "$(dirname "$0")/../.." && pwd)"
 # shellcheck disable=SC1091
@@ -51,6 +52,6 @@ else
   (cd "$DEST" && shasum -a 256 ./*.dump >SHA256SUMS)
 fi
 
-find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d -mtime +"$KEEP_DAYS" -exec rm -rf {} +
+find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d -name '????????T??????Z' -mtime +"$KEEP_DAYS" -exec rm -rf {} +
 trap - EXIT INT TERM
 echo "Backup complete: $DEST"

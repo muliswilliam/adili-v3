@@ -11,7 +11,7 @@ ROOT="$(CDPATH='' cd -- "$(dirname "$0")/../.." && pwd)"
 
 SRC="${1:-}"
 if [ -z "$SRC" ]; then
-  SRC="$(find "$(adili_backup_root)" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | tail -n 1)"
+  SRC="$(find "$(adili_backup_root)" -mindepth 1 -maxdepth 1 -type d -name '????????T??????Z' 2>/dev/null | sort | tail -n 1)"
 fi
 if [ -z "$SRC" ] || [ ! -f "$SRC/SHA256SUMS" ]; then
   echo "Usage: $0 <backup-directory>" >&2
