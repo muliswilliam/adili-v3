@@ -6,8 +6,8 @@
  * financial year from 2025; a report counts as filed once its day has come:
  *
  * - The Public Service Commission (`psc`) is the Form M workspace mock's: EACC sees its report
- *   once it is submitted there (with its date, late flag and reference), and not reported while
- *   it is a draft.
+ *   once it is submitted there (with its date, late flag, reference, source, and the workspace's
+ *   PDF and receipt once they are issued), and not reported while it is a draft.
  * - Filed by 31 July: the Parliamentary Service Commission, the National Police Service
  *   Commission and six county public service boards.
  * - Filed late: the Teachers Service Commission (`tsc`, 12 August, through its own system, with
@@ -26,7 +26,9 @@ import { INTAKE_STATUSES } from '@adili/ui';
 import { dueDateOf, FIRST_FINANCIAL_YEAR } from '../../components/form-m/financial-year';
 import { documentDownloadIdOf, json, type MockCaller, mockCallerOf, problem } from '../mock-http';
 import {
+  issuedDocumentIdsOf,
   storedDocument,
+  storedFileTitle,
   mockDay,
   nairobiDayOf,
   plusDays,
@@ -326,8 +328,15 @@ function uuid(kind: number, fy: number, n: number): string {
 }
 
 const reportIdOf = (index: number, fy: number) => uuid(1, fy, index);
-const formMDocumentIdOf = (index: number, fy: number) => uuid(2, fy, index);
-const receiptDocumentIdOf = (index: number, fy: number) => uuid(3, fy, index);
+
+/**
+ * The filed report's Form M PDF and receipt ids: psc's are the workspace mock's (null while it
+ * is still issuing them), the other Commissions' this mock's own.
+ */
+function documentIdsOf(index: number, fy: number, filing: Filing) {
+  if (filing.stored) return issuedDocumentIdsOf(filing.stored);
+  return { formMDocumentId: uuid(2, fy, index), receiptDocumentId: uuid(3, fy, index) };
+}
 
 /** The year's reference: `RPT-<ISSUER>-<FY end>-<seq>-<check>`. */
 const referenceOf = (commission: Fixture, fy: number) =>
@@ -368,8 +377,7 @@ function intakeRow(commission: Fixture, index: number, fy: number): IntakeRow {
     submittedAt: filing.submittedAt,
     rates,
     outliers: outliersOf(rates, biennialCycleOf(fy, filing)),
-    formMDocumentId: formMDocumentIdOf(index, fy),
-    receiptDocumentId: receiptDocumentIdOf(index, fy),
+    ...documentIdsOf(index, fy, filing),
   };
 }
 
@@ -547,7 +555,7 @@ function submittedReport(index: number, fy: number): SubmittedReport | null {
     commission: { slug: commission.slug, issuerCode: commission.issuerCode, name: commission.name },
     fy,
     status: 'submitted',
-    source: commission.source,
+    source: filing.stored?.source ?? commission.source,
     ...(filing.stored
       ? {
           compiledAt: filing.stored.compiledAt,
@@ -581,8 +589,7 @@ function submittedReport(index: number, fy: number): SubmittedReport | null {
         declined: document.partII.accessRequests.declined,
       },
     },
-    formMDocumentId: formMDocumentIdOf(index, fy),
-    receiptDocumentId: receiptDocumentIdOf(index, fy),
+    ...documentIdsOf(index, fy, filing),
     accessDataUnavailable: document.partII.accessRequests.dataUnavailable,
   };
 }
@@ -650,14 +657,17 @@ export async function mockEaccIntakeFetch(input: Request): Promise<Response> {
   return json(200, report);
 }
 
-/** The file a mock document id names, for `/api/mock-files/{id}`: null when it is not one. */
-export function mockReportingFileTitle(documentId: string): string | null {
+/**
+ * The file a filed report's document id names, for `/api/mock-files/{id}`: null when it is not
+ * one. psc's are the workspace mock's files.
+ */
+export function mockEaccIntakeFileTitle(documentId: string): string | null {
   const match = /^0199c([23])00-0000-7000-8000-(\d{4})(\d{8})$/.exec(documentId);
-  if (!match) return null;
+  if (!match) return storedFileTitle(documentId);
   const fy = Number(match[2]);
   const commission = COMMISSIONS[Number(match[3])];
   const filing = commission ? filingOf(commission, fy) : null;
-  if (!filing) return null;
+  if (!filing || filing.stored) return null;
   const { reference } = filing;
   return match[1] === '2' ? `Form M ${reference}.pdf` : `Receipt ${reference}.pdf`;
 }
@@ -667,10 +677,10 @@ export function mockReportingFileTitle(documentId: string): string | null {
  * staff get a five-minute link to `/api/mock-files/{id}`; anyone else, and any other document,
  * 404.
  */
-export async function mockReportingDocumentsFetch(input: Request): Promise<Response> {
+export async function mockEaccIntakeDocumentsFetch(input: Request): Promise<Response> {
   await mockDelay(200);
   const id = documentDownloadIdOf(input);
-  if (!id || !mockReportingFileTitle(id)) {
+  if (!id || !mockEaccIntakeFileTitle(id)) {
     return problem(404, 'Not found');
   }
   if (!isEacc(mockCallerOf(input))) return problem(404, 'Not found');

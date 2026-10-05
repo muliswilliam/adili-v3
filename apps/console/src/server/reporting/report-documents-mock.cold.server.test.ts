@@ -42,7 +42,7 @@ describe('report documents on a cold start', () => {
     try {
       const { mockReportDocumentsFetch } = await import('./report-documents-mock.server');
       const { mockNcrFileTitle } = await import('./ncr-mock.server');
-      const { mockEaccIntake, mockReportingFileTitle, setEaccIntakeMockLatency } =
+      const { mockEaccIntake, mockEaccIntakeFileTitle, setEaccIntakeMockLatency } =
         await import('./eacc-mock.server');
       setEaccIntakeMockLatency(0);
 
@@ -51,7 +51,7 @@ describe('report documents on a cold start', () => {
 
       const filed = mockEaccIntake(2025).commissions.find((row) => row.formMDocumentId !== null);
       const formM = filed?.formMDocumentId ?? '';
-      expect(mockReportingFileTitle(formM)).toMatch(/^Form M RPT-/);
+      expect(mockEaccIntakeFileTitle(formM)).toMatch(/^Form M RPT-/);
       expect((await mockReportDocumentsFetch(downloadOf(formM))).status).toBe(200);
     } finally {
       vi.unstubAllEnvs();

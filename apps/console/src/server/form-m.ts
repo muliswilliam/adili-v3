@@ -22,7 +22,7 @@ import {
   saveManualFields,
   saveRemarks,
 } from './form-m-sign-off.server';
-import { reportingDocumentsClient } from './reporting/documents-client.server';
+import { reportDocumentsClient } from './documents/report-client.server';
 import { reportingToday } from './reporting/today.server';
 import { type StepUpStatus, stepUpStatus } from './step-up.server';
 
@@ -116,7 +116,7 @@ export const confirmFormM = createServerFn({ method: 'POST' })
 export const getFormMDocumentLink = createServerFn({ method: 'GET' })
   .validator(z.object({ documentId: z.uuid() }))
   .handler(({ data }): Promise<FormMResult<DocumentLink>> =>
-    withViewerClient(reportingDocumentsClient, (client) => documentLink(client, data.documentId)),
+    withViewerClient(reportDocumentsClient, (client) => documentLink(client, data.documentId)),
   );
 
 /** The session's step-up state (`auth_time`, fresh or not). Tokens never leave the server. */

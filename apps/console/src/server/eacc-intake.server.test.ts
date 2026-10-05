@@ -1,13 +1,27 @@
-import { EACC_ANALYST, EACC_SUPERVISOR, PLATFORM_ADMIN, REVIEWER } from '@adili/roles';
+import {
+  COMMISSION_ADMIN,
+  EACC_ANALYST,
+  EACC_SUPERVISOR,
+  PLATFORM_ADMIN,
+  REVIEWER,
+  SUPERVISOR,
+} from '@adili/roles';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createDocumentsClient } from './documents/client';
 import { loadIntake, loadSubmittedReport, reportFileLink } from './eacc-intake.server';
+import { confirmReport } from './form-m-sign-off.server';
+import { loadReport } from './form-m.server';
 import {
-  mockReportingDocumentsFetch,
+  mockEaccIntakeDocumentsFetch,
   setEaccIntakeMockLatency,
 } from './reporting/eacc-mock.server';
-import { mockReportingClient, resetReportingMock, submitMockReport } from './reporting/mock.server';
+import {
+  mockReportingClient,
+  resetReportingMock,
+  setReportingMockLatency,
+  submitMockReport,
+} from './reporting/mock.server';
 import { unsignedMockToken } from './mock-http';
 
 const analyst = () => mockReportingClient([EACC_ANALYST], { tenant: 'eacc', name: 'Brian Otieno' });
@@ -217,7 +231,7 @@ describe('the report viewer (S9)', () => {
         roles: [EACC_ANALYST],
         tenant: 'eacc',
       }),
-      mock: mockReportingDocumentsFetch,
+      mock: mockEaccIntakeDocumentsFetch,
     });
     const link = await reportFileLink(documents, intakeRow.formMDocumentId ?? '');
     expect(link).toMatchObject({
@@ -228,5 +242,73 @@ describe('the report viewer (S9)', () => {
       ok: false,
       error: { kind: 'problem', problem: { status: 404 } },
     });
+  });
+});
+
+describe('psc as the Form M workspace stores it (#586)', () => {
+  const documentIds = (report: {
+    formMDocumentId: string | null;
+    receiptDocumentId: string | null;
+  }) => ({
+    formMDocumentId: report.formMDocumentId,
+    receiptDocumentId: report.receiptDocumentId,
+  });
+
+  async function workspaceReport(fy = 2025) {
+    const result = await loadReport(mockReportingClient([SUPERVISOR]), 'psc', fy);
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    return result.data;
+  }
+
+  async function viewerReport() {
+    const result = await loadSubmittedReport(analyst(), await pscReportId());
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    return result.data.report;
+  }
+
+  async function confirmPsc() {
+    resetReportingMock('2026-10-03', { reviewed: true, filled: true });
+    await confirmReport(
+      mockReportingClient([COMMISSION_ADMIN], { stepUpAt: Date.now() }),
+      'psc',
+      2025,
+      crypto.randomUUID(),
+    );
+  }
+
+  afterAll(() => {
+    setReportingMockLatency(1);
+  });
+
+  it("offers the workspace's PDF and receipt ids, the ones EACC's download takes", async () => {
+    const workspace = documentIds(await workspaceReport());
+    expect(workspace.formMDocumentId).not.toBeNull();
+    expect(documentIds(row(await intake(analyst()), 'psc'))).toEqual(workspace);
+    expect(documentIds(await viewerReport())).toEqual(workspace);
+  });
+
+  it('offers no PDF or receipt while the workspace is still issuing them', async () => {
+    resetReportingMock('2027-05-10', { issuing: true });
+    const none = { formMDocumentId: null, receiptDocumentId: null };
+    expect(documentIds(await workspaceReport())).toEqual(none);
+    expect(documentIds(row(await intake(analyst()), 'psc'))).toEqual(none);
+    expect(documentIds(await viewerReport())).toEqual(none);
+  });
+
+  it('offers them once issued after a confirm, though the workspace has not been read since', async () => {
+    setReportingMockLatency(0, { issueMs: 60_000 });
+    await confirmPsc();
+    expect(row(await intake(analyst()), 'psc').formMDocumentId).toBeNull();
+
+    setReportingMockLatency(0, { issueMs: 0 });
+    await confirmPsc();
+    const line = row(await intake(analyst()), 'psc');
+    expect(documentIds(line)).toEqual(documentIds(await workspaceReport()));
+    expect(line.formMDocumentId).not.toBeNull();
+  });
+
+  it("shows the source the workspace stored: a federated report is not 'Hosted on Adili'", async () => {
+    resetReportingMock('2026-10-03', { submitted: 'federated' });
+    expect((await viewerReport()).source).toBe('federated');
   });
 });

@@ -101,7 +101,7 @@ export function saveStoredReport(report: StoredReport) {
 /** Whether the workspace mock answers a document that is not form-m.v1 (contract drift). */
 export const mockDocumentCorrupt = () => corruptDocument;
 
-export const SUPERVISOR_OFFICER: Officer = { subject: 'mock-supervisor', name: 'Samuel Njoroge' };
+const SUPERVISOR_OFFICER: Officer = { subject: 'mock-supervisor', name: 'Samuel Njoroge' };
 const ADMIN_OFFICER: Officer = { subject: 'mock-commission-admin', name: 'Joyce Wanjiku' };
 const REVIEWER_DESIGNATION = 'Deputy Director, HRM';
 
@@ -119,8 +119,36 @@ function filled(edits: Edits): Edits {
 }
 
 /** The ids of a year's Form M PDF and receipt in the workspace mock's documents. */
-export const formMDocumentIdOf = (fy: number) => `0199c000-0000-7000-8000-00010000${String(fy)}`;
-export const receiptDocumentIdOf = (fy: number) => `0199c000-0000-7000-8000-00020000${String(fy)}`;
+const formMDocumentIdOf = (fy: number) => `0199c000-0000-7000-8000-00010000${String(fy)}`;
+const receiptDocumentIdOf = (fy: number) => `0199c000-0000-7000-8000-00020000${String(fy)}`;
+
+/**
+ * The report's Form M PDF and receipt ids, both null while the documents service is still
+ * issuing them: once `issueAt` has passed they are issued, whichever mock reads them first, so
+ * the workspace and EACC offer the same files at the same time.
+ */
+export function issuedDocumentIdsOf(stored: StoredReport): {
+  formMDocumentId: string | null;
+  receiptDocumentId: string | null;
+} {
+  if (stored.issueAt !== null && Date.now() >= stored.issueAt) {
+    stored.issueAt = null;
+    stored.formMDocumentId = formMDocumentIdOf(stored.fy);
+    stored.receiptDocumentId = receiptDocumentIdOf(stored.fy);
+  }
+  return { formMDocumentId: stored.formMDocumentId, receiptDocumentId: stored.receiptDocumentId };
+}
+
+/** The file name of a Form M PDF or receipt issued for a stored report; else null. */
+export function storedFileTitle(id: string): string | null {
+  for (const stored of storedReports()) {
+    if (!stored.reference) continue;
+    const { formMDocumentId, receiptDocumentId } = issuedDocumentIdsOf(stored);
+    if (id === formMDocumentId) return `Form M ${stored.reference}.pdf`;
+    if (id === receiptDocumentId) return `Receipt ${stored.reference}.pdf`;
+  }
+  return null;
+}
 
 /** The compiled document with the officers' edits laid over it, as the service assembles it. */
 export function storedDocument(stored: StoredReport): FormMV1 {
@@ -171,7 +199,7 @@ export { nairobiDayOf };
 /** 06:00 in Nairobi on `date`, when the scheduled compile runs. */
 export const sixAm = (date: string) => `${date}T03:00:00.000Z`;
 
-export interface ReportingMockSeed {
+export interface ReportingStoreSeed {
   /** The year-before's document is not form-m.v1 (contract drift). */
   corruptDocument?: boolean;
   /** The supervisor marked the year-before's draft reviewed two days ago. */
@@ -190,7 +218,7 @@ export interface ReportingMockSeed {
 /** Seeds the store as it stands on `value` (`YYYY-MM-DD`; today in Nairobi by default). */
 export function resetReportingStore(
   value: string = nairobiToday(),
-  options: ReportingMockSeed = {},
+  options: ReportingStoreSeed = {},
 ) {
   day = value;
   corruptDocument = options.corruptDocument ?? false;

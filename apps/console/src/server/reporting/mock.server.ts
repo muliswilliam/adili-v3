@@ -66,19 +66,18 @@ import type { paths as DocumentsPaths } from '../documents/api.gen';
 import type { components, paths } from './api.gen';
 import {
   storedDocument,
-  formMDocumentIdOf,
   fullDocument,
+  issuedDocumentIdsOf,
   MOCK_PSC,
   mockDay,
   mockDocumentCorrupt,
   noEdits,
   previewDocument,
-  receiptDocumentIdOf,
-  type ReportingMockSeed,
+  type ReportingStoreSeed,
   resetReportingStore,
   saveStoredReport,
+  storedFileTitle,
   storedReport,
-  storedReports,
   type StoredReport,
   storedYears,
 } from './mock-store.server';
@@ -87,7 +86,7 @@ import { mockOpenDataFetch } from './open-data-mock.server';
 import { referralIntakeFetch } from './referral-intake-mock.server';
 import type { ComplianceReport, Officer, ReportCounts, ReportPeriod } from './types';
 
-export { type ReportingMockSeed, submitMockReport } from './mock-store.server';
+export { type ReportingStoreSeed, submitMockReport } from './mock-store.server';
 
 /** How long the mock's workflow takes to compile a draft. */
 const COMPILE_MS = 3000;
@@ -104,7 +103,7 @@ let issueMs = ISSUE_MS;
 let failingConfirms = 0;
 
 /** Seeds the store as it stands on `day` (`YYYY-MM-DD`; today in Nairobi by default). */
-export function resetReportingMock(day: string = nairobiToday(), options: ReportingMockSeed = {}) {
+export function resetReportingMock(day: string = nairobiToday(), options: ReportingStoreSeed = {}) {
   failingConfirms = 0;
   confirmations.clear();
   resetReportingStore(day, options);
@@ -304,11 +303,7 @@ function startCompile(fy: number): Response {
 
 /** Runs the mock workflows: a compile finishes, or the PDF and receipt are issued, in time. */
 function advance(stored: StoredReport) {
-  if (stored.issueAt !== null && Date.now() >= stored.issueAt) {
-    stored.issueAt = null;
-    stored.formMDocumentId = formMDocumentIdOf(stored.fy);
-    stored.receiptDocumentId = receiptDocumentIdOf(stored.fy);
-  }
+  issuedDocumentIdsOf(stored);
   if (stored.status !== 'compiling' || stored.compileStartedAt === null) return;
   if (Date.now() < stored.compileStartedAt + compileMs) return;
   stored.status = 'draft';
@@ -577,25 +572,18 @@ export function mockReportingDocumentsClient(roles: readonly string[], tenant = 
   return createClient<DocumentsPaths>({
     baseUrl: 'http://documents.test',
     headers: { authorization: `Bearer ${token}` },
-    fetch: mockReportingDocumentsFetch,
+    fetch: mockWorkspaceDocumentsFetch,
   });
 }
 
 /** The file name of a Form M PDF or receipt the mock issued, for `/api/mock-files`; else null. */
-export function mockReportingFileTitle(id: string): string | null {
-  for (const stored of storedReports()) {
-    if (!stored.reference) continue;
-    if (id === stored.formMDocumentId) return `Form M ${stored.reference}.pdf`;
-    if (id === stored.receiptDocumentId) return `Receipt ${stored.reference}.pdf`;
-  }
-  return null;
-}
+export const mockWorkspaceFileTitle = storedFileTitle;
 
 /**
  * The documents service as the Form M workspace calls it: `GET /v1/documents/{id}/download` for
  * the PDF and receipt of a report the mock issued, to the Commission's officers.
  */
-export async function mockReportingDocumentsFetch(input: Request): Promise<Response> {
+export async function mockWorkspaceDocumentsFetch(input: Request): Promise<Response> {
   await delay(150);
   const download = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(input.url).pathname);
   const id = download?.[1];
@@ -603,7 +591,7 @@ export async function mockReportingDocumentsFetch(input: Request): Promise<Respo
   const staff =
     caller.tenant === MOCK_PSC.slug &&
     caller.roles.some((role) => (FORM_M_ROLES as readonly string[]).includes(role));
-  if (input.method !== 'GET' || !id || !staff || !mockReportingFileTitle(id)) return notFound();
+  if (input.method !== 'GET' || !id || !staff || !mockWorkspaceFileTitle(id)) return notFound();
   return json(200, {
     downloadUrl: `/api/mock-files/${id}`,
     expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
