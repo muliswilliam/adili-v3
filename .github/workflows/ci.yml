@@ -248,6 +248,19 @@ jobs:
       # took 15 minutes, and waits sized for an idle machine (Keycloak's 5 s per call, hook and
       # workflow deadlines) ran out.
       - run: pnpm test:integration --concurrency=2
+      # DIAG (temporary): loop the integration-gateway suite under load to catch its stalls.
+      - name: DIAG loop integration-gateway
+        if: always()
+        run: |
+          (for i in $(seq 1 6); do pnpm --filter @adili/review test:integration >/dev/null 2>&1 || true; done) &
+          load=$!
+          for i in $(seq 1 14); do
+            echo "=== loop $i"
+            pnpm --filter @adili/integration-gateway test:integration 2>&1 \
+              | grep -E "DIAG (.* (PG|CLOSE [a-z]|VALKEY (close|reconnecting|error|end)))|FAIL|Hook timed|[0-9]{4,}ms|Tests  " \
+              | grep -vE "VALKEY (close|end) $" || true
+          done
+          kill $load || true
       # S22 and S23 (spec 03): sign-in with the adili-otp extension through the notifications
       # service, the SMS mock and Mailpit, as a user drives it; S16 (spec 06): step-up through the
       # portal's BFF.

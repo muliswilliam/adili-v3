@@ -13,7 +13,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
 import pg from 'pg';
-import { vi } from 'vitest';
+import { expect, vi } from 'vitest';
 
 import {
   burstOf,
@@ -124,6 +124,36 @@ export async function createTestApp({
   });
   await migrator.end();
 
+  // DIAG (temporary): log slow backends of this schema and Valkey connection events.
+  const t0 = Date.now();
+  const file = (expect.getState().testPath ?? '').split('/').pop();
+  const diag = (msg: string) =>
+    process.stderr.write(`DIAG ${new Date().toISOString()} ${file} ${schemaName} ${msg}\n`);
+  const watch = new pg.Pool({ connectionString: baseUrl, max: 1 });
+  let watching = true;
+  const tick = async () => {
+    while (watching) {
+      try {
+        const { rows } = await watch.query(
+          `select pid, application_name, state, wait_event_type, wait_event,
+             round(extract(epoch from now() - xact_start)::numeric, 1) as xact_s,
+             round(extract(epoch from now() - query_start)::numeric, 1) as query_s,
+             left(regexp_replace(query, '\\s+', ' ', 'g'), 160) as query
+           from pg_stat_activity
+           where pid <> pg_backend_pid() and datname = current_database()
+             and (wait_event_type = 'Lock'
+               or (state = 'idle in transaction' and now() - xact_start > interval '1.5 s')
+               or (state = 'active' and now() - query_start > interval '1.5 s'))`,
+        );
+        for (const row of rows) diag(`PG ${JSON.stringify(row)}`);
+      } catch (error) {
+        diag(`PG watch failed ${String(error)}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000).unref());
+    }
+  };
+  void tick();
+
   const { publicKey, privateKey } = await generateKeyPair('RS256');
   const jwk = { ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256' };
 
@@ -138,6 +168,9 @@ export async function createTestApp({
     url: requireEnv('TEST_VALKEY_URL'),
     keyPrefix: `integration-gateway-test-${randomUUID()}:`,
   });
+  for (const event of ['connect', 'ready', 'close', 'reconnecting', 'end', 'error']) {
+    valkey.on(event, (arg: unknown) => diag(`VALKEY ${event} ${arg instanceof Error ? arg.message : String(arg ?? '')}`));
+  }
   const clock = new Clock();
   const cipher = new FakeCipher();
   const iprsPolicy: SystemPolicy = {
@@ -231,11 +264,21 @@ export async function createTestApp({
         .sign(privateKey),
     close: async () => {
       clock.restore();
+      const step = async (name: string, work: () => Promise<unknown>) => {
+        const started = performance.now();
+        await work();
+        const ms = Math.round(performance.now() - started);
+        if (ms > 500) diag(`CLOSE ${name} ${ms}ms`);
+      };
+      diag(`CLOSE start, app lived ${Date.now() - t0}ms`);
       // Closing the app ends the database pool and the Valkey connection.
-      await app.close();
-      await db.$client.end();
-      await admin.query(`drop schema "${schemaName}" cascade`);
-      await admin.end();
+      await step('app.close', () => app.close());
+      await step('db.end', () => db.$client.end());
+      await step('drop schema', () => admin.query(`drop schema "${schemaName}" cascade`));
+      await step('admin.end', () => admin.end());
+      watching = false;
+      await watch.end();
+      diag('CLOSE done');
     },
   };
 }
