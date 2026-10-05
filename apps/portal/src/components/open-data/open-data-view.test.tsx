@@ -165,15 +165,40 @@ describe('the Open data page (spec 09b S11)', () => {
     expect(first?.textContent).toContain('Teachers Service Commission');
   });
 
-  it('marks access requests as not collected, not zero', async () => {
+  it('shows the published access-request figures, with no not-collected note', async () => {
     const loaded = await page();
     show({ page: loaded });
     const tables = screen.getByRole('region', { name: 'Tables' });
 
     fireEvent.mouseDown(within(tables).getByRole('tab', { name: 'Access requests' }));
 
-    expect(within(tables).getByText(/not collected for open data yet/)).toBeTruthy();
-    expect(tables.querySelectorAll('[data-unshown="not-collected"]').length).toBeGreaterThan(0);
+    expect(within(tables).queryByText(/not collected/)).toBeNull();
+    expect(tables.querySelectorAll('[data-unshown="not-collected"]')).toHaveLength(0);
+    const tsc = loaded.tables['access-requests'].rows.find((row) => row.commission === 'tsc');
+    expect(typeof tsc?.received).toBe('number');
+    const row = within(tables)
+      .getAllByRole('row')
+      .find((each) => each.textContent.includes('Teachers Service Commission'));
+    expect(row?.textContent).toContain(String(tsc?.received));
+  });
+
+  it('notes figures as not collected only for the tables the release names', async () => {
+    const loaded = await page();
+    show({ page: loaded });
+    const tables = screen.getByRole('region', { name: 'Tables' });
+
+    fireEvent.mouseDown(within(tables).getByRole('tab', { name: 'By reporting entity type' }));
+
+    expect(within(tables).getByText(/not collected yet; they are empty, not zero/)).toBeTruthy();
+    fireEvent.mouseDown(within(tables).getByRole('tab', { name: 'National totals' }));
+    expect(within(tables).queryByText(/not collected/)).toBeNull();
+    expect(tables.querySelectorAll('[data-unshown="not-collected"]')).toHaveLength(0);
+    // The access-request measures come last, on the second page.
+    fireEvent.click(within(tables).getByRole('button', { name: 'Next' }));
+    const received = [...tables.querySelectorAll('tr')].find((each) =>
+      each.textContent.includes('Access requests received'),
+    );
+    expect(received?.textContent).toMatch(/\d/);
   });
 
   it('offers a CSV per table and the release JSON, with the verification code', async () => {
