@@ -199,6 +199,12 @@ capture() {
   # shellcheck disable=SC2086
   [ -z "$paused" ] || unpause $paused
   trap - EXIT INT TERM
+  # Keycloak's connection pool keeps the connections the freeze ended and fails a request on each
+  # (Node's pools and Temporal drop them): restart it so the next sign-in works.
+  if running_services | grep -qx keycloak; then
+    compose restart keycloak >/dev/null 2>&1
+    wait_healthy keycloak
+  fi
   log "Stack running again after $(($(date +%s) - started))s"
 
   # Swap the copies in under the checkpoint's name, replacing an older capture.
