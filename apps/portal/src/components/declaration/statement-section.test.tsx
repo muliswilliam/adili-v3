@@ -720,7 +720,10 @@ describe('StatementSection: also declare for…', () => {
 });
 
 describe('StatementSection: attachment slot', () => {
-  it('renders the slot in asset and liability editors, not income', () => {
+  // #681: a payslip is evidence for a salary (spec 05 story 28) and can be read into it (spec
+  // 05b story 8), so income items take documents like assets and liabilities do.
+  it('renders the slot in income, asset and liability editors', () => {
+    const salaryId = 'i0000000-0000-4000-8000-000000000001';
     const renderAttachments = vi.fn(
       ({ itemId, itemNoun }: { itemId: string; itemNoun: string }) => (
         <p>{`Documents for ${itemNoun} ${itemId}`}</p>
@@ -730,9 +733,9 @@ describe('StatementSection: attachment slot', () => {
       statement({
         income: [
           {
-            id: 'i0000000-0000-4000-8000-000000000001',
-            type: 'rent',
-            description: 'Rent',
+            id: salaryId,
+            type: 'salary-emoluments',
+            description: 'Salary, KEMSA',
             amount: { kesCents: 100 },
             location: { inKenya: true },
             change: { changed: false },
@@ -743,8 +746,17 @@ describe('StatementSection: attachment slot', () => {
       { renderAttachments },
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Rent: Rent' }));
-    expect(renderAttachments).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit Salary and emoluments: Salary, KEMSA' }),
+    );
+    expect(screen.getByText(`Documents for income item ${salaryId}`)).toBeTruthy();
+    expect(renderAttachments).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        category: 'income',
+        itemId: salaryId,
+        itemType: 'salary-emoluments',
+      }),
+    );
 
     openTab(/^Assets/);
     fireEvent.click(

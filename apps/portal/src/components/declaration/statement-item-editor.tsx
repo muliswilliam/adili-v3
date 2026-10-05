@@ -40,9 +40,9 @@ import { optionalLabel } from './optional-label';
  */
 export interface ItemAttachmentSlot {
   sectionKey: string;
-  category: 'assets' | 'liabilities';
+  category: 'income' | 'assets' | 'liabilities';
   itemId: string;
-  /** "asset" or "liability", e.g. for "Add a document to this asset". */
+  /** "income", "asset" or "liability", e.g. for "Add a document to this asset". */
   itemNoun: string;
   attachments: Draft<Attachment>[];
   /** Replaces the item's attachments in the screen's state and queues a save of the section. */
@@ -636,7 +636,7 @@ export function ItemEditor({
         </div>
       ) : null}
 
-      {category !== 'income' && renderAttachments
+      {renderAttachments
         ? renderAttachments({
             sectionKey,
             category,

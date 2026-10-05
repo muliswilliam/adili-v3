@@ -110,7 +110,7 @@ export interface paths {
         };
         /**
          * Case with flags, clarifications, notes, timeline and the declaration pulled on demand
-         * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. Every call reads the declaration from the declarations service, which audits it with the viewer and the case, and records review.case.viewed.v1.
+         * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. Every call reads the declaration from the declarations service, which audits it with the viewer and the case, and records review.case.viewed.v1; its audit.read.v1 names the declarant (the person the data is about) and the case as its legal basis (`review-case`).
          */
         get: operations["getReviewCase"];
         put?: never;
