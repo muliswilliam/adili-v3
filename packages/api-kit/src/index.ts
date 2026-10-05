@@ -53,6 +53,7 @@ export { createService, type ServiceOptions } from './bootstrap.js';
 export { type BaseEnv, baseEnvSchema, loadConfig, TRUSTED_PROXIES_DEFAULT } from './config.js';
 export {
   demoModeSetting,
+  DemoWindows,
   demoWindowSetting,
   isoDurationMs,
   refuseDemoWindowsOutsideDemo,

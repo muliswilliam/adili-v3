@@ -19,8 +19,8 @@ import {
   reviewTimeline,
 } from '../cases/schema.js';
 import { Clock, nairobiDate, nairobiYear } from '../clock.js';
-import { config } from '../config.js';
 import type { ReviewSchema } from '../db/schema.js';
+import { demoWindows } from '../demo/demo-windows.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import {
@@ -238,7 +238,7 @@ export class ClarificationsService {
       const dueAt = clarificationDueAt(
         now,
         policy.replyWindowDays,
-        config.DEMO_CLARIFICATION_REPLY_WINDOW,
+        demoWindows.get('DEMO_CLARIFICATION_REPLY_WINDOW'),
       );
       const [issued] = await tx
         .update(clarifications)
