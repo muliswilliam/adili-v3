@@ -78,15 +78,24 @@ async function call(method, url, body) {
 }
 
 async function ensureProfileAttribute() {
+  // Admin-only: a user who could set their own demo_key could be signed in without a password.
+  const permissions = { view: ['admin'], edit: ['admin'] };
   const profile = await call('GET', `${admin}/users/profile`);
-  if (profile.attributes.some((attribute) => attribute.name === ATTRIBUTE)) return;
-  profile.attributes.push({
-    name: ATTRIBUTE,
-    displayName: 'Demo key',
-    permissions: { view: ['admin'], edit: ['admin'] },
-  });
+  const existing = profile.attributes.find((attribute) => attribute.name === ATTRIBUTE);
+  if (
+    existing &&
+    JSON.stringify(existing.permissions?.view) === JSON.stringify(permissions.view) &&
+    JSON.stringify(existing.permissions?.edit) === JSON.stringify(permissions.edit)
+  ) {
+    return;
+  }
+  if (existing) {
+    existing.permissions = permissions;
+  } else {
+    profile.attributes.push({ name: ATTRIBUTE, displayName: 'Demo key', permissions });
+  }
   await call('PUT', `${admin}/users/profile`, profile);
-  console.log(`added user profile attribute ${ATTRIBUTE}`);
+  console.log(`${existing ? 'made admin-only' : 'added'} user profile attribute ${ATTRIBUTE}`);
 }
 
 async function ensureExecution() {
