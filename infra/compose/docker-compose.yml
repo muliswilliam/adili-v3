@@ -250,6 +250,12 @@ services:
   mailpit:
     image: axllent/mailpit:v1.31.2
     ports: ['1025:1025', '8025:8025']
+    # The demo seed sends thousands of emails (onboarding codes, acknowledgements); keep them all,
+    # and across restarts, so the reminders and notices it shows are still there.
+    environment:
+      MP_MAX_MESSAGES: 50000
+      MP_DATABASE: /data/mailpit.db
+    volumes: [mailpit-data:/data]
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', '/mailpit', 'readyz']
@@ -268,3 +274,4 @@ volumes:
   rabbitmq-data:
   seaweedfs-data:
   clamav-data:
+  mailpit-data:
