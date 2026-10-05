@@ -385,6 +385,11 @@ export interface components {
             watermark?: components["schemas"]["Watermark"];
             /** @description Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package and access-nil-letter */
             downloadWindowDays?: number;
+            /**
+             * Format: date-time
+             * @description When the document stops being in force (ADR-010): from then on the verify page answers `expired`. Must be after the issue. None: in force until superseded or revoked
+             */
+            validUntil?: string;
             /** @description Token subjects (`sub`) of the issuing Commission's staff who may download the document besides its subject person, with a token of that Commission, within the same window and audited the same way: the access officer who recorded an in-person self-access application, to print the certified copy they hand over. None: the subject person only */
             additionalDownloaders?: string[];
             /** @description The template's payload: the schema named after `type`, or for a pulled type the record it is pulled for (`clarificationId`, `determinationId`, `actionId` or `referralId`) */

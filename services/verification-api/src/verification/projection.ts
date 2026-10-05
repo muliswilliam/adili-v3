@@ -20,6 +20,7 @@ const KEPT = {
   sha256: true,
   issuedAt: true,
   status: true,
+  expiresAt: true,
 } as const;
 /** Of the public payload only the fields the page shows get through, whatever else it holds. */
 const shown = { publicPayload: verifiedDocumentSchema.nullable() };
@@ -66,6 +67,7 @@ export class VerificationProjection {
           ? (data.supersededByVerificationId ?? null)
           : null,
       revokedReason: disclosed && data.status === 'revoked' ? (data.reasonCategory ?? null) : null,
+      expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
       updatedAt: new Date(data.statusChangedAt ?? data.issuedAt),
     };
     const t = verificationProjection;
@@ -83,6 +85,7 @@ export class VerificationProjection {
             issuedAt: sql`excluded.issued_at`,
             supersededBy: sql`excluded.superseded_by`,
             revokedReason: sql`excluded.revoked_reason`,
+            expiresAt: sql`excluded.expires_at`,
             updatedAt: sql`excluded.updated_at`,
           },
           setWhere: sql`excluded.updated_at > ${t.updatedAt} or (excluded.updated_at = ${t.updatedAt} and excluded.status <> 'valid')`,
