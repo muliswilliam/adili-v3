@@ -38,7 +38,7 @@ vi.mock('../../../server/self-access', () => ({
 }));
 vi.mock(import('@adili/ui'), async (importOriginal) => ({
   ...(await importOriginal()),
-  putFile: vi.fn(() => Promise.resolve('ok')),
+  putFile: vi.fn(() => Promise.resolve('ok' as const)),
 }));
 
 const officer = () => mockAccessClient([ACCESS_OFFICER]);
