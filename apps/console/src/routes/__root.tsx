@@ -1,9 +1,18 @@
-import { DemoBar, SiteHeaderAside, ToastProvider, TooltipProvider } from '@adili/ui';
+import {
+  DemoBar,
+  SiteHeaderAside,
+  THEME_SCRIPT,
+  ThemePreferenceContext,
+  ThemeSwitcher,
+  ToastProvider,
+  TooltipProvider,
+} from '@adili/ui';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import { DemoContext } from '../components/demo/demo-context';
 import { getDemo } from '../server/demo/demo';
+import { getTheme } from '../server/theme';
 import appCss from '../styles.css?url';
 
 export const Route = createRootRoute({
@@ -23,28 +32,34 @@ export const Route = createRootRoute({
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
     ],
   }),
-  // Demo mode only (#616); null otherwise. A switch reloads the page, so it is loaded once.
-  loader: () => getDemo(),
+  // The demo (#616; null outside demo mode) and the theme preference. A demo switch reloads the
+  // page and the theme switcher applies itself, so both are loaded once.
+  loader: async () => ({ demo: await getDemo(), theme: await getTheme() }),
   staleTime: Infinity,
   component: RootComponent,
 });
 
 function RootComponent() {
-  const demo = Route.useLoaderData();
+  const { demo, theme } = Route.useLoaderData();
   return (
     <RootDocument>
-      <DemoContext value={demo}>
-        {/* The signed-out pages' site header carries the switcher too, so it never covers a page. */}
-        <SiteHeaderAside
-          value={
-            demo ? (
-              <DemoBar variant="inline" accounts={demo.accounts} current={demo.current} />
-            ) : null
-          }
-        >
-          <Outlet />
-        </SiteHeaderAside>
-      </DemoContext>
+      <ThemePreferenceContext value={theme}>
+        <DemoContext value={demo}>
+          {/* The signed-out pages' site header carries the switcher too, so it never covers a page. */}
+          <SiteHeaderAside
+            value={
+              <>
+                {demo ? (
+                  <DemoBar variant="inline" accounts={demo.accounts} current={demo.current} />
+                ) : null}
+                <ThemeSwitcher />
+              </>
+            }
+          >
+            <Outlet />
+          </SiteHeaderAside>
+        </DemoContext>
+      </ThemePreferenceContext>
       {demo ? (
         <>
           {/*
@@ -64,8 +79,11 @@ function RootComponent() {
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en">
+    // The head script sets data-theme before React hydrates.
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Sets the theme before the first paint: the shared cookie's choice, or the device's. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <HeadContent />
       </head>
       <body>

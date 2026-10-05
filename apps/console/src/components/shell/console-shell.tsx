@@ -1,4 +1,14 @@
-import { Avatar, Badge, Button, cn, focusRing, Icon, LogoWordmark, SiteFooter } from '@adili/ui';
+import {
+  Avatar,
+  Badge,
+  Button,
+  cn,
+  focusRing,
+  Icon,
+  LogoWordmark,
+  SiteFooter,
+  ThemeSwitcher,
+} from '@adili/ui';
 import { Logout01Icon, Menu01Icon } from '@hugeicons/core-free-icons';
 import { Link, useLocation } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useRef } from 'react';
@@ -6,6 +16,7 @@ import { type ReactNode, useEffect, useRef } from 'react';
 import { Breadcrumbs } from './breadcrumbs';
 import { ShellDemoBar } from '../demo/demo-context';
 import { DemoPanel } from '../demo/demo-panel';
+import { type Organisation, organisationLabel } from '../organisation';
 import { seniorRoleLabel } from '../roles';
 import { formatNumber } from '../format';
 import { activeNavHref, type NavHref, navFor } from './nav';
@@ -22,6 +33,8 @@ export type NavCounts = Partial<Record<NavHref, NavCount>>;
 export interface ConsoleShellProps {
   userName: string;
   roles: readonly string[];
+  /** The signed-in person's Commission (or the platform team), under their role in the sidebar. */
+  organisation?: Organisation;
   /** Counts shown on sidebar entries (the kit's `.cnav .count`); none are shown for 0. */
   navCounts?: NavCounts;
   children: ReactNode;
@@ -33,7 +46,13 @@ export interface ConsoleShellProps {
  * closes the main column, so the sidebar keeps the full height of the window however far the
  * page scrolls.
  */
-export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleShellProps) {
+export function ConsoleShell({
+  userName,
+  roles,
+  organisation,
+  navCounts,
+  children,
+}: ConsoleShellProps) {
   const drawer = useRef<HTMLDialogElement>(null);
   const pathname = useLocation({ select: (location) => location.pathname });
 
@@ -43,7 +62,13 @@ export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleSh
   }, [pathname]);
 
   const sidebar = (
-    <Sidebar userName={userName} roles={roles} pathname={pathname} navCounts={navCounts} />
+    <Sidebar
+      userName={userName}
+      roles={roles}
+      organisation={organisation}
+      pathname={pathname}
+      navCounts={navCounts}
+    />
   );
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
@@ -85,6 +110,7 @@ export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleSh
           <div className="ml-auto flex items-center gap-1.5">
             <DemoPanel />
             <ShellDemoBar />
+            <ThemeSwitcher />
           </div>
         </header>
         {children}
@@ -101,17 +127,20 @@ export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleSh
 function Sidebar({
   userName,
   roles,
+  organisation,
   pathname,
   navCounts,
 }: {
   userName: string;
   roles: readonly string[];
+  organisation?: Organisation;
   pathname: string;
   navCounts?: NavCounts;
 }) {
   const groups = navFor(roles);
   const active = activeNavHref(groups, pathname);
   const role = seniorRoleLabel(roles);
+  const organisationName = organisation ? organisationLabel(organisation) : null;
   return (
     <>
       <Link
@@ -160,6 +189,11 @@ function Sidebar({
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{userName}</p>
           {role ? <p className="truncate text-xs text-muted-foreground">{role}</p> : null}
+          {organisationName ? (
+            <p className="line-clamp-2 text-xs text-muted-foreground" title={organisationName}>
+              {organisationName}
+            </p>
+          ) : null}
         </div>
         {/* A form POST so logout cannot be triggered by a cross-site link. */}
         <form method="post" action="/auth/logout">

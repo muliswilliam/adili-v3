@@ -151,70 +151,73 @@
   --elevation-highlight: inset 3px 0 0 var(--brand);
 }
 
-/* Dark theme: not in the prototypes yet, derived from the same warm neutrals and hues. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.191 0.001 106.4); /* #141413 */
-    --foreground: oklch(0.964 0.003 84.6); /* #f4f3f1 */
-    --card: oklch(0.226 0.004 106.7); /* #1c1c1a */
-    --card-foreground: oklch(0.964 0.003 84.6);
-    --muted: oklch(0.265 0.004 84.6); /* #262523 */
-    --muted-foreground: oklch(0.709 0.006 84.6); /* #a3a19d */
-    --secondary-foreground: oklch(0.852 0.007 88.6); /* #d0cec9 */
-    --placeholder: oklch(0.644 0.006 84.6); /* #8f8d89: 4.6:1 on muted, 5.2:1 on card */
-    --primary: oklch(0.964 0.003 84.6); /* #f4f3f1 */
-    --primary-foreground: oklch(0.218 0 0);
-    --primary-disabled: oklch(0.345 0.005 91.5); /* #3a3936 */
-    --primary-disabled-foreground: oklch(0.644 0.006 84.6); /* #8f8d89 */
-    --destructive: oklch(0.66 0.18 27.6); /* #ec5c51 */
-    --destructive-hover: oklch(0.687 0.167 26.7); /* #f06a60 */
-    /* White fails AA on the lighter dark-theme red, so solid destructive buttons take dark text. */
-    --destructive-foreground: oklch(0.191 0.001 106.4); /* #141413 */
-    --destructive-subtle: oklch(0.258 0.058 26.7); /* #3b1714 */
-    --destructive-subtle-foreground: oklch(0.835 0.084 25.3); /* #fbb4ad */
-    --warning: oklch(0.756 0.133 75.8); /* #e0a341 */
-    --warning-subtle: oklch(0.272 0.045 78.4); /* #33240a */
-    --warning-subtle-foreground: oklch(0.885 0.082 80.9); /* #f5d49b */
-    --warning-mark: var(--warning);
-    --success: oklch(0.702 0.143 152.5); /* #4bb872 */
-    --success-subtle: oklch(0.28 0.049 155.1); /* #12301e */
-    --success-subtle-foreground: oklch(0.864 0.083 155.5); /* #a6e3bb */
-    --info: oklch(0.705 0.123 257.9); /* #6ea1ec */
-    --info-subtle: oklch(0.26 0.052 259); /* #14243d */
-    --info-subtle-foreground: oklch(0.848 0.06 257.8); /* #b5cff5 */
-    --ai: oklch(0.705 0.152 293.4); /* #a58bf5 */
-    --ai-foreground: oklch(0.205 0.06 289); /* #150f2b */
-    --ai-subtle: oklch(0.255 0.078 289.4); /* #231a45 */
-    --ai-subtle-foreground: oklch(0.844 0.08 295.1); /* #cfc2fb */
-    --brand: oklch(0.681 0.178 40.3); /* #f06a36 */
-    --brand-subtle: oklch(0.268 0.051 44.2); /* #3a1d10 */
-    --brand-subtle-foreground: oklch(0.828 0.099 46.8); /* #fdb38f */
-    --brand-faint: oklch(0.213 0.025 40.5); /* #231510 */
-    --border: oklch(0.301 0.005 91.6); /* #2f2e2b */
-    --input: oklch(0.376 0.007 84.6); /* #43413d */
-    --ring: oklch(0.964 0.003 84.6);
-    --scrim: rgb(0 0 0 / 0.6);
-    /* Darker than the cards it sits on, with a hairline so its edge shows. */
-    --code: oklch(0.168 0.002 106.6); /* #0f0f0e */
-    --code-border: var(--border);
-    --glow: oklch(0.35 0.05 45);
-    --glow-soft: oklch(0.25 0.03 45);
-    --highlight: var(--warning-subtle);
-    --avatar: oklch(0.281 0.051 292.7); /* #2a2440 */
-    --avatar-foreground: oklch(0.842 0.07 294); /* #cdc3f5 */
-    --note: oklch(0.24 0.01 88.8); /* #211f1a */
-    --note-border: oklch(0.327 0.025 87.5); /* #3a3426 */
+/* Dark theme: not in the prototypes yet, derived from the same warm neutrals and hues. Applied by
+   `data-theme="dark"` on <html>: the theme switcher's choice, or the device's for System (lib/theme). */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --background: oklch(0.191 0.001 106.4); /* #141413 */
+  --foreground: oklch(0.964 0.003 84.6); /* #f4f3f1 */
+  --card: oklch(0.226 0.004 106.7); /* #1c1c1a */
+  --card-foreground: oklch(0.964 0.003 84.6);
+  --muted: oklch(0.265 0.004 84.6); /* #262523 */
+  --muted-foreground: oklch(0.709 0.006 84.6); /* #a3a19d */
+  --secondary-foreground: oklch(0.852 0.007 88.6); /* #d0cec9 */
+  --placeholder: oklch(0.644 0.006 84.6); /* #8f8d89: 4.6:1 on muted, 5.2:1 on card */
+  --primary: oklch(0.964 0.003 84.6); /* #f4f3f1 */
+  --primary-foreground: oklch(0.218 0 0);
+  --primary-disabled: oklch(0.345 0.005 91.5); /* #3a3936 */
+  --primary-disabled-foreground: oklch(0.644 0.006 84.6); /* #8f8d89 */
+  --destructive: oklch(0.66 0.18 27.6); /* #ec5c51 */
+  --destructive-hover: oklch(0.687 0.167 26.7); /* #f06a60 */
+  /* White fails AA on the lighter dark-theme red, so solid destructive buttons take dark text. */
+  --destructive-foreground: oklch(0.191 0.001 106.4); /* #141413 */
+  --destructive-subtle: oklch(0.258 0.058 26.7); /* #3b1714 */
+  --destructive-subtle-foreground: oklch(0.835 0.084 25.3); /* #fbb4ad */
+  --warning: oklch(0.756 0.133 75.8); /* #e0a341 */
+  --warning-subtle: oklch(0.272 0.045 78.4); /* #33240a */
+  --warning-subtle-foreground: oklch(0.885 0.082 80.9); /* #f5d49b */
+  --warning-mark: var(--warning);
+  --success: oklch(0.702 0.143 152.5); /* #4bb872 */
+  --success-subtle: oklch(0.28 0.049 155.1); /* #12301e */
+  --success-subtle-foreground: oklch(0.864 0.083 155.5); /* #a6e3bb */
+  --info: oklch(0.705 0.123 257.9); /* #6ea1ec */
+  --info-subtle: oklch(0.26 0.052 259); /* #14243d */
+  --info-subtle-foreground: oklch(0.848 0.06 257.8); /* #b5cff5 */
+  --ai: oklch(0.705 0.152 293.4); /* #a58bf5 */
+  --ai-foreground: oklch(0.205 0.06 289); /* #150f2b */
+  --ai-subtle: oklch(0.255 0.078 289.4); /* #231a45 */
+  --ai-subtle-foreground: oklch(0.844 0.08 295.1); /* #cfc2fb */
+  --brand: oklch(0.681 0.178 40.3); /* #f06a36 */
+  --brand-subtle: oklch(0.268 0.051 44.2); /* #3a1d10 */
+  --brand-subtle-foreground: oklch(0.828 0.099 46.8); /* #fdb38f */
+  --brand-faint: oklch(0.213 0.025 40.5); /* #231510 */
+  --border: oklch(0.301 0.005 91.6); /* #2f2e2b */
+  --input: oklch(0.376 0.007 84.6); /* #43413d */
+  --ring: oklch(0.964 0.003 84.6);
+  --scrim: rgb(0 0 0 / 0.6);
+  /* Darker than the cards it sits on, with a hairline so its edge shows. */
+  --code: oklch(0.168 0.002 106.6); /* #0f0f0e */
+  --code-border: var(--border);
+  --glow: oklch(0.35 0.05 45);
+  --glow-soft: oklch(0.25 0.03 45);
+  --highlight: var(--warning-subtle);
+  --avatar: oklch(0.281 0.051 292.7); /* #2a2440 */
+  --avatar-foreground: oklch(0.842 0.07 294); /* #cdc3f5 */
+  --note: oklch(0.24 0.01 88.8); /* #211f1a */
+  --note-border: oklch(0.327 0.025 87.5); /* #3a3426 */
 
-    --elevation-control: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
-    --elevation-control-hover: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--input);
-    --elevation-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
-    --elevation-card-editing: 0 0 0 1.5px var(--ring), 0 8px 24px -12px rgb(0 0 0 / 0.6);
-    --elevation-card-hover: 0 0 0 1px var(--input), 0 6px 20px -8px rgb(0 0 0 / 0.6);
-    --elevation-pop: 0 12px 40px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.08);
-    --elevation-button-primary: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.3);
-    --elevation-button-destructive:
-      0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.15);
-  }
+  --elevation-control: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
+  --elevation-control-hover: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--input);
+  --elevation-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
+  --elevation-card-editing: 0 0 0 1.5px var(--ring), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  --elevation-card-hover: 0 0 0 1px var(--input), 0 6px 20px -8px rgb(0 0 0 / 0.6);
+  --elevation-pop: 0 12px 40px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.08);
+  --elevation-button-primary: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.3);
+  --elevation-button-destructive: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.15);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 @theme inline {

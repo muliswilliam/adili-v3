@@ -1,3 +1,4 @@
+import { Tick02Icon } from '@hugeicons/core-free-icons';
 import * as MenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { type ComponentProps, createContext, useContext, useMemo, useRef } from 'react';
 
@@ -147,5 +148,34 @@ export function MenuNote({ icon, className, children, ...props }: MenuNoteProps)
       {icon ? <Icon icon={icon} /> : null}
       <span>{children}</span>
     </MenuPrimitive.Item>
+  );
+}
+
+export const MenuRadioGroup = MenuPrimitive.RadioGroup;
+
+/**
+ * One choice in a `MenuRadioGroup`, heard as a radio item, with a tick on the chosen one. Picking
+ * it sets the group's value and closes the menu.
+ */
+export function MenuRadioItem({
+  className,
+  icon,
+  children,
+  ...props
+}: ComponentProps<typeof MenuPrimitive.RadioItem> & { icon?: IconProps['icon'] }) {
+  return (
+    <MenuPrimitive.RadioItem
+      className={cn(
+        'flex min-h-9 cursor-default items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm outline-none select-none data-highlighted:bg-muted [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
+        className,
+      )}
+      {...props}
+    >
+      {icon ? <Icon icon={icon} /> : null}
+      <span className="flex-1">{children}</span>
+      <MenuPrimitive.ItemIndicator>
+        <Icon icon={Tick02Icon} className="text-brand!" />
+      </MenuPrimitive.ItemIndicator>
+    </MenuPrimitive.RadioItem>
   );
 }
