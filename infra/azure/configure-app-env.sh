@@ -96,6 +96,26 @@ set_env "$ROOT/apps/verify/.env" APP_URL "${ADILI_VERIFY_URL}"
 set_env "$ROOT/apps/verify/.env" PORT "$verify_port"
 set_env "$ROOT/apps/verify/.env" ADILI_DEMO_BIND 1
 
+# Services check tokens against the public issuer, which Keycloak stamps into every token
+# (KC_HOSTNAME), but reach Keycloak on loopback (docker-compose.azure.yml): Caddy holds :8080
+# with TLS, so the local default http://localhost:8080 answers no one. Keys, service tokens and
+# the admin API go to OIDC_INTERNAL_URL.
+for env_file in "$ROOT"/services/*/.env; do
+  if grep -q '^OIDC_ISSUER_URL=' "$env_file"; then
+    set_env "$env_file" OIDC_ISSUER_URL "$issuer"
+    set_env "$env_file" OIDC_INTERNAL_URL http://127.0.0.1:18080/realms/adili
+  fi
+done
+
+# `pnpm demo:seed` (packages/demo-seed) signs demo accounts in as a browser would, so it uses the
+# public Keycloak and the portal's public callback (the realm's redirect URIs are the public
+# ones), with this host's demo ticket secret. Mode 600; the secret is never printed.
+seed_env="$ROOT/packages/demo-seed/.env"
+(umask 077 && touch "$seed_env")
+set_env "$seed_env" KEYCLOAK_URL "${KC_HOSTNAME%/}"
+set_env "$seed_env" DEMO_SIGN_IN_REDIRECT_URI "${ADILI_PORTAL_URL%/}/auth/callback"
+set_env_from_file "$seed_env" DEMO_TICKET_SECRET "$ADILI_DEMO_TICKET_SECRET_FILE"
+
 set_env "$ROOT/services/documents/.env" S3_PUBLIC_ENDPOINT "$s3_public"
 # QR codes on issued documents open the public verify app.
 set_env "$ROOT/services/documents/.env" VERIFY_BASE_URL "${ADILI_VERIFY_URL}"

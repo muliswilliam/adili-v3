@@ -9,7 +9,7 @@ on:
       command:
         description: Command
         type: choice
-        options: [check, health, seed, reset, ai]
+        options: [check, health, diagnose, seed, reset, ai]
         default: check
       argument:
         description: 'Checkpoint for reset (e.g. 0-start); mode for ai (anthropic, record, replay)'

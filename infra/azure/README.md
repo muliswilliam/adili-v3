@@ -102,7 +102,7 @@ It does **not** re-seed, re-issue certificates, or `terraform apply`. The SSH ho
 
 Every deploy also puts the stack on the real backend (#615): all app mocks off and the ai-gateway on Anthropic, then checks it with `pnpm demo:check` (a warning, not a failed deploy). The API key comes from `/etc/adili/secrets.env` or, when the repo secret `ANTHROPIC_API_KEY` is set, from `~adili/.config/adili/secrets.env`, which the workflow writes over SSH stdin. See [docs/demo](../../docs/demo/README.md#real-backend-and-ai-provider).
 
-The **Azure demo command** workflow (`.github/workflows/azure-demo-command.yml`, run by hand) runs one allow-listed command on the VM through `infra/azure/demo-command.sh`: `check`, `health`, `seed`, `reset <checkpoint>` or `ai anthropic|record|replay`.
+The **Azure demo command** workflow (`.github/workflows/azure-demo-command.yml`, run by hand) runs one allow-listed command on the VM through `infra/azure/demo-command.sh`: `check`, `health`, `diagnose`, `seed`, `reset <checkpoint>` or `ai anthropic|record|replay`. Its log is public, so every line goes through a redactor (API keys, bearer tokens, JWTs, demo tickets, secret- and password-named values). `diagnose` prints health, whether the stack is on the real backend, Keycloak discovery on loopback and on the public URL, the containers, and the last log lines of whatever is down.
 
 ## Backups
 
