@@ -11,7 +11,11 @@ const schema = z.object({
   ACCESS_URL: z.url().default('http://localhost:4004'),
   REPORTING_URL: z.url().default('http://localhost:4005'),
   DOCUMENTS_URL: z.url().default('http://localhost:4006'),
+  VERIFICATION_API_URL: z.url().default('http://localhost:4007'),
   AI_GATEWAY_URL: z.url().default('http://localhost:4008'),
+  INTEGRATION_GATEWAY_URL: z.url().default('http://localhost:4009'),
+  NOTIFICATIONS_URL: z.url().default('http://localhost:4010'),
+  AUDIT_URL: z.url().default('http://localhost:4011'),
   MOCKS_URL: z.url().default('http://localhost:8000'),
   MAILPIT_URL: z.url().default('http://localhost:8025'),
   /** Keycloak as a browser reaches it: demo sign-in. */

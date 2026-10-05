@@ -9,7 +9,8 @@
  * - `3-form-m-ready`: PSC's supervisor compiles Form M and marks it reviewed, so the Commission
  *   admin confirms it live.
  *
- * Capture runs with the stack up (a few seconds' freeze). It leaves the stack at the last
+ * Capture runs with the stack up (a few seconds' freeze); each beat waits until every service is
+ * ready again, and stops naming any that is not. It leaves the stack at the last
  * checkpoint: reset to `0-start` before the demo (`pnpm demo:reset 0-start`, with `pnpm dev`
  * stopped on a local stack; the Azure host restarts its apps itself).
  */
@@ -26,6 +27,7 @@ import { loadConfig } from './config.js';
 import { createContext, type SeedContext } from './context.js';
 import { CURRENT_CYCLE } from './data/personas.js';
 import { REPO_ROOT } from './repo.js';
+import { serviceTargets, waitForServicesReady } from './stack-ready.js';
 import { demoTicketSignIn, Tokens } from './tokens.js';
 
 /** The financial year Form M is compiled for: both demo cycles fall in FY 2025/26. */
@@ -53,9 +55,13 @@ for (const name of names.slice(names.indexOf(from))) {
   const beat = BEATS[name];
   if (!beat) throw new Error(`No beat leads to ${name}`);
   console.log(`\n== ${name}`);
+  // Before each beat: the capture before it froze the stack (databases closed, broker paused),
+  // and a beat on services still recovering, or one the freeze took down, fails mid-way (#636).
+  await waitForServicesReady(serviceTargets(config), { log: console.log });
   await beat(context);
   checkpointScript('capture', name);
 }
+await waitForServicesReady(serviceTargets(config), { log: console.log });
 console.log(
   '\nCheckpoints captured; the stack is at the last one. Before the demo: pnpm demo:reset 0-start',
 );

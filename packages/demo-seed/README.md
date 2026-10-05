@@ -161,6 +161,9 @@ pnpm demo:reset <name>               # restore one
 
 - Capture runs with everything up: it closes the databases to connections and pauses the
   volume containers for the few seconds the copies take, so the parts agree.
+- `pnpm demo:checkpoints` waits before each beat (and at the end) until every service's
+  `/health/ready` is up again after the freeze, and stops naming any service that is not running
+  or still reports a dependency down (#636).
 - Restore needs the services and apps stopped (Temporal workers cache workflow state). Locally:
   stop `pnpm dev`, `pnpm demo:reset <name>`, start `pnpm dev` (the script refuses while the
   service ports answer). On the Azure host `pnpm demo:reset` restarts the apps around the restore
