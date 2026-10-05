@@ -489,7 +489,7 @@ export {
 } from './components/segmented-choice';
 export { Select, SelectGroup, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
-export { SiteHeader, type SiteHeaderProps } from './components/site-header';
+export { SiteHeader, SiteHeaderAside, type SiteHeaderProps } from './components/site-header';
 export { Skeleton } from './components/skeleton';
 export {
   describeSource,

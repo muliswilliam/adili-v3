@@ -134,9 +134,10 @@ const NOTICE = {
   ),
   closedEarly: en('Closed early'),
   windowClosed: en('Window closed'),
+  // "day 3 of 7" never splits across lines (no-break spaces).
   windowOpenDetail: en(
     (verb: string, at: string, day: number, of: number) =>
-      `${verb} ${at} · day ${String(day)} of ${String(of)}`,
+      `${verb} ${at} · day\u00a0${String(day)}\u00a0of\u00a0${String(of)}`,
   ),
   respondByVerb: en('Respond by'),
   editUntilVerb: en('Edit until'),
