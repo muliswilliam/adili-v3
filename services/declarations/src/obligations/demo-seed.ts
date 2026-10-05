@@ -1,5 +1,5 @@
 import type { Database } from '@adili/data-access';
-import { and, eq, lt } from 'drizzle-orm';
+import { and, eq, lt, sql } from 'drizzle-orm';
 
 import type { DeclarationsSchema } from '../db/schema.js';
 import { daysBetween, nairobiDate } from './dates.js';
@@ -24,4 +24,28 @@ export async function openDemoCycle(db: Database<DeclarationsSchema>, now: Date)
         lt(cycleCalendar.openingLeadDays, days),
       ),
     );
+}
+
+/**
+ * The demo seed's cycles (#617): adds each year to the cycle calendar with `openingLeadDays`, or
+ * widens a shorter lead, so the cycles are open today. With the demo policy's biennial month-days
+ * (directory `demo:policy`) their statement dates have passed: the earlier cycle is the
+ * declarants' previous declaration, the later one the declaration they file in the demo. The
+ * calendar is platform data with no API (spec 04). Returns the years it changed.
+ */
+export async function addDemoCycles(
+  db: Database<DeclarationsSchema>,
+  years: readonly number[],
+  openingLeadDays: number,
+): Promise<number[]> {
+  const changed = await db
+    .insert(cycleCalendar)
+    .values(years.map((cycleYear) => ({ cycleYear, openingLeadDays })))
+    .onConflictDoUpdate({
+      target: cycleCalendar.cycleYear,
+      set: { openingLeadDays: sql`excluded.opening_lead_days` },
+      setWhere: lt(cycleCalendar.openingLeadDays, openingLeadDays),
+    })
+    .returning({ cycleYear: cycleCalendar.cycleYear });
+  return changed.map((row) => row.cycleYear);
 }
