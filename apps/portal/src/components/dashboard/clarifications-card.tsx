@@ -19,12 +19,12 @@ export function ClarificationsSection({
 }) {
   return (
     <Suspense fallback={null}>
-      <LoadedClarificationsCard promise={clarifications} />
+      <ResolvedClarificationsCard promise={clarifications} />
     </Suspense>
   );
 }
 
-function LoadedClarificationsCard({ promise }: { promise: Promise<MyClarificationsLoad> }) {
+function ResolvedClarificationsCard({ promise }: { promise: Promise<MyClarificationsLoad> }) {
   const load = use(promise);
   if (load.status !== 'ok' || load.clarifications.length === 0) return null;
   return <ClarificationsCard clarifications={load.clarifications} now={load.now} />;

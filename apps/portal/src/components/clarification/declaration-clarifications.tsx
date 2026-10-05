@@ -23,12 +23,12 @@ export function DeclarationClarificationsSection({
 }) {
   return (
     <Suspense fallback={null}>
-      <LoadedSection promise={clarifications} references={references} className={className} />
+      <ResolvedSection promise={clarifications} references={references} className={className} />
     </Suspense>
   );
 }
 
-function LoadedSection({
+function ResolvedSection({
   promise,
   references,
   className,
