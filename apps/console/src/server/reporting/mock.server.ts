@@ -67,7 +67,7 @@ import type { components, paths } from './api.gen';
 import {
   storedDocument,
   fullDocument,
-  issuedDocumentIdsOf,
+  issueDueDocuments,
   MOCK_PSC,
   mockDay,
   mockDocumentCorrupt,
@@ -303,7 +303,7 @@ function startCompile(fy: number): Response {
 
 /** Runs the mock workflows: a compile finishes, or the PDF and receipt are issued, in time. */
 function advance(stored: StoredReport) {
-  issuedDocumentIdsOf(stored);
+  issueDueDocuments(stored);
   if (stored.status !== 'compiling' || stored.compileStartedAt === null) return;
   if (Date.now() < stored.compileStartedAt + compileMs) return;
   stored.status = 'draft';

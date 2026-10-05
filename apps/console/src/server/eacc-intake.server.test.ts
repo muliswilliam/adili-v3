@@ -266,7 +266,7 @@ describe('psc as the Form M workspace stores it (#586)', () => {
     return result.data.report;
   }
 
-  async function confirmPsc() {
+  async function resetAndConfirmPsc() {
     resetReportingMock('2026-10-03', { reviewed: true, filled: true });
     await confirmReport(
       mockReportingClient([COMMISSION_ADMIN], { stepUpAt: Date.now() }),
@@ -297,11 +297,11 @@ describe('psc as the Form M workspace stores it (#586)', () => {
 
   it('offers them once issued after a confirm, though the workspace has not been read since', async () => {
     setReportingMockLatency(0, { issueMs: 60_000 });
-    await confirmPsc();
+    await resetAndConfirmPsc();
     expect(row(await intake(analyst()), 'psc').formMDocumentId).toBeNull();
 
     setReportingMockLatency(0, { issueMs: 0 });
-    await confirmPsc();
+    await resetAndConfirmPsc();
     const line = row(await intake(analyst()), 'psc');
     expect(documentIds(line)).toEqual(documentIds(await workspaceReport()));
     expect(line.formMDocumentId).not.toBeNull();

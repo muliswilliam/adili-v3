@@ -26,7 +26,7 @@ import { INTAKE_STATUSES } from '@adili/ui';
 import { dueDateOf, FIRST_FINANCIAL_YEAR } from '../../components/form-m/financial-year';
 import { documentDownloadIdOf, json, type MockCaller, mockCallerOf, problem } from '../mock-http';
 import {
-  issuedDocumentIdsOf,
+  issueDueDocuments,
   storedDocument,
   storedFileTitle,
   mockDay,
@@ -334,7 +334,11 @@ const reportIdOf = (index: number, fy: number) => uuid(1, fy, index);
  * is still issuing them), the other Commissions' this mock's own.
  */
 function documentIdsOf(index: number, fy: number, filing: Filing) {
-  if (filing.stored) return issuedDocumentIdsOf(filing.stored);
+  const { stored } = filing;
+  if (stored) {
+    issueDueDocuments(stored);
+    return { formMDocumentId: stored.formMDocumentId, receiptDocumentId: stored.receiptDocumentId };
+  }
   return { formMDocumentId: uuid(2, fy, index), receiptDocumentId: uuid(3, fy, index) };
 }
 
