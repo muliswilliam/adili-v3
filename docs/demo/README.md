@@ -76,7 +76,7 @@ Live: A to E, Wanjiku's case end to end, in the 5-minute demo. Seeded: F to I, s
 
 1. In a private window (no demo session), open the portal and choose **Get started** (`/get-started`).
 2. Identify as Lydia Kwamboka Nyaboke: Commission PSC, personnel file `PSC/2012/0311`, national ID `28836510`.
-3. Enter the email code, then the SMS code. Locally they are in Mailpit (http://localhost:8025) and the mocks SMS inbox (http://localhost:8000/sms/inbox). The hosted demo publishes neither, so run this beat on the local stack or show it from the backup video.
+3. Enter the email code, then the SMS code. Read them in the console (right half of the split view): **Demo panel**, then **Demo inbox**, which shows the latest text messages and emails with their codes and refreshes every few seconds. It works hosted and locally (locally Mailpit, http://localhost:8025, and the mocks SMS inbox, http://localhost:8000/sms/inbox, show the same).
 4. Confirm: IPRS checks the identity and the account is created. Optional: Daniel Rotich (`PSC/2016/0533`, ID `38221907`) fails the identity check (`/get-started/not-verified`).
 
 ### C. Filing with AI pre-fill and Ask Adili (portal, Wanjiku)
@@ -267,7 +267,7 @@ Set the demo service settings first (the table in [packages/demo-seed](../../pac
 - [ ] Warm the AI provider: one Ask Adili question and one copilot refresh before going on stage.
 - [ ] Sample files from `mocks/demo/files/` on the presenter's machine, in an easy folder.
 - [ ] Fresh verify codes (`pnpm demo:seed --only verify`) printed on the QR card.
-- [ ] Browser: one window, portal left, console right, zoom at 100%; a private window ready for beat B.
+- [ ] Browser: one window, portal left, console right, zoom at 100%; a private window ready for beat B, with the console's Demo panel inbox beside it for the codes.
 - [ ] Phone for the slip's QR code.
 - [ ] Backup video open in a tab; the local stack seeded at `0-start` on the laptop.
 - [ ] Know the fallbacks: `pnpm demo:ai replay`, reset to the beat's checkpoint.
