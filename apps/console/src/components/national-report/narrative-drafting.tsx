@@ -195,8 +195,10 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
       onUnauthenticated();
       return;
     }
-    if (error.kind !== 'problem') {
-      fail(ask, m.draftUnavailable);
+    // No answer, or a 5xx: only a 502 `narrative-draft-failed` names why (the ai-gateway job's reason).
+    if (error.kind === 'unavailable') {
+      const failed = error.code === 'narrative-draft-failed';
+      fail(ask, failed ? reasonMessage(error.reason) : m.draftUnavailable);
       return;
     }
     // The contract's codes for drafts (#338) are not registered with api-kit yet (#566).

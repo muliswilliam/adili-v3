@@ -29,8 +29,17 @@ export interface ValidationProblem extends BaseProblem {
 export type ServiceError<Problem extends BaseProblem = BaseProblem> =
   /** No console session, or the service refused the token (401): sign in again. */
   | { kind: 'unauthenticated' }
-  /** Network failure, timeout or 5xx: worth retrying. `problemType` is set for 5xx problems. */
-  | { kind: 'unavailable'; detail: string | null; problemType?: string }
+  /**
+   * Network failure, timeout or 5xx: worth retrying. `problemType` is set for 5xx problems, and
+   * their `code` and `reason` when they carry them (reporting's 502 `narrative-draft-failed`).
+   */
+  | {
+      kind: 'unavailable';
+      detail: string | null;
+      problemType?: string;
+      code?: string;
+      reason?: string;
+    }
   /** The service answered with problem details (400, 403, 404, 409, 422). */
   | { kind: 'problem'; problem: Problem };
 
@@ -77,9 +86,16 @@ export async function callService<T, Problem extends BaseProblem = BaseProblem>(
   // Each service's client names its own problem type; the fields checked here are the shared ones.
   const problem = toProblem(error, response) as Problem;
   if (response.status >= 500) {
+    const { code, reason }: { status: number; code?: unknown; reason?: unknown } = problem;
     return {
       ok: false,
-      error: { kind: 'unavailable', detail: problem.detail ?? null, problemType: problem.type },
+      error: {
+        kind: 'unavailable',
+        detail: problem.detail ?? null,
+        problemType: problem.type,
+        ...(typeof code === 'string' && { code }),
+        ...(typeof reason === 'string' && { reason }),
+      },
     };
   }
   return { ok: false, error: { kind: 'problem', problem } };

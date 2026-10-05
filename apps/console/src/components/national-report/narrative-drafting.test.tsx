@@ -353,6 +353,19 @@ describe('Draft narrative', () => {
     expect(within(narrative()).queryByRole('alert')).toBeNull();
   });
 
+  it('says why the AI service failed the draft when it says so', async () => {
+    await renderPage({ narrative: 'failed' });
+    resetNarrativeDraftMock('failed', { failureReason: 'budget' });
+
+    pick('Recommendations');
+
+    const alert = await within(narrative()).findByRole('alert');
+    expect(alert.textContent).toContain(
+      "This month's AI budget is used up. Nothing was changed. Write the narrative yourself.",
+    );
+    expect(aiLabels('Recommendations')).toHaveLength(0);
+  });
+
   it('waits for a draft still being written, then inserts it', async () => {
     await renderPage({ narrative: 'slow' });
 

@@ -25,7 +25,7 @@
  * within the request (200); `slow`, 202 and inserted when the report is read `readyAfterMs` later
  * (five seconds by default); `validation` 409 `narrative-validation`, nothing inserted;
  * `slow-validation` 202, then discarded with reason `validation`; `failed` 502
- * `narrative-draft-failed` (reason `provider`); `unavailable` 503.
+ * `narrative-draft-failed` (reason `failureReason`, `provider` by default); `unavailable` 503.
  */
 import { formatNumber, formatPercent } from '@adili/ui';
 
@@ -60,6 +60,8 @@ export type NarrativeDraftMockSeed = Env['REPORTING_MOCK_NARRATIVE'];
 interface Options {
   /** How long a `slow` job takes. */
   readyAfterMs?: number;
+  /** The ai-gateway job's reason a `failed` draft answers with (`provider`, `budget`, `timeout`). */
+  failureReason?: string;
 }
 
 /** A request by Idempotency-Key: its body, and the answer it got (or is getting). */
@@ -68,25 +70,26 @@ interface Job {
   answer: Promise<Response>;
 }
 
-let state: { seed: NarrativeDraftMockSeed; readyAfterMs: number; jobs: Map<string, Job> } | null =
-  null;
+let state: ReturnType<typeof freshState> | null = null;
 
 /** Starts the mock over: how the next drafts go, and no jobs. */
-export function resetNarrativeDraftMock(
+export function resetNarrativeDraftMock(seed: NarrativeDraftMockSeed, options: Options = {}): void {
+  state = freshState(seed, options);
+}
+
+function freshState(
   seed: NarrativeDraftMockSeed,
-  { readyAfterMs = 5000 }: Options = {},
-): void {
-  state = { seed, readyAfterMs, jobs: new Map() };
+  { readyAfterMs = 5000, failureReason = 'provider' }: Options = {},
+) {
+  return { seed, readyAfterMs, failureReason, jobs: new Map<string, Job>() };
 }
 
 function ensureState() {
-  state ??= {
-    seed: envSchema.shape.REPORTING_MOCK_NARRATIVE.catch('inserted').parse(
+  state ??= freshState(
+    envSchema.shape.REPORTING_MOCK_NARRATIVE.catch('inserted').parse(
       process.env.REPORTING_MOCK_NARRATIVE,
     ),
-    readyAfterMs: 5000,
-    jobs: new Map(),
-  };
+  );
   return state;
 }
 
@@ -207,13 +210,13 @@ async function startDraft(
         'narrative-validation',
       );
     case 'failed':
-      settle('provider');
+      settle(data.failureReason);
       return json(502, {
         type: 'about:blank',
         title: 'The AI narrative draft failed',
         status: 502,
         code: 'narrative-draft-failed',
-        reason: 'provider',
+        reason: data.failureReason,
       });
     case 'slow':
     case 'slow-validation':
