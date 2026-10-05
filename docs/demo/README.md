@@ -61,7 +61,7 @@ Live: A to E, Wanjiku's case end to end, in the 5-minute demo. Seeded: F to I, s
 | A. Roster import | `0-start` | 0:30 | Live |
 | B. Onboarding with SMS OTP | `0-start` | 1:00 | Live |
 | C. Filing with AI pre-fill and Ask Adili | `0-start` | 2:00 | Live |
-| D. Submit and QR slip | `0-start` (after C) | 0:30 | Live |
+| D. Submit and QR slip | `0-start` (after C) | 0:45 | Live |
 | E. Cross-checks and copilot | `1-after-filing` (or straight after D) | 1:00 | Live |
 | F. Clarification and determination | `2-after-review` | 1:00 | Seeded |
 | G. Form M | `3-form-m-ready` | 0:45 | Seeded (confirm is live) |
@@ -86,17 +86,21 @@ Live: A to E, Wanjiku's case end to end, in the 5-minute demo. Seeded: F to I, s
 
 Sample files: `mocks/demo/files/` (`payslip-kemsa-june-2026.pdf`, `logbook-fielder-kcx-214j.jpg`, `title-deed-kiambu-ruiru.pdf`). Have them on the presenter's machine.
 
-1. Act as **Wanjiku Kamau**. On the home page open her 2026 declaration (`/declarations/<id>`).
-2. **Check registries**: consent, then the suggestion cards offer the Fielder (KCX 214J) and the Kiambu Ruiru parcel. Accept both.
-3. **Read into the form**: upload the three sample files; the AI reads them and suggests values for review (indicators, never findings).
-4. **Ask Adili** (panel, bottom right). Scripted questions, from the suggested list:
-   - "What counts as a material change?"
-   - "How do I value my car?"
-   - "Do I declare my wife's salary?"
+1. Act as **Wanjiku Kamau**. On the home page **Continue** her 2026 declaration (`/declarations/<id>`). It opens at 75%: Your details, Spouses and children, Other information and "no liabilities" are what she carried over from her 2024 declaration, already confirmed. What is left is her financial statement.
+2. **Financial statement: you**, then **Check registries**: tick "I request this check", **Continue**. **Add** three suggestion cards: **Salary and emoluments** (KRA: it has her declared income on record, a hint, never a value), the Fielder (KCX 214J, NTSA) and the Kiambu Ruiru parcel (ArdhiSasa). Leave the Prado, the Kajiado parcel and Afya Bora for the reviewer (beat E).
+3. **Read into the form**, one file per item: open the item, **Add document**, then the file's **Actions**, **Read into the form**, **Read document** (the kind is chosen for the item), and **Apply to this item** (about 10 seconds each with the real provider):
+   - the payslip on the salary: it fills the description and location, and leaves the amount for her (the payslip is one month, the form wants the whole income period);
+   - the logbook on the Fielder: the description she already has is kept and shown; tick **Use what was read** to take "Toyota Fielder station wagon";
+   - the title deed on the Ruiru parcel.
+
+   The AI suggests values for review (indicators, never findings).
+4. **Ask Adili** (panel, bottom right). Scripted questions, from the suggested list (the chips depend on the tab):
+   - Income tab: "What counts as a material change?" and "Do I declare my spouse's salary?"
+   - Assets tab: "How do I value my car?" (answered from the platform help article "Valuing your assets", with the First Schedule)
 
 ### D. Submit and QR slip (portal, Wanjiku)
 
-1. **Summary** (`/declarations/<id>/summary`), then **Submit declaration**.
+1. **Summary** (`/declarations/<id>/summary`): "3 things to complete before you can submit". Use each **Fix** link to type the figure: the salary's amount for the period (e.g. KES 6,240,000), the Fielder's value (e.g. 1,000,000) and the Ruiru parcel's value (e.g. 4,000,000). Back on **Summary**, **Submit declaration**.
 2. The submitted page (`/declarations/<id>/submitted`) offers **Download slip**. Judges scan its QR code with a phone: it opens the verify app (`/v/<verification id>`) and says Valid.
 
 ### E. Cross-checks and copilot (console, Achieng Njeri)
@@ -130,7 +134,7 @@ Sample files: `mocks/demo/files/` (`payslip-kemsa-june-2026.pdf`, `logbook-field
 
 ### J. Audit trail (console, Kariuki Muriithi)
 
-1. Act as **Kariuki Muriithi** (auditor). **Audit trail** (`/audit`): pick the **Reads** chip and open the newest event, the reviewer opening Wanjiku's case (beat E): every read of personal data is recorded, not only changes. Its drawer gives her person id; paste it into **Person** to list everything about her.
+1. Act as **Kariuki Muriithi** (auditor). **Audit trail** (`/audit`): pick the **Reads** chip and open the newest `review.case.viewed` event, the reviewer opening Wanjiku's case (beat E): every read of personal data is recorded, not only changes. Its drawer names her as the person the data is about, with the legal basis (`review-case` and the case id); paste her person id into **Person** to list everything about her.
 2. **Integrity** tab: **Verify** a chain. Each tenant's day is hash-chained and its head signed; editing any stored event shows as tampered.
 
 ### Q&A extra: why the platform admin cannot read the audit trail
@@ -169,7 +173,7 @@ Printed QR card: after the final reset, print the verify links from `.demo/verif
 
 | Checkpoint | State | Starts beats |
 | --- | --- | --- |
-| `0-start` | Seeded; Wanjiku has not started her current declaration | A, B, C, D |
+| `0-start` | Seeded; Wanjiku's current declaration is a draft holding what she carried over from 2024 (details, household, other information, no liabilities) | A, B, C, D |
 | `1-after-filing` | Wanjiku submitted; her case has its registry flags and copilot | E |
 | `2-after-review` | Wanjiku's clarification issued | F |
 | `3-form-m-ready` | PSC's Form M compiled and reviewed | G, H |
@@ -277,6 +281,7 @@ Set the demo service settings first (the table in [packages/demo-seed](../../pac
 - [ ] Reset to `0-start` (workflow `reset` `0-start`, or the demo panel).
 - [ ] `pnpm demo:check` green (workflow `check`): every mock off, AI provider real.
 - [ ] Warm the AI provider: one Ask Adili question and one copilot refresh before going on stage.
+- [ ] Replay fixtures match the script: after a change to `0-start` or to a scripted question, run beats C and E once from `0-start` with `pnpm demo:ai record` and commit the fixtures.
 - [ ] Sample files from `mocks/demo/files/` on the presenter's machine, in an easy folder.
 - [ ] Fresh verify codes (`pnpm demo:seed --only verify`) printed on the QR card.
 - [ ] Browser: one window, portal left, console right, zoom at 100%; a private window ready for beat B, with the console's Demo panel inbox beside it for the codes.
