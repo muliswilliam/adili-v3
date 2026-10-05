@@ -6,10 +6,10 @@ const labels = (roles: string[]) =>
   navFor(roles).map((group) => [group.label, group.items.map((item) => item.label)]);
 
 describe('navFor', () => {
-  it('shows EACC staff Commissions and National obligations under Platform, and Referrals received under EACC', () => {
+  it('shows EACC staff Commissions and National obligations under National, and Referrals received under EACC', () => {
     for (const role of ['eacc-analyst', 'eacc-supervisor']) {
       expect(labels([role])).toEqual([
-        ['Platform', ['Commissions', 'National obligations']],
+        ['National', ['Commissions', 'National obligations']],
         ['EACC', ['Compliance reports', 'Referrals received', 'Open data']],
       ]);
       expect(navFor([role])[1]?.items[1]?.to).toBe('/eacc/referrals');
@@ -30,28 +30,27 @@ describe('navFor', () => {
     );
   });
 
-  it('adds Law enforcement, Integrations, AI policy and Help articles under Platform for platform admins only (specs 10, 07b, 07c, 11)', () => {
+  it('adds Law enforcement, Integrations, AI policy and Help articles under Platform, and Account support, for platform admins only (specs 10, 07b, 07c, 11, 03)', () => {
     expect(labels(['platform-admin'])).toEqual([
-      [
-        'Platform',
-        [
-          'Commissions',
-          'National obligations',
-          'Law enforcement',
-          'Integrations',
-          'AI policy',
-          'Help articles',
-        ],
-      ],
+      ['National', ['Commissions', 'National obligations']],
+      ['Platform', ['Law enforcement accounts', 'Integrations', 'AI policy', 'Help articles']],
+      ['Support', ['Account support']],
     ]);
-    expect(navFor(['platform-admin'])[0]?.items.map((item) => item.to)).toEqual([
-      '/commissions',
-      '/obligations/national',
+    expect(navFor(['platform-admin'])[1]?.items.map((item) => item.to)).toEqual([
       '/platform/law-enforcement',
       '/platform/integrations',
       '/ai-policy',
       '/help',
     ]);
+  });
+
+  it('shows the helpdesk Account support under Support (spec 03)', () => {
+    expect(labels(['helpdesk'])).toEqual([['Support', ['Account support']]]);
+  });
+
+  it('uses each workspace icon in the sidebar, the one its home card shows', () => {
+    const [item] = navFor(['auditor']).flatMap((group) => group.items);
+    expect(item?.icon).toBeDefined();
   });
 
   it('shows law enforcement officers their Requests under Law enforcement (spec 10)', () => {
@@ -76,16 +75,29 @@ describe('navFor', () => {
     const groups = navFor(['platform-admin', 'commission-admin']);
     const help = groups.flatMap((group) => group.items).filter((item) => item.to === '/help');
     expect(help).toHaveLength(1);
-    expect(groups[0]?.items.at(-1)?.to).toBe('/help');
+    expect(groups[1]?.items.at(-1)?.to).toBe('/help');
   });
 
-  it('shows commission admins the Roster but not API access, which they cannot open', () => {
+  it('shows commission admins the Roster, Policy and Open data preview but not API access, which they cannot open', () => {
     expect(labels(['commission-admin'])).toEqual([
-      ['Commission', ['Roster', 'Obligations', 'Help articles']],
+      [
+        'Commission',
+        ['Roster', 'Obligations', 'Obligations policy', 'Open data preview', 'Help articles'],
+      ],
       ['Reporting', ['Form M']],
     ]);
     expect(labels(['commission-admin', 'reporting-officer'])).toEqual([
-      ['Commission', ['Roster', 'API access', 'Obligations', 'Help articles']],
+      [
+        'Commission',
+        [
+          'Roster',
+          'API access',
+          'Obligations',
+          'Obligations policy',
+          'Open data preview',
+          'Help articles',
+        ],
+      ],
       ['Reporting', ['Form M']],
     ]);
   });

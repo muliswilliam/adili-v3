@@ -1,3 +1,4 @@
+import type { IconProps } from '@adili/ui';
 import {
   ACCESS_OFFICER,
   AUDITOR,
@@ -15,23 +16,49 @@ import {
   REVIEWER,
   SUPERVISOR,
 } from '@adili/roles';
+import {
+  Building03Icon,
+  Calendar03Icon,
+  ChartColumnIcon,
+  CheckListIcon,
+  CustomerSupportIcon,
+  File01Icon,
+  FileSearchIcon,
+  Flag02Icon,
+  HelpCircleIcon,
+  InboxIcon,
+  Legal01Icon,
+  PieChartIcon,
+  PlugSocketIcon,
+  Settings01Icon,
+  Shield01Icon,
+  SquareLock02Icon,
+  SparklesIcon,
+  StampIcon,
+  UserGroupIcon,
+} from '@hugeicons/core-free-icons';
+
+/** A workspace's icon: the same in the sidebar and on its home card. */
+export type WorkspaceIcon = IconProps['icon'];
 
 export interface Workspace {
   id: string;
   title: string;
   description: string;
-  /** Where the workspace lives; absent while it is not built yet. */
-  href?: WorkspaceHref;
+  /** Where the workspace lives. */
+  href: WorkspaceHref;
   /** The user may look but not change anything. */
   readOnly: boolean;
+  icon: WorkspaceIcon;
 }
 
-/** Routes of workspaces that exist so far. */
+/** Where each workspace lives. */
 export type WorkspaceHref =
   | '/commissions'
   | '/roster'
   | '/obligations'
   | '/obligations/national'
+  | '/obligations/policy'
   | '/review'
   | '/approvals'
   | '/actions'
@@ -39,6 +66,7 @@ export type WorkspaceHref =
   | '/access/requests'
   | '/lea/requests'
   | '/platform/law-enforcement'
+  | '/platform/integrations'
   | '/ai-policy'
   | '/help'
   | '/form-m'
@@ -53,7 +81,8 @@ interface WorkspaceDefinition {
   id: string;
   title: string;
   description: string;
-  href?: WorkspaceHref;
+  href: WorkspaceHref;
+  icon: WorkspaceIcon;
   /** Realm roles that open the workspace. */
   roles: readonly string[];
   /** Roles that may also change things; everyone else in `roles` gets a read-only workspace. */
@@ -85,6 +114,12 @@ export const LEA_ROLES = [LAW_ENFORCEMENT] as const;
 
 /** Platform administrators provision and revoke law enforcement officers' accounts (spec 10). */
 export const PLATFORM_ROLES = [PLATFORM_ADMIN] as const;
+
+/**
+ * Who looks a person up by officer reference to help them sign in (spec 03): the helpdesk and
+ * platform admins, as the directory admits (`persons.controller.ts`).
+ */
+export const SUPPORT_ROLES = [HELPDESK, PLATFORM_ADMIN] as const;
 
 /** The Commission's own staff, who see its declarants' obligations (spec 04). */
 export const OBLIGATIONS_ROLES = COMMISSION_STAFF_ROLES;
@@ -136,6 +171,7 @@ export const HELP_WRITE_ROLES = [COMMISSION_ADMIN] as const;
 const WORKSPACES: WorkspaceDefinition[] = [
   {
     id: 'commissions',
+    icon: Building03Icon,
     title: 'Commissions',
     description: 'Create Responsible Commissions and assign their reporting officers.',
     readOnlyDescription: 'Responsible Commissions, their reporting officers and roster coverage.',
@@ -145,6 +181,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'national-obligations',
+    icon: ChartColumnIcon,
     title: 'National obligations',
     description: 'Due and overdue counts per Commission.',
     href: '/obligations/national',
@@ -152,6 +189,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'review',
+    icon: CheckListIcon,
     title: 'Review queue',
     description: 'Analyse declarations, raise clarifications and propose determinations.',
     href: '/review',
@@ -159,6 +197,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'approvals',
+    icon: StampIcon,
     title: 'Approvals',
     description: 'Approve determinations and administrative actions proposed by reviewers.',
     href: '/approvals',
@@ -166,6 +205,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'actions',
+    icon: Legal01Icon,
     title: 'Actions',
     description:
       'Approve the notices and warnings drafted for overdue declarations and clarifications.',
@@ -174,6 +214,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'referrals',
+    icon: Flag02Icon,
     title: 'Referrals',
     description: 'Referrals to EACC proposed by reviewers and the system, and where each stands.',
     href: '/referrals',
@@ -181,6 +222,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'access',
+    icon: SquareLock02Icon,
     title: 'Access requests',
     description: 'Decide Form K and law enforcement requests for declarations.',
     readOnlyDescription:
@@ -191,6 +233,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'lea',
+    icon: Shield01Icon,
     title: 'Law enforcement requests',
     description:
       'Send written requests for declarations to Commissions and download what is granted.',
@@ -199,6 +242,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'roster',
+    icon: UserGroupIcon,
     title: 'Declarant roster',
     description:
       "Import and maintain your Commission's roster and help officers who cannot onboard.",
@@ -209,6 +253,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'obligations',
+    icon: Calendar03Icon,
     title: 'Obligations',
     description: 'Who must declare, by when, and who has been reminded.',
     href: '/obligations',
@@ -216,6 +261,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'help',
+    icon: HelpCircleIcon,
     title: 'Help articles',
     description:
       "Write the help your Commission's declarants find in Ask Adili, and see what they ask.",
@@ -226,13 +272,17 @@ const WORKSPACES: WorkspaceDefinition[] = [
     writeRoles: HELP_WRITE_ROLES,
   },
   {
-    id: 'commission',
-    title: 'Commission administration',
-    description: 'Manage users, policies and document templates for your Commission.',
-    roles: [COMMISSION_ADMIN],
+    id: 'policy',
+    icon: Settings01Icon,
+    title: 'Obligations policy',
+    description:
+      "Your Commission's obligations start date and reminder offsets, and whether its declarants may use AI.",
+    href: '/obligations/policy',
+    roles: OWN_POLICY_ROLES,
   },
   {
     id: 'form-m',
+    icon: File01Icon,
     title: 'Form M',
     description: "Your Commission's compliance report to EACC, compiled from your data.",
     readOnlyDescription: "Your Commission's compliance report to EACC and where it stands.",
@@ -244,6 +294,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
     // Commission settings: the Commission's own rows of the current open-data release (spec 09b
     // S6). Its other staff do not see it; EACC sees every Commission's in its Open data.
     id: 'open-data-preview',
+    icon: PieChartIcon,
     title: 'Open data preview',
     description:
       "Your Commission's figures in the current open-data preview or latest release, suppressed as the public sees them.",
@@ -252,6 +303,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'compliance',
+    icon: InboxIcon,
     title: 'Compliance reports',
     description: 'Receive Form M reports and build the national consolidated report.',
     href: '/eacc/reports',
@@ -259,6 +311,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'referrals-intake',
+    icon: Flag02Icon,
     title: 'Referrals received',
     description: 'Referrals from Commissions with their evidence packages, handed to ICMS.',
     readOnlyDescription: 'Referrals from Commissions with their evidence packages and ICMS status.',
@@ -268,6 +321,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'open-data',
+    icon: PieChartIcon,
     title: 'Open data',
     description: 'Build and preview the open-data releases, suppressed for privacy.',
     href: '/eacc/open-data',
@@ -275,20 +329,32 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'audit',
+    icon: FileSearchIcon,
     title: 'Audit trail',
     description: 'Investigate who did what, and when, across the platform.',
     href: '/audit',
     roles: [AUDITOR],
   },
   {
-    id: 'support',
-    title: 'Account support',
-    description: 'Help users unlock accounts and recover access.',
-    href: '/support',
-    roles: [HELPDESK],
+    id: 'platform',
+    icon: Shield01Icon,
+    title: 'Law enforcement accounts',
+    description: "Provision and revoke law enforcement officers' accounts for their agencies.",
+    href: '/platform/law-enforcement',
+    roles: PLATFORM_ROLES,
+  },
+  {
+    id: 'integrations',
+    icon: PlugSocketIcon,
+    title: 'Integrations',
+    description:
+      'Registry coverage, health and pauses for KRA, NTSA, BRS, ArdhiSasa and the others.',
+    href: '/platform/integrations',
+    roles: PLATFORM_ROLES,
   },
   {
     id: 'ai-policy',
+    icon: SparklesIcon,
     title: 'AI policy',
     description: 'Which Commissions may use an AI provider, task routing and budgets.',
     href: '/ai-policy',
@@ -296,18 +362,19 @@ const WORKSPACES: WorkspaceDefinition[] = [
   },
   {
     id: 'platform-help',
+    icon: HelpCircleIcon,
     title: 'Help articles',
     description: 'Write the help every declarant finds in Ask Adili, and read the legal corpus.',
     href: '/help',
     roles: [PLATFORM_ADMIN],
   },
   {
-    id: 'platform',
-    title: 'Platform settings',
-    description:
-      'Operate the platform: law-enforcement accounts, tenants, integrations and configuration.',
-    href: '/platform/law-enforcement',
-    roles: PLATFORM_ROLES,
+    id: 'support',
+    icon: CustomerSupportIcon,
+    title: 'Account support',
+    description: 'Look a person up by officer reference to help them sign in.',
+    href: '/support',
+    roles: SUPPORT_ROLES,
   },
 ];
 
@@ -317,7 +384,7 @@ const holdsAny = (roles: readonly string[], wanted: readonly string[]) =>
 /** The console areas a user's roles give access to. */
 export function workspacesFor(roles: readonly string[]): Workspace[] {
   return WORKSPACES.filter((workspace) => holdsAny(roles, workspace.roles)).map(
-    ({ id, title, description, href, writeRoles, readOnlyDescription }) => {
+    ({ id, title, description, href, icon, writeRoles, readOnlyDescription }) => {
       const readOnly = writeRoles ? !holdsAny(roles, writeRoles) : false;
       return {
         id,
@@ -325,6 +392,7 @@ export function workspacesFor(roles: readonly string[]): Workspace[] {
         description: readOnly && readOnlyDescription ? readOnlyDescription : description,
         href,
         readOnly,
+        icon,
       };
     },
   );

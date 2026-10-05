@@ -1,31 +1,12 @@
 import type { IconProps } from '@adili/ui';
-import {
-  Building03Icon,
-  Calendar03Icon,
-  ChartColumnIcon,
-  CheckListIcon,
-  CustomerSupportIcon,
-  File01Icon,
-  FileSearchIcon,
-  Flag02Icon,
-  HelpCircleIcon,
-  InboxIcon,
-  Key01Icon,
-  Legal01Icon,
-  PlugSocketIcon,
-  Shield01Icon,
-  SquareLock02Icon,
-  SparklesIcon,
-  StampIcon,
-  UserGroupIcon,
-} from '@hugeicons/core-free-icons';
+import { Key01Icon } from '@hugeicons/core-free-icons';
 
 import { type WorkspaceHref, workspacesFor } from '../workspaces';
 
 type NavIcon = IconProps['icon'];
 
 /** Sidebar destinations: workspaces, and pages inside one that get their own entry. */
-export type NavHref = WorkspaceHref | '/roster/api-access' | '/platform/integrations';
+export type NavHref = WorkspaceHref | '/roster/api-access';
 
 export interface NavItem {
   label: string;
@@ -42,7 +23,8 @@ export interface NavGroup {
 
 interface NavDefinition {
   workspace: string;
-  icon: NavIcon;
+  /** Defaults to the workspace's icon, the one its home card shows. */
+  icon?: NavIcon;
   /** Defaults to the workspace's title. */
   label?: string;
   /** A page inside the workspace instead of the workspace itself. */
@@ -60,49 +42,50 @@ interface NavDefinition {
  */
 const NAV: { label: string; items: NavDefinition[] }[] = [
   {
+    // Every Commission at once: the platform admin and EACC.
+    label: 'National',
+    items: [{ workspace: 'commissions' }, { workspace: 'national-obligations' }],
+  },
+  {
     label: 'Platform',
     items: [
-      { workspace: 'commissions', icon: Building03Icon },
-      { workspace: 'national-obligations', icon: ChartColumnIcon },
-      { workspace: 'platform', icon: Shield01Icon, label: 'Law enforcement' },
-      {
-        workspace: 'platform',
-        icon: PlugSocketIcon,
-        label: 'Integrations',
-        to: '/platform/integrations',
-      },
-      { workspace: 'ai-policy', icon: SparklesIcon },
-      { workspace: 'platform-help', icon: HelpCircleIcon },
-      { workspace: 'support', icon: CustomerSupportIcon },
+      { workspace: 'platform' },
+      { workspace: 'integrations' },
+      { workspace: 'ai-policy' },
+      { workspace: 'platform-help' },
     ],
+  },
+  {
+    label: 'Support',
+    items: [{ workspace: 'support' }],
   },
   {
     label: 'EACC',
     // The intake, its reports and the national report all sit under /eacc/reports.
     items: [
-      { workspace: 'compliance', icon: InboxIcon, section: '/eacc/reports' },
-      { workspace: 'referrals-intake', icon: Flag02Icon },
-      { workspace: 'open-data', icon: ChartColumnIcon },
+      { workspace: 'compliance', section: '/eacc/reports' },
+      { workspace: 'referrals-intake' },
+      { workspace: 'open-data' },
     ],
   },
   {
     label: 'Oversight',
     // Its tabs (events, integrity) all sit under /audit.
-    items: [{ workspace: 'audit', icon: FileSearchIcon, section: '/audit' }],
+    items: [{ workspace: 'audit', section: '/audit' }],
   },
   {
     label: 'Law enforcement',
-    items: [{ workspace: 'lea', icon: Shield01Icon, label: 'Requests' }],
+    items: [{ workspace: 'lea', label: 'Requests' }],
   },
   {
     label: 'Access',
     // Its tabs (requests, certified copies) all sit under /access.
-    items: [{ workspace: 'access', icon: SquareLock02Icon, section: '/access' }],
+    items: [{ workspace: 'access', section: '/access' }],
   },
   {
     label: 'Commission',
     items: [
-      { workspace: 'roster', icon: UserGroupIcon, label: 'Roster' },
+      { workspace: 'roster', label: 'Roster' },
       // Credentials are the reporting officer's alone (the directory refuses anyone else).
       {
         workspace: 'roster',
@@ -111,32 +94,30 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
         to: '/roster/api-access',
         writeOnly: true,
       },
-      { workspace: 'obligations', icon: Calendar03Icon },
-      { workspace: 'help', icon: HelpCircleIcon },
+      { workspace: 'obligations' },
+      { workspace: 'policy' },
+      { workspace: 'open-data-preview' },
+      { workspace: 'help' },
     ],
   },
   {
     label: 'Review',
     items: [
-      { workspace: 'review', icon: CheckListIcon },
-      { workspace: 'approvals', icon: StampIcon },
-      { workspace: 'actions', icon: Legal01Icon },
-      { workspace: 'referrals', icon: Flag02Icon },
+      { workspace: 'review' },
+      { workspace: 'approvals' },
+      { workspace: 'actions' },
+      { workspace: 'referrals' },
     ],
   },
   {
     label: 'Reporting',
-    items: [{ workspace: 'form-m', icon: File01Icon }],
+    items: [{ workspace: 'form-m' }],
   },
 ];
 
 /** The sidebar for a user's roles; groups with nothing to show are left out. */
 export function navFor(roles: readonly string[]): NavGroup[] {
-  const open = new Map(
-    workspacesFor(roles).flatMap((workspace) =>
-      workspace.href ? [[workspace.id, { ...workspace, href: workspace.href }] as const] : [],
-    ),
-  );
+  const open = new Map(workspacesFor(roles).map((workspace) => [workspace.id, workspace] as const));
   // A page two workspaces share (Help articles, for a platform admin who also holds a Commission
   // role) is listed once, in the first group that has it.
   const listed = new Set<string>();
@@ -151,7 +132,7 @@ export function navFor(roles: readonly string[]): NavGroup[] {
         return [
           {
             label: label ?? entry.title,
-            icon,
+            icon: icon ?? entry.icon,
             to: href,
             ...(section ? { section } : {}),
           },

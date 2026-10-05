@@ -7,7 +7,6 @@ import {
   CardDescription,
   CardIcon,
   Icon,
-  type IconProps,
   SiteFooter,
   SiteHeader,
 } from '@adili/ui';
@@ -16,19 +15,8 @@ import {
   AlertCircleIcon,
   ArrowRight02Icon,
   Building03Icon,
-  Calendar03Icon,
-  ChartColumnIcon,
-  CheckmarkBadge01Icon,
   ClipboardCheckIcon,
-  CustomerSupportIcon,
   FileChartColumnIcon,
-  FileLockedIcon,
-  Home01Icon,
-  Search01Icon,
-  Settings01Icon,
-  SparklesIcon,
-  TaskDone01Icon,
-  UserGroupIcon,
 } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 import { z } from 'zod';
@@ -173,40 +161,9 @@ function Dashboard({ viewer }: { viewer: DashboardViewer }) {
   );
 }
 
-const WORKSPACE_ICONS: Record<string, IconProps['icon']> = {
-  commissions: Building03Icon,
-  'national-obligations': ChartColumnIcon,
-  review: TaskDone01Icon,
-  approvals: CheckmarkBadge01Icon,
-  access: FileLockedIcon,
-  roster: UserGroupIcon,
-  obligations: Calendar03Icon,
-  commission: Home01Icon,
-  'open-data-preview': ChartColumnIcon,
-  compliance: FileChartColumnIcon,
-  audit: Search01Icon,
-  support: CustomerSupportIcon,
-  'ai-policy': SparklesIcon,
-  platform: Settings01Icon,
-};
-
 /** A workspace as the prototype's `.ws` card: icon tile, title, description and "Open". */
 function WorkspaceCard({ workspace }: { workspace: Workspace }) {
-  const icon = WORKSPACE_ICONS[workspace.id] ?? Building03Icon;
-  if (!workspace.href) {
-    return (
-      <li className="flex min-h-[150px] flex-col gap-2.5 rounded-2xl bg-card p-5 shadow-card">
-        <CardIcon className="mb-0 size-[38px] text-muted-foreground [&_svg]:size-[19px]">
-          <Icon icon={icon} />
-        </CardIcon>
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-base font-semibold tracking-[-0.01em]">{workspace.title}</h3>
-          <Badge>Not yet available</Badge>
-        </div>
-        <p className="text-sm leading-[1.45] text-muted-foreground">{workspace.description}</p>
-      </li>
-    );
-  }
+  const { icon } = workspace;
   return (
     <li className="relative flex min-h-[150px] flex-col gap-2.5 rounded-2xl bg-card p-5 shadow-card transition-shadow hover:shadow-card-hover">
       <CardIcon className="mb-0 size-[38px] bg-brand-subtle text-brand-subtle-foreground [&_svg]:size-[19px]">

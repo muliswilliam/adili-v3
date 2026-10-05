@@ -3,7 +3,7 @@ export const messages = {
   title: 'Account support',
   intro:
     'Find a person by their officer reference to help them sign in or recover access. You see account details only, never their roster records or declarations, and every lookup is recorded in the audit trail.',
-  noAccess: 'Account support is for the helpdesk.',
+  noAccess: 'Account support is for the helpdesk and platform admins.',
   search: {
     label: 'Look up a person',
     field: 'Officer reference',

@@ -87,7 +87,7 @@ describe('Help articles workspace (spec 11)', () => {
 
 describe('S18 Commissions workspace', () => {
   it('opens for platform admins with write access', () => {
-    expect(workspaceFor(['platform-admin'], 'commissions')).toEqual({
+    expect(workspaceFor(['platform-admin'], 'commissions')).toMatchObject({
       id: 'commissions',
       title: 'Commissions',
       description: 'Create Responsible Commissions and assign their reporting officers.',
@@ -121,16 +121,38 @@ describe('S18 Commissions workspace', () => {
     expect(workspaceFor(['eacc-analyst', 'platform-admin'], 'commissions')?.readOnly).toBe(false);
   });
 
-  it('leaves workspaces that are not built yet without a link', () => {
-    expect(workspaceFor(['commission-admin'], 'commission')).toMatchObject({ readOnly: false });
-    expect(workspaceFor(['commission-admin'], 'commission')?.href).toBeUndefined();
+  it('gives every role only workspaces that open, each with its icon (no placeholder cards)', () => {
+    const everyRole = [
+      'reporting-officer',
+      'reviewer',
+      'supervisor',
+      'commission-admin',
+      'access-officer',
+      'eacc-analyst',
+      'eacc-supervisor',
+      'auditor',
+      'helpdesk',
+      'platform-admin',
+      'law-enforcement',
+    ];
+    for (const workspace of workspacesFor(everyRole)) {
+      expect(workspace.href, workspace.id).toMatch(/^\//);
+      expect(workspace.icon, workspace.id).toBeDefined();
+    }
   });
 
-  it('opens account support for the helpdesk only (spec 03)', () => {
-    expect(workspaceFor(['helpdesk'], 'support')).toMatchObject({
-      href: '/support',
+  it("opens the commission admin's obligations policy from home", () => {
+    expect(workspaceFor(['commission-admin'], 'policy')).toMatchObject({
+      href: '/obligations/policy',
       readOnly: false,
     });
+    expect(workspaceFor(['reporting-officer'], 'policy')).toBeUndefined();
+  });
+
+  it('opens account support for the helpdesk and platform admins, as the directory does (spec 03)', () => {
+    for (const role of ['helpdesk', 'platform-admin']) {
+      expect(workspaceFor([role], 'support')).toMatchObject({ href: '/support', readOnly: false });
+    }
     expect(workspaceFor(['reviewer'], 'support')).toBeUndefined();
   });
 
@@ -165,7 +187,7 @@ describe('S18 Commissions workspace', () => {
 
 describe('Roster workspace', () => {
   it('opens for reporting officers with write access', () => {
-    expect(workspaceFor(['reporting-officer'], 'roster')).toEqual({
+    expect(workspaceFor(['reporting-officer'], 'roster')).toMatchObject({
       id: 'roster',
       title: 'Declarant roster',
       description:
@@ -202,7 +224,7 @@ describe('Obligations workspace', () => {
   it.each(['reporting-officer', 'reviewer', 'supervisor', 'commission-admin'])(
     'opens for %s',
     (role) => {
-      expect(workspaceFor([role], 'obligations')).toEqual({
+      expect(workspaceFor([role], 'obligations')).toMatchObject({
         id: 'obligations',
         title: 'Obligations',
         description: 'Who must declare, by when, and who has been reminded.',
@@ -222,7 +244,7 @@ describe('Obligations workspace', () => {
 
 describe('Access requests workspace (spec 10)', () => {
   it('opens for the access officer, who acts', () => {
-    expect(workspaceFor(['access-officer'], 'access')).toEqual({
+    expect(workspaceFor(['access-officer'], 'access')).toMatchObject({
       id: 'access',
       title: 'Access requests',
       description: 'Decide Form K and law enforcement requests for declarations.',
@@ -232,7 +254,7 @@ describe('Access requests workspace (spec 10)', () => {
   });
 
   it('opens read-only for the supervisor', () => {
-    expect(workspaceFor(['supervisor'], 'access')).toEqual({
+    expect(workspaceFor(['supervisor'], 'access')).toMatchObject({
       id: 'access',
       title: 'Access requests',
       description:
@@ -257,7 +279,7 @@ describe('Access requests workspace (spec 10)', () => {
 
 describe('Law enforcement requests workspace (spec 10 FE-6)', () => {
   it('opens for law enforcement officers, and only them', () => {
-    expect(workspacesFor(['law-enforcement'])).toEqual([
+    expect(workspacesFor(['law-enforcement'])).toMatchObject([
       {
         id: 'lea',
         title: 'Law enforcement requests',
@@ -330,7 +352,7 @@ describe('S15 Compliance reports workspace (EACC intake)', () => {
 
 describe('S16 National obligations workspace', () => {
   it.each(['platform-admin', 'eacc-analyst', 'eacc-supervisor'])('opens for %s', (role) => {
-    expect(workspaceFor([role], 'national-obligations')).toEqual({
+    expect(workspaceFor([role], 'national-obligations')).toMatchObject({
       id: 'national-obligations',
       title: 'National obligations',
       description: 'Due and overdue counts per Commission.',

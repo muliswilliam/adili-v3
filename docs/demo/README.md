@@ -49,6 +49,7 @@ flowchart LR
   F --> G[G. Form M<br/>Mwangi Wairimu]
   G --> H[H. EACC intake, NCR,<br/>narrative, open data<br/>Baraka Mutua]
   H --> I[I. Public open data<br/>+ verify]
+  I --> J[J. Audit trail<br/>Kariuki Muriithi]
   classDef live fill:#e8f3ec,stroke:#1f7a4d;
   class A,B,C,D,E live;
 ```
@@ -66,6 +67,7 @@ Live: A to E, Wanjiku's case end to end, in the 5-minute demo. Seeded: F to I, s
 | G. Form M | `3-form-m-ready` | 0:45 | Seeded (confirm is live) |
 | H. EACC intake, NCR, open data | `3-form-m-ready` | 1:00 | Seeded |
 | I. Public open data and verify | any | 0:45 | Seeded |
+| J. Audit trail | any (after E shows the reviewer's reads) | 0:30 | Seeded |
 
 ### A. Roster import (console, Grace Mutiso)
 
@@ -107,7 +109,7 @@ Sample files: `mocks/demo/files/` (`payslip-kemsa-june-2026.pdf`, `logbook-field
 
 1. Act as **Achieng Njeri**: Wanjiku's clarification is issued (Prado, Kajiado).
 2. Act as **Kiprono Chebet** (portal, **Clarifications**, `/clarifications`): his AI-drafted clarification on KRA non-compliance awaits his reply.
-3. Act as **David Ochieng**: **Approvals** (`/approvals`) holds Otieno's proposed determination (reviewer is not the approver); **Actions** (`/actions`) shows a notice to comply and a warning, and a salary stoppage the payroll mock acknowledged; **Bulk closure** (`/approvals/bulk-closure`).
+3. Act as **David Ochieng**: **Approvals** (`/approvals`) holds Otieno's proposed determination (reviewer is not the approver); **Actions** (`/actions`) shows a notice to comply and a warning, and a salary stoppage the payroll mock acknowledged; **Bulk closure** (the **Bulk closure** button at the top of Approvals).
 
 ### G. Form M (console, Mwangi Wairimu, from `3-form-m-ready`)
 
@@ -125,6 +127,15 @@ Sample files: `mocks/demo/files/` (`payslip-kemsa-june-2026.pdf`, `logbook-field
 
 1. Portal **Open data** (`/open-data`): FY 2025/2026, version 2. Small cells are suppressed.
 2. Verify app: scan or paste the codes from the [verify table](#verify-statuses).
+
+### J. Audit trail (console, Kariuki Muriithi)
+
+1. Act as **Kariuki Muriithi** (auditor). **Audit trail** (`/audit`): pick the **Reads** chip and open the newest event, the reviewer opening Wanjiku's case (beat E): every read of personal data is recorded, not only changes. Its drawer gives her person id; paste it into **Person** to list everything about her.
+2. **Integrity** tab: **Verify** a chain. Each tenant's day is hash-chained and its head signed; editing any stored event shows as tampered.
+
+### Q&A extra: why the platform admin cannot read the audit trail
+
+ADR-008: "Access to the audit trail is restricted to auditor and investigator roles, and reading the audit trail is itself audited." The platform admin runs the system, so it is kept out of the record of what operators did (segregation of duties). Show it as Kariuki Muriithi, the auditor.
 
 ### Q&A extra: graceful degradation
 
