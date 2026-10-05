@@ -101,7 +101,7 @@ export class CopilotRequests {
   async request(request: CopilotRequest): Promise<void> {
     const { tenant, caseId } = request;
     const context = { tenant, subject: request.actingSubject };
-    const { row, flags, record, checks } = await withTenant(this.db, context, async (tx) => ({
+    const { row, flags, record } = await withTenant(this.db, context, async (tx) => ({
       row: await caseOf(tx, tenant, caseId),
       flags: await tx
         .select()
@@ -109,19 +109,26 @@ export class CopilotRequests {
         .where(eq(reviewFlags.caseId, caseId))
         .orderBy(asc(reviewFlags.createdAt), asc(reviewFlags.id)),
       record: await copilotOf(tx, caseId),
-      checks: await tx
-        .select({
-          personKey: registryChecks.personKey,
-          system: registryChecks.system,
-          status: registryChecks.status,
-          versionId: registryChecks.versionId,
-        })
-        .from(registryChecks)
-        .where(eq(registryChecks.caseId, caseId)),
     }));
     // The case of a request is never deleted; one invisible here asks nothing of the gateway.
     if (!row) return;
 
+    // The registry check of the version the summary is for (spec 07b, #603).
+    const checks = await withTenant(this.db, context, (tx) =>
+      tx
+        .select({
+          personKey: registryChecks.personKey,
+          system: registryChecks.system,
+          status: registryChecks.status,
+        })
+        .from(registryChecks)
+        .where(
+          and(
+            eq(registryChecks.caseId, caseId),
+            eq(registryChecks.versionId, row.currentVersionId),
+          ),
+        ),
+    );
     const read: ReadContext = { tenant, actingSubject: request.actingSubject, caseId };
     const current = await this.pull(row.declarationId, row.currentVersion, read);
     const previousRef = await this.declarations.findPreviousVersion(
@@ -136,10 +143,7 @@ export class CopilotRequests {
       current: current.document as unknown as DeclarationV1,
       previous: (previous?.document ?? null) as unknown as DeclarationV1 | null,
       flags,
-      // The registry check of the version the summary is for (spec 07b, #603).
-      registryStatuses: registryStatusesOf(
-        checks.filter((check) => check.versionId === row.currentVersionId),
-      ),
+      registryStatuses: registryStatusesOf(checks),
     });
 
     const registryCheckedAt =

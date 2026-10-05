@@ -17,7 +17,12 @@ import {
   score,
 } from '../rules/index.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
-import type { CheckStatus, RegistryCheckRequest, RegistryCheckResult } from './contract.js';
+import type {
+  CheckStatus,
+  RegistryCheckRequest,
+  RegistryCheckResult,
+  StoredStatus,
+} from './contract.js';
 import { REVIEW_REGISTRY_CHECKED, type RegistryCheckedData } from './events.js';
 import { registryChecks } from './schema.js';
 
@@ -66,8 +71,10 @@ export async function storeRegistryCheck(
     if (sequence < found.storedRegistryCheck) return { outcome: 'stale' };
     // This check is stored already (the activity retried after its commit): the same lookups
     // match the same, so nothing to write, no second timeline entry or event.
+    // A retry after the first attempt committed cannot tell what that attempt changed: it says
+    // `changed`, so the sweep refreshes the copilot at worst once more, never leaves it behind.
     if (sequence === found.storedRegistryCheck) {
-      return checkedResult(match, await lastCheckedAt(tx, found.id), false);
+      return checkedResult(match, await storedAt(tx, found.id), true);
     }
 
     const versionFlags = await tx
@@ -133,8 +140,7 @@ export async function storeRegistryCheck(
       );
     }
 
-    // The check's time is the database's, as the timeline's: the case's other entries are too.
-    const before = await tx
+    const before: StoredStatus[] = await tx
       .select({
         personKey: registryChecks.personKey,
         system: registryChecks.system,
@@ -143,6 +149,7 @@ export async function storeRegistryCheck(
       .from(registryChecks)
       .where(eq(registryChecks.caseId, found.id));
     await tx.delete(registryChecks).where(eq(registryChecks.caseId, found.id));
+    // The check's time is the database's, as the timeline's: the case's other entries are too.
     if (match.checks.length > 0) {
       await tx.insert(registryChecks).values(
         match.checks.map((entry) => ({
@@ -207,7 +214,7 @@ export async function storeRegistryCheck(
         checks: statuses,
       },
     });
-    return checkedResult(match, await lastCheckedAt(tx, found.id), statusesChanged(before, match));
+    return checkedResult(match, await storedAt(tx, found.id), statusesChanged(before, match));
   });
 }
 
@@ -225,22 +232,27 @@ function checkedResult(
   };
 }
 
-/** The time the case's statuses were stored: the transaction's, when it stored none. */
-async function lastCheckedAt(tx: ReviewTransaction, caseId: string): Promise<string> {
+/**
+ * When the case's latest check was stored: its statuses' time, or, for a check that stored none,
+ * its timeline entry's. Read back from the database, so a retried store answers the same time.
+ */
+async function storedAt(tx: ReviewTransaction, caseId: string): Promise<string> {
   const [row] = await tx
-    .select({ at: sql<Date | string>`coalesce(max(${registryChecks.checkedAt}), now())` })
-    .from(registryChecks)
-    .where(eq(registryChecks.caseId, caseId));
-  return new Date(row?.at ?? Date.now()).toISOString();
+    .select({
+      at: sql<Date | string>`coalesce(
+        (select max(${registryChecks.checkedAt}) from ${registryChecks} where ${registryChecks.caseId} = ${caseId}),
+        (select max(${reviewTimeline.at}) from ${reviewTimeline} where ${reviewTimeline.caseId} = ${caseId} and ${reviewTimeline.kind} = 'registry-checked'),
+        now())`,
+    })
+    .from(reviewCases)
+    .where(eq(reviewCases.id, caseId));
+  if (!row) throw new Error(`case ${caseId} vanished inside its own transaction`);
+  return new Date(row.at).toISOString();
 }
 
 /** Whether any person's status in any registry differs between two checks of a case. */
-function statusesChanged(
-  before: readonly { personKey: string; system: string; status: string }[],
-  match: RegistryMatch,
-): boolean {
-  const key = (entry: { personKey: string; system: string; status: string }) =>
-    `${entry.personKey} ${entry.system} ${entry.status}`;
+function statusesChanged(before: readonly StoredStatus[], match: RegistryMatch): boolean {
+  const key = (entry: StoredStatus) => `${entry.personKey} ${entry.system} ${entry.status}`;
   const previous = new Set(before.map(key));
   const now = new Set(match.checks.map(key));
   return previous.size !== now.size || [...now].some((entry) => !previous.has(entry));

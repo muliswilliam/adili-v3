@@ -103,8 +103,8 @@ export function anyToLookUpAgain(lookups: RegistryLookups): boolean {
  * schedule: checks the registries again for the open cases with a registry still unavailable,
  * oldest check first, as `planRegistrySweep` paces them under the systems' rate limits (each case
  * starting once the systems it looks up have room for it, until the plan's window closes), at
- * most `SWEEP_CONCURRENCY` at once. Each check is a `registryCheck` child; one that fails leaves
- * its case for the next run.
+ * most `SWEEP_CONCURRENCY` at once. Each check is a `registryRecheck` child, which refreshes the
+ * case's copilot when a status changed (#603); one that fails leaves its case for the next run.
  */
 export async function registrySweep(): Promise<RegistrySweepResult> {
   const plan = await planRegistrySweep();

@@ -149,6 +149,13 @@ export type RegistryCheckResult =
     }
   | { outcome: 'stale' };
 
+/** A person's status in a registry as stored on the case: what a check changes, what the summary reads. */
+export interface StoredStatus {
+  personKey: string;
+  system: string;
+  status: string;
+}
+
 /**
  * When a re-check asks the copilot anew (#603): `always` for a reviewer's re-check, `if-changed`
  * for the sweep, so an hourly sweep that learns nothing new costs no AI call.

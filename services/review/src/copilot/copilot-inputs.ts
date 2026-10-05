@@ -8,6 +8,7 @@ import type {
   SummarizeDeclarationInput,
 } from '../ai-gateway/ai-gateway-client.js';
 import type { reviewFlags } from '../cases/schema.js';
+import type { StoredStatus } from '../registry/contract.js';
 import {
   match,
   type PlacedItem,
@@ -27,16 +28,20 @@ export interface RegistryStatus {
  * officer's by the registry's name, a spouse's or child's as `<registry> · spouse` or `· child`
  * (never their identifiers), in a fixed order so the same checks make the same input.
  */
-export function registryStatusesOf(
-  checks: readonly { personKey: string; system: string; status: string }[],
-): RegistryStatus[] {
+export function registryStatusesOf(checks: readonly StoredStatus[]): RegistryStatus[] {
+  const byCode = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
   return checks
     .map(({ personKey, system, status }) => ({
-      system:
-        personKey === 'officer' ? system : `${system} · ${personKey.split(':')[0] ?? personKey}`,
+      system: personKey === 'officer' ? system : `${system} · ${whose(personKey)}`,
       status,
     }))
-    .sort((a, b) => a.system.localeCompare(b.system) || a.status.localeCompare(b.status));
+    .sort((a, b) => byCode(a.system, b.system) || byCode(a.status, b.status));
+}
+
+/** `spouse` or `child`: a statement person key without its id (`spouse:<id>`). */
+function whose(personKey: string): string {
+  const colon = personKey.indexOf(':');
+  return colon < 0 ? personKey : personKey.slice(0, colon);
 }
 
 /** What the copilot's inputs are built from: data the review service already holds or pulls. */
