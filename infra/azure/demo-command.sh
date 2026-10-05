@@ -4,6 +4,8 @@
 #
 #   infra/azure/demo-command.sh seed
 #   infra/azure/demo-command.sh reset 0-start
+#   infra/azure/demo-command.sh checkpoints [<from>]   play the beats and capture every checkpoint
+#   infra/azure/demo-command.sh checkpoint [<name>]    capture the stack as <name>; list without
 #   infra/azure/demo-command.sh ai replay|anthropic|record
 #   infra/azure/demo-command.sh check
 #   infra/azure/demo-command.sh health
@@ -108,6 +110,20 @@ case "$cmd" in
     fi
     run pnpm demo:reset "$arg"
     ;;
+  checkpoints)
+    if [ -n "$arg" ]; then
+      run pnpm demo:checkpoints --from "$arg"
+    else
+      run pnpm demo:checkpoints
+    fi
+    ;;
+  checkpoint)
+    if [ -n "$arg" ]; then
+      run pnpm demo:checkpoint "$arg"
+    else
+      run "$ROOT/scripts/demo-checkpoint.sh" list
+    fi
+    ;;
   ai)
     case "$arg" in
       anthropic | record | replay) run pnpm demo:ai "$arg" ;;
@@ -121,7 +137,7 @@ case "$cmd" in
   health) run pnpm health ;;
   diagnose) diagnose ;;
   *)
-    echo "usage: $0 seed|reset <checkpoint>|ai <mode>|check|health|diagnose" >&2
+    echo "usage: $0 seed|reset <checkpoint>|checkpoints [<from>]|checkpoint [<name>]|ai <mode>|check|health|diagnose" >&2
     exit 2
     ;;
 esac

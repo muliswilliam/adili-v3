@@ -1,7 +1,7 @@
 name: Azure demo command
 
 # Runs one allow-listed demo command on the Azure VM (infra/azure/demo-command.sh): seed the demo,
-# reset it to a checkpoint, switch the AI provider, or check it. See docs/demo/README.md.
+# capture or reset its checkpoints, switch the AI provider, or check it. See docs/demo/README.md.
 
 on:
   workflow_dispatch:
@@ -9,10 +9,10 @@ on:
       command:
         description: Command
         type: choice
-        options: [check, health, diagnose, seed, reset, ai]
+        options: [check, health, diagnose, seed, checkpoints, checkpoint, reset, ai]
         default: check
       argument:
-        description: 'Checkpoint for reset (e.g. 0-start); mode for ai (anthropic, record, replay)'
+        description: 'reset: checkpoint (e.g. 0-start); checkpoints: first to capture (default all); checkpoint: name to capture (empty lists them); ai: anthropic, record or replay'
         type: string
         required: false
 
