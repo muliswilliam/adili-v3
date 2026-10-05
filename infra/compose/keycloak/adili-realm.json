@@ -1610,20 +1610,20 @@
       "authenticationExecutions": [
         {
           "requirement": "ALTERNATIVE",
-          "priority": 10,
-          "userSetupAllowed": false,
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "authenticator": "auth-cookie"
-        },
-        {
-          "requirement": "ALTERNATIVE",
-          "priority": 15,
+          "priority": 5,
           "userSetupAllowed": false,
           "authenticatorFlow": false,
           "autheticatorFlow": false,
           "authenticator": "adili-demo",
           "authenticatorConfig": "adili-demo"
+        },
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "auth-cookie"
         },
         {
           "requirement": "ALTERNATIVE",

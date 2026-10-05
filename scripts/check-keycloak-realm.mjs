@@ -155,12 +155,17 @@ if (otpConfig && !otpConfig.clientSecret?.startsWith('${vault.')) {
 
 // Demo sign-in (#616): a signed ticket signs in an account with a demo_key attribute, with no
 // password or code. The authenticator is inert unless Keycloak runs with ADILI_DEMO_MODE=true;
-// here it may only be an alternative of the top-level browser flow, keyed by a vault secret.
+// here it may only be the first alternative of the top-level browser flow (before the SSO cookie,
+// so a switch never reuses the previous account's session), keyed by a vault secret.
 for (const flow of realm.authenticationFlows ?? []) {
   for (const execution of flow.authenticationExecutions ?? []) {
     if (execution.authenticator !== 'adili-demo') continue;
     if (flow.alias !== 'adili browser' || execution.requirement !== 'ALTERNATIVE') {
       fail(`adili-demo may only be an ALTERNATIVE in adili browser, not ${flow.alias}`);
+    } else if (
+      flow.authenticationExecutions.some((other) => (other.priority ?? 0) < execution.priority)
+    ) {
+      fail('adili-demo must come first in adili browser, before the SSO cookie');
     }
     const demoConfig = configs.get(execution.authenticatorConfig);
     if (!demoConfig?.ticketSecret?.startsWith('${vault.')) {

@@ -10,7 +10,7 @@ Demo users in the file are a local convenience. #371 can replace them with seed 
 
 | Flow | What it does |
 | --- | --- |
-| `adili browser` | Cookie, demo ticket (`adili-demo`, demo mode only), broker, then forms |
+| `adili browser` | Demo ticket (`adili-demo`, demo mode only), cookie, broker, then forms |
 | `adili password` | Username/password at LoA 1 (stays valid for the SSO session) |
 | `adili otp` | LoA 2, max age 180 seconds (the 300 s submit window less a 120 s margin, so a silent step-up still leaves time to submit). A step-up request with `acr_values=step-up` re-runs only this |
 | `adili declarant otp` | Role `declarant`. `adili-otp`: a code by SMS, email as fallback |
@@ -23,7 +23,7 @@ Step-up before submission (spec 06): the portal's `/auth/step-up` (`Bff.stepUp` 
 
 ## Demo sign-in (#616)
 
-The hackathon demo switches roles in one click, so demo accounts sign in with no password or code. The `adili-demo` authenticator (apps/keycloak-extension) sits right after the SSO cookie in `adili browser`. It is inert unless Keycloak runs with `ADILI_DEMO_MODE=true` (compose: off unless set; the Azure overlay and CI turn it on).
+The hackathon demo switches roles in one click, so demo accounts sign in with no password or code. The `adili-demo` authenticator (apps/keycloak-extension) runs first in `adili browser`, before the SSO cookie, so a ticket decides who signs in: a ticket for another account ends the browser's SSO session for the previous one (the other app's session then lapses at its next token refresh) instead of reusing it. It is inert unless Keycloak runs with `ADILI_DEMO_MODE=true` (compose: off unless set; the Azure overlay and CI turn it on).
 
 - The app sends a `demo_ticket` parameter with the authorize request: `v1.<payload>.<HMAC-SHA256>`, minted by `mintDemoTicket` in `packages/demo-auth` with the vault secret `demo-ticket-secret` (`vault-dev/adili_demo-ticket-secret`, development only). Tickets live at most 120 s and work once.
 - A ticket names an account by its admin-only `demo_key` attribute, never by username, so only demo accounts can be signed in this way. Every demo user in this file has one; the demo seed gives the declarant personas theirs.

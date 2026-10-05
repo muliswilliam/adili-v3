@@ -2,7 +2,7 @@
 // Applies demo sign-in (#616) to a running Keycloak whose adili realm was imported before it
 // existed: Keycloak imports the realm file only when the realm is missing, so edits never reach an
 // existing one. Idempotent. From the realm file it applies:
-//   - the adili-demo execution (ALTERNATIVE, right after the SSO cookie) and its config in the
+//   - the adili-demo execution (ALTERNATIVE, first, before the SSO cookie) and its config in the
 //     adili browser flow
 //   - the admin-only demo_key user profile attribute
 //   - each demo user's demo_key and display name
@@ -108,12 +108,11 @@ async function ensureExecution() {
   if (execution.requirement !== wanted.requirement) {
     await call('PUT', `${flowPath}/executions`, { ...execution, requirement: wanted.requirement });
   }
-  // Right after the SSO cookie: a demo ticket wins over the forms, and a step-up passes too.
+  // First, before the SSO cookie: a ticket decides who signs in, so a switch never reuses the
+  // previous account's SSO session.
   for (;;) {
     const top = (await call('GET', `${flowPath}/executions`)).filter((each) => each.level === 0);
-    const index = top.findIndex((each) => each.id === execution.id);
-    const cookie = top.findIndex((each) => each.providerId === 'auth-cookie');
-    if (index <= cookie + 1) break;
+    if (top.findIndex((each) => each.id === execution.id) === 0) break;
     await call('POST', `${admin}/authentication/executions/${execution.id}/raise-priority`);
   }
   if (!execution.authenticationConfig) {

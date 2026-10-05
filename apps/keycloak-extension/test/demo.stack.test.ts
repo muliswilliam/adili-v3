@@ -36,12 +36,33 @@ function authorizeUrl(extra: Record<string, string>): string {
     scope: 'openid',
     state: 'state-1',
     nonce: 'nonce-1',
-    // The clients require PKCE; the code is never exchanged here.
+    // The clients require PKCE: RFC 7636's example challenge, for VERIFIER.
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
     code_challenge_method: 'S256',
     ...extra,
   }).toString();
   return url.toString();
+}
+
+const VERIFIER = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+
+/** Exchanges the code in a console callback URL; returns the access token's claims. */
+async function exchange(callback: string | undefined): Promise<Record<string, unknown>> {
+  const code = new URL(callback ?? '').searchParams.get('code') ?? '';
+  const response = await fetch(`${ISSUER}/protocol/openid-connect/token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: CONSOLE.redirectUri,
+      client_id: CONSOLE.clientId,
+      client_secret: CONSOLE.clientSecret,
+      code_verifier: VERIFIER,
+    }),
+  });
+  if (!response.ok) throw new Error(`token: ${response.status} ${await response.text()}`);
+  return payloadOf(((await response.json()) as { access_token: string }).access_token);
 }
 
 /** Where the request ends: the console's callback with a code, or a Keycloak page. */
@@ -101,6 +122,25 @@ describe('demo sign-in (#616)', () => {
       }),
     );
     expect(stepUp.location).toMatch(/^http:\/\/localhost:3020\/auth\/callback\?.*code=/);
+  });
+
+  it('switches a signed-in browser to another account and ends the previous SSO session', async () => {
+    const browser = new Browser(KEYCLOAK);
+    const first = await signInWith(
+      mintDemoTicket({ demoKey: 'reporting-officer', secret: SECRET }),
+      browser,
+    );
+    expect((await exchange(first.location)).preferred_username).toBe('reporting-officer');
+
+    const switched = await signInWith(
+      mintDemoTicket({ demoKey: 'eacc-analyst', secret: SECRET }),
+      browser,
+    );
+    expect((await exchange(switched.location)).preferred_username).toBe('eacc-analyst');
+
+    // No ticket: the SSO cookie now signs in the account switched to, not the previous one.
+    const again = await browser.get(authorizeUrl({}));
+    expect((await exchange(again.location)).preferred_username).toBe('eacc-analyst');
   });
 
   it('falls through to the password form for a reused ticket', async () => {
