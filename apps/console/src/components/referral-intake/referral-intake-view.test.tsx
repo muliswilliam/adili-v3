@@ -100,11 +100,29 @@ async function open(filter: IntakeFilter = 'all') {
   await screen.findByRole('table', { name: 'Referrals received from Commissions' });
 }
 
+/** The table's row (jsdom applies no container queries, so the table and the cards both render). */
 function row(reference: string) {
-  const cell = screen.getByText(reference);
-  const tr = cell.closest('tr');
+  const table = screen.getByRole('table', { name: 'Referrals received from Commissions' });
+  const tr = within(table).getByText(reference).closest('tr');
   if (!tr) throw new Error(`no row for ${reference}`);
   return within(tr);
+}
+
+/** The phone card of a referral. */
+function card(reference: string) {
+  const cards = screen.getByRole('list', { name: 'Referrals received from Commissions' });
+  const li = within(cards).getByText(reference).closest('li');
+  if (!li) throw new Error(`no card for ${reference}`);
+  return within(li);
+}
+
+/** The container query that shows or hides an element: its own, or its nearest ancestor's. */
+function breakpoint(element: Element) {
+  for (let at: Element | null = element; at; at = at.parentElement) {
+    const query = /\S*@\[\d+px\]\S*/u.exec(at.className)?.[0];
+    if (query) return query;
+  }
+  return null;
 }
 
 beforeEach(() => {
@@ -315,5 +333,67 @@ describe('ReferralIntakeView (spec 09 FE-5, S12, S15)', () => {
     const drawer = await screen.findByRole('dialog', { name: 'RFL-NPSC-2026-0000012-4' });
     expect(within(drawer).queryByRole('button', { name: 'Retry' })).toBeNull();
     expect(within(drawer).getByRole('button', { name: 'Download' })).toBeTruthy();
+  });
+
+  describe('on a phone (#542)', () => {
+    it('swaps the table for cards under the same breakpoint', async () => {
+      await open();
+      const table = screen.getByRole('table', { name: 'Referrals received from Commissions' });
+      const cards = screen.getByRole('list', { name: 'Referrals received from Commissions' });
+      expect(breakpoint(table)).toBe('@[800px]:block');
+      expect(breakpoint(cards)).toBe('@[800px]:hidden');
+    });
+
+    it('shows each referral as a card with its Commission, sent date, grounds and ICMS status', async () => {
+      await open();
+      const notPushed = card('RFL-PSC-2026-0000003-7');
+      expect(notPushed.getByText(/^Public Service Commission · \d+ \w+ 2026$/)).toBeTruthy();
+      expect(notPushed.getByText('Two missed biennial cycles')).toBeTruthy();
+      expect(notPushed.getByText('Not pushed')).toBeTruthy();
+      expect(notPushed.getByRole('button', { name: 'Push to ICMS' })).toBeTruthy();
+
+      const failed = card('RFL-NPSC-2026-0000012-4');
+      expect(failed.getByText('Failed')).toBeTruthy();
+      expect(failed.getByText('ICMS did not respond. Nothing was registered.')).toBeTruthy();
+      expect(failed.getByRole('button', { name: 'Retry' })).toBeTruthy();
+
+      const pushed = card('RFL-CPSB047-2026-0000005-R');
+      expect(pushed.getByText('Pushed')).toBeTruthy();
+      expect(pushed.getByText('Waiting for case number')).toBeTruthy();
+      expect(pushed.queryByRole('button', { name: /Push to ICMS|Retry/ })).toBeNull();
+
+      const registered = card('RFL-PSC-2026-0000031-B');
+      expect(registered.getByText('Registered')).toBeTruthy();
+      expect(registered.getByText('ICMS-2026-004790')).toBeTruthy();
+      expect(registered.queryByRole('button', { name: /Push to ICMS|Retry/ })).toBeNull();
+    });
+
+    it('opens the drawer from the card', async () => {
+      await open();
+      fireEvent.click(
+        card('RFL-PSC-2026-0000031-B').getByRole('button', { name: 'RFL-PSC-2026-0000031-B' }),
+      );
+      const drawer = await screen.findByRole('dialog', { name: 'RFL-PSC-2026-0000031-B' });
+      expect(within(drawer).getByText('ICMS-2026-004790')).toBeTruthy();
+    });
+
+    it('pushes to ICMS from the card after the confirm', async () => {
+      await open();
+      fireEvent.click(card('RFL-PSC-2026-0000003-7').getByRole('button', { name: 'Push to ICMS' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Push to ICMS' });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Push to ICMS' }));
+      await vi.waitFor(() => {
+        expect(card('RFL-PSC-2026-0000003-7').getByText('Registered')).toBeTruthy();
+      });
+    });
+
+    it('shows EACC supervisors the cards without Push or Retry', async () => {
+      wrap(<Harness filter="all" canPush={false} />);
+      await screen.findByRole('list', { name: 'Referrals received from Commissions' });
+      expect(
+        card('RFL-PSC-2026-0000003-7').queryByRole('button', { name: 'Push to ICMS' }),
+      ).toBeNull();
+      expect(card('RFL-NPSC-2026-0000012-4').queryByRole('button', { name: 'Retry' })).toBeNull();
+    });
   });
 });
