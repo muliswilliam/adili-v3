@@ -5,6 +5,7 @@ import { cycles, policies } from './cycles.js';
 import { filings } from './filings.js';
 import { mockFixtures } from './mock-fixtures.js';
 import { onboarding } from './onboarding.js';
+import { demoSignIn } from './realm.js';
 import {
   eaccAiPolicy,
   formM,
@@ -33,6 +34,7 @@ import { verify } from './verify.js';
  * ones they build on.
  */
 export const STEPS: readonly SeedStep[] = [
+  demoSignIn,
   mockFixtures,
   commissions,
   policies,
