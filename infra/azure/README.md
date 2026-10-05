@@ -97,8 +97,17 @@ Caddy terminates TLS with Let's Encrypt. Set `letsencrypt_email` in `terraform.t
 1. rsync the checkout to `/opt/adili` (keeps `.env`, `node_modules`, `.venv`)
 2. `/opt/adili/infra/azure/deploy.sh` as `adili` - Compose `up`, Caddy reload, `pnpm bootstrap`, migrate, restart `adili-apps`, install the nightly backup cron
 3. curl the HTTPS portal, console and Keycloak issuer until they return 200
+4. check the security headers on portal, console and verify
 
 It does **not** re-seed, re-issue certificates, or `terraform apply`. The SSH host key is pinned in `infra/azure/known_hosts`.
+
+Portal, console and verify send a content security policy (including `frame-ancestors 'none'`), `X-Frame-Options: DENY`, and HSTS when the request is https. Check the hosted demo:
+
+```sh
+./infra/azure/check-security-headers.sh https://adili-demo.southafricanorth.cloudapp.azure.com
+```
+
+The Azure demo workflow runs that check after each deploy.
 
 Every deploy also puts the stack on the real backend (#615): all app mocks off and the ai-gateway on Anthropic, then checks it with `pnpm demo:check` (a warning, not a failed deploy). The provider credentials (an Anthropic API key, or a self-hosted LLM Gateway's token and URL) come from `/etc/adili/secrets.env` or, when the repo secrets are set, from `~adili/.config/adili/secrets.env`, which the workflow writes over SSH stdin. See [docs/demo](../../docs/demo/README.md#real-backend-and-ai-provider).
 

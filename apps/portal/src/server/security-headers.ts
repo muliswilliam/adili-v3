@@ -1,11 +1,9 @@
 /**
- * Response headers for every page and server function of the public verify app (ADR-010:
- * "noindex, no personal data in URLs, strict security headers").
+ * Response headers for every page and server function of the portal.
  *
- * Scripts run only with the request's nonce ('strict-dynamic' lets them load the app's chunks);
- * nothing may frame the page, send the URL on as a referrer or be fetched from another origin.
- * The file check reads files locally, so `connect-src 'self'` also guards S15: a script could
- * not upload a file anywhere but this origin, and this app has no endpoint that takes one.
+ * Scripts run only with the request's nonce ('strict-dynamic' lets them load the app's chunks).
+ * The browser talks to this origin only: server functions proxy the services. Nothing may frame
+ * the page. Keycloak is a top-level redirect, not a connection from the page.
  */
 export interface SecurityHeaderOptions {
   /** A fresh random value per response, on every script tag the server renders. */
@@ -42,9 +40,6 @@ export function securityHeaders({ nonce, dev, https }: SecurityHeaderOptions): H
       'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
     'cross-origin-opener-policy': 'same-origin',
     'cross-origin-resource-policy': 'same-origin',
-    'x-robots-tag': 'noindex, nofollow',
-    // A status can change at any time (superseded, revoked); no page is kept anywhere.
-    'cache-control': 'no-store',
   });
   if (https) headers.set('strict-transport-security', 'max-age=31536000; includeSubDomains');
   return headers;

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createNonce, isHttps, securityHeaders } from './security-headers';
 
 describe('securityHeaders', () => {
-  it('lets only the nonce-carrying scripts run and keeps the page to itself', () => {
+  it('lets only the nonce-carrying scripts run and refuses framing', () => {
     const headers = securityHeaders({ nonce: 'abc', dev: false, https: true });
     const csp = headers.get('content-security-policy') ?? '';
 
@@ -17,8 +17,6 @@ describe('securityHeaders', () => {
     expect(headers.get('referrer-policy')).toBe('no-referrer');
     expect(headers.get('x-frame-options')).toBe('DENY');
     expect(headers.get('x-content-type-options')).toBe('nosniff');
-    expect(headers.get('x-robots-tag')).toBe('noindex, nofollow');
-    expect(headers.get('cache-control')).toBe('no-store');
     expect(headers.get('strict-transport-security')).toContain('max-age=');
   });
 
@@ -47,11 +45,11 @@ describe('createNonce', () => {
 
 describe('isHttps', () => {
   it('trusts the edge proxy, then the request URL', () => {
-    const behindProxy = new Request('http://verify:3030/', {
+    const behindProxy = new Request('http://portal:3010/', {
       headers: { 'x-forwarded-proto': 'https' },
     });
     expect(isHttps(behindProxy)).toBe(true);
-    expect(isHttps(new Request('http://localhost:3030/'))).toBe(false);
-    expect(isHttps(new Request('https://verify.example/'))).toBe(true);
+    expect(isHttps(new Request('http://localhost:3010/'))).toBe(false);
+    expect(isHttps(new Request('https://portal.example/'))).toBe(true);
   });
 });

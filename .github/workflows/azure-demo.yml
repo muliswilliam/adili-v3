@@ -109,6 +109,8 @@ jobs:
           done
           echo 'HTTPS checks did not return 200' >&2
           exit 1
+      - name: Check security headers
+        run: ./infra/azure/check-security-headers.sh "https://${AZURE_DEMO_HOST}"
       - name: Check the real backend
         # Every app with mocks off and the AI provider real (#615). A warning, not a failed
         # deploy: the AI provider is replay until a key is installed.
