@@ -19,7 +19,13 @@ import { lastValueFrom, timeout } from 'rxjs';
 import { AuditedReadInterceptor } from './audited-read.interceptor.js';
 import { EventPublisher, EVENTS_OPTIONS, type EventsModuleOptions } from './event-publisher.js';
 import { outbox } from './schema.js';
-import { DEAD_LETTER_EXCHANGE, deadLetterQueue, EVENTS_EXCHANGE, eventsQueue } from './topology.js';
+import {
+  DEAD_LETTER_EXCHANGE,
+  deadLetterQueue,
+  EVENTS_EXCHANGE,
+  eventsQueue,
+  RABBITMQ_CONNECT_TIMEOUT_MS,
+} from './topology.js';
 
 const EVENTS_CLIENT = Symbol('EVENTS_CLIENT');
 const RELAY_BATCH_SIZE = 100;
@@ -152,7 +158,9 @@ export class RabbitMqReadinessCheck
   }
 
   private async declareTopology(): Promise<void> {
-    const connection = await amqp.connect(this.options.rabbitmqUrl);
+    const connection = await amqp.connect(this.options.rabbitmqUrl, {
+      timeout: this.options.connectTimeoutMs ?? RABBITMQ_CONNECT_TIMEOUT_MS,
+    });
     connection.on('close', () => {
       this.connection = undefined;
     });
@@ -187,6 +195,11 @@ export class EventsModule {
               exchangeType: 'topic',
               wildcards: true,
               persistent: true,
+              socketOptions: {
+                connectionOptions: {
+                  timeout: options.connectTimeoutMs ?? RABBITMQ_CONNECT_TIMEOUT_MS,
+                },
+              },
             },
           },
         ]),
