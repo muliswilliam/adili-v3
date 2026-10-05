@@ -65,6 +65,11 @@ export interface CreatePolicyVersion {
    * the product changes the obligations-start date alone (spec 04).
    */
   reminderOffsetsDays?: number[];
+  /**
+   * Replaces the biennial statement and due month-days. Only the demo seed sets it
+   * (`useDemoPolicy`), to run its demo cycles on dates that have passed.
+   */
+  biennial?: { statementDate: string; dueDate: string };
 }
 
 /**
@@ -91,12 +96,11 @@ export async function createPolicyVersion(
       tenant: command.tenant,
       version: current.version + 1,
       effectiveFrom: command.effectiveFrom,
-      policy: command.reminderOffsetsDays
-        ? {
-            ...withPolicyDefaults(current.policy),
-            reminderOffsetsDays: command.reminderOffsetsDays,
-          }
-        : withPolicyDefaults(current.policy),
+      policy: {
+        ...withPolicyDefaults(current.policy),
+        ...(command.reminderOffsetsDays && { reminderOffsetsDays: command.reminderOffsetsDays }),
+        ...(command.biennial && { biennial: command.biennial }),
+      },
       obligationsStartDate: command.obligationsStartDate,
       createdBy: command.createdBy,
       createdByName: command.createdByName,

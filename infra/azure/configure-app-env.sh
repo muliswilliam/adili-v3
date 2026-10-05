@@ -49,6 +49,24 @@ path.write_text("\n".join(out) + "\n", encoding="utf-8")
 PY
 }
 
+# Like set_env, with the value read from a file (a secret): it never appears in arguments, and
+# the .env becomes readable by its owner only.
+set_env_from_file() {
+  file="$1"
+  key="$2"
+  source="$3"
+  python3 - "$file" "$key" "$source" <<'PY'
+import pathlib, sys
+path, key = pathlib.Path(sys.argv[1]), sys.argv[2]
+value = pathlib.Path(sys.argv[3]).read_text(encoding="utf-8").strip()
+lines = [line for line in path.read_text(encoding="utf-8").splitlines()
+         if not (line.startswith(f"{key}=") or line.startswith(f"#{key}="))]
+lines.append(f"{key}={value}")
+path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+path.chmod(0o600)
+PY
+}
+
 set_env "$ROOT/apps/portal/.env" APP_URL "${ADILI_PORTAL_URL}"
 set_env "$ROOT/apps/portal/.env" OIDC_ISSUER_URL "$issuer"
 set_env "$ROOT/apps/portal/.env" PORT "$portal_port"
@@ -61,6 +79,18 @@ set_env "$ROOT/apps/console/.env" PORT "$console_port"
 set_env "$ROOT/apps/console/.env" ADILI_DEMO_BIND 1
 # Links to the portal's public pages (open data).
 set_env "$ROOT/apps/console/.env" PORTAL_URL "${ADILI_PORTAL_URL}"
+
+# The hackathon demo (#616): synthetic-data banner and one-click role switcher. Keycloak runs
+# with ADILI_DEMO_MODE=true (docker-compose.azure.yml) and the same demo-ticket-secret.
+# This host's demo ticket secret (demo-vault.sh), read from its file so it never appears in
+# arguments or logs.
+# shellcheck disable=SC1091
+. "$ROOT/infra/azure/demo-vault.sh"
+adili_require_demo_vault
+for app in portal console; do
+  set_env "$ROOT/apps/$app/.env" DEMO_MODE true
+  set_env_from_file "$ROOT/apps/$app/.env" DEMO_TICKET_SECRET "$ADILI_DEMO_TICKET_SECRET_FILE"
+done
 
 set_env "$ROOT/apps/verify/.env" APP_URL "${ADILI_VERIFY_URL}"
 set_env "$ROOT/apps/verify/.env" PORT "$verify_port"

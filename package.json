@@ -35,7 +35,8 @@
     "demo:check": "node scripts/health.mjs --expect-real",
     "demo:ai": "node scripts/demo-ai.mjs",
     "keycloak:check": "node scripts/check-keycloak-realm.mjs",
-    "keycloak:demo-sign-in": "node scripts/keycloak-demo-sign-in.mjs"
+    "keycloak:demo-sign-in": "node scripts/keycloak-demo-sign-in.mjs",
+    "demo:seed": "pnpm --filter @adili/demo-seed seed"
   },
   "devDependencies": {
     "dependency-cruiser": "^18.4.0",

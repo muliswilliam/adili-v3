@@ -1,0 +1,36 @@
+{
+  "name": "@adili/demo-seed",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The demo's data (#371): `pnpm demo:seed` drives the services' own APIs and workflows into every state the demo shows. Idempotent; local and hosted.",
+  "type": "module",
+  "scripts": {
+    "generate:api": "openapi-typescript node_modules/@adili/schemas/internal/directory.yaml -o src/clients/directory-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/declarations.yaml -o src/clients/declarations-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/documents.yaml -o src/clients/documents-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/review.yaml -o src/clients/review-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/reporting.yaml -o src/clients/reporting-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/access.yaml -o src/clients/access-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/ai-gateway.yaml -o src/clients/ai-gateway-api.gen.ts",
+    "seed": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/main.ts",
+    "fingerprint": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/fingerprint.ts",
+    "lint": "eslint .",
+    "typecheck": "pnpm generate:api && tsc --noEmit",
+    "test": "vitest run",
+    "rehearse": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/rehearse.ts"
+  },
+  "dependencies": {
+    "@adili/demo-auth": "workspace:*",
+    "@adili/forms": "workspace:*",
+    "@adili/roles": "workspace:*",
+    "openapi-fetch": "^0.17.0",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@adili/eslint-config": "workspace:*",
+    "@adili/schemas": "workspace:*",
+    "@adili/tsconfig": "workspace:*",
+    "@swc-node/register": "^1.12.1",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
+    "eslint": "^10.11.0",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.1"
+  }
+}

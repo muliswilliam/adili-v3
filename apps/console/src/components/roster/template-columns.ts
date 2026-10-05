@@ -1,7 +1,7 @@
 import type { components } from '../../server/directory/api.gen';
 
 /**
- * The ten roster template columns as the wizard's template step lists them. Mirrors the
+ * The twelve roster template columns as the wizard's template step lists them. Mirrors the
  * directory's column definitions, the single source for its parser and the template file. The
  * names are checked against the directory contract at compile time (below); the rules and
  * examples copy the template's notes. Column names stay English identifiers in every UI language.
@@ -19,7 +19,7 @@ export interface TemplateColumn {
   example: string;
 }
 
-export const TEMPLATE_COLUMNS: readonly TemplateColumn[] = [
+export const TEMPLATE_COLUMNS = [
   {
     name: 'personnel_file_number',
     required: true,
@@ -51,11 +51,18 @@ export const TEMPLATE_COLUMNS: readonly TemplateColumn[] = [
     format: 'Up to 200 characters',
     example: 'Moi Girls High School, Eldoret',
   },
+  { name: 'work_station', required: false, format: 'Up to 100 characters', example: 'Eldoret' },
   {
     name: 'appointment_date',
     required: false,
     format: 'YYYY-MM-DD, DD/MM/YYYY or DD-MM-YYYY; not in the future',
     example: '2019-01-07',
+  },
+  {
+    name: 'marital_status',
+    required: false,
+    format: 'single, married, separated, divorced or widowed (any case)',
+    example: 'married',
   },
   {
     name: 'email',
@@ -75,7 +82,7 @@ export const TEMPLATE_COLUMNS: readonly TemplateColumn[] = [
     format: 'Up to 40 letters, digits, _ or -, starting with a letter or digit',
     example: 'TSC',
   },
-];
+] as const satisfies readonly TemplateColumn[];
 
 /**
  * Compile-time drift check: a column the contract names but this list lacks is a type error

@@ -12,6 +12,7 @@ Adili Online V3, Track 3: **Declaration of Income, Assets and Liabilities (DIALs
 | See how EACC's user stories are covered | [User story coverage](requirements/user-stories.md) |
 | See the product team's process flowcharts (onboarding, DIALs, access) | [Flowcharts](requirements/dials-flowcharts.html) |
 | Know who owns what and how we run specs with agents | [How we work](how-we-work.md) |
+| Sign in for the demo or the judges' pack | [Demo accounts](demo-accounts.md) |
 | Pick up a ticket: read its spec (the epic issue) and the API contract | [Epics](https://github.com/muliswilliam/adili-v3/issues?q=label%3Aepic) · [Internal contracts](../packages/schemas/internal/) · [Contract convergence notes](contracts/) |
 | Understand scale and sizing | [Scope and scale](research/dials-scope-and-scale.md) · [Database sizing](research/database-sizing.md) |
 | Learn the domain vocabulary | [CONTEXT.md](../CONTEXT.md) |

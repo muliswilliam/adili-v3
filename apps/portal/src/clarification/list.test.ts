@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { DeclarantClarification } from '../server/review/types';
 import {
+  declarationClarifications,
   declarationTypeName,
   groupClarifications,
   homeClarifications,
@@ -262,5 +263,30 @@ describe('homeClarifications', () => {
       older('c', '2026-06-01T09:00:00Z'),
     ];
     expect(homeClarifications(list).map((each) => each.id)).toEqual(['b', 'c']);
+  });
+});
+
+describe('declarationClarifications', () => {
+  const V1 = 'DCI-TSC-2026-0003418-P';
+  const V2 = 'DCI-TSC-2026-0003419-M';
+
+  it("lists every version's clarifications, those needing a response first", () => {
+    const list = [
+      clarification({ id: 'old', status: 'resolved', issuedAt: '2026-05-01T09:00:00Z' }),
+      clarification({ id: 'other', declarationReference: 'DCB-TSC-2027-0012345-A' }),
+      clarification({ id: 'later', dueAt: '2026-10-20T09:00:00Z', declarationReference: V2 }),
+      clarification({ id: 'sooner', dueAt: '2026-10-10T09:00:00Z' }),
+      clarification({ id: 'newer', status: 'responded', issuedAt: '2026-08-01T09:00:00Z' }),
+    ];
+    expect(declarationClarifications(list, [V2, V1]).map((each) => each.id)).toEqual([
+      'sooner',
+      'later',
+      'newer',
+      'old',
+    ]);
+  });
+
+  it('is empty when none concerns the declaration', () => {
+    expect(declarationClarifications([clarification()], [V2])).toEqual([]);
   });
 });

@@ -114,6 +114,8 @@ describe('demo sign-in (#616)', () => {
     const access = payloadOf(tokens.accessToken);
     expect(access.preferred_username).toBe('reviewer');
     expect(access.tenant).toBe('psc');
+    // The apps' role switcher reads the signed-in demo account from it.
+    expect(access.demo_key).toBe('reviewer');
   });
 
   it('signs a declarant demo account in through the portal with no SMS code', async () => {

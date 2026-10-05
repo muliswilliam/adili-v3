@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { EventPublisher } from '@adili/events';
 
-import { useDemoReminderOffsets } from '../../src/commissions/demo-seed.js';
+import { useDemoPolicy, useDemoReminderOffsets } from '../../src/commissions/demo-seed.js';
 import type { TenantPolicyHistory } from '../../src/commissions/policy-representation.js';
 import { outbox } from '../../src/db/schema.js';
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
@@ -76,6 +76,34 @@ describe('useDemoReminderOffsets', () => {
     await useDemoReminderOffsets(api.db, events, { tenant: 'psc', reminderOffsetsDays: [29, 7] });
     await useDemoReminderOffsets(api.db, events, { tenant: 'psc', reminderOffsetsDays: [29, 7] });
 
+    expect((await history()).current.version).toBe(2);
+  });
+});
+
+describe('useDemoPolicy', () => {
+  const demo = {
+    tenant: 'psc',
+    biennial: { statementDate: '06-30', dueDate: '12-31' },
+    obligationsStartDate: '2024-06-30',
+    reminderOffsetsDays: [30, 14, 7, 1],
+  };
+
+  it('moves the biennial dates, the start date and the offsets in one version', async () => {
+    expect(await useDemoPolicy(api.db, events, demo)).toBe(true);
+
+    expect((await history()).current).toMatchObject({
+      version: 2,
+      biennial: demo.biennial,
+      obligationsStartDate: '2024-06-30',
+      reminderOffsetsDays: [30, 14, 7, 1],
+      createdByName: 'Demo policy',
+    });
+  });
+
+  it('changes nothing the second time', async () => {
+    await useDemoPolicy(api.db, events, demo);
+
+    expect(await useDemoPolicy(api.db, events, demo)).toBe(false);
     expect((await history()).current.version).toBe(2);
   });
 });
