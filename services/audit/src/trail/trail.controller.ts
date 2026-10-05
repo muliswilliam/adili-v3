@@ -21,7 +21,8 @@ import {
   listEventsQuery,
 } from './representation.js';
 import { TrailQueryService } from './trail-query.service.js';
-import { type ChainVerification, ChainVerifier } from './verifier.js';
+import { Anchoring } from '../anchoring/anchoring.js';
+import type { ChainVerification } from './verifier.js';
 
 /**
  * The audit trail for auditors (ADR-008, architecture §7 roles: the auditor investigates the
@@ -33,7 +34,7 @@ import { type ChainVerification, ChainVerifier } from './verifier.js';
 export class TrailController {
   constructor(
     private readonly queries: TrailQueryService,
-    private readonly verifier: ChainVerifier,
+    private readonly anchoring: Anchoring,
   ) {}
 
   @Get('events')
@@ -94,7 +95,7 @@ export class TrailController {
     operationId: 'verifyAuditChain',
     summary: 'Recompute a chain and compare it with its anchor',
     description:
-      "Auditor only. Every event in order, each linked to the one before, each hash recomputed from the event and its place, each filtered field read again from the event, the head and, once anchored, the anchor's Merkle root: any difference is reported as tampering. A day without events is intact and empty.",
+      "Auditor only. Every event in order, each linked to the one before, each hash recomputed from the event and its place, each filtered field read again from the event, the head and, once anchored, the anchor's Merkle root and its signature: any difference is reported as tampering. A day without events is intact and empty.",
   })
   @ApiOkResponse({ description: 'The verification', schema: schemaRef('AuditChainVerification') })
   @ApiProblemResponse(400, 'Tenant or day malformed')
@@ -103,6 +104,6 @@ export class TrailController {
     tenant: string,
     @Param('chainDay', new ZodValidationPipe(z.iso.date())) chainDay: string,
   ): Promise<ChainVerification> {
-    return this.verifier.verify(tenant, chainDay);
+    return this.anchoring.verify({ tenant, chainDay });
   }
 }

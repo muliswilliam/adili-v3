@@ -136,4 +136,24 @@ describe('chains', () => {
     expect(verification.statusCode).toBe(200);
     expect(verification.json()).toMatchObject({ status: 'intact', events: 2 });
   });
+
+  it("checks an anchored chain's signature", async () => {
+    const tenant = freshTenant();
+    const yesterdayAt = new Date(Date.now() - 86_400_000);
+    const yesterday = chainDayOf(yesterdayAt);
+    await api.trail.append(submitted(tenant), yesterdayAt);
+    await api.anchoring.anchor({ tenant, chainDay: yesterday });
+    const path = `/v1/audit/chains/${tenant}/${yesterday}/verification`;
+    expect((await api.get(path, AUDITOR_CALLER)).json()).toMatchObject({
+      status: 'intact',
+      anchor: { status: 'matches' },
+    });
+
+    await api.tamper(`update audit_anchors set signature = 'forged' where tenant = '${tenant}'`);
+    expect((await api.get(path, AUDITOR_CALLER)).json()).toMatchObject({
+      status: 'tampered',
+      problems: [{ kind: 'anchor-mismatch', seq: null }],
+      anchor: { status: 'mismatch' },
+    });
+  });
 });

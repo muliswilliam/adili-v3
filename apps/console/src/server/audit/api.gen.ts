@@ -73,7 +73,7 @@ export interface paths {
         };
         /**
          * Recompute a chain and compare it with its anchor
-         * @description Auditor only. Every event in order, each linked to the one before, each hash recomputed from the event and its place, each filtered field read again from the event, the head and, once anchored, the anchor's Merkle root: any difference is reported as tampering. A day without events is intact and empty.
+         * @description Auditor only. Every event in order, each linked to the one before, each hash recomputed from the event and its place, each filtered field read again from the event, the head and, once anchored, the anchor's Merkle root and its signature: any difference is reported as tampering. A day without events is intact and empty.
          */
         get: operations["verifyAuditChain"];
         put?: never;
