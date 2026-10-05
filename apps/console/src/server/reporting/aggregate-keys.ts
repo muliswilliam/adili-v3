@@ -1,4 +1,4 @@
-import type { NationalAggregates, SectionAggregate } from './types';
+import type { AccessAggregate, NationalAggregates, SectionAggregate } from './types';
 
 /**
  * The NCR's figures by aggregate key, in the ai-gateway scheme pattern candidates and narrative
@@ -32,6 +32,9 @@ export const NATIONAL_FIGURES = [
   'finalFiled',
   'finalNonFilers',
   'clarifications',
+  'accessRequestsReceived',
+  'accessRequestsGranted',
+  'accessRequestsDeclined',
   'reportingRate',
   'filingRate',
   'nonFilerRate',
@@ -41,7 +44,10 @@ export const NATIONAL_FIGURES = [
   'clarificationRatio',
 ] as const;
 
-/** A Commission's figures, by name; all but `reported` are null until it reports. */
+/**
+ * A Commission's figures, by name; all but `reported` are null until it reports, and its
+ * clarifications and access requests stay null when its report did not count them.
+ */
 export const COMMISSION_FIGURES = [
   'reported',
   'reportedLate',
@@ -58,6 +64,9 @@ export const COMMISSION_FIGURES = [
   'finalFiled',
   'finalNonFilers',
   'clarifications',
+  'accessRequestsReceived',
+  'accessRequestsGranted',
+  'accessRequestsDeclined',
   'filingRate',
   'nonFilerRate',
   'initialFilingRate',
@@ -147,6 +156,22 @@ function sectionFigures({ initial, biennial, final, all }: Sections) {
   };
 }
 
+/** Form M section 5's counts, by figure name. */
+function accessFigures(access: AccessAggregate) {
+  return {
+    accessRequestsReceived: access.received,
+    accessRequestsGranted: access.granted,
+    accessRequestsDeclined: access.declined,
+  };
+}
+
+/** A Commission's section 5 counts its report did not give: unknown, never 0. */
+const UNKNOWN_ACCESS_FIGURES = {
+  accessRequestsReceived: null,
+  accessRequestsGranted: null,
+  accessRequestsDeclined: null,
+} as const;
+
 /** The year's national figures, as the reporting service names them. */
 export function nationalFigures(
   aggregates: NationalAggregates,
@@ -161,6 +186,7 @@ export function nationalFigures(
     commissionsNotReported: reporting.notReported,
     ...sections,
     clarifications: national.clarifications,
+    ...accessFigures(national.accessRequests),
     reportingRate: reporting.rate,
     clarificationRatio: rateOf(national.clarifications, sections.filed),
   };
@@ -191,6 +217,7 @@ export function commissionFigures(
     reportedLate: row.status === 'submitted-late' ? 1 : 0,
     ...sections,
     clarifications,
+    ...(row.accessRequests ? accessFigures(row.accessRequests) : UNKNOWN_ACCESS_FIGURES),
     clarificationRatio: clarifications === null ? null : rateOf(clarifications, sections.filed),
   };
 }

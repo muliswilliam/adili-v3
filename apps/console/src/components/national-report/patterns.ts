@@ -196,6 +196,9 @@ const FIGURES: Record<FigureName, FigureCopy> = {
   finalFiled: count('final declarations filed', 'final'),
   finalNonFilers: count('final non-filers', 'final'),
   clarifications: count('clarifications'),
+  accessRequestsReceived: count('access requests received'),
+  accessRequestsGranted: count('access requests granted'),
+  accessRequestsDeclined: count('access requests declined'),
   reportingRate: rate('reporting rate'),
   filingRate: rate('filing rate', 'all'),
   nonFilerRate: rate('non-filer rate', 'all'),
@@ -246,7 +249,9 @@ function candidateFigures(candidates: readonly PatternCandidate[]): Map<string, 
 /**
  * Resolves the aggregate keys a narrative paragraph cites to "{label}: {value}", e.g. "Nairobi
  * City County Public Service Board non-filer rate 2024/2025: 4.1%": this year's from the report,
- * earlier ones from the candidates citing them; null for a figure neither has.
+ * earlier ones from the candidates citing them; null for a figure neither has. A figure of this
+ * year the report holds as null (a Commission yet to report, a count its report did not give, a
+ * rate of nobody expected) is in the task input all the same, so it reads "not available".
  */
 export function figureFormatter(
   aggregates: NationalAggregates,
@@ -256,15 +261,15 @@ export function figureFormatter(
   return (aggregateKey) => {
     const key = parseAggregateKey(aggregateKey, aggregates.fy);
     if (!key) return null;
-    const value =
-      key.fy === aggregates.fy
-        ? currentFigure(aggregates, key)
-        : (earlier.get(aggregateKeyOf(key, aggregates.fy)) ?? null);
-    if (value === null) return null;
     if (key.scope === 'commission' && !aggregates.byCommission[key.slug]) return null;
+    const current = key.fy === aggregates.fy;
+    const value = current
+      ? currentFigure(aggregates, key)
+      : (earlier.get(aggregateKeyOf(key, aggregates.fy)) ?? null);
+    if (value === null && !current) return null;
     return {
       label: `${labelOf(key, aggregates)} ${fyLabel(key.fy)}`,
-      value: formatFigure(key.name, value),
+      value: value === null ? NOT_AVAILABLE : formatFigure(key.name, value),
     };
   };
 }

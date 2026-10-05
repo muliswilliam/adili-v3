@@ -46,7 +46,7 @@ const AGGREGATES: NationalAggregates = {
     final: counts(0, 0),
     all: counts(3000, 2700),
     clarifications: 27,
-    accessRequests: { received: 0, granted: 0, declined: 0 },
+    accessRequests: { received: 12, granted: 9, declined: 3 },
   },
   byCommission: {
     cpsbnairobicity: reported(
@@ -247,6 +247,40 @@ describe('figures cited by aggregate key', () => {
     });
   });
 
+  it('resolves the access requests figures the service sends the gateway', () => {
+    expect(format('national.accessRequestsReceived')).toEqual({
+      label: 'National access requests received 2025/2026',
+      value: '12',
+    });
+    expect(format('national.accessRequestsGranted')?.value).toBe('9');
+    expect(format('national.accessRequestsDeclined')?.value).toBe('3');
+
+    const psc = reported('Public Service Commission', 'submitted-on-time', [1000, 900], 9);
+    const counted = {
+      ...AGGREGATES,
+      byCommission: {
+        ...AGGREGATES.byCommission,
+        psc: { ...psc, accessRequests: { received: 4, granted: 4, declined: 0 } },
+      },
+    };
+    expect(figureFormatter(counted, [])('commission.psc.accessRequestsDeclined')).toEqual({
+      label: 'Public Service Commission access requests declined 2025/2026',
+      value: '0',
+    });
+  });
+
+  it("says this year's figure the report has no value for is not available, not missing", () => {
+    expect(format('commission.psc.accessRequestsReceived')).toEqual({
+      label: 'Public Service Commission access requests received 2025/2026',
+      value: 'not available',
+    });
+    expect(format('commission.cpsbmandera.nonFilerRate')).toEqual({
+      label: 'Mandera County Public Service Board non-filer rate 2025/2026',
+      value: 'not available',
+    });
+    expect(format('national.initialFilingRate')?.value).toBe('not available');
+  });
+
   it("reads the nation's totals from the service's own All sections", () => {
     const withAll = {
       ...AGGREGATES,
@@ -257,7 +291,7 @@ describe('figures cited by aggregate key', () => {
     expect(figureFormatter(withAll, [])('national.clarificationRatio')?.value).toBe('9.7');
   });
 
-  it('finds no clarification figure for a Commission whose report did not count them', () => {
+  it('has no clarification figure for a Commission whose report did not count them', () => {
     const psc = reported('Public Service Commission', 'submitted-on-time', [1000, 900], 0);
     const uncounted = {
       ...AGGREGATES,
@@ -265,8 +299,8 @@ describe('figures cited by aggregate key', () => {
     };
     const formatUncounted = figureFormatter(uncounted, []);
 
-    expect(formatUncounted('commission.psc.clarifications')).toBeNull();
-    expect(formatUncounted('commission.psc.clarificationRatio')).toBeNull();
+    expect(formatUncounted('commission.psc.clarifications')?.value).toBe('not available');
+    expect(formatUncounted('commission.psc.clarificationRatio')?.value).toBe('not available');
     expect(formatUncounted('commission.psc.filed')?.value).toBe('900');
   });
 
@@ -282,7 +316,6 @@ describe('figures cited by aggregate key', () => {
   });
 
   it('finds nothing for a figure it does not have', () => {
-    expect(format('commission.cpsbmandera.nonFilerRate')).toBeNull();
     expect(format('fy2024.national.filingRate')).toBeNull();
     expect(format('commission.nobody.filed')).toBeNull();
     expect(format('national.unknown')).toBeNull();
