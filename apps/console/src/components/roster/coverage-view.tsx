@@ -9,6 +9,7 @@ import {
   formatTime,
   Icon,
   type IconProps,
+  InfoTip,
   Select,
   SelectItem,
   Skeleton,
@@ -42,7 +43,6 @@ import type {
 } from '../../server/declarations/client';
 import { CursorPager } from '../cursor-pager';
 import { formatNumber } from '../format';
-import { InfoTip } from '../info-tip';
 import { LoadError } from '../load-error';
 import { problemStatus } from '../../server/service-call';
 import { Page, PageHead } from '../page';

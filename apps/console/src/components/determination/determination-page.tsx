@@ -18,6 +18,7 @@ import {
   formatDateTime,
   Icon,
   type IconProps,
+  InfoTip,
   OutcomeBadge,
   OUTCOME_BADGE_MESSAGES,
   PriorityBadge,
@@ -63,7 +64,6 @@ import { type DeterminationRefusal, refusalProblem } from '../../determination/r
 import type { CaseView } from '../../server/review-case.server';
 import type { Determination, DeterminationInput } from '../../server/review/types';
 import { downloadFrom } from '../download';
-import { InfoTip } from '../info-tip';
 import { Page } from '../page';
 import { ReferAction } from '../referrals/refer-action';
 import { CaseStatusBadge } from '../review/case/case-header';

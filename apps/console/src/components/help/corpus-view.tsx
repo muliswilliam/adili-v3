@@ -21,6 +21,7 @@ import {
   EmptyState,
   formatNumber,
   Icon,
+  InfoTip,
   Select,
   SelectItem,
   Skeleton,
@@ -50,7 +51,6 @@ import type {
 } from '../../server/declarations/client';
 import type { HelpResult } from '../../server/help.server';
 import { CursorPager } from '../cursor-pager';
-import { InfoTip } from '../info-tip';
 import { LoadError } from '../load-error';
 import { Page } from '../page';
 import { clientPage } from '../paging';

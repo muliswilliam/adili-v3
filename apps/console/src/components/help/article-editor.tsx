@@ -21,6 +21,7 @@ import {
   formatDateTime,
   formatNumber,
   Icon,
+  InfoTip,
   Input,
   SegmentedChoice,
   Spinner,
@@ -40,7 +41,6 @@ import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import type { HelpArticle, HelpTag } from '../../server/declarations/client';
 import { ITEM_TYPE_TAGS, SECTION_TAGS, TOPIC_TAGS } from '../../server/declarations/help-tags';
 import type { HelpResult, HelpScope } from '../../server/help.server';
-import { InfoTip } from '../info-tip';
 import { NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
 import { messages as m } from './messages';
@@ -491,7 +491,7 @@ function SideCard({
           {title}
         </h2>
         {count !== undefined ? <Badge>{count}</Badge> : null}
-        {tip ? <InfoTip content={tip} label={tip} className="text-muted-foreground" /> : null}
+        {tip ? <InfoTip content={tip} label={tip} /> : null}
       </div>
       <div className="grid gap-3.5 px-5 py-4">{children}</div>
     </Card>

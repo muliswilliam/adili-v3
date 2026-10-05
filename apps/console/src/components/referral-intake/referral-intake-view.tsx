@@ -7,6 +7,7 @@ import {
   focusRing,
   formatDate,
   Icon,
+  InfoTip,
   Skeleton,
   Table,
   TableBody,
@@ -31,7 +32,6 @@ import type { ReferralIntakeItem, ReferralIntakePage } from '../../server/report
 import type { ServiceResult } from '../../server/service-call';
 import type { FailureText } from '../dialog-parts';
 import { downloadFrom } from '../download';
-import { InfoTip } from '../info-tip';
 import { LoadError } from '../load-error';
 import { usePollWhile } from '../use-poll-while';
 import { ConfidentialBadge } from '../referrals/badges';

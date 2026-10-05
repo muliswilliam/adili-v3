@@ -8,6 +8,7 @@ import {
   formatDateTime,
   formatMonthDay,
   Icon,
+  InfoTip,
   useToast,
 } from '@adili/ui';
 import { PencilEdit02Icon, Settings01Icon } from '@hugeicons/core-free-icons';
@@ -19,7 +20,6 @@ import type { TenantPolicyHistory, TenantPolicyVersion } from '../../server/dire
 import type { ServiceResult } from '../../server/service-call';
 import { AiStatusValue } from '../ai-policy/ai-status';
 import { messages as aiMessages } from '../ai-policy/messages';
-import { InfoTip } from '../info-tip';
 import { SectionCard } from '../page';
 import { messages as m } from './messages';
 import { PolicyDialogContent, type SavePolicyVersion } from './policy-dialog';
@@ -126,11 +126,7 @@ export function PolicyCard({
             <time dateTime={current.obligationsStartDate}>
               {formatDate(current.obligationsStartDate)}
             </time>
-            <InfoTip
-              content={m.startDateTip}
-              label={m.startDateTipLabel}
-              className="text-muted-foreground"
-            />
+            <InfoTip content={m.startDateTip} label={m.startDateTipLabel} />
           </span>
         </PolicyRow>
         {aiStatus ? (
