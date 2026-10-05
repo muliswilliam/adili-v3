@@ -221,23 +221,18 @@ describe('certified copies (S13)', () => {
 });
 
 describe('who accessed my declaration (S12)', () => {
-  it('shows Form K requests from notification and law enforcement from the grant', async () => {
+  it('shows Form K requests from notification and never a law enforcement request', async () => {
     const result = await loadHistory(access());
     if (result.status !== 'ok') throw new Error(result.status);
     const kinds = new Set(result.entries.map((entry) => entry.kind));
     expect(kinds.has('received')).toBe(false);
     expect(kinds.has('verified')).toBe(false);
     expect(kinds.has('cannot-identify')).toBe(false);
-    const lea = result.entries.filter((entry) => entry.subjectKind === 'lea-request');
-    for (const subject of new Set(lea.map((entry) => entry.subjectId))) {
-      expect(
-        lea
-          .filter((entry) => entry.subjectId === subject)
-          .map((entry) => entry.kind)
-          .sort(),
-      ).toEqual(['decided', 'downloaded', 'expired', 'package-issued'].sort());
-    }
-    expect(lea.every((entry) => entry.actor === null)).toBe(true);
+    expect(
+      result.entries.every((entry) =>
+        ['access-request', 'self-access'].includes(entry.subjectKind),
+      ),
+    ).toBe(true);
   });
 
   it('is newest first, and names no staff', async () => {

@@ -46,7 +46,7 @@ function NoticeRoute() {
       {result.status === 'ok' ? (
         <NoticePage
           // A reload brings the latest state (a decision, a change from another device).
-          key={`${result.notice.requestId}:${result.notice.status}:${result.notice.kind === 'form-k' ? (result.notice.representations?.updatedAt ?? '') : ''}`}
+          key={`${result.notice.requestId}:${result.notice.status}:${result.notice.representations?.updatedAt ?? ''}`}
           notice={result.notice}
           now={result.now}
         />

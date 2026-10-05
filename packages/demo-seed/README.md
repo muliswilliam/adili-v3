@@ -98,7 +98,7 @@ confirm); `syntheticOfficers(context)`, `PERSONAS` and `onboardees(context)` giv
 | `access-officer` (console, Access requests) | The four PSC requests: Kiprono's awaiting representations, Otieno's granted with the package, Amina's denied, DCI's granted |
 | `applicant` (portal) | Her three PSC requests and the JSC one; the packages to download; Amina's denial with its Regulation 24 ground and reasons |
 | `law-enforcement` (console) | DCI/ECU/2026/0417 granted, the package to download |
-| `kiprono` (portal) | The request to answer (7 days); Who accessed: the request and DCI's grant |
+| `kiprono` (portal) | The request to answer (7 days); Who accessed: the request. Never DCI's request: law enforcement requests are not the declarant's to see (#614) |
 | `otieno`, `amina` (portal) | Who accessed: the grant and package; the denial and the certified copy |
 | `auditor` (console, Audit trail) | Every read, change, verify lookup and demo switch since the audit service started |
 

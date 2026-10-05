@@ -1,6 +1,5 @@
 import {
   ACCESS_OUTCOMES,
-  ACCESS_SUBJECT_KINDS,
   type AccessOutcome,
   type AccessRegisterKind,
 } from '@adili/events/contracts';
@@ -18,8 +17,8 @@ import { type Scope, scopeSchema } from '../scope.js';
 
 /**
  * What the declarant sees of each kind of subject (spec 10 S12): a Form K request from the moment
- * they were notified (r.22, Act s.36(3)), a law enforcement request only once granted (r.23(2)),
- * and their certified copies. Steps before those (receipt, verification) and a request closed
+ * they were notified (r.22, Act s.36(3)), and their certified copies. A law enforcement request
+ * never shows (product decision, 2026-10-05; #614). Steps before those (receipt, verification) and a request closed
  * before it reached them never show.
  */
 export const FORM_K_VISIBLE_KINDS: readonly AccessRegisterKind[] = [
@@ -32,12 +31,13 @@ export const FORM_K_VISIBLE_KINDS: readonly AccessRegisterKind[] = [
   'expired',
   'withdrawn',
 ];
-export const LEA_VISIBLE_KINDS: readonly AccessRegisterKind[] = [
-  'decided',
-  'package-issued',
-  'downloaded',
-  'expired',
-];
+/** The subjects whose steps the declarant sees. */
+const HISTORY_SUBJECT_KINDS = ['access-request', 'self-access'] as const;
+
+function historySubjectKind(kind: string): (typeof HISTORY_SUBJECT_KINDS)[number] {
+  if (kind === 'access-request' || kind === 'self-access') return kind;
+  throw new Error(`A ${kind} entry is not the declarant's to see`);
+}
 
 /** The certified copy a `self-access` entry records. */
 export const historyCertifiedCopySchema = z.object({
@@ -52,31 +52,28 @@ export const historyCertifiedCopySchema = z.object({
 
 /**
  * access.yaml `AccessHistoryEntry`: one step of "who accessed my declaration", a register entry
- * as the declarant may see it. Staff and law enforcement officers are never named: `actor` is
- * the applicant on their own steps (download, withdrawal) and null otherwise; who sought access
- * is `requester` (the applicant, or the law enforcement agency).
+ * as the declarant may see it. Staff are never named: `actor` is the applicant on their own
+ * steps (download, withdrawal) and null otherwise; who sought access is `requester`. Law
+ * enforcement requests are not the declarant's to see (product decision, 2026-10-05; #614).
  */
 export const accessHistoryEntrySchema = registerEntrySchema.extend({
-  subjectKind: z.enum(ACCESS_SUBJECT_KINDS),
-  /** The access request, law enforcement request or certified copy. */
+  subjectKind: z.enum(HISTORY_SUBJECT_KINDS),
+  /** The access request or certified copy. */
   subjectId: z.uuid(),
-  /** The request's `ARQ` or `LEA` reference; the declaration's for a certified copy. */
+  /** The request's `ARQ` reference; the declaration's for a certified copy. */
   reference: z.string(),
   commission: commissionRefSchema,
-  /** The applicant (Form K) or the agency (law enforcement); null for a certified copy. */
+  /** The applicant (Form K); null for a certified copy. */
   requester: z.string().nullable(),
-  /** The agency's case reference (law enforcement); null otherwise. */
-  caseReference: z.string().nullable(),
   /**
    * Why the applicant asked, as the notice told the declarant (Form K Part III's reason); null
-   * for a law enforcement request (its reason is never told, decision 4) and a certified copy.
+   * for a certified copy.
    */
   purposeInGeneralTerms: z.string().nullable(),
   /**
    * What the request reaches: for Form K the scope requested on steps before the decision, the
-   * scope granted on the decision and the steps after it (null after a denial); for a law
-   * enforcement request (shown only once granted) the scope granted, what was disclosed; null for
-   * a certified copy.
+   * scope granted on the decision and the steps after it (null after a denial); null for a
+   * certified copy.
    */
   scope: scopeSchema.nullable(),
   /** A `decided` entry's outcome; null for every other kind. */
@@ -98,7 +95,6 @@ export interface HistorySubject {
   reference: string;
   commission: { slug: string; name: string };
   requester: string | null;
-  caseReference: string | null;
   /** Form K only: the applicant's stated reason; null otherwise. */
   purposeInGeneralTerms: string | null;
   /**
@@ -145,12 +141,11 @@ export function toAccessHistoryEntry(
     summary:
       (packageKind === 'nil-letter' ? NIL_LETTER_SUMMARIES[row.kind] : undefined) ?? entry.summary,
     packageKind,
-    subjectKind: row.subjectKind,
+    subjectKind: historySubjectKind(row.subjectKind),
     subjectId: row.subjectId,
     reference: subject.reference,
     commission: subject.commission,
     requester: subject.requester,
-    caseReference: subject.caseReference,
     purposeInGeneralTerms: subject.purposeInGeneralTerms,
     scope: scopeOf(row.kind, subject.scopes),
     actor:

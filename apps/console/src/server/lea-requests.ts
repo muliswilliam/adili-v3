@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
-import { decisionInputSchema, scopeSchema, writtenNoticeSchema } from './access/schemas';
+import { decisionInputSchema, scopeSchema } from './access/schemas';
 import type { AccessCommission, LeaRequest, RosterCandidates, ScopePreview } from './access/types';
 import type { AccessResult } from './access-requests.server';
 import { asAccessViewer, withViewerClient } from './as-viewer.server';
@@ -14,7 +14,6 @@ import {
   packageDownload,
   type PackageDownloadResult,
   previewLeaScope,
-  recordLeaWrittenNotice,
   searchLeaRoster,
   submitLeaRequest,
   verifyLeaRequest,
@@ -93,14 +92,6 @@ export const withdrawLea = createServerFn({ method: 'POST' })
   .validator(z.object({ requestId: id, idempotencyKey }))
   .handler(({ data }): Promise<AccessResult<LeaRequest>> =>
     asAccessViewer((client) => withdrawLeaRequest(client, data.requestId, data.idempotencyKey)),
-  );
-
-export const recordLeaNotice = createServerFn({ method: 'POST' })
-  .validator(writtenNoticeSchema.extend({ requestId: id, idempotencyKey }))
-  .handler(({ data }): Promise<AccessResult<LeaRequest>> =>
-    asAccessViewer((client) =>
-      recordLeaWrittenNotice(client, data.requestId, data.notifiedOn, data.idempotencyKey),
-    ),
   );
 
 export const getMyLeaRequests = createServerFn({ method: 'GET' }).handler(

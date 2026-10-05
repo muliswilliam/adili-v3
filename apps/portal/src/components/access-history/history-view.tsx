@@ -39,7 +39,6 @@ import { FootNote } from './transparency-frame';
 const FILTER_LABELS: Record<HistoryFilter, string> = {
   all: COPY.all,
   'form-k': COPY.formK,
-  lea: COPY.lea,
   copy: COPY.copies,
 };
 
@@ -86,10 +85,7 @@ export function HistoryView({
   const counts = countByFilter(all);
   const list = filterEntries(all, filter);
   const shown = pageOfEntries(list, page);
-  const waiting = sortNotices(notices, now).find(
-    (notice): notice is FormKDeclarantNotice =>
-      notice.kind === 'form-k' && needsResponse(notice, now),
-  );
+  const waiting = sortNotices(notices, now).find((notice) => needsResponse(notice, now));
   const open = all.find((entry) => entry.id === openId) ?? null;
   return (
     <div className="grid gap-4">

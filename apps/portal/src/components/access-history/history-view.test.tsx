@@ -83,16 +83,17 @@ describe('Who accessed my declaration', () => {
     );
   });
 
-  it('filters by what the entries are about, with counts', async () => {
-    const { onFilter } = renderView({ filter: 'lea' });
-    const lea = screen.getByRole('button', { name: 'Law enforcement 8 entries' });
-    expect(lea.getAttribute('aria-pressed')).toBe('true');
+  it('filters by what the entries are about, with counts, never law enforcement', async () => {
+    const { onFilter } = renderView({ filter: 'copy' });
+    const copies = screen.getByRole('button', { name: 'Certified copies 2 entries' });
+    expect(copies.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByRole('button', { name: /Law enforcement/ })).toBeNull();
     const rows = within(
       screen.getByRole('group', { name: 'Who accessed my declaration' }),
     ).getAllByRole('listitem');
-    expect(rows).toHaveLength(8);
-    await click(screen.getByRole('button', { name: 'Certified copies 2 entries' }));
-    expect(onFilter).toHaveBeenCalledWith('copy');
+    expect(rows).toHaveLength(2);
+    await click(screen.getByRole('button', { name: /^Access requests/ }));
+    expect(onFilter).toHaveBeenCalledWith('form-k');
   });
 
   it('opens a request in a drawer with its details and timeline', async () => {
@@ -124,44 +125,6 @@ describe('Who accessed my declaration', () => {
     expect(drawer.textContent).toContain('Scope granted2026 · You only · Income, assets');
   });
 
-  it('opens a law-enforcement grant without naming any officer', async () => {
-    renderView({ filter: 'lea' });
-    await click(screen.getByRole('button', { name: /Asset Recovery Agency was granted access/ }));
-    const drawer = screen.getByRole('dialog', { name: 'Law-enforcement request' });
-    expect(drawer.textContent).toContain('ARA/INV/2026/014');
-    expect(drawer.textContent).toContain('Granted');
-    expect(
-      within(drawer).getByRole('link', { name: 'Open law-enforcement request' }),
-    ).toBeDefined();
-    expect(within(drawer).queryByRole('link', { name: 'Open access request' })).toBeNull();
-  });
-
-  it('shows a law-enforcement grant by agency, case, outcome, dates and the scope granted only', async () => {
-    renderView({ filter: 'lea' });
-    await click(
-      screen.getByRole('button', {
-        name: /Directorate of Criminal Investigations was partially granted access/,
-      }),
-    );
-    const drawer = screen.getByRole('dialog', { name: 'Law-enforcement request' });
-    const facts = Object.fromEntries(
-      within(drawer)
-        .getAllByRole('term')
-        .map((term) => [term.textContent, term.nextElementSibling?.textContent]),
-    );
-    expect(facts).toEqual({
-      Agency: 'Directorate of Criminal Investigations',
-      'Case reference': 'DCI/ECU/2026/0331',
-      Outcome: 'Partially granted',
-      'Granted on': '15 May 2026',
-      'Notified on': '15 May 2026',
-      'Scope granted (what was disclosed)': '2025 · You only · Assets',
-    });
-    for (const hidden of [/scope asked/i, /purpose/i, /reasons/i, /grounds/i]) {
-      expect(within(drawer).queryByText(hidden)).toBeNull();
-    }
-  });
-
   it('opens a certified copy and downloads it', async () => {
     vi.mocked(getMyCertifiedCopyDownload).mockResolvedValue({
       status: 'ok',
@@ -188,8 +151,8 @@ describe('Who accessed my declaration', () => {
 
   it('offers Show all when a filter matches nothing', async () => {
     const { onFilter } = renderView({
-      entries: entries.filter((each) => each.subjectKind !== 'lea-request'),
-      filter: 'lea',
+      entries: entries.filter((each) => each.subjectKind !== 'self-access'),
+      filter: 'copy',
     });
     expect(screen.getByText('Nothing here')).toBeDefined();
     await click(screen.getByRole('button', { name: 'Show all' }));

@@ -23,7 +23,7 @@ import {
   type LeaOfficerFacts,
   type RosterRecordFacts,
 } from '../directory/directory-client.js';
-import { badRequest, conflict, directoryUnavailable, forbidden, problem } from '../problems.js';
+import { badRequest, directoryUnavailable, forbidden, problem } from '../problems.js';
 import { AccessRegister, type RegisterRow } from '../register/access-register.js';
 import type { RosterCandidates } from '../requests/officer-representation.js';
 import { rosterCandidates } from '../requests/roster-candidates.js';
@@ -38,12 +38,6 @@ import {
   type VerifyLeaRequestBody,
 } from './representation.js';
 import { type LeaProvenance, leaRequests } from './schema.js';
-import {
-  requireNoticeDay,
-  startOfNairobiDay,
-  type WrittenNoticeBody,
-  writtenNoticeOf,
-} from '../written-notice.js';
 
 /** Who reads a request: the officer who filed it, or the Commission's access officer or supervisor. */
 type Reader =
@@ -53,8 +47,8 @@ type Reader =
  * Law enforcement requests (spec 10, Act s.36(2), Regs r.23): a provisioned officer of an agency
  * files a written request with its reason and case reference against a Commission (no Form K);
  * the Commission's access officer checks where it came from and why, identifies the officer
- * sought, and decides within fourteen days. The declarant hears of it only after a grant
- * (r.23(2)). The filing officer reads their own requests (row-level security on
+ * sought, and decides within fourteen days. The declarant never hears of it (product decision, 2026-10-05; #614).
+ * The filing officer reads their own requests (row-level security on
  * `officer_subject` in the `lea` context); the Commission's access officer and supervisor read
  * the Commission's; anyone else gets 404.
  */
@@ -387,60 +381,6 @@ export class LeaService {
     return this.view(withdrawn, reader, principal);
   }
 
-  /**
-   * The access officer records the written notice of a grant served on a declarant who has no
-   * account (spec 10 decision 2, r.23(2)): the day it was served, not in the future and not
-   * before the grant (400 at `notifiedOn`). The request records the declarant told from the
-   * start of that day, with the `notified` register entry and event (channel `written`, the
-   * access officer its actor). Only on a grant (409 `not-under-decision` before, 409 for a
-   * denial: the declarant is never told), and only once: 409 `declarant-notified`; 409 when the
-   * declarant has an account (told online).
-   */
-  async recordWrittenNotice(
-    principal: Principal,
-    requestId: string,
-    body: WrittenNoticeBody,
-  ): Promise<LeaRequest> {
-    const tenant = ownCommissionTenant(principal);
-    requireAccessOfficer(principal, 'record a written notice');
-    const now = this.clock.now();
-    const context = { tenant, subject: principal.subject };
-    const reader: Reader = { kind: 'commission', context };
-    const recorded = await withTenant(this.db, context, async (tx) => {
-      const current = notFoundIfInvisible(await leaRow(tx, requestId, { lock: true }));
-      const decidedAt = requireGrantAwaitingNotice(current);
-      requireNoticeDay(body.notifiedOn, { at: decidedAt, what: 'the grant' }, now);
-      const [updated] = await tx
-        .update(leaRequests)
-        .set({
-          declarantNotifiedAt: startOfNairobiDay(body.notifiedOn),
-          writtenNotice: writtenNoticeOf(
-            body.notifiedOn,
-            { subject: principal.subject, name: accessOfficerName(principal) },
-            now,
-          ),
-        })
-        .where(eq(leaRequests.id, current.id))
-        .returning();
-      if (!updated) throw new Error('The written notice was not recorded');
-      await this.register.record(tx, {
-        tenant,
-        subjectKind: 'lea-request',
-        subjectId: updated.id,
-        reference: updated.reference,
-        personId: updated.resolvedPersonId,
-        kind: 'notified',
-        actor: { subject: principal.subject, name: principal.name },
-        at: now,
-        details: { channel: 'written', notifiedOn: body.notifiedOn },
-        eventData: { channel: 'written', notifiedOn: body.notifiedOn },
-      });
-      return notFoundIfInvisible(await leaRecord(tx, updated.id, reader));
-    });
-    await this.workflows.signal(requestId, 'notified');
-    return this.view(recorded, reader, principal);
-  }
-
   private view(found: LeaRecord, reader: Reader, principal: Principal): LeaRequest {
     if (reader.kind === 'commission') {
       return toLeaRequest(found.row, officerTimeline(found.entries), 'commission');
@@ -580,27 +520,6 @@ function requireUndecided(row: LeaRequestRow): void {
     throw problem('request-decided', 'The request is decided, and a decision is final.');
   }
   if (row.status === 'withdrawn') throw problem('request-closed', 'The request is closed.');
-}
-
-/**
- * A grant whose declarant has no account and is not told yet: what a written notice is recorded
- * on. The grant's instant.
- */
-function requireGrantAwaitingNotice(row: LeaRequestRow): Date {
-  if (row.status === 'withdrawn') throw problem('request-closed', 'The request is closed.');
-  if (row.status === 'denied') {
-    throw conflict('The request was denied: the declarant is not told of it (r.23(2)).');
-  }
-  if (row.status !== 'granted' || row.decision === null) {
-    throw problem('not-under-decision', 'The declarant is told only after a grant (r.23(2)).');
-  }
-  if (row.declarantNotifiedAt !== null) {
-    throw problem('declarant-notified', 'The declarant is told of the grant already.');
-  }
-  if (row.resolvedPersonId !== null) {
-    throw conflict('The declarant has an account: they are told online.');
-  }
-  return new Date(row.decision.decidedAt);
 }
 
 function requireVerifiable(row: LeaRequestRow): void {

@@ -7,8 +7,8 @@ import type { WrittenNotice } from '../written-notice.js';
 /**
  * Law enforcement requests (Act s.36(2), Regs r.23): a written request by an officer of a
  * provisioned agency account (role `law-enforcement`, tenant `lea`) against a Commission, with
- * its reason and case reference, decided within fourteen days. No Form K. The declarant is told
- * only after a grant (r.23(2)), so nothing here reaches them before.
+ * its reason and case reference, decided within fourteen days. No Form K. Nothing here reaches the
+ * declarant (product decision, 2026-10-05; #614).
  *
  * Row-level security (migration `access_rls`): the Commission's context reads and writes its
  * requests; the filing officer reads their own (`app.tenant` `lea`, `app.subject` =
@@ -115,8 +115,8 @@ export const leaRequests = pgTable(
     /** When issuing it failed after its retries; cleared once it is issued. */
     packageFailedAt: timestamp({ withTimezone: true }),
     /**
-     * When the declarant was told of the grant (r.23(2): only after it): online, or the start of
-     * the day a written notice was served.
+     * When the declarant was told of the grant, on requests granted before 2026-10-05; the
+     * declarant is no longer told (product decision, 2026-10-05; #614).
      */
     declarantNotifiedAt: timestamp({ withTimezone: true }),
     /** When it closed without a decision: withdrawn by its officer. */

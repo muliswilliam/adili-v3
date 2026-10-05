@@ -56,7 +56,7 @@ Every DIALs capability traces to the law. **Act** = [Conflict of Interest Act, 2
 | Act s.36(1), Regs r.22, Form K | Access on application showing legitimate interest | Form K online (`ARQ-…`) | access |
 | Act s.36(3), Regs r.22(2) | Notify declarant; representations before an affirmative decision | `AccessRequestWorkflow`; representation window | access · ADR-003 |
 | Regs r.22(3), r.24 | Grant (scope, manner) or deny with reasons; grounds for denial | Decision recording with Reg 24 grounds | access |
-| Act s.36(2), Regs r.23 | Law enforcement access after due process; written request; declarant notified | LEA route and API (`LEA-…`); no bulk access | access · ADR-009 |
+| Act s.36(2), Regs r.23 | Law enforcement access after due process; written request; declarant notified | LEA route and API (`LEA-…`); no bulk access. Product decision 2026-10-05: the declarant is not told of law enforcement requests (deviation from r.23(2), #614) | access · ADR-009 |
 | Act s.36(4), s.46 | Unauthorised publication and disclosure are offences; confidentiality | RLS + CASL, per-tenant encryption, audited reads, watermarked packages | ADR-006, ADR-008, ADR-010 |
 | Act s.37 | Keep for at least 5 years after officer leaves | Retention policy; object lock; audit archives kept as long | ADR-002, ADR-008 |
 | AM 37(h)-(i) | Confidentiality, integrity, secure storage and retrieval | Encryption, hash-chained audit, signed documents, backups | ADR-008, ADR-010, architecture §13 |

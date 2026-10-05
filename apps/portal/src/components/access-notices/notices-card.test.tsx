@@ -43,9 +43,7 @@ describe('the Access requests card on Home', () => {
   });
 
   it('goes under the obligations when nothing waits, and not on top', async () => {
-    const decided = (await seededNotices()).filter(
-      (notice) => notice.kind === 'lea' || !notice.canRespond,
-    );
+    const decided = (await seededNotices()).filter((notice) => !notice.canRespond);
     await renderSection({ status: 'ok', notices: decided, now: NOW }, 'first');
     expect(screen.queryByRole('region')).toBeNull();
     await renderSection({ status: 'ok', notices: decided, now: NOW }, 'last');
@@ -73,55 +71,32 @@ describe('Access requests', () => {
     const open = screen.getByRole('list', { name: 'Open' });
     expect(within(open).getAllByRole('listitem')).toHaveLength(3);
     const earlier = within(screen.getByRole('list', { name: 'Earlier' })).getAllByRole('link');
-    expect(earlier).toHaveLength(8);
+    expect(earlier).toHaveLength(6);
     expect(earlier.map((link) => link.textContent)).toEqual([
       expect.stringContaining('Under decision'),
       expect.stringContaining('Under decision'),
-      expect.stringContaining(
-        'A law-enforcement agency was granted access on 6 Sep 2026 (Asset Recovery Agency, case ARA/INV/2026/014)',
-      ),
       expect.stringContaining('Partially granted'),
       expect.stringContaining('Denied'),
       expect.stringContaining('Granted'),
       expect.stringContaining('Withdrawn'),
-      expect.stringContaining(
-        'A law-enforcement agency was partially granted access on 15 May 2026 (Directorate of Criminal Investigations, case DCI/ECU/2026/0331)',
-      ),
     ]);
-    expect(earlier[3]?.getAttribute('href')).toBe(`/access/notices/${IDS.partial}`);
-    expect(earlier[3]?.textContent).toContain('Decided 2 Sep 2026');
+    expect(earlier[2]?.getAttribute('href')).toBe(`/access/notices/${IDS.partial}`);
+    expect(earlier[2]?.textContent).toContain('Decided 2 Sep 2026');
     // A decided row keeps what was asked for, as an open one shows it.
-    expect(earlier[3]?.textContent).toMatch(/\d{4}(, \d{4})* · You[^·]* · [A-Z]/);
+    expect(earlier[2]?.textContent).toMatch(/\d{4}(, \d{4})* · You[^·]* · [A-Z]/);
   });
 
-  it('shows a law-enforcement grant by agency, case, outcome, dates and the scope disclosed', async () => {
+  it('names a request by its access-request reference', async () => {
     const notices = await seededNotices();
     render(<NoticesList notices={notices} page={1} now={NOW} onPage={vi.fn()} />);
     const rows = within(screen.getByRole('list', { name: 'Earlier' })).getAllByRole('link');
-    const granted = rows.find((row) => row.getAttribute('href') === `/access/notices/${IDS.lea}`);
-    const partial = rows.find(
-      (row) => row.getAttribute('href') === `/access/notices/${IDS.leaPartial}`,
-    );
-    expect(granted?.textContent).toBe(
-      'A law-enforcement agency was granted access on 6 Sep 2026 (Asset Recovery Agency, case ARA/INV/2026/014)' +
-        'LEA-TSC-2026-0000007-E · Notified 6 Sep 2026' +
-        'Disclosed: 2025, 2026 · You, spouse and children · Income, assets, liabilities' +
-        'Granted',
-    );
-    expect(partial?.textContent).toMatch(
-      /· Notified 15 May 2026Disclosed: 2025 · You only · AssetsPartially granted$/,
-    );
-    expect(granted?.getAttribute('aria-label')).toBe(
-      'Open law-enforcement request LEA-TSC-2026-0000007-E',
-    );
     const formK = rows.find((row) => row.getAttribute('href') === `/access/notices/${IDS.partial}`);
     expect(formK?.getAttribute('aria-label')).toMatch(/^Open access request ARQ-/);
+    expect(rows.some((row) => row.textContent.includes('law-enforcement'))).toBe(false);
   });
 
   it('calls them all access requests when none is open, and says when there are none', async () => {
-    const decided = (await seededNotices()).filter(
-      (notice) => notice.kind === 'lea' || !notice.canRespond,
-    );
+    const decided = (await seededNotices()).filter((notice) => !notice.canRespond);
     const { unmount } = render(
       <NoticesList notices={decided} page={1} now={NOW} onPage={vi.fn()} />,
     );

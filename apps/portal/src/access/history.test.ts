@@ -22,7 +22,6 @@ function entry(fields: Partial<AccessHistoryEntry>): AccessHistoryEntry {
     subjectId: 'b7e10000-0000-4000-8000-000000000001',
     commission: { slug: 'tsc', name: 'Teachers Service Commission' },
     requester: 'Wanjiru Kamau',
-    caseReference: null,
     purposeInGeneralTerms: 'To check the officer’s assets against tenders awarded.',
     scope: null,
     outcome: null,
@@ -69,33 +68,6 @@ describe('Who accessed in the declarant’s words', () => {
       title: 'Teachers Service Commission partially granted access',
       actor: 'Access officer, Teachers Service Commission',
       outcome: 'partial-grant',
-    });
-  });
-
-  it('reads a law-enforcement grant by agency and case, never the officer', () => {
-    const lea = entry({
-      kind: 'decided',
-      subjectKind: 'lea-request',
-      requester: 'Asset Recovery Agency',
-      caseReference: 'ARA/INV/118/2026',
-      outcome: 'grant',
-    });
-    expect(toRegisterEntry(lea, [lea], [])).toMatchObject({
-      title: 'Asset Recovery Agency was granted access',
-      actor: 'Case ARA/INV/118/2026',
-    });
-    const partial = { ...lea, outcome: 'partial-grant' as const };
-    expect(toRegisterEntry(partial, [partial], []).title).toBe(
-      'Asset Recovery Agency was partially granted access',
-    );
-    const downloaded = entry({
-      kind: 'downloaded',
-      subjectKind: 'lea-request',
-      requester: 'Asset Recovery Agency',
-    });
-    expect(toRegisterEntry(downloaded, [downloaded], [])).toMatchObject({
-      title: 'Asset Recovery Agency downloaded the package',
-      actor: 'Law-enforcement agency',
     });
   });
 
@@ -169,12 +141,11 @@ describe('filters and pages', () => {
     const { entries } = await seededHistory();
     const counts = countByFilter(entries);
     expect(counts.all).toBe(entries.length);
-    expect(counts['form-k'] + counts.lea + counts.copy).toBe(entries.length);
-    expect(counts.lea).toBe(8);
+    expect(counts['form-k'] + counts.copy).toBe(entries.length);
     expect(counts.copy).toBe(2);
-    expect(filterEntries(entries, 'lea').every((each) => each.subjectKind === 'lea-request')).toBe(
-      true,
-    );
+    expect(
+      filterEntries(entries, 'form-k').every((each) => each.subjectKind === 'access-request'),
+    ).toBe(true);
   });
 
   it('clamps the page to the pages there are', () => {

@@ -16,7 +16,6 @@ import { contractErrors, okResponse } from '../support/contract.js';
 import {
   decideLea,
   givenLeaOfficers,
-  LEA_INPUT,
   leaCallers,
   leaRowOf,
   submitLea,
@@ -94,7 +93,7 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
       return row.packageDocumentId === null ? undefined : row;
     });
 
-  it('S11: a grant: the officer told, then the declarant (r.23(2)), the package issued to the officer with legal basis act-s36-2 and watermarked with the agency, then announced', async () => {
+  it('S11: a grant: the officer told, the package issued to the officer with legal basis act-s36-2 and watermarked with the agency, then announced; the declarant never told (#614)', async () => {
     const { id, reference } = await verified();
 
     const response = await decideLea(api, id, { outcome: 'grant', reasons: GRANT_REASONS });
@@ -105,8 +104,6 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
     expect(sent.map((message) => message.template)).toEqual([
       'lea-decision-email',
       'lea-decision-sms',
-      'lea-grant-notice-email',
-      'lea-grant-notice-sms',
       'access-package-ready-email',
       'access-package-ready-sms',
     ]);
@@ -120,17 +117,8 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
         signInUrl: `http://localhost:3020/lea/requests/${id}`,
       },
     });
+    expect(JSON.stringify(sent)).not.toContain(anne.personId ?? 'anne');
     expect(sent[2]).toMatchObject({
-      recipient: { kind: 'person', personId: anne.personId },
-      params: {
-        reference,
-        commissionName: 'Public Service Commission',
-        agencyName: 'Directorate of Criminal Investigations',
-        grantedOn: '2027-01-18',
-        signInUrl: 'http://localhost:3010/access/notices',
-      },
-    });
-    expect(sent[4]).toMatchObject({
       recipient: { kind: 'person', personId: peter.personId },
       params: { reference, downloadUntil: '2027-02-01' },
     });
@@ -182,14 +170,13 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
       }),
     ]);
     expect(row).toMatchObject({
-      declarantNotifiedAt: new Date(DECIDED_AT),
+      declarantNotifiedAt: null,
       downloadExpiresAt: new Date(EXPIRES_AT),
     });
 
     const mine = await api.get(`/v1/lea/requests/${id}`, peter);
     expect(mine.json<LeaRequest>()).toMatchObject({
       status: 'granted',
-      declarantNotifiedAt: DECIDED_AT,
       package: {
         documentId: row.packageDocumentId,
         verificationId: row.packageVerificationId,
@@ -202,49 +189,23 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
       'received',
       'verified',
       'decided',
-      'notified',
       'package-issued',
     ]);
-    for (const type of ['lea.request.notified.v1', 'lea.request.package-issued.v1']) {
-      expect(await api.events(type), type).toEqual([
-        expect.objectContaining({
-          data: expect.objectContaining({
-            legalBasis: 'act-s36-2',
-            personId: anne.personId,
-          }) as unknown,
-        }),
-      ]);
-    }
+    expect(await api.events('lea.request.notified.v1')).toEqual([]);
+    expect(await api.events('lea.request.package-issued.v1')).toEqual([
+      expect.objectContaining({
+        data: expect.objectContaining({
+          legalBasis: 'act-s36-2',
+          personId: anne.personId,
+        }) as unknown,
+      }),
+    ]);
 
-    // The declarant now sees the grant among their notices: the agency, the case, the outcome,
-    // the scope granted (what was disclosed) and the dates, never the agency's reason or the
-    // decision's reasons (user decisions 4 and round 2).
+    // Not among the declarant's notices, nor in who accessed their declaration (#614).
     const notices = await api.get('/v1/me/access-notices', declarantOf(anne));
     expect(contractErrors(okResponse('/v1/me/access-notices', 'get'), notices.json())).toEqual([]);
-    expect(notices.json<DeclarantNotice[]>()).toEqual([
-      {
-        requestId: id,
-        reference,
-        kind: 'lea',
-        commission: { slug: 'psc', name: 'Public Service Commission' },
-        status: 'granted',
-        agency: { code: 'DCI', name: 'Directorate of Criminal Investigations' },
-        caseReference: 'DCI/ECU/121/2027',
-        outcome: 'grant',
-        grantedScope: {
-          years: [2026],
-          includeSpouses: true,
-          includeChildren: false,
-          sections: ['income', 'assets'],
-          includeClarifications: false,
-        },
-        decidedAt: DECIDED_AT,
-        notifiedAt: DECIDED_AT,
-        noticeChannel: 'online',
-      },
-    ]);
-    expect(notices.body).not.toContain(GRANT_REASONS);
-    expect(notices.body).not.toContain(LEA_INPUT.reason);
+    expect(notices.json<DeclarantNotice[]>()).toEqual([]);
+    expect((await api.get('/v1/me/access-history', declarantOf(anne))).json()).toEqual([]);
     // It takes no representations.
     const representations = await api.send(
       'PUT',

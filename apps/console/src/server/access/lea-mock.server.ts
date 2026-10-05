@@ -8,12 +8,11 @@
  * - `received`: received yesterday from the DCI, to verify ("Kamau" finds the officer sought).
  * - `soon`: received 11 days ago, 3 days left; `breach`: 16 days old and undecided (breached).
  * - `verified`: verified, to decide (ARA).
- * - `granted`: granted, the declarant notified, the package downloaded once.
+ * - `granted`: granted, the package downloaded once (the declarant is never told: #614).
  * - `expired`: granted a month ago; its download window has closed.
- * - `denied`: denied with Regulation 24 grounds; the declarant was not told.
- * - `noAccount`: granted to an officer with no account (Samuel Kiprotich Rotich): invited to
- *   onboard, the written notice of the grant still to record; the nil letter issued (nothing on
- *   Adili to disclose).
+ * - `denied`: denied with Regulation 24 grounds.
+ * - `noAccount`: granted to an officer with no account (Samuel Kiprotich Rotich): the nil letter
+ *   issued (nothing on Adili to disclose).
  * - `nilLetter`: granted on 2026 assets of Grace Nyambura Kamau, who filed nothing in 2026: the
  *   demo officer gets the nil letter (decision 1).
  * - `failed`: granted, but its package could not be issued.
@@ -425,11 +424,6 @@ function entry(
   return { id: randomUUID(), kind, at, actor, summary: kind, reference, inWriting };
 }
 
-/** The Nairobi calendar day of an instant, `YYYY-MM-DD`. */
-function nairobiDay(at: string): string {
-  return new Date(Date.parse(at) + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
-}
-
 /** An LEA reference with its ISO 7064 check character, as the numbering package makes it. */
 function referenceOf(commission: string, sequence: number): string {
   const base = `LEA-${commission.toUpperCase()}-2026-${String(sequence).padStart(7, '0')}`;
@@ -478,8 +472,6 @@ function build(seed: Seed, now: number): Stored {
     timeline.push(entry('verified', at, ACCESS_OFFICER_NAME, reference));
   }
   let decision: Decision | null = null;
-  let declarantNotifiedAt: string | null = null;
-  let declarantInvitedAt: string | null = null;
   let pkg: LeaRequest['package'] = null;
   let packageFailedAt: string | null = null;
   const noAccount = record ? !record.onboarded : false;
@@ -495,13 +487,6 @@ function build(seed: Seed, now: number): Stored {
       decidedAt,
     };
     timeline.push(entry('decided', decidedAt, ACCESS_OFFICER_NAME, reference));
-    if (seed.decision.outcome === 'grant' && noAccount) {
-      // Invited to onboard; told in writing once the access officer records it.
-      declarantInvitedAt = hoursLater(decidedAt, 0.05);
-    } else if (seed.decision.outcome === 'grant') {
-      declarantNotifiedAt = hoursLater(decidedAt, 0.05);
-      timeline.push(entry('notified', declarantNotifiedAt, null, reference));
-    }
     if (seed.decision.outcome === 'grant' && seed.decision.packageFailed) {
       packageFailedAt = hoursLater(decidedAt, 7.5);
     } else if (seed.decision.outcome === 'grant') {
@@ -548,12 +533,6 @@ function build(seed: Seed, now: number): Stored {
     resolvedName: record?.fullName ?? null,
     verification,
     decision,
-    declarantNotifiedAt,
-    declarantOnboarded: record ? record.onboarded : null,
-    declarantInvitedAt,
-    declarantNotice: declarantNotifiedAt
-      ? { channel: 'online', notifiedAt: declarantNotifiedAt, notifiedOn: null, recordedBy: null }
-      : null,
     package: pkg,
     packageFailedAt,
     timeline,
@@ -576,9 +555,10 @@ function advance(stored: Stored, now: number) {
   const issuedAt = new Date(stored.packageAt).toISOString();
   stored.packageAt = null;
   const { request } = stored;
+  const record = MOCK_ROSTER.find((each) => each.id === request.resolvedRosterRecordId);
   const nil =
     request.resolvedRosterRecordId === null ||
-    request.declarantOnboarded === false ||
+    record?.onboarded === false ||
     mockScopePreview(request.resolvedRosterRecordId, request.scope).empty;
   stored.request = {
     ...request,
@@ -635,9 +615,6 @@ const OWN_STEPS: readonly RegisterEntry['kind'][] = ['received', 'downloaded', '
 function asOfficerView(request: LeaRequest): LeaRequest {
   return {
     ...request,
-    declarantOnboarded: null,
-    declarantInvitedAt: null,
-    declarantNotice: null,
     verification: request.verification ? { ...request.verification, by: null, note: '' } : null,
     decision: request.decision ? { ...request.decision, decidedBy: null } : null,
     timeline: request.timeline.map((each) =>
@@ -693,7 +670,6 @@ async function verify(request: Request, stored: Stored, caller: MockCaller): Pro
     status: 'verified',
     resolvedRosterRecordId: found.id,
     resolvedName: found.fullName,
-    declarantOnboarded: found.onboarded,
     verification: {
       by: { subject: caller.subject, name: caller.name },
       at: now,
@@ -729,9 +705,6 @@ async function decide(request: Request, stored: Stored, caller: MockCaller): Pro
   if (!reasons) return badRequest('Bad Request', [{ path: 'reasons', message: 'is required' }]);
   const now = new Date().toISOString();
   const timeline = [...lea.timeline, entry('decided', now, caller.name, lea.reference)];
-  // An officer with no account is invited to onboard and told in writing; the nil letter follows.
-  const online = outcome === 'grant' && lea.declarantOnboarded !== false;
-  if (online) timeline.push(entry('notified', now, null, lea.reference));
   stored.request = {
     ...lea,
     status: outcome === 'grant' ? 'granted' : 'denied',
@@ -743,11 +716,6 @@ async function decide(request: Request, stored: Stored, caller: MockCaller): Pro
       decidedBy: { subject: caller.subject, name: caller.name },
       decidedAt: now,
     },
-    declarantNotifiedAt: online ? now : null,
-    declarantInvitedAt: outcome === 'grant' && !online ? now : null,
-    declarantNotice: online
-      ? { channel: 'online', notifiedAt: now, notifiedOn: null, recordedBy: null }
-      : null,
     breachedAt: lea.breachedAt,
     timeline,
   };
@@ -770,35 +738,6 @@ async function preview(request: Request, stored: Stored): Promise<Response> {
     scope = body as unknown as Scope;
   }
   return json(200, mockScopePreview(lea.resolvedRosterRecordId, scope));
-}
-
-/** `POST .../written-notice`: the written notice of a grant, as the access service rules. */
-async function writtenNotice(
-  request: Request,
-  stored: Stored,
-  caller: MockCaller,
-): Promise<Response> {
-  const body = await readJson(request);
-  const notifiedOn = isRecord(body) && typeof body.notifiedOn === 'string' ? body.notifiedOn : '';
-  const { request: lea } = stored;
-  if (lea.status !== 'granted' || !lea.decision) {
-    return conflict('The declarant is told only after a grant', 'not-under-decision');
-  }
-  if (lea.declarantNotifiedAt) return conflict('Told already', 'declarant-notified');
-  if (lea.declarantOnboarded !== false) return conflict('The declarant is told online');
-  const now = new Date().toISOString();
-  const badDay = (message: string) => badRequest('Bad Request', [{ path: 'notifiedOn', message }]);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(notifiedOn)) return badDay('is not a date');
-  if (notifiedOn > nairobiDay(now)) return badDay('is in the future');
-  if (notifiedOn < nairobiDay(lea.decision.decidedAt)) return badDay('is before the grant');
-  const notifiedAt = new Date(`${notifiedOn}T00:00:00+03:00`).toISOString();
-  stored.request = {
-    ...lea,
-    declarantNotifiedAt: notifiedAt,
-    declarantNotice: { channel: 'written', notifiedAt, notifiedOn, recordedBy: caller.name },
-    timeline: [...lea.timeline, entry('notified', now, caller.name, lea.reference, true)],
-  };
-  return json(200, stored.request);
 }
 
 /** The filing officer withdraws the request before its decision; `stuck` is 503 to try errors. */
@@ -940,10 +879,6 @@ export async function mockLeaFetch(request: Request): Promise<Response | null> {
   if (method === 'POST' && action === 'decision') {
     await delay(700);
     return decide(request, stored, caller);
-  }
-  if (method === 'POST' && action === 'written-notice') {
-    await delay(500);
-    return writtenNotice(request, stored, caller);
   }
   return problem(404, 'Not found');
 }

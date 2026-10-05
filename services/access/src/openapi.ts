@@ -22,7 +22,6 @@ import {
 import {
   declarantNoticeSchema,
   formKDeclarantNoticeSchema,
-  leaDeclarantNoticeSchema,
   representationsInputSchema,
 } from './notices/representation.js';
 import { scopePreviewSchema, scopePreviewYearSchema } from './preview/representation.js';
@@ -86,7 +85,6 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   AttachmentDownload: attachmentDownloadSchema,
   RepresentationsInput: representationsInputSchema,
   FormKDeclarantNotice: formKDeclarantNoticeSchema,
-  LeaDeclarantNotice: leaDeclarantNoticeSchema,
   WrittenNotice: writtenNoticeBody,
   Notice: noticeSchema,
   DeclarantNotice: declarantNoticeSchema,

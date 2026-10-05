@@ -907,7 +907,7 @@ paths:
       tags:
         - lea
       summary: Law enforcement officer submits a written request (no Form K); allocates the LEA reference
-      description: From a provisioned, active officer account (role `law-enforcement`, tenant `lea`, the token's `person_id` an officer of an agency in the directory). The request is `received` (`lea.request.received.v1`) with its fourteen-day deadline; the declarant is not told (only after a grant, r.23(2)).
+      description: "From a provisioned, active officer account (role `law-enforcement`, tenant `lea`, the token's `person_id` an officer of an agency in the directory). The request is `received` (`lea.request.received.v1`) with its fourteen-day deadline; the declarant is never told (product decision, 2026-10-05; #614)."
       operationId: submitLeaRequest
       parameters:
         - name: Idempotency-Key
@@ -1093,7 +1093,7 @@ paths:
         - lea
         - officer
       summary: Search the Commission's roster for the officer a law enforcement request names (audited)
-      description: 'As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying: its declarant is told after a grant.'
+      description: 'As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying.'
       operationId: listLeaRosterCandidates
       parameters:
         - name: leaRequestId
@@ -1221,81 +1221,13 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  /v1/lea/requests/{leaRequestId}/written-notice:
-    post:
-      tags:
-        - lea
-        - officer
-      summary: Record the written notice of a grant served on a declarant with no account
-      description: 'r.23(2), spec 10 decision 2: the officer identified has no declarant account, so the access officer tells them of the grant in writing and records the day it was served (not in the future, not before the grant). The request records the declarant told (`declarantNotice.channel` `written`; `lea.request.notified.v1`). They were invited to onboard; once they do, the notice shows in their account.'
-      operationId: recordLeaWrittenNotice
-      parameters:
-        - name: leaRequestId
-          required: true
-          in: path
-          schema:
-            type: string
-            format: uuid
-        - name: Idempotency-Key
-          in: header
-          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
-          required: false
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WrittenNotice'
-      responses:
-        '200':
-          description: Recorded
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LeaRequest'
-        '400':
-          description: 'leaRequestId is not a UUID, or the body failed validation: `notifiedOn` in the future or before the grant'
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '403':
-          description: |-
-            The Commission supervisor reads requests; only its access officer acts
-
-            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '404':
-          description: No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view)
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '409':
-          description: Problem code `declarant-notified` (told already), `not-under-decision` (not granted yet) or `request-closed`; or the request was denied, or the declarant has an account (told online)
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '422':
-          description: Idempotency-Key reused with a different request body
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /v1/lea/requests/{leaRequestId}/decision:
     post:
       tags:
         - lea
         - officer
       summary: Grant (package, declarant notified after) or deny with reasons (final)
-      description: "As for Form K: a grant is of the requested scope and cites no grounds; a partial grant narrows it and cites Regulation 24 grounds; a denial cites grounds. A grant or partial grant needs the request `verified`; a denial may be decided before. The request becomes `granted` (in full or in part: see `decision.outcome`) or `denied` (`lea.request.decided.v1`). The agency's officer is told next; after a grant the declarant is told (r.23(2)) and the officer's package (`act-s36-2`) follows."
+      description: "As for Form K: a grant is of the requested scope and cites no grounds; a partial grant narrows it and cites Regulation 24 grounds; a denial cites grounds. A grant or partial grant needs the request `verified`; a denial may be decided before. The request becomes `granted` (in full or in part: see `decision.outcome`) or `denied` (`lea.request.decided.v1`). The agency's officer is told next; after a grant the officer's package (`act-s36-2`) follows. The declarant is never told (product decision, 2026-10-05; #614)."
       operationId: decideLeaRequest
       parameters:
         - name: leaRequestId
@@ -1362,7 +1294,7 @@ paths:
       tags:
         - declarant
       summary: Requests the declarant has been notified about, with windows and outcomes
-      description: "Their own only, latest notified first: Form K requests from notification on; law enforcement requests (kind `lea`: the agency, its case reference, the outcome and the dates only, never the agency's reason or the decision's reasons or grounds; no representations) only once granted and the declarant told (r.23(2)). Form K notices carry the applicant's reason verbatim."
+      description: "Their own only, latest notified first: Form K requests from notification on. A law enforcement request is never among them (product decision, 2026-10-05; #614). Form K notices carry the applicant's reason verbatim."
       operationId: listMyAccessNotices
       responses:
         '200':
@@ -1704,7 +1636,7 @@ paths:
       tags:
         - declarant
       summary: Who accessed my declaration (register entries visible to the declarant)
-      description: 'Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), law enforcement requests from the grant on (decision, package, downloads, expiry), and their certified copies. Entries about a Form K request carry the applicant, the purpose the notice gave and the scope (requested before the decision, granted from it); those about a law enforcement request only the agency and case. Staff and law enforcement officers are not named.'
+      description: 'Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), and their certified copies. Entries about a Form K request carry the applicant, the purpose the notice gave and the scope (requested before the decision, granted from it). Staff are not named. Law enforcement requests never show (product decision, 2026-10-05; #614).'
       operationId: getMyAccessHistory
       responses:
         '200':
@@ -3074,77 +3006,6 @@ components:
         - canRespond
         - representations
         - decision
-    LeaDeclarantNotice:
-      type: object
-      properties:
-        requestId:
-          type: string
-          format: uuid
-        reference:
-          type: string
-        kind:
-          type: string
-          const: lea
-        commission:
-          type: object
-          properties:
-            slug:
-              type: string
-            name:
-              type: string
-          required:
-            - slug
-            - name
-        status:
-          type: string
-          const: granted
-        agency:
-          type: object
-          properties:
-            code:
-              type: string
-            name:
-              type: string
-          required:
-            - code
-            - name
-        caseReference:
-          type: string
-          description: The agency's case reference
-        outcome:
-          type: string
-          enum:
-            - grant
-            - partial-grant
-          description: Granted in full or in part
-        grantedScope:
-          description: 'What the grant disclosed: the years, whether the spouses and the children are included, and the sections'
-          $ref: '#/components/schemas/Scope'
-        decidedAt:
-          type: string
-          format: date-time
-        notifiedAt:
-          type: string
-          format: date-time
-        noticeChannel:
-          type: string
-          enum:
-            - online
-            - written
-          description: 'How the declarant was told: `online` at their account, or `written`: a notice served on paper while they had no account (spec 10 decision 2), `notifiedAt` the start of the day it was served'
-      required:
-        - requestId
-        - reference
-        - kind
-        - commission
-        - status
-        - agency
-        - caseReference
-        - outcome
-        - grantedScope
-        - decidedAt
-        - notifiedAt
-        - noticeChannel
     WrittenNotice:
       type: object
       properties:
@@ -3187,7 +3048,6 @@ components:
     DeclarantNotice:
       oneOf:
         - $ref: '#/components/schemas/FormKDeclarantNotice'
-        - $ref: '#/components/schemas/LeaDeclarantNotice'
     AccessCommission:
       type: object
       properties:
@@ -3249,7 +3109,6 @@ components:
           type: string
           enum:
             - access-request
-            - lea-request
             - self-access
         subjectId:
           type: string
@@ -3265,10 +3124,6 @@ components:
             - slug
             - name
         requester:
-          type:
-            - string
-            - 'null'
-        caseReference:
           type:
             - string
             - 'null'
@@ -3307,7 +3162,6 @@ components:
         - subjectId
         - commission
         - requester
-        - caseReference
         - purposeInGeneralTerms
         - scope
         - outcome
@@ -3541,7 +3395,7 @@ components:
         rosterRecordId:
           type: string
           format: uuid
-          description: 'The roster record of the Commission the officer sought is: their declarant is told after a grant (online, or in writing when they have no account)'
+          description: The roster record of the Commission the officer sought is
         note:
           type: string
           minLength: 1
@@ -3654,28 +3508,6 @@ components:
           anyOf:
             - $ref: '#/components/schemas/LeaDecision'
             - type: 'null'
-        declarantNotifiedAt:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          description: When the declarant was told of the grant (only after a grant, r.23(2))
-        declarantOnboarded:
-          description: "Whether the officer identified has a declarant account (told of a grant online); false: told in writing, and invited to onboard (spec 10 decision 2); null until verified, and for the agency's officer"
-          type:
-            - boolean
-            - 'null'
-        declarantInvitedAt:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          description: When the officer with no account was invited to onboard; null when not invited, and for the agency's officer
-        declarantNotice:
-          anyOf:
-            - $ref: '#/components/schemas/Notice'
-            - type: 'null'
-          description: How and when the declarant was told of the grant; null before, and for the agency's officer
         package:
           anyOf:
             - $ref: '#/components/schemas/Package'
@@ -3709,10 +3541,6 @@ components:
         - resolvedName
         - verification
         - decision
-        - declarantNotifiedAt
-        - declarantOnboarded
-        - declarantInvitedAt
-        - declarantNotice
         - package
         - packageFailedAt
         - timeline

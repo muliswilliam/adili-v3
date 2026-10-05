@@ -303,7 +303,7 @@ export interface paths {
         put?: never;
         /**
          * Law enforcement officer submits a written request (no Form K); allocates the LEA reference
-         * @description From a provisioned, active officer account (role `law-enforcement`, tenant `lea`, the token's `person_id` an officer of an agency in the directory). The request is `received` (`lea.request.received.v1`) with its fourteen-day deadline; the declarant is not told (only after a grant, r.23(2)).
+         * @description From a provisioned, active officer account (role `law-enforcement`, tenant `lea`, the token's `person_id` an officer of an agency in the directory). The request is `received` (`lea.request.received.v1`) with its fourteen-day deadline; the declarant is never told (product decision, 2026-10-05; #614).
          */
         post: operations["submitLeaRequest"];
         delete?: never;
@@ -361,7 +361,7 @@ export interface paths {
         };
         /**
          * Search the Commission's roster for the officer a law enforcement request names (audited)
-         * @description As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying: its declarant is told after a grant.
+         * @description As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying.
          */
         get: operations["listLeaRosterCandidates"];
         put?: never;
@@ -392,26 +392,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/lea/requests/{leaRequestId}/written-notice": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Record the written notice of a grant served on a declarant with no account
-         * @description r.23(2), spec 10 decision 2: the officer identified has no declarant account, so the access officer tells them of the grant in writing and records the day it was served (not in the future, not before the grant). The request records the declarant told (`declarantNotice.channel` `written`; `lea.request.notified.v1`). They were invited to onboard; once they do, the notice shows in their account.
-         */
-        post: operations["recordLeaWrittenNotice"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/lea/requests/{leaRequestId}/decision": {
         parameters: {
             query?: never;
@@ -423,7 +403,7 @@ export interface paths {
         put?: never;
         /**
          * Grant (package, declarant notified after) or deny with reasons (final)
-         * @description As for Form K: a grant is of the requested scope and cites no grounds; a partial grant narrows it and cites Regulation 24 grounds; a denial cites grounds. A grant or partial grant needs the request `verified`; a denial may be decided before. The request becomes `granted` (in full or in part: see `decision.outcome`) or `denied` (`lea.request.decided.v1`). The agency's officer is told next; after a grant the declarant is told (r.23(2)) and the officer's package (`act-s36-2`) follows.
+         * @description As for Form K: a grant is of the requested scope and cites no grounds; a partial grant narrows it and cites Regulation 24 grounds; a denial cites grounds. A grant or partial grant needs the request `verified`; a denial may be decided before. The request becomes `granted` (in full or in part: see `decision.outcome`) or `denied` (`lea.request.decided.v1`). The agency's officer is told next; after a grant the officer's package (`act-s36-2`) follows. The declarant is never told (product decision, 2026-10-05; #614).
          */
         post: operations["decideLeaRequest"];
         delete?: never;
@@ -441,7 +421,7 @@ export interface paths {
         };
         /**
          * Requests the declarant has been notified about, with windows and outcomes
-         * @description Their own only, latest notified first: Form K requests from notification on; law enforcement requests (kind `lea`: the agency, its case reference, the outcome and the dates only, never the agency's reason or the decision's reasons or grounds; no representations) only once granted and the declarant told (r.23(2)). Form K notices carry the applicant's reason verbatim.
+         * @description Their own only, latest notified first: Form K requests from notification on. A law enforcement request is never among them (product decision, 2026-10-05; #614). Form K notices carry the applicant's reason verbatim.
          */
         get: operations["listMyAccessNotices"];
         put?: never;
@@ -529,7 +509,7 @@ export interface paths {
         };
         /**
          * Who accessed my declaration (register entries visible to the declarant)
-         * @description Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), law enforcement requests from the grant on (decision, package, downloads, expiry), and their certified copies. Entries about a Form K request carry the applicant, the purpose the notice gave and the scope (requested before the decision, granted from it); those about a law enforcement request only the agency and case. Staff and law enforcement officers are not named.
+         * @description Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), and their certified copies. Entries about a Form K request carry the applicant, the purpose the notice gave and the scope (requested before the decision, granted from it). Staff are not named. Law enforcement requests never show (product decision, 2026-10-05; #614).
          */
         get: operations["getMyAccessHistory"];
         put?: never;
@@ -995,41 +975,6 @@ export interface components {
             representations: components["schemas"]["Representations"] | null;
             decision: components["schemas"]["PublicDecision"] | null;
         };
-        LeaDeclarantNotice: {
-            /** Format: uuid */
-            requestId: string;
-            reference: string;
-            /** @constant */
-            kind: "lea";
-            commission: {
-                slug: string;
-                name: string;
-            };
-            /** @constant */
-            status: "granted";
-            agency: {
-                code: string;
-                name: string;
-            };
-            /** @description The agency's case reference */
-            caseReference: string;
-            /**
-             * @description Granted in full or in part
-             * @enum {string}
-             */
-            outcome: "grant" | "partial-grant";
-            /** @description What the grant disclosed: the years, whether the spouses and the children are included, and the sections */
-            grantedScope: components["schemas"]["Scope"];
-            /** Format: date-time */
-            decidedAt: string;
-            /** Format: date-time */
-            notifiedAt: string;
-            /**
-             * @description How the declarant was told: `online` at their account, or `written`: a notice served on paper while they had no account (spec 10 decision 2), `notifiedAt` the start of the day it was served
-             * @enum {string}
-             */
-            noticeChannel: "online" | "written";
-        };
         WrittenNotice: {
             /**
              * Format: date
@@ -1053,7 +998,7 @@ export interface components {
             /** @description The access officer who recorded the written notice, by name; null online */
             recordedBy: string | null;
         };
-        DeclarantNotice: components["schemas"]["FormKDeclarantNotice"] | components["schemas"]["LeaDeclarantNotice"];
+        DeclarantNotice: components["schemas"]["FormKDeclarantNotice"];
         AccessCommission: {
             /** @description The form-k.v1 `responsibleCommission` */
             slug: string;
@@ -1075,7 +1020,7 @@ export interface components {
             reference: string;
             inWriting: boolean;
             /** @enum {string} */
-            subjectKind: "access-request" | "lea-request" | "self-access";
+            subjectKind: "access-request" | "self-access";
             /** Format: uuid */
             subjectId: string;
             commission: {
@@ -1083,7 +1028,6 @@ export interface components {
                 name: string;
             };
             requester: string | null;
-            caseReference: string | null;
             purposeInGeneralTerms: string | null;
             scope: components["schemas"]["Scope"] | null;
             outcome: components["schemas"]["Outcome"] | null;
@@ -1181,7 +1125,7 @@ export interface components {
             reasonConfirmed: true;
             /**
              * Format: uuid
-             * @description The roster record of the Commission the officer sought is: their declarant is told after a grant (online, or in writing when they have no account)
+             * @description The roster record of the Commission the officer sought is
              */
             rosterRecordId: string;
             /** @description What the access officer checked */
@@ -1231,14 +1175,6 @@ export interface components {
             resolvedName: string | null;
             verification: components["schemas"]["LeaVerification"] | null;
             decision: components["schemas"]["LeaDecision"] | null;
-            /** @description When the declarant was told of the grant (only after a grant, r.23(2)) */
-            declarantNotifiedAt: string | null;
-            /** @description Whether the officer identified has a declarant account (told of a grant online); false: told in writing, and invited to onboard (spec 10 decision 2); null until verified, and for the agency's officer */
-            declarantOnboarded: boolean | null;
-            /** @description When the officer with no account was invited to onboard; null when not invited, and for the agency's officer */
-            declarantInvitedAt: string | null;
-            /** @description How and when the declarant was told of the grant; null before, and for the agency's officer */
-            declarantNotice: components["schemas"]["Notice"] | null;
             package: components["schemas"]["Package"] | null;
             /** @description When issuing the grant's package or nil letter failed after its retries (an operator takes it up); null while it is prepared and once issued. A grant with no package and no failure is being prepared */
             packageFailedAt: string | null;
@@ -2828,84 +2764,6 @@ export interface operations {
             };
             /** @description The directory cannot be reached; nothing was recorded */
             503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    recordLeaWrittenNotice: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                leaRequestId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WrittenNotice"];
-            };
-        };
-        responses: {
-            /** @description Recorded */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaRequest"];
-                };
-            };
-            /** @description leaRequestId is not a UUID, or the body failed validation: `notifiedOn` in the future or before the grant */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /**
-             * @description The Commission supervisor reads requests; only its access officer acts
-             *
-             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem code `declarant-notified` (told already), `not-under-decision` (not granted yet) or `request-closed`; or the request was denied, or the declarant has an account (told online) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };

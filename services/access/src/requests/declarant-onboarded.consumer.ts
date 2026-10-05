@@ -8,8 +8,6 @@ import { z } from 'zod';
 
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
 import { type LinkedRequests, linkDeclarant } from '../declarant-account.js';
-import { LeaRequestWorkflows } from '../lea/lea-workflows.js';
-import { leaRequests } from '../lea/schema.js';
 import { OnboardedNoticeWorkflows } from '../onboarded-notices/onboarded-notice-workflows.js';
 import { systemContext } from '../system-context.js';
 import { currentTransactionId } from '../workflow-control.js';
@@ -27,19 +25,19 @@ const declarantOnboardedData = z.object({ personId: z.uuid(), rosterRecordId: z.
 /**
  * A roster record's officer onboarded (the directory's `declarant.onboarded.v1`, in their
  * Commission): the requests resolved to that record while they had no account (spec 10 decision
- * 2) are linked to the person, once per event (inbox), and their workflows told: a Form K
- * request not yet notified in writing is notified online now, and a grant not yet told in writing
- * is told online. A request served in writing already starts `OnboardedNoticeWorkflow`, inside
- * the linking transaction (a Temporal outage rolls the link back and the event is redelivered),
- * so the declarant is also told online what the letter told them while it still matters. Linked
- * requests show in the declarant's notices and who-accessed history.
+ * 2) are linked to the person, once per event (inbox). A linked Form K request's workflow is
+ * told: one not yet notified in writing is notified online now. One served in writing already
+ * starts `OnboardedNoticeWorkflow`, inside the linking transaction (a Temporal outage rolls the
+ * link back and the event is redelivered), so the declarant is also told online what the letter
+ * told them while it still matters. Linked Form K requests show in the declarant's notices and
+ * who-accessed history. A law enforcement request is linked too, for its officers, but never told
+ * to the declarant (product decision, 2026-10-05; #614).
  */
 @Controller()
 export class DeclarantOnboardedConsumer {
   constructor(
     @Inject(DATABASE) private readonly db: AccessDatabase,
     private readonly formK: AccessRequestWorkflows,
-    private readonly lea: LeaRequestWorkflows,
     private readonly onboardedNotices: OnboardedNoticeWorkflows,
   ) {}
 
@@ -54,10 +52,9 @@ export class DeclarantOnboardedConsumer {
       await this.startOnboardedNotices(tx, tenant, linked);
     });
     for (const requestId of linked.formK) await this.formK.signal(requestId, 'onboarded');
-    for (const requestId of linked.lea) await this.lea.signal(requestId, 'onboarded');
   }
 
-  /** Starts `OnboardedNoticeWorkflow` for each linked request served in writing already. */
+  /** Starts `OnboardedNoticeWorkflow` for each linked Form K request served in writing already. */
   private async startOnboardedNotices(
     tx: AccessTransaction,
     tenant: string,
@@ -75,17 +72,7 @@ export class DeclarantOnboardedConsumer {
                 isNotNull(accessRequests.writtenNotice),
               ),
             );
-    const lea =
-      linked.lea.length === 0
-        ? []
-        : await tx
-            .select({ id: leaRequests.id })
-            .from(leaRequests)
-            .where(and(inArray(leaRequests.id, linked.lea), isNotNull(leaRequests.writtenNotice)));
-    const served = [
-      ...formK.map(({ id }) => ({ requestKind: 'form-k' as const, requestId: id })),
-      ...lea.map(({ id }) => ({ requestKind: 'lea' as const, requestId: id })),
-    ];
+    const served = formK.map(({ id }) => ({ requestKind: 'form-k' as const, requestId: id }));
     if (served.length === 0) return;
     const transactionId = await currentTransactionId(tx);
     for (const request of served) {

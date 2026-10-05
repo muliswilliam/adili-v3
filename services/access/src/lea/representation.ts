@@ -6,7 +6,6 @@ import { type RegisterEntry, registerEntrySchema } from '../register/representat
 import { packageOf } from '../requests/representation.js';
 import { scopeSchema } from '../scope.js';
 import { LEA_REQUEST_STATUSES, type leaRequests } from './schema.js';
-import { noticeOf, noticeSchema } from '../written-notice.js';
 
 /**
  * Shapes of the law enforcement requests API (spec 10, Act s.36(2), Regs r.23). They are the
@@ -62,8 +61,7 @@ export const verifyLeaRequestBody = z.strictObject({
     .literal(true)
     .meta({ description: 'The access officer confirms the request states its reason' }),
   rosterRecordId: z.uuid().meta({
-    description:
-      'The roster record of the Commission the officer sought is: their declarant is told after a grant (online, or in writing when they have no account)',
+    description: 'The roster record of the Commission the officer sought is',
   }),
   note: z.string().trim().min(1).max(1000).meta({ description: 'What the access officer checked' }),
 });
@@ -123,21 +121,6 @@ export const leaRequestSchema = z.object({
     .meta({ description: 'The roster record the officer sought was identified as' }),
   verification: leaVerificationSchema.nullable(),
   decision: leaDecisionSchema.nullable(),
-  declarantNotifiedAt: z.iso.datetime({ offset: true }).nullable().meta({
-    description: 'When the declarant was told of the grant (only after a grant, r.23(2))',
-  }),
-  declarantOnboarded: z.boolean().nullable().meta({
-    description:
-      "Whether the officer identified has a declarant account (told of a grant online); false: told in writing, and invited to onboard (spec 10 decision 2); null until verified, and for the agency's officer",
-  }),
-  declarantInvitedAt: z.iso.datetime({ offset: true }).nullable().meta({
-    description:
-      "When the officer with no account was invited to onboard; null when not invited, and for the agency's officer",
-  }),
-  declarantNotice: noticeSchema.nullable().meta({
-    description:
-      "How and when the declarant was told of the grant; null before, and for the agency's officer",
-  }),
   package: packageSchema.nullable(),
   packageFailedAt: packageFailedAtSchema,
   timeline: z.array(registerEntrySchema),
@@ -188,11 +171,6 @@ export function toLeaRequest(
           },
     decision:
       row.decision === null || commission ? row.decision : { ...row.decision, decidedBy: null },
-    declarantNotifiedAt: row.declarantNotifiedAt?.toISOString() ?? null,
-    declarantOnboarded:
-      commission && row.resolvedRosterRecordId !== null ? row.resolvedPersonId !== null : null,
-    declarantInvitedAt: commission ? (row.declarantInvitedAt?.toISOString() ?? null) : null,
-    declarantNotice: commission ? noticeOf(row.declarantNotifiedAt, row.writtenNotice) : null,
     package: packageOf(row, downloads),
     packageFailedAt: row.packageFailedAt?.toISOString() ?? null,
     timeline: [...timeline],

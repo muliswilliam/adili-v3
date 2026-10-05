@@ -4,7 +4,6 @@ import { DATABASE } from '@adili/data-access';
 import { requireTransactionEnded } from '../activity-failures.js';
 import { Clock, nairobiDate } from '../clock.js';
 import type { AccessDatabase } from '../db/database.js';
-import { loadLea } from '../lea/activities.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { declarantNoticesUrl } from '../requests/links.js';
 import { DECIDED_STATUSES } from '../requests/schema.js';
@@ -43,7 +42,7 @@ export class OnboardedNoticeActivities {
     const sendAll = async (
       about: { id: string },
       personId: string,
-      template: 'access-decision-declarant' | 'access-request-notified' | 'lea-grant-notice',
+      template: 'access-decision-declarant' | 'access-request-notified',
       key: string,
       params: Record<string, string>,
     ) => {
@@ -59,26 +58,9 @@ export class OnboardedNoticeActivities {
       }
     };
 
-    if (input.requestKind === 'lea') {
-      const found = await loadLea(this.db, tenant, requestId);
-      if (!found) return 'missing';
-      const { resolvedPersonId: personId, decision } = found;
-      if (
-        personId === null ||
-        found.writtenNotice === null ||
-        found.status !== 'granted' ||
-        decision === null
-      ) {
-        return 'not-relevant';
-      }
-      await sendAll(found, personId, 'lea-grant-notice', 'lea-grant-notice', {
-        reference: found.reference,
-        commissionName: found.commissionName,
-        agencyName: found.agencyName,
-        grantedOn: nairobiDate(new Date(decision.decidedAt)),
-      });
-      return 'grant-notice';
-    }
+    // A law enforcement grant is not told to the declarant (product decision, 2026-10-05; #614);
+    // only runs started before then ask about one.
+    if (input.requestKind === 'lea') return 'not-relevant';
 
     const found = await load(this.db, tenant, requestId);
     if (!found) return 'missing';

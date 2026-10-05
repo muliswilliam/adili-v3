@@ -6,8 +6,7 @@ import { badRequest } from './problems.js';
 /**
  * Written notice to a declarant who has no account (spec 10 decision 2, Regs r.22(2)): the access
  * officer serves the notice on paper and records the day it was served; the declarant's window
- * for representations (Form K) runs from that day. The same record is kept of a law enforcement
- * grant told in writing (r.23(2)).
+ * for representations (Form K) runs from that day.
  */
 
 /** What the request keeps of a written notice: the day it was served, and who recorded it when. */
@@ -21,7 +20,7 @@ export interface WrittenNotice {
   at: string;
 }
 
-/** Body of `recordWrittenNotice` and `recordLeaWrittenNotice`. */
+/** Body of `recordWrittenNotice`. */
 export const writtenNoticeBody = z.strictObject({
   notifiedOn: z.iso.date().meta({
     description:

@@ -81,7 +81,7 @@ describe('deciding a law enforcement request (spec 10 FE-6, S11)', () => {
     );
   });
 
-  it('S11: grants, confirming the declarant is told after and the package goes to the officer', async () => {
+  it('S11: grants, confirming the package goes to the officer and the declarant is not told', async () => {
     renderPage(await requestOf(L.verified));
     fireEvent.click(screen.getByRole('radio', { name: 'Grant' }));
     fireEvent.change(screen.getByRole('textbox', { name: /Reasons/ }), {
@@ -89,7 +89,7 @@ describe('deciding a law enforcement request (spec 10 FE-6, S11)', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Record decision' }));
     const dialog = await screen.findByRole('dialog', { name: 'Record grant?' });
-    expect(dialog.textContent).toContain('The declarant is notified after the grant.');
+    expect(dialog.textContent).toContain('The declarant is not notified.');
     expect(dialog.textContent).toContain(
       'A Confidential package goes to Mary Achieng Otieno (ARA)',
     );

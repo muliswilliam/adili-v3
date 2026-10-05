@@ -418,7 +418,7 @@ describe('access row-level security', () => {
     ).toEqual([]);
   });
 
-  it('a declarant sees a law enforcement request about them only once granted (r.23(2))', async () => {
+  it('a declarant never sees a law enforcement request about them, granted or not (#614)', async () => {
     const declarant = randomUUID();
     const request = await givenLeaRequest({ resolvedPersonId: declarant, status: 'verified' });
 
@@ -435,8 +435,7 @@ describe('access row-level security', () => {
       lea: await tx.select().from(leaRequests),
       entries: await tx.select().from(accessRegister),
     }));
-    expect(ids(after.lea)).toEqual([request.id]);
-    expect(after.entries.map((row) => row.subjectId)).toEqual([request.id]);
+    expect(after).toEqual({ lea: [], entries: [] });
   });
 
   it('a declarant reads their own certified copies and self-access entries only', async () => {
