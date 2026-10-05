@@ -1,4 +1,4 @@
-import { ServiceTokenClient } from '@adili/api-kit';
+import { oidcRealmUrl, ServiceTokenClient } from '@adili/api-kit';
 
 import { config } from './config.js';
 
@@ -9,7 +9,7 @@ import { config } from './config.js';
  */
 export function directoryServiceTokens(...scopes: string[]): ServiceTokenClient {
   return new ServiceTokenClient({
-    issuerUrl: config.OIDC_ISSUER_URL,
+    issuerUrl: oidcRealmUrl(config),
     clientId: config.KEYCLOAK_CLIENT_ID,
     clientSecret: config.KEYCLOAK_CLIENT_SECRET,
     scopes,

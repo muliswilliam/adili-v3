@@ -62,7 +62,7 @@ export function ConsoleShell({ userName, roles, navCounts, children }: ConsoleSh
         {sidebar}
       </dialog>
       <div className="flex min-w-0 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-2.5 border-b bg-background/88 px-4 backdrop-blur-md backdrop-saturate-[1.4] lg:px-7">
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-2.5 border-b bg-background px-4 lg:px-7">
           <Button
             variant="ghost"
             size="icon"

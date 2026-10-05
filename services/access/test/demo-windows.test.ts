@@ -23,4 +23,17 @@ describe('demo package validity (#371)', () => {
       new Date(issuedAt.getTime() + 120_000),
     );
   });
+
+  it('shortens it only for the Commissions named', () => {
+    const demo = checkedEnvSchema.parse({
+      ...process.env,
+      DEMO_MODE: 'true',
+      DEMO_PACKAGE_VALIDITY: 'PT2M',
+      DEMO_WINDOW_TENANTS: 'jsc',
+    });
+    expect(demo.DEMO_WINDOW_TENANTS).toEqual(['jsc']);
+    expect(checkedEnvSchema.safeParse({ ...process.env, DEMO_WINDOW_TENANTS: 'jsc' }).success).toBe(
+      false,
+    );
+  });
 });

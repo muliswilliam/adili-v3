@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ServiceTokenClient } from '@adili/api-kit';
+import { oidcRealmUrl, ServiceTokenClient } from '@adili/api-kit';
 
 import { config } from '../config.js';
 import { AiGatewayClient } from './ai-gateway-client.js';
@@ -14,7 +14,7 @@ import { AI_SCOPE, HttpAiGatewayClient } from './http-ai-gateway-client.js';
         new HttpAiGatewayClient({
           gatewayUrl: config.AI_GATEWAY_URL,
           tokens: new ServiceTokenClient({
-            issuerUrl: config.OIDC_ISSUER_URL,
+            issuerUrl: oidcRealmUrl(config),
             clientId: config.KEYCLOAK_CLIENT_ID,
             clientSecret: config.KEYCLOAK_CLIENT_SECRET,
             scopes: [AI_SCOPE],

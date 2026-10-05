@@ -7,6 +7,7 @@ import { Public } from '../auth/public.decorator.js';
 import { ReadinessCheck } from './readiness-check.js';
 
 export const READINESS_CHECKS = Symbol('READINESS_CHECKS');
+export const HEALTH_INFO = Symbol('HEALTH_INFO');
 
 const CHECK_TIMEOUT_MS = 2_000;
 
@@ -23,6 +24,7 @@ export class HealthController {
     @Inject(READINESS_CHECKS)
     private readonly registered: (Type<ReadinessCheck> | ReadinessCheck)[],
     private readonly moduleRef: ModuleRef,
+    @Inject(HEALTH_INFO) private readonly info: Record<string, string>,
   ) {}
 
   /** Liveness: the process is running. Never checks dependencies. */
@@ -31,7 +33,7 @@ export class HealthController {
     return { status: 'up' };
   }
 
-  /** Readiness: every dependency answers within the timeout. */
+  /** Readiness: every dependency answers within the timeout, plus the process's `info`. */
   @Get('ready')
   async ready(@Res({ passthrough: true }) reply: FastifyReply) {
     // Provider checks live in the modules that own the dependency, so resolve them app-wide.
@@ -50,7 +52,11 @@ export class HealthController {
     );
     const up = results.every(([, result]) => result.status === 'up');
     void reply.status(up ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE);
-    return { status: up ? 'up' : 'down', checks: Object.fromEntries(results) };
+    return {
+      status: up ? 'up' : 'down',
+      checks: Object.fromEntries(results),
+      ...(Object.keys(this.info).length > 0 && { info: this.info }),
+    };
   }
 }
 

@@ -45,3 +45,6 @@ _sources/
 
 # ui-diff-video recordings and base worktree
 .ui-diff/
+
+# The demo seed's output for the demo script: verification codes, the tampered PDF (#620)
+.demo/

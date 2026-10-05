@@ -4,7 +4,9 @@ import { z } from 'zod';
 import {
   demoModeSetting,
   DemoWindows,
+  demoWindowFor,
   demoWindowSetting,
+  demoWindowTenantsSetting,
   isoDurationMs,
   refuseDemoWindowsOutsideDemo,
 } from '../src/demo-windows.js';
@@ -59,6 +61,23 @@ describe('demo windows', () => {
 
   it('refuses a malformed window', () => {
     expect(schema.safeParse({ DEMO_MODE: 'true', DEMO_WINDOW: '2m' }).success).toBe(false);
+  });
+});
+
+describe('demo window tenants', () => {
+  it('applies a window to every Commission when no tenants are named', () => {
+    expect(demoWindowFor(120_000, undefined, 'psc')).toBe(120_000);
+  });
+
+  it('applies it only to the named Commissions', () => {
+    const tenants = demoWindowTenantsSetting.parse(' jsc, npsc ,');
+    expect(tenants).toEqual(['jsc', 'npsc']);
+    expect(demoWindowFor(120_000, tenants, 'jsc')).toBe(120_000);
+    expect(demoWindowFor(120_000, tenants, 'psc')).toBeUndefined();
+  });
+
+  it('is the legal window when no demo window is set', () => {
+    expect(demoWindowFor(undefined, ['jsc'], 'jsc')).toBeUndefined();
   });
 });
 

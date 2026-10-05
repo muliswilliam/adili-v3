@@ -50,11 +50,19 @@ export {
   type ServiceClientOptions,
 } from './service-client.js';
 export { createService, type ServiceOptions } from './bootstrap.js';
-export { type BaseEnv, baseEnvSchema, loadConfig, TRUSTED_PROXIES_DEFAULT } from './config.js';
+export {
+  type BaseEnv,
+  baseEnvSchema,
+  loadConfig,
+  oidcRealmUrl,
+  TRUSTED_PROXIES_DEFAULT,
+} from './config.js';
 export {
   demoModeSetting,
   DemoWindows,
+  demoWindowFor,
   demoWindowSetting,
+  demoWindowTenantsSetting,
   isoDurationMs,
   refuseDemoWindowsOutsideDemo,
 } from './demo-windows.js';
