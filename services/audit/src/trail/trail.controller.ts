@@ -6,6 +6,7 @@ import {
   AuditedRead,
   Roles,
   schemaRef,
+  TENANT_KEY,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { AUDITOR } from '@adili/roles';
@@ -89,7 +90,7 @@ export class TrailController {
 
   @Get('chains/:tenant/:chainDay/verification')
   @AuditedRead({ action: 'audit.chain.verified', resource: 'audit-chain' })
-  @ApiParam({ name: 'tenant', schema: { type: 'string', pattern: '^[a-z][a-z0-9]{1,19}$' } })
+  @ApiParam({ name: 'tenant', schema: { type: 'string', pattern: TENANT_KEY.source } })
   @ApiParam({ name: 'chainDay', schema: { type: 'string', format: 'date' } })
   @ApiOperation({
     operationId: 'verifyAuditChain',
@@ -100,7 +101,7 @@ export class TrailController {
   @ApiOkResponse({ description: 'The verification', schema: schemaRef('AuditChainVerification') })
   @ApiProblemResponse(400, 'Tenant or day malformed')
   verify(
-    @Param('tenant', new ZodValidationPipe(z.string().regex(/^[a-z][a-z0-9]{1,19}$/)))
+    @Param('tenant', new ZodValidationPipe(z.string().regex(TENANT_KEY)))
     tenant: string,
     @Param('chainDay', new ZodValidationPipe(z.iso.date())) chainDay: string,
   ): Promise<ChainVerification> {

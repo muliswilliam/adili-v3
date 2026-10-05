@@ -1,10 +1,11 @@
+import { TENANT_KEY } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { CHAIN_PROBLEMS } from './verifier.js';
 import { ACTOR_TYPES, AUDIT_KINDS, AUDIT_OUTCOMES } from './schema.js';
 
 /** A tenant key: a Commission slug, `eacc`, `lea` or `platform`. */
-const tenantKey = z.string().regex(/^[a-z][a-z0-9]{1,19}$/);
+const tenantKey = z.string().regex(TENANT_KEY);
 
 export const auditEventSummarySchema = z
   .object({
