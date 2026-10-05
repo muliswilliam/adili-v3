@@ -52,6 +52,14 @@ pnpm --filter @adili/demo-seed seed --list
 | `review-closure` | Clean low-risk PSC cases (officers who had not filed 2026 file now, with a short case window) proposed by the closure sweep and approved in bulk | declarations and review APIs, the closure sweep's Temporal schedule triggered |
 | `review-referral` | EACC's officer who missed 2022 and 2024: referral proposed by the sweep, approved by EACC's staff supervisor, pushed to ICMS with its case number | review and reporting APIs, the referral sweep's schedule triggered |
 | `access` | Form K about Kiprono awaiting his representations, about Otieno granted (watermarked, signed package), about Amina denied (Regulation 24, proceedings); DCI's request about Kiprono granted; Amina's certified copy of version 2; a JSC grant whose package expires | access API as `applicant`, `access-officer`, `law-enforcement`, the declarants and a seeded `jsc-access-officer` |
+| `form-m-officers` | Form M supervisors and commission-admins for TSC, JSC and NPSC | Keycloak admin (no API creates Commission staff) |
+| `review-volume` | In TSC, JSC and NPSC: 14 clean cases determined compliant and 11 clarified (asked, answered, resolved) then determined, per Commission; every proposed notice to comply approved | review API as each Commission's reviewer, declarant and supervisor |
+| `form-m-chase` | EACC's chase of every Commission that has not reported, before any reports: chased once, by email | reporting's chase schedule triggered |
+| `form-m` | Form M for FY 2025/2026: PSC compiled, Part I entered and reviewed (confirmed live); JSC and NPSC confirmed; TSC filed from its own system; EACC not reported | reporting API as supervisor and commission-admin (fresh step-up to confirm); TSC through the federated API with the `tsc-reports` client |
+| `eacc-ai-policy` | EACC's gate allows the national report's narrative (`restricted`, synthetic figures) to the external provider | ai-gateway gate API as `platform-admin` |
+| `ncr` | National consolidated report built, its narrative drafted by the AI (overview, findings from the pattern candidates, recommendations), approved | reporting API as `eacc-analyst`, approved by `eacc-supervisor` |
+| `open-data` | The annual release published on approval withdrawn with a public reason; version 2 built and published | reporting API as `eacc-analyst` and `eacc-supervisor` |
+| `icms-referrals` | Every referral EACC received pushed to ICMS with its case number | reporting API as `eacc-analyst` |
 | `verify` | A document in every verify status, and a tampered copy of a slip; writes `.demo/verify.md` and `.demo/verify.json` | declarations, review (a JSC clarification issued in error and withdrawn), access and documents APIs |
 
 Why demo cycles: the first real cycle (2027) has its statement date on 1 November 2027, so
@@ -98,6 +106,27 @@ package to `.demo/verify.md` (and `.json`), with `.demo/tampered-acknowledgement
 it on the valid slip's verify page and it reports that the file does not match. The codes change
 with every seed from an empty stack and stay with a checkpoint; `pnpm demo:seed --only verify`
 writes the file again from the stack as it is.
+
+## Form M, EACC and open data (#619)
+
+| Who | Sees |
+| --- | --- |
+| `commission-admin` (console, Form M) | PSC's FY 2025/2026 report compiled, reviewed and Part I filled: Confirm and submit is the live beat (late: the reports were due on 31 July 2026) |
+| `supervisor` (console, Form M) | The same draft; who compiled and reviewed it |
+| `jsc-commission-admin` (console) | JSC's submitted report, and JSC's rows in the open-data release (Commission preview) |
+| `eacc-analyst` (console, Compliance reports) | Intake: JSC, NPSC and TSC (federated) reported late, PSC and EACC not reported, every Commission chased once; the approved national report with its AI-drafted narrative and notable patterns; referrals with their ICMS case numbers; the release history (version 1 withdrawn, version 2 published) |
+| Public (portal, Open data) | FY 2025/2026 annual, version 2: declaration figures of the three Commissions that reported, and version 1 listed as withdrawn with its reason |
+
+Why EACC is the Commission that did not report: its staff roster in the demo is one officer (the
+referral). Figures over fewer than 10 officers are suppressed, and complementary suppression
+would then hide most of the other Commissions' figures too.
+
+What the year's figures can and cannot show: Form M for FY 2025/2026 is the only one that can be
+filed now (a year's reports open on 1 April after it ends). Its declarations count by statement
+date, so the demo's 2026 cycle is in it, but determinations, clarifications, actions, referrals
+and access requests count in the year they happen, and everything the seed does happens today,
+in FY 2026/2027. So the release's compliance and access figures are zero, and every initial
+declaration due in the year was filed after its due date (0% on time), with no clock change.
 
 ## Rehearsing the live filing
 

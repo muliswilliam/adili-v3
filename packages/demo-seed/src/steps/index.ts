@@ -1,11 +1,19 @@
 import type { SeedStep } from '../step.js';
 import { access } from './access.js';
-import { verify } from './verify.js';
 import { commissions } from './commissions.js';
 import { cycles, policies } from './cycles.js';
 import { filings } from './filings.js';
 import { mockFixtures } from './mock-fixtures.js';
 import { onboarding } from './onboarding.js';
+import {
+  eaccAiPolicy,
+  formM,
+  formMChase,
+  formMOfficers,
+  icmsReferrals,
+  nationalConsolidatedReport,
+  openDataReleases,
+} from './reporting.js';
 import { rosters } from './rosters.js';
 import {
   reviewClarifications,
@@ -14,8 +22,10 @@ import {
   reviewReferral,
   reviewTeam,
 } from './review.js';
+import { reviewVolume } from './review-volume.js';
 import { settle } from './settle.js';
 import { syntheticPeople } from './synthetic.js';
+import { verify } from './verify.js';
 
 /**
  * Every step of `pnpm demo:seed`, in the order they run. A step may rely on what the steps before
@@ -38,5 +48,13 @@ export const STEPS: readonly SeedStep[] = [
   reviewClosure,
   reviewReferral,
   access,
+  formMOfficers,
+  reviewVolume,
+  formMChase,
+  formM,
+  eaccAiPolicy,
+  nationalConsolidatedReport,
+  openDataReleases,
+  icmsReferrals,
   verify,
 ];
