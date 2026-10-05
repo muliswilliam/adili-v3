@@ -156,6 +156,7 @@ export async function givenLadder(
     personnelFileNumber = 'PSC/00417',
     actionReference,
     stoppageWindowEndedAt,
+    rosterRecordId = randomUUID(),
   }: {
     tenant: string;
     subjectKind: SubjectKind;
@@ -169,6 +170,7 @@ export async function givenLadder(
     personnelFileNumber?: string;
     actionReference: string;
     stoppageWindowEndedAt?: Date;
+    rosterRecordId?: string | null;
   },
 ): Promise<GivenLadder> {
   const ladderId = uuidv7();
@@ -187,7 +189,7 @@ export async function givenLadder(
       subjectKind,
       subjectId,
       personId,
-      rosterRecordId: randomUUID(),
+      rosterRecordId,
       caseId,
       subjectReference,
       declarantName,
@@ -304,12 +306,14 @@ export async function givenSentReferral(
     caseId,
     reference,
     status = 'sent',
+    obligationIds = [],
   }: {
     tenant: string;
     personId: string;
     caseId: string | null;
     reference: string;
     status?: 'approved' | 'sent';
+    obligationIds?: string[];
   },
 ): Promise<string> {
   const id = uuidv7();
@@ -330,7 +334,7 @@ export async function givenSentReferral(
         caseIds: caseId === null ? [] : [caseId],
         flagIds: [],
         clarificationIds: [],
-        obligationIds: [],
+        obligationIds,
         actionIds: [],
       },
       narrative: 'NTSA records a vehicle registered to the officer that is not declared.',
