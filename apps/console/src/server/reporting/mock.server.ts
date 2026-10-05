@@ -83,11 +83,7 @@ import {
   storedYears,
 } from './mock-store.server';
 import { isNarrativeDraftPath, mockNarrativeDraftFetch } from './narrative-draft-mock.server';
-import {
-  mockOpenDataFetch,
-  type OpenDataMockScenario,
-  setOpenDataMockScenario,
-} from './open-data-mock.server';
+import { mockOpenDataFetch } from './open-data-mock.server';
 import { referralIntakeFetch } from './referral-intake-mock.server';
 import type { ComplianceReport, Officer, ReportCounts, ReportPeriod } from './types';
 
@@ -107,16 +103,8 @@ let compileMs = COMPILE_MS;
 let issueMs = ISSUE_MS;
 let failingConfirms = 0;
 
-/**
- * Seeds the store as it stands on `day` (`YYYY-MM-DD`; today in Nairobi by default). `openData`
- * is what the Commission open-data preview answers (`open-data-mock.server.ts`);
- * `REPORTING_MOCK_OPEN_DATA` when not given.
- */
-export function resetReportingMock(
-  day: string = nairobiToday(),
-  options: ReportingMockSeed & { openData?: OpenDataMockScenario } = {},
-) {
-  setOpenDataMockScenario(options.openData ?? null);
+/** Seeds the store as it stands on `day` (`YYYY-MM-DD`; today in Nairobi by default). */
+export function resetReportingMock(day: string = nairobiToday(), options: ReportingMockSeed = {}) {
   failingConfirms = 0;
   confirmations.clear();
   resetReportingStore(day, options);

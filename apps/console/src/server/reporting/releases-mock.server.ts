@@ -2,8 +2,9 @@
  * The open-data releases part of the reporting mock (`mock.server.ts` hands it every
  * `/v1/eacc/open-data/releases` request): an in-memory stand-in for the reporting service's EACC
  * releases endpoints (reporting.yaml `listOpenDataReleasesEacc`, `buildOpenDataRelease`,
- * `getOpenDataReleaseEacc`), used when REPORTING_MOCK is set. It follows #491's rules
- * (`services/reporting/src/open-data`):
+ * `getOpenDataReleaseEacc`), used when REPORTING_MOCK is set. The Commission open-data preview
+ * (`open-data-mock.server.ts`) reads the same store, through `commissionPreviewRelease`. It
+ * follows #491's rules (`services/reporting/src/open-data`):
  *
  * - EACC analysts and supervisors of tenant `eacc` only (403 for anyone else).
  * - A build makes the year's next version of its kind, as a `preview`, from the year's national
@@ -175,6 +176,28 @@ function seedFromEnv(): ReleasesMockSeed {
   return envSchema.shape.REPORTING_MOCK_RELEASES.catch('history').parse(
     process.env.REPORTING_MOCK_RELEASES,
   );
+}
+
+/**
+ * The release a Commission's open-data preview shows (`open-data-mock.server.ts`), as
+ * `CommissionOpenDataPreviewService` picks it: of the most recent year with a preview or published
+ * release, the one built last; a withdrawn one never. Null while there is none; `unavailable` for
+ * the `unavailable` seed, the files out of reach.
+ */
+export function commissionPreviewRelease():
+  { release: OpenDataRelease; tables: TableFiles } | 'unavailable' | null {
+  const data = ensureSeeded();
+  if (data.seed === 'unavailable') return 'unavailable';
+  publishAnnualOnApproval(data);
+  const [current] = data.releases
+    .filter((each) => each.release.status !== 'withdrawn')
+    .sort(
+      (a, b) =>
+        b.release.fy - a.release.fy ||
+        Date.parse(b.release.builtAt) - Date.parse(a.release.builtAt) ||
+        b.release.version - a.release.version,
+    );
+  return current ? { release: current.release, tables: current.tables } : null;
 }
 
 /** Answers the reporting client's releases requests as the service would, from the store. */

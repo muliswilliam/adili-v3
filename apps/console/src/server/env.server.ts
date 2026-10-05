@@ -72,14 +72,6 @@ export const envSchema = bffEnvSchema.extend({
    */
   REPORTING_MOCK_TODAY: z.iso.date().optional(),
   /**
-   * With REPORTING_MOCK: the Commission open-data preview (spec 09b) the mock answers with, the
-   * latest `published` release by default, a `preview` built since, `none` built yet, or
-   * `unavailable` (object storage down).
-   */
-  REPORTING_MOCK_OPEN_DATA: z
-    .enum(['published', 'preview', 'none', 'unavailable'])
-    .default('published'),
-  /**
    * With REPORTING_MOCK: where FY 2025/2026's national report starts. `not-built` by default;
    * `draft` built with a narrative by another analyst; `stale` that draft with one more report
    * received since; `approved` approved with its reference and PDF.
@@ -90,7 +82,10 @@ export const envSchema = bffEnvSchema.extend({
    * 2025/2026's mid-year snapshot v1, withdrawn, and v2, published (and the annual release once
    * that year's NCR is approved); `none` built yet; `unavailable` (the list fails);
    * `reconciliation-failed`, the history with every build refused for totals that do not match;
-   * `documents-unavailable`, the history with every publish and withdraw 503 (#353).
+   * `documents-unavailable`, the history with every publish and withdraw 503 (#353). The
+   * Commission open-data preview (`open-data-mock.server.ts`) reads this same store, so these
+   * seeds drive it too: `none` makes the preview 404 (no release built), and `unavailable` fails
+   * both EACC's list and the Commission preview (503).
    */
   REPORTING_MOCK_RELEASES: z
     .enum(['history', 'none', 'unavailable', 'reconciliation-failed', 'documents-unavailable'])
