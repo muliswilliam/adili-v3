@@ -26,6 +26,9 @@ fi
 . "$PUBLIC_ENV"
 
 export KC_HOSTNAME ADILI_CONSOLE_URL ADILI_PORTAL_URL
+# shellcheck disable=SC1091
+. "$ROOT/infra/azure/demo-vault.sh"
+adili_require_demo_vault
 python3 "$ROOT/infra/azure/patch-realm.py" "$ROOT/infra/compose/keycloak/adili-realm.json"
 
 echo "Starting compose (Keycloak image builds on first run; several minutes)."
