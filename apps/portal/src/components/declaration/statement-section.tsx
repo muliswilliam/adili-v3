@@ -38,8 +38,8 @@ import {
   Car01Icon,
   ChartLineData01Icon,
   Coins01Icon,
+  File02Icon,
   Globe02Icon,
-  Home01Icon,
   InformationCircleIcon,
   Invoice01Icon,
   MapsLocation01Icon,
@@ -113,10 +113,11 @@ export const NIL_BLOCKED_COPY = 'Remove the items below first.';
 export const SEPARATED_COPY =
   "You declare what you know of a separated spouse's finances. Say so in the statement if you do not know.";
 
-const ICONS = { income: Coins01Icon, assets: Home01Icon, liabilities: Invoice01Icon } as const;
+const ICONS = { income: Coins01Icon, assets: File02Icon, liabilities: Invoice01Icon } as const;
 /**
  * A card shows what its item is, e.g. a car for a vehicle. Types not listed here ("Other",
- * no type yet, and every income and liability type) show the category's icon.
+ * no type yet, and every income and liability type) show the category's icon, which for assets
+ * is a neutral file, as on the summary, so an "Other" asset never shows a house.
  */
 const TYPE_ICONS: Partial<Record<Category, Partial<Record<string, IconProps['icon']>>>> = {
   assets: {
@@ -149,6 +150,11 @@ function dateText(iso: string | undefined) {
 function typeLabel(category: Category, item: Item) {
   const type = (item as AnyItem).type;
   return type ? TYPE_LABELS[category][type] : undefined;
+}
+
+function typeIcon(category: Category, item: Item) {
+  const type = (item as AnyItem).type;
+  return type ? TYPE_ICONS[category]?.[type] : undefined;
 }
 
 /** The card heading, which also names the card's buttons: "Land: Quarter-acre plot". */
@@ -659,10 +665,7 @@ function CategoryPanel({
         getKey={(item) => item.id ?? ''}
         getTitle={(item) => itemTitle(category, item)}
         icon={ICONS[category]}
-        getIcon={(item) => {
-          const type = (item as AnyItem).type;
-          return type ? TYPE_ICONS[category]?.[type] : undefined;
-        }}
+        getIcon={(item) => typeIcon(category, item)}
         editingKey={editing !== null && items.some((item) => item.id === editing) ? editing : null}
         onEditingKeyChange={onEditingChange}
         onAdd={onAdd}

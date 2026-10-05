@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { Icon, type IconProps } from '@adili/ui';
-import { Car01Icon, Home01Icon } from '@hugeicons/core-free-icons';
+import { Car01Icon, File02Icon, Home01Icon } from '@hugeicons/core-free-icons';
 import {
   act,
   fireEvent,
@@ -254,6 +254,17 @@ describe('StatementSection: your assets', () => {
     const vehicle = card('Vehicle: Family car').querySelector('svg')?.innerHTML;
     expect(vehicle).toBe(drawingOf(Car01Icon));
     expect(vehicle).not.toBe(drawingOf(Home01Icon));
+  });
+
+  it('shows a neutral icon, not a house, for an asset of type Other', () => {
+    renderStatement(
+      statement({ assets: [{ ...car, type: 'other', description: 'Gold jewellery' }] }),
+    );
+    openTab(/^Assets/);
+
+    const jewellery = card('Other: Gold jewellery').querySelector('svg')?.innerHTML;
+    expect(jewellery).toBe(drawingOf(File02Icon));
+    expect(jewellery).not.toBe(drawingOf(Home01Icon));
   });
 
   it('says an asset has no value yet instead of a dash', () => {
