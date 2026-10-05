@@ -165,6 +165,7 @@ export {
   deadlineStatus,
   type DeadlineStatus,
 } from './components/deadline-chip';
+export { DemoBar, type DemoBarAccount, type DemoBarProps } from './components/demo-bar';
 export {
   DescriptionItem,
   type DescriptionItemProps,
@@ -337,6 +338,8 @@ export {
   type MenuItemProps,
   MenuNote,
   type MenuNoteProps,
+  MenuRadioGroup,
+  MenuRadioItem,
   MenuTrigger,
 } from './components/menu';
 export { Meter, type MeterProps } from './components/meter';
@@ -489,7 +492,20 @@ export {
 } from './components/segmented-choice';
 export { Select, SelectGroup, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
-export { SiteHeader, type SiteHeaderProps } from './components/site-header';
+export { SiteHeader, SiteHeaderAside, type SiteHeaderProps } from './components/site-header';
+export { ThemePreferenceContext } from './components/theme-preference';
+export { ThemeSwitcher, type ThemeSwitcherProps } from './components/theme-switcher';
+export { ThemeToggle, type ThemeToggleProps } from './components/theme-toggle';
+export {
+  applyThemePreference,
+  bootTheme,
+  parseThemePreference,
+  serverTheme,
+  THEME_COOKIE,
+  THEME_PREFERENCES,
+  THEME_SCRIPT,
+  type ThemePreference,
+} from './lib/theme';
 export { Skeleton } from './components/skeleton';
 export {
   describeSource,

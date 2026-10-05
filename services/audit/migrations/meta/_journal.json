@@ -8,6 +8,20 @@
       "when": 1790325258005,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791187086372,
+      "tag": "0001_trail",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791187096998,
+      "tag": "0002_append_only",
+      "breakpoints": true
     }
   ]
 }

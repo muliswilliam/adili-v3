@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ServiceTokenClient } from '@adili/api-kit';
+import { oidcRealmUrl, ServiceTokenClient } from '@adili/api-kit';
 import { REVIEW_INTERNAL_SCOPE } from '@adili/roles';
 
 import { config } from '../config.js';
@@ -15,7 +15,7 @@ import { ReviewClient } from './review-client.js';
         new HttpReviewClient({
           reviewUrl: config.REVIEW_API_URL,
           tokens: new ServiceTokenClient({
-            issuerUrl: config.OIDC_ISSUER_URL,
+            issuerUrl: oidcRealmUrl(config),
             clientId: config.KEYCLOAK_CLIENT_ID,
             clientSecret: config.KEYCLOAK_CLIENT_SECRET,
             scopes: [REVIEW_INTERNAL_SCOPE],

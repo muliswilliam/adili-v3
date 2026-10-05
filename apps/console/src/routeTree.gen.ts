@@ -14,8 +14,10 @@ import { Route as AccessRouteRouteImport } from './routes/access/route'
 import { Route as ActionsRouteRouteImport } from './routes/actions/route'
 import { Route as AiPolicyRouteRouteImport } from './routes/ai-policy/route'
 import { Route as ApprovalsRouteRouteImport } from './routes/approvals/route'
+import { Route as AuditRouteRouteImport } from './routes/audit/route'
 import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
 import { Route as FormMRouteRouteImport } from './routes/form-m/route'
+import { Route as HealthRouteImport } from './routes/health'
 import { Route as HelpRouteRouteImport } from './routes/help/route'
 import { Route as LeaRouteRouteImport } from './routes/lea/route'
 import { Route as ObligationsRouteRouteImport } from './routes/obligations/route'
@@ -23,6 +25,7 @@ import { Route as PlatformRouteRouteImport } from './routes/platform/route'
 import { Route as ReferralsRouteRouteImport } from './routes/referrals/route'
 import { Route as ReviewRouteRouteImport } from './routes/review/route'
 import { Route as RosterRouteRouteImport } from './routes/roster/route'
+import { Route as SupportRouteRouteImport } from './routes/support/route'
 import { Route as AccessIndexRouteImport } from './routes/access/index'
 import { Route as AccessCertifiedCopiesRouteRouteImport } from './routes/access/certified-copies/route'
 import { Route as AccessLeaRequestsRouteRouteImport } from './routes/access/lea-requests/route'
@@ -32,7 +35,10 @@ import { Route as ActionsLadderIdRouteImport } from './routes/actions/$ladderId'
 import { Route as AiPolicyIndexRouteImport } from './routes/ai-policy/index'
 import { Route as ApprovalsIndexRouteImport } from './routes/approvals/index'
 import { Route as ApprovalsBulkClosureRouteImport } from './routes/approvals_/bulk-closure'
+import { Route as AuditIndexRouteImport } from './routes/audit/index'
+import { Route as AuditIntegrityRouteImport } from './routes/audit/integrity'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as AuthDemoSwitchRouteImport } from './routes/auth/demo-switch'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as AuthStepUpRouteImport } from './routes/auth/step-up'
@@ -66,6 +72,7 @@ import { Route as RosterImportRouteImport } from './routes/roster/import'
 import { Route as RosterImportsRouteRouteImport } from './routes/roster/imports/route'
 import { Route as RosterRecordsRouteRouteImport } from './routes/roster/records/route'
 import { Route as RosterTemplateRouteImport } from './routes/roster/template'
+import { Route as SupportIndexRouteImport } from './routes/support/index'
 import { Route as AccessCertifiedCopiesIndexRouteImport } from './routes/access/certified-copies/index'
 import { Route as AccessCertifiedCopiesApplicationIdRouteImport } from './routes/access/certified-copies/$applicationId'
 import { Route as AccessCertifiedCopiesNewRouteImport } from './routes/access/certified-copies/new'
@@ -138,6 +145,11 @@ const ApprovalsRouteRoute = ApprovalsRouteRouteImport.update({
   path: '/approvals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuditRouteRoute = AuditRouteRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
   id: '/commissions',
   path: '/commissions',
@@ -146,6 +158,11 @@ const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
 const FormMRouteRoute = FormMRouteRouteImport.update({
   id: '/form-m',
   path: '/form-m',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HelpRouteRoute = HelpRouteRouteImport.update({
@@ -181,6 +198,11 @@ const ReviewRouteRoute = ReviewRouteRouteImport.update({
 const RosterRouteRoute = RosterRouteRouteImport.update({
   id: '/roster',
   path: '/roster',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRouteRoute = SupportRouteRouteImport.update({
+  id: '/support',
+  path: '/support',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccessIndexRoute = AccessIndexRouteImport.update({
@@ -229,9 +251,24 @@ const ApprovalsBulkClosureRoute = ApprovalsBulkClosureRouteImport.update({
   path: '/approvals/bulk-closure',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuditIndexRoute = AuditIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuditRouteRoute,
+} as any)
+const AuditIntegrityRoute = AuditIntegrityRouteImport.update({
+  id: '/integrity',
+  path: '/integrity',
+  getParentRoute: () => AuditRouteRoute,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthDemoSwitchRoute = AuthDemoSwitchRouteImport.update({
+  id: '/auth/demo-switch',
+  path: '/auth/demo-switch',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
@@ -399,6 +436,11 @@ const RosterTemplateRoute = RosterTemplateRouteImport.update({
   id: '/template',
   path: '/template',
   getParentRoute: () => RosterRouteRoute,
+} as any)
+const SupportIndexRoute = SupportIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SupportRouteRoute,
 } as any)
 const AccessCertifiedCopiesIndexRoute =
   AccessCertifiedCopiesIndexRouteImport.update({
@@ -660,6 +702,7 @@ export interface FileRoutesByFullPath {
   '/actions': typeof ActionsRouteRouteWithChildren
   '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/approvals': typeof ApprovalsRouteRouteWithChildren
+  '/audit': typeof AuditRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
   '/form-m': typeof FormMRouteRouteWithChildren
   '/help': typeof HelpRouteRouteWithChildren
@@ -669,6 +712,8 @@ export interface FileRoutesByFullPath {
   '/referrals': typeof ReferralsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
+  '/support': typeof SupportRouteRouteWithChildren
+  '/health': typeof HealthRoute
   '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
   '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
   '/access/requests': typeof AccessRequestsRouteRouteWithChildren
@@ -684,7 +729,9 @@ export interface FileRoutesByFullPath {
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
   '/actions/$ladderId': typeof ActionsLadderIdRoute
   '/approvals/bulk-closure': typeof ApprovalsBulkClosureRoute
+  '/audit/integrity': typeof AuditIntegrityRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/demo-switch': typeof AuthDemoSwitchRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/step-up': typeof AuthStepUpRoute
@@ -703,6 +750,7 @@ export interface FileRoutesByFullPath {
   '/actions/': typeof ActionsIndexRoute
   '/ai-policy/': typeof AiPolicyIndexRoute
   '/approvals/': typeof ApprovalsIndexRoute
+  '/audit/': typeof AuditIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/form-m/': typeof FormMIndexRoute
   '/help/': typeof HelpIndexRoute
@@ -711,6 +759,7 @@ export interface FileRoutesByFullPath {
   '/platform/': typeof PlatformIndexRoute
   '/referrals/': typeof ReferralsIndexRoute
   '/roster/': typeof RosterIndexRoute
+  '/support/': typeof SupportIndexRoute
   '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
   '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
@@ -761,9 +810,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/review': typeof ReviewQueueIndexRoute
+  '/health': typeof HealthRoute
   '/actions/$ladderId': typeof ActionsLadderIdRoute
   '/approvals/bulk-closure': typeof ApprovalsBulkClosureRoute
+  '/audit/integrity': typeof AuditIntegrityRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/demo-switch': typeof AuthDemoSwitchRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/step-up': typeof AuthStepUpRoute
@@ -782,6 +834,7 @@ export interface FileRoutesByTo {
   '/actions': typeof ActionsIndexRoute
   '/ai-policy': typeof AiPolicyIndexRoute
   '/approvals': typeof ApprovalsIndexRoute
+  '/audit': typeof AuditIndexRoute
   '/commissions': typeof CommissionsIndexRoute
   '/form-m': typeof FormMIndexRoute
   '/help': typeof HelpIndexRoute
@@ -790,6 +843,7 @@ export interface FileRoutesByTo {
   '/platform': typeof PlatformIndexRoute
   '/referrals': typeof ReferralsIndexRoute
   '/roster': typeof RosterIndexRoute
+  '/support': typeof SupportIndexRoute
   '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
   '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
@@ -839,6 +893,7 @@ export interface FileRoutesById {
   '/actions': typeof ActionsRouteRouteWithChildren
   '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/approvals': typeof ApprovalsRouteRouteWithChildren
+  '/audit': typeof AuditRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
   '/form-m': typeof FormMRouteRouteWithChildren
   '/help': typeof HelpRouteRouteWithChildren
@@ -848,6 +903,8 @@ export interface FileRoutesById {
   '/referrals': typeof ReferralsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
+  '/support': typeof SupportRouteRouteWithChildren
+  '/health': typeof HealthRoute
   '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
   '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
   '/access/requests': typeof AccessRequestsRouteRouteWithChildren
@@ -863,7 +920,9 @@ export interface FileRoutesById {
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
   '/actions/$ladderId': typeof ActionsLadderIdRoute
   '/approvals_/bulk-closure': typeof ApprovalsBulkClosureRoute
+  '/audit/integrity': typeof AuditIntegrityRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/demo-switch': typeof AuthDemoSwitchRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/step-up': typeof AuthStepUpRoute
@@ -883,6 +942,7 @@ export interface FileRoutesById {
   '/actions/': typeof ActionsIndexRoute
   '/ai-policy/': typeof AiPolicyIndexRoute
   '/approvals/': typeof ApprovalsIndexRoute
+  '/audit/': typeof AuditIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/form-m/': typeof FormMIndexRoute
   '/help/': typeof HelpIndexRoute
@@ -891,6 +951,7 @@ export interface FileRoutesById {
   '/platform/': typeof PlatformIndexRoute
   '/referrals/': typeof ReferralsIndexRoute
   '/roster/': typeof RosterIndexRoute
+  '/support/': typeof SupportIndexRoute
   '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
   '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
@@ -946,6 +1007,7 @@ export interface FileRouteTypes {
     | '/actions'
     | '/ai-policy'
     | '/approvals'
+    | '/audit'
     | '/commissions'
     | '/form-m'
     | '/help'
@@ -955,6 +1017,8 @@ export interface FileRouteTypes {
     | '/referrals'
     | '/review'
     | '/roster'
+    | '/support'
+    | '/health'
     | '/access/certified-copies'
     | '/access/lea-requests'
     | '/access/requests'
@@ -970,7 +1034,9 @@ export interface FileRouteTypes {
     | '/roster/records'
     | '/actions/$ladderId'
     | '/approvals/bulk-closure'
+    | '/audit/integrity'
     | '/auth/callback'
+    | '/auth/demo-switch'
     | '/auth/login'
     | '/auth/logout'
     | '/auth/step-up'
@@ -989,6 +1055,7 @@ export interface FileRouteTypes {
     | '/actions/'
     | '/ai-policy/'
     | '/approvals/'
+    | '/audit/'
     | '/commissions/'
     | '/form-m/'
     | '/help/'
@@ -997,6 +1064,7 @@ export interface FileRouteTypes {
     | '/platform/'
     | '/referrals/'
     | '/roster/'
+    | '/support/'
     | '/access/lea-requests/$leaRequestId'
     | '/access/requests/$requestId'
     | '/commissions/$slug/obligations'
@@ -1047,9 +1115,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/review'
+    | '/health'
     | '/actions/$ladderId'
     | '/approvals/bulk-closure'
+    | '/audit/integrity'
     | '/auth/callback'
+    | '/auth/demo-switch'
     | '/auth/login'
     | '/auth/logout'
     | '/auth/step-up'
@@ -1068,6 +1139,7 @@ export interface FileRouteTypes {
     | '/actions'
     | '/ai-policy'
     | '/approvals'
+    | '/audit'
     | '/commissions'
     | '/form-m'
     | '/help'
@@ -1076,6 +1148,7 @@ export interface FileRouteTypes {
     | '/platform'
     | '/referrals'
     | '/roster'
+    | '/support'
     | '/access/certified-copies/$applicationId'
     | '/access/certified-copies/new'
     | '/api/mock-files/$id'
@@ -1124,6 +1197,7 @@ export interface FileRouteTypes {
     | '/actions'
     | '/ai-policy'
     | '/approvals'
+    | '/audit'
     | '/commissions'
     | '/form-m'
     | '/help'
@@ -1133,6 +1207,8 @@ export interface FileRouteTypes {
     | '/referrals'
     | '/review'
     | '/roster'
+    | '/support'
+    | '/health'
     | '/access/certified-copies'
     | '/access/lea-requests'
     | '/access/requests'
@@ -1148,7 +1224,9 @@ export interface FileRouteTypes {
     | '/roster/records'
     | '/actions/$ladderId'
     | '/approvals_/bulk-closure'
+    | '/audit/integrity'
     | '/auth/callback'
+    | '/auth/demo-switch'
     | '/auth/login'
     | '/auth/logout'
     | '/auth/step-up'
@@ -1168,6 +1246,7 @@ export interface FileRouteTypes {
     | '/actions/'
     | '/ai-policy/'
     | '/approvals/'
+    | '/audit/'
     | '/commissions/'
     | '/form-m/'
     | '/help/'
@@ -1176,6 +1255,7 @@ export interface FileRouteTypes {
     | '/platform/'
     | '/referrals/'
     | '/roster/'
+    | '/support/'
     | '/access/lea-requests/$leaRequestId'
     | '/access/requests/$requestId'
     | '/commissions/$slug/obligations'
@@ -1230,6 +1310,7 @@ export interface RootRouteChildren {
   ActionsRouteRoute: typeof ActionsRouteRouteWithChildren
   AiPolicyRouteRoute: typeof AiPolicyRouteRouteWithChildren
   ApprovalsRouteRoute: typeof ApprovalsRouteRouteWithChildren
+  AuditRouteRoute: typeof AuditRouteRouteWithChildren
   CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren
   FormMRouteRoute: typeof FormMRouteRouteWithChildren
   HelpRouteRoute: typeof HelpRouteRouteWithChildren
@@ -1239,12 +1320,15 @@ export interface RootRouteChildren {
   ReferralsRouteRoute: typeof ReferralsRouteRouteWithChildren
   ReviewRouteRoute: typeof ReviewRouteRouteWithChildren
   RosterRouteRoute: typeof RosterRouteRouteWithChildren
+  SupportRouteRoute: typeof SupportRouteRouteWithChildren
+  HealthRoute: typeof HealthRoute
   EaccOpenDataRouteRoute: typeof EaccOpenDataRouteRouteWithChildren
   EaccReferralsRouteRoute: typeof EaccReferralsRouteRouteWithChildren
   EaccReportsRouteRoute: typeof EaccReportsRouteRouteWithChildren
   ObligationsNationalRouteRoute: typeof ObligationsNationalRouteRouteWithChildren
   ApprovalsBulkClosureRoute: typeof ApprovalsBulkClosureRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthDemoSwitchRoute: typeof AuthDemoSwitchRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   AuthStepUpRoute: typeof AuthStepUpRoute
@@ -1290,6 +1374,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApprovalsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/audit': {
+      id: '/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuditRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/commissions': {
       id: '/commissions'
       path: '/commissions'
@@ -1302,6 +1393,13 @@ declare module '@tanstack/react-router' {
       path: '/form-m'
       fullPath: '/form-m'
       preLoaderRoute: typeof FormMRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/help': {
@@ -1351,6 +1449,13 @@ declare module '@tanstack/react-router' {
       path: '/roster'
       fullPath: '/roster'
       preLoaderRoute: typeof RosterRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/access/': {
@@ -1416,11 +1521,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApprovalsBulkClosureRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/audit/': {
+      id: '/audit/'
+      path: '/'
+      fullPath: '/audit/'
+      preLoaderRoute: typeof AuditIndexRouteImport
+      parentRoute: typeof AuditRouteRoute
+    }
+    '/audit/integrity': {
+      id: '/audit/integrity'
+      path: '/integrity'
+      fullPath: '/audit/integrity'
+      preLoaderRoute: typeof AuditIntegrityRouteImport
+      parentRoute: typeof AuditRouteRoute
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/demo-switch': {
+      id: '/auth/demo-switch'
+      path: '/auth/demo-switch'
+      fullPath: '/auth/demo-switch'
+      preLoaderRoute: typeof AuthDemoSwitchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/login': {
@@ -1653,6 +1779,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/roster/template'
       preLoaderRoute: typeof RosterTemplateRouteImport
       parentRoute: typeof RosterRouteRoute
+    }
+    '/support/': {
+      id: '/support/'
+      path: '/'
+      fullPath: '/support/'
+      preLoaderRoute: typeof SupportIndexRouteImport
+      parentRoute: typeof SupportRouteRoute
     }
     '/access/certified-copies/': {
       id: '/access/certified-copies/'
@@ -2119,6 +2252,20 @@ const ApprovalsRouteRouteWithChildren = ApprovalsRouteRoute._addFileChildren(
   ApprovalsRouteRouteChildren,
 )
 
+interface AuditRouteRouteChildren {
+  AuditIntegrityRoute: typeof AuditIntegrityRoute
+  AuditIndexRoute: typeof AuditIndexRoute
+}
+
+const AuditRouteRouteChildren: AuditRouteRouteChildren = {
+  AuditIntegrityRoute: AuditIntegrityRoute,
+  AuditIndexRoute: AuditIndexRoute,
+}
+
+const AuditRouteRouteWithChildren = AuditRouteRoute._addFileChildren(
+  AuditRouteRouteChildren,
+)
+
 interface CommissionsSlugObligationsRouteRouteChildren {
   CommissionsSlugObligationsIndexRoute: typeof CommissionsSlugObligationsIndexRoute
 }
@@ -2408,6 +2555,18 @@ const RosterRouteRouteWithChildren = RosterRouteRoute._addFileChildren(
   RosterRouteRouteChildren,
 )
 
+interface SupportRouteRouteChildren {
+  SupportIndexRoute: typeof SupportIndexRoute
+}
+
+const SupportRouteRouteChildren: SupportRouteRouteChildren = {
+  SupportIndexRoute: SupportIndexRoute,
+}
+
+const SupportRouteRouteWithChildren = SupportRouteRoute._addFileChildren(
+  SupportRouteRouteChildren,
+)
+
 interface EaccOpenDataRouteRouteChildren {
   EaccOpenDataReleaseIdRoute: typeof EaccOpenDataReleaseIdRoute
   EaccOpenDataIndexRoute: typeof EaccOpenDataIndexRoute
@@ -2467,6 +2626,7 @@ const rootRouteChildren: RootRouteChildren = {
   ActionsRouteRoute: ActionsRouteRouteWithChildren,
   AiPolicyRouteRoute: AiPolicyRouteRouteWithChildren,
   ApprovalsRouteRoute: ApprovalsRouteRouteWithChildren,
+  AuditRouteRoute: AuditRouteRouteWithChildren,
   CommissionsRouteRoute: CommissionsRouteRouteWithChildren,
   FormMRouteRoute: FormMRouteRouteWithChildren,
   HelpRouteRoute: HelpRouteRouteWithChildren,
@@ -2476,12 +2636,15 @@ const rootRouteChildren: RootRouteChildren = {
   ReferralsRouteRoute: ReferralsRouteRouteWithChildren,
   ReviewRouteRoute: ReviewRouteRouteWithChildren,
   RosterRouteRoute: RosterRouteRouteWithChildren,
+  SupportRouteRoute: SupportRouteRouteWithChildren,
+  HealthRoute: HealthRoute,
   EaccOpenDataRouteRoute: EaccOpenDataRouteRouteWithChildren,
   EaccReferralsRouteRoute: EaccReferralsRouteRouteWithChildren,
   EaccReportsRouteRoute: EaccReportsRouteRouteWithChildren,
   ObligationsNationalRouteRoute: ObligationsNationalRouteRouteWithChildren,
   ApprovalsBulkClosureRoute: ApprovalsBulkClosureRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthDemoSwitchRoute: AuthDemoSwitchRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   AuthStepUpRoute: AuthStepUpRoute,

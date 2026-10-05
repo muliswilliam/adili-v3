@@ -149,4 +149,11 @@ describe('Menu', () => {
     expect(onRead).not.toHaveBeenCalled();
     expect(screen.getByRole('menu')).toBeDefined();
   });
+
+  it('keeps every item its own height, so a capped menu scrolls instead of squeezing them', async () => {
+    render(<DownloadMenu onSelect={() => undefined} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Download template' }));
+
+    expect((await screen.findByRole('menu')).className).toContain('*:shrink-0');
+  });
 });

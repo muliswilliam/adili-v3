@@ -9,7 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { issuedDocuments, outbox, verificationRecords } from '../../src/db/schema.js';
 import type { IssuedDocument } from '../../src/issuance/representation.js';
-import type { ClarificationLetterPayload } from '../../src/issuance/templates/clarification-letter.v1.js';
+import type { ClarificationLetterInput } from '../../src/issuance/templates/clarification-letter.v1.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import {
   type Caller,
@@ -58,8 +58,8 @@ beforeEach(() => {
 });
 
 function letterPayload(
-  overrides: Partial<ClarificationLetterPayload> = {},
-): ClarificationLetterPayload {
+  overrides: Partial<ClarificationLetterInput> = {},
+): ClarificationLetterInput {
   return {
     declarantName: 'John Kamau Otieno',
     commission: { name: 'Teachers Service Commission', issuerCode: 'TSC' },

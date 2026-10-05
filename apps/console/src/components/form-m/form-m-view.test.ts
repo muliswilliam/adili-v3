@@ -176,4 +176,17 @@ describe('the sign-off steps', () => {
       'current',
     ]);
   });
+
+  it('dates the review as the header does, from the Part III signature', () => {
+    const reviewed = (date: string | null) =>
+      report({
+        status: 'reviewed',
+        reviewedBy: { subject: 's', name: 'Samuel Njoroge' },
+        document: {
+          partIII: { compiledBy: { name: 'Samuel Njoroge', date } },
+        } as unknown as ComplianceReport['document'],
+      });
+    expect(signOffSteps(reviewed('2026-09-24'), [])[1]?.detail).toBe('Samuel Njoroge, 24 Sep 2026');
+    expect(signOffSteps(reviewed(null), [])[1]?.detail).toBe('Samuel Njoroge');
+  });
 });

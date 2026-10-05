@@ -9,9 +9,10 @@ import type { ReviewTransaction } from '../cases/case-lookup.js';
 import { clarifications, reviewCases } from '../cases/schema.js';
 import { portal } from '../clarifications/links.js';
 import { Clock, nairobiDate } from '../clock.js';
+import { demoWindows } from '../demo/demo-windows.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
-import { DirectoryClient, type LadderPolicy } from '../directory/directory-client.js';
+import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
 import { issueLetter } from '../documents/letters.js';
 import {
@@ -35,7 +36,6 @@ import {
   type IssuedAction,
   LADDER_MISSING,
   type LadderRef,
-  type LadderStep,
   type OpenedLadder,
   PAYROLL_REFUSED,
   type Reinstatement,
@@ -65,6 +65,7 @@ import {
   resumeReference,
 } from './payroll-records.js';
 import { administrativeActions, type ClosingCause, enforcementLadders } from './schema.js';
+import { type DemoLadderWindows, stepWindowEndsAt } from './windows.js';
 
 /** Namespace of the actions' ids: one action per ladder, run and step. */
 const ACTION_ID_NAMESPACE = '3c1f9a7e-52d4-4b8e-9f06-7a2d4e8b1c53';
@@ -72,29 +73,17 @@ const ACTION_ID_NAMESPACE = '3c1f9a7e-52d4-4b8e-9f06-7a2d4e8b1c53';
 /** Namespace of the messages' idempotency keys: one key per action and template. */
 const MESSAGE_KEY_NAMESPACE = 'd6a0e4b2-7f19-4c3a-8e5d-1b9c2f7a6e04';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 /** The portal page where the declarant reads and answers a notice. */
 export function portalNoticeUrl(actionId: string): string {
   return portal(`notices/${actionId}`);
 }
 
-/**
- * How long the declarant has after each drafted step, from the Commission's ladder policy; none
- * after the disciplinary referral (the ladder then waits for compliance).
- */
-function windowDays(policy: LadderPolicy, step: LadderStep): number | null {
-  switch (step) {
-    case 'notice-to-comply':
-      return policy.noticeWindowDays;
-    case 'warning':
-      return policy.warningWindowDays;
-    case 'salary-stoppage':
-      return policy.stoppageWindowDays;
-    case 'disciplinary-referral':
-      return null;
-  }
-}
+/** The demo stack's ladder windows as they stand when a step is issued. */
+const demoLadderWindows = (): DemoLadderWindows => ({
+  notice: demoWindows.get('DEMO_LADDER_NOTICE_WINDOW'),
+  warning: demoWindows.get('DEMO_LADDER_WARNING_WINDOW'),
+  stoppage: demoWindows.get('DEMO_LADDER_STOPPAGE_WINDOW'),
+});
 
 /** What the ladder is about and whom it addresses, as its subject stands now. */
 type Subject =
@@ -567,8 +556,7 @@ async function withWindow(
   if (action.issuedAt !== null) return action;
   const policy = await directory.getLadderPolicy(tenant);
   const issuedAt = clock.now();
-  const days = windowDays(policy, action.step);
-  const windowEndsAt = days === null ? null : new Date(issuedAt.getTime() + days * DAY_MS);
+  const windowEndsAt = stepWindowEndsAt(issuedAt, policy, action.step, demoLadderWindows());
   const [set] = await withTenant(db, systemContext(tenant), (tx) =>
     tx
       .update(administrativeActions)

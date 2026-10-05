@@ -157,8 +157,8 @@ const PAGE = {
     'Jedwali hili halina safu katika chapisho hili.',
   ),
   notCollectedNote: both(
-    'Access requests are not collected for open data yet; these figures are empty, not zero.',
-    'Maombi ya kuona bado hayakusanywi kwa data huria; takwimu hizi ni tupu, si sifuri.',
+    'Figures not collected yet are left empty, not zero.',
+    'Takwimu ambazo bado hazikusanywi zimeachwa tupu, si sifuri.',
   ),
   pageOf: both(
     (page: number, pages: number) => `Page ${String(page)} of ${String(pages)}`,

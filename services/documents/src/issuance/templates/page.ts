@@ -44,6 +44,25 @@ export function esc(value: string | number): string {
 const TIME_ZONE = 'Africa/Nairobi';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** Month names of a Swahili letter (#592). */
+const SW_MONTHS = [
+  'Januari',
+  'Februari',
+  'Machi',
+  'Aprili',
+  'Mei',
+  'Juni',
+  'Julai',
+  'Agosti',
+  'Septemba',
+  'Oktoba',
+  'Novemba',
+  'Desemba',
+];
+
+/** The languages a letter prints its own text in: English, or Swahili for a Swahili letter. */
+export const LETTER_LANGUAGES = ['en', 'sw'] as const;
+export type LetterLanguage = (typeof LETTER_LANGUAGES)[number];
 
 /** The calendar parts of an instant in Kenyan time. */
 function kenyanParts(date: Date): Record<'year' | 'month' | 'day' | 'hour' | 'minute', number> {
@@ -68,16 +87,17 @@ function kenyanParts(date: Date): Record<'year' | 'month' | 'day' | 'hour' | 'mi
 }
 
 /**
- * `30 Sep 2026` (the design's three-letter months, whatever the ICU version), in Kenyan time for
- * instants; calendar dates (`2026-09-30`) as they are.
+ * `30 Sep 2026` (the design's three-letter months, whatever the ICU version), or `30 Septemba
+ * 2026` in a Swahili letter, in Kenyan time for instants; calendar dates (`2026-09-30`) as they
+ * are.
  */
-export function formatDate(value: string | Date): string {
+export function formatDate(value: string | Date, language: LetterLanguage = 'en'): string {
   const date =
     typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
       ? new Date(`${value}T12:00:00+03:00`)
       : new Date(value);
   const { day, month, year } = kenyanParts(date);
-  return `${day} ${MONTHS[month - 1]} ${year}`;
+  return `${day} ${(language === 'sw' ? SW_MONTHS : MONTHS)[month - 1]} ${year}`;
 }
 
 /** The calendar date of an instant in Kenyan time, `YYYY-MM-DD`. */
@@ -110,10 +130,10 @@ export function reportDueDate(financialYear: string): string {
 export const EACC_ISSUER = { name: 'Ethics and Anti-Corruption Commission', code: 'EACC' };
 
 /** `30 Sep 2026, 14:05 EAT`. */
-export function formatDateTime(value: string | Date): string {
+export function formatDateTime(value: string | Date, language: LetterLanguage = 'en'): string {
   const { hour, minute } = kenyanParts(new Date(value));
   const pad = (number: number) => String(number).padStart(2, '0');
-  return `${formatDate(value)}, ${pad(hour)}:${pad(minute)} EAT`;
+  return `${formatDate(value, language)}, ${pad(hour)}:${pad(minute)} EAT`;
 }
 
 export interface LetterheadIssuer {
@@ -143,8 +163,16 @@ export const LETTERHEAD_STYLES = `
 const SHIELD = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>`;
 
 /** The note that the PDF carries a digital signature; the signature itself is invisible. */
-export function signatureNote(signerName: string, signedAt: Date): string {
-  return `<div class="sigbox">${SHIELD}<div><b>Digitally signed by ${esc(signerName)}</b><br />${esc(formatDateTime(signedAt))}<br />PAdES · Reason: issued through Adili Online</div></div>`;
+export function signatureNote(
+  signerName: string,
+  signedAt: Date,
+  language: LetterLanguage = 'en',
+): string {
+  const [signedBy, reason] =
+    language === 'sw'
+      ? ['Imetiwa saini kidijitali na', 'Sababu: imetolewa kupitia Adili Online']
+      : ['Digitally signed by', 'Reason: issued through Adili Online'];
+  return `<div class="sigbox">${SHIELD}<div><b>${signedBy} ${esc(signerName)}</b><br />${esc(formatDateTime(signedAt, language))}<br />PAdES · ${reason}</div></div>`;
 }
 
 /**
@@ -202,8 +230,13 @@ export function verificationPanel(what: string, verificationId: string, shows: s
 }
 
 /** An HTML document for Gotenberg's main page. */
-export function htmlDocument(title: string, styles: string, body: string): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8" /><title>${esc(title)}</title><style>${BASE}${styles}</style></head><body>${body}</body></html>`;
+export function htmlDocument(
+  title: string,
+  styles: string,
+  body: string,
+  language: LetterLanguage = 'en',
+): string {
+  return `<!doctype html><html lang="${language}"><head><meta charset="utf-8" /><title>${esc(title)}</title><style>${BASE}${styles}</style></head><body>${body}</body></html>`;
 }
 
 /** Who a watermarked document was issued to, for what and when (ADR-010 §6). */
@@ -250,7 +283,48 @@ export interface FooterFields {
   version: number | null;
   /** Disclosure mark printed on every page, e.g. `CONFIDENTIAL`; none for most documents. */
   mark?: string;
+  /** The language of the footer's text; English unless the document is a Swahili letter. */
+  language?: LetterLanguage;
 }
+
+/** The footer's words in each language. */
+const FOOTER_COPY: Record<
+  LetterLanguage,
+  {
+    check: string;
+    at: string;
+    withCode: string;
+    issuedBy: string;
+    through: string;
+    ref: string;
+    version: string;
+    page: string;
+    of: string;
+  }
+> = {
+  en: {
+    check: 'Check this document',
+    at: 'at',
+    withCode: 'with code',
+    issuedBy: 'Issued by',
+    through: 'through Adili Online on',
+    ref: 'Ref',
+    version: 'Version',
+    page: 'Page',
+    of: 'of',
+  },
+  sw: {
+    check: 'Hakiki hati hii',
+    at: 'kwenye',
+    withCode: 'kwa msimbo',
+    issuedBy: 'Imetolewa na',
+    through: 'kupitia Adili Online tarehe',
+    ref: 'Kumb.',
+    version: 'Toleo',
+    page: 'Ukurasa',
+    of: 'kati ya',
+  },
+};
 
 /**
  * The footer Gotenberg repeats on every page: QR code to the verify page, the verification code,
@@ -274,8 +348,10 @@ body{font-size:7pt;line-height:1.45;color:${SOFT};width:100%}
 .code{font-weight:700;color:${INK};font-size:7.4pt}
 .pf-r{text-align:right;white-space:nowrap}
 .pf-mark{font-weight:700;letter-spacing:0.24em;color:${INK};margin-bottom:0.6mm}`;
+  const language = fields.language ?? 'en';
+  const copy = FOOTER_COPY[language];
   const reference = fields.reference
-    ? `<div>Ref <b class="nw">${esc(fields.reference)}</b></div>`
+    ? `<div>${copy.ref} <b class="nw">${esc(fields.reference)}</b></div>`
     : '';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8" /><style>${styles}</style></head><body><footer class="pf"><div class="pf-qr">${qr}</div><div class="pf-t"><div><b>Check this document</b> at ${esc(host)} with code <span class="code mono nw">${esc(fields.verificationId)}</span></div><div>Issued by ${esc(fields.issuerName)} through Adili Online on ${esc(formatDate(fields.issuedAt))}</div>${reference}</div><div class="pf-r">${fields.mark ? `<div class="pf-mark">${esc(fields.mark)}</div>` : ''}${fields.version === null ? '' : `<div>Version ${esc(fields.version)}</div>`}<div>Page <span class="pageNumber"></span> of <span class="totalPages"></span></div></div></footer></body></html>`;
+  return `<!doctype html><html lang="${language}"><head><meta charset="utf-8" /><style>${styles}</style></head><body><footer class="pf"><div class="pf-qr">${qr}</div><div class="pf-t"><div><b>${copy.check}</b> ${copy.at} ${esc(host)} ${copy.withCode} <span class="code mono nw">${esc(fields.verificationId)}</span></div><div>${copy.issuedBy} ${esc(fields.issuerName)} ${copy.through} ${esc(formatDate(fields.issuedAt, language))}</div>${reference}</div><div class="pf-r">${fields.mark ? `<div class="pf-mark">${esc(fields.mark)}</div>` : ''}${fields.version === null ? '' : `<div>${copy.version} ${esc(fields.version)}</div>`}<div>${copy.page} <span class="pageNumber"></span> ${copy.of} <span class="totalPages"></span></div></div></footer></body></html>`;
 }

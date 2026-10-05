@@ -25,9 +25,51 @@ interface Fixture<TResponse> {
   response: TResponse;
 }
 
+/**
+ * How a request finds its recording. `exact` matches the request byte for byte (tests, evals).
+ * `normalised` first replaces the values that differ between two runs of the same scripted demo
+ * beat, ids minted and times stamped at run time, with placeholders numbered by first
+ * appearance, and puts the current run's values back into the recorded response (#615).
+ */
+export type ReplayMatch = 'exact' | 'normalised';
+
+/** UUIDs and ISO 8601 date-times: what a fresh run mints anew for the same inputs. */
+const VOLATILE =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})/gi;
+
+/** The request with its volatile values as numbered placeholders, and those values in order. */
+export function normaliseRequest(request: GenerateRequest): {
+  request: GenerateRequest;
+  values: string[];
+} {
+  const values: string[] = [];
+  const json = JSON.stringify(request).replace(VOLATILE, (value) => {
+    let index = values.indexOf(value);
+    if (index < 0) index = values.push(value) - 1;
+    return `{{volatile:${index}}}`;
+  });
+  return { request: JSON.parse(json) as GenerateRequest, values };
+}
+
+/** `response` with each value recorded at position i of `recorded` replaced by `current[i]`. */
+function rebind<T>(response: T, recorded: readonly string[], current: readonly string[]): T {
+  const json = JSON.stringify(response).replace(VOLATILE, (value) => {
+    const index = recorded.indexOf(value);
+    return index >= 0 ? (current[index] ?? value) : value;
+  });
+  return JSON.parse(json) as T;
+}
+
 /** Identifies a recorded response: SHA-256 over the operation and the canonical neutral request. */
-export function fixtureKey(operation: Operation, request: GenerateRequest): string {
-  return hashJson({ operation, request });
+export function fixtureKey(
+  operation: Operation,
+  request: GenerateRequest,
+  match: ReplayMatch = 'exact',
+): string {
+  return hashJson({
+    operation,
+    request: match === 'normalised' ? normaliseRequest(request).request : request,
+  });
 }
 
 export class ReplayFixtureMissingError extends Error {
@@ -55,6 +97,8 @@ export interface ReplayAdapterOptions {
    * are recorded from Anthropic), so the gate decides as it would in production.
    */
   providerClass?: ProviderClass;
+  /** `exact` by default; see ReplayMatch. */
+  match?: ReplayMatch;
 }
 
 const ALL_CAPABILITIES: ProviderCapabilities = {
@@ -227,7 +271,8 @@ export class ReplayAdapter implements ModelProvider {
     operation: Operation,
     request: GenerateRequest,
   ): Promise<TResponse> {
-    const hash = fixtureKey(operation, request);
+    const match = this.options.match ?? 'exact';
+    const hash = fixtureKey(operation, request, match);
     const path = this.path(hash);
     let raw: string;
     try {
@@ -238,7 +283,13 @@ export class ReplayAdapter implements ModelProvider {
       }
       throw error;
     }
-    return (JSON.parse(raw) as Fixture<TResponse>).response;
+    const fixture = JSON.parse(raw) as Fixture<TResponse>;
+    if (match === 'exact') return fixture.response;
+    return rebind(
+      fixture.response,
+      normaliseRequest(fixture.request).values,
+      normaliseRequest(request).values,
+    );
   }
 
   private async write(
@@ -247,7 +298,10 @@ export class ReplayAdapter implements ModelProvider {
     response: unknown,
   ): Promise<void> {
     const fixture: Fixture<unknown> = { version: 1, operation, request, response };
-    await this.writeFile(this.path(fixtureKey(operation, request)), fixture);
+    await this.writeFile(
+      this.path(fixtureKey(operation, request, this.options.match ?? 'exact')),
+      fixture,
+    );
   }
 
   private async writeFile(path: string, content: unknown): Promise<void> {

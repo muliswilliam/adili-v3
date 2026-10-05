@@ -24,7 +24,7 @@ import { ObligationsSection } from '../components/dashboard/obligations-view';
 import { DISCARDED_TOAST } from '../components/declaration/discard-dialog';
 import { SignOutButton } from '../components/sign-out-button';
 import { HelpLink } from '../components/help/parts';
-import { getMyClarifications, type MyClarificationsLoad } from '../server/clarifications';
+import { myClarificationsOrUnavailable, type MyClarificationsLoad } from '../server/clarifications';
 import { getMyNotices, type MyNoticesLoad } from '../server/notices';
 import { getMyDecisionLetter, getMyDecisions, type MyDecisionsLoad } from '../server/decisions';
 import { getMyDeclarations } from '../server/declarations';
@@ -52,7 +52,7 @@ export const Route = createFileRoute('/')({
     const obligations = viewer ? orUnavailable(getMyObligations()) : null;
     const onboarded = viewer?.declarant.status === 'onboarded';
     const declarations = onboarded ? loadDeclarations() : null;
-    const clarifications = onboarded ? loadClarifications() : null;
+    const clarifications = onboarded ? myClarificationsOrUnavailable() : null;
     const accessNotices = onboarded ? loadAccessNotices() : null;
     const notices = onboarded ? loadNotices() : null;
     const decisions = onboarded ? loadDecisions() : null;
@@ -93,14 +93,6 @@ async function loadDecisions(): Promise<MyDecisionsLoad> {
 
 const loadDecisionLetter = (determinationId: string) =>
   getMyDecisionLetter({ data: { determinationId } });
-
-/** The declarant's clarifications; an ended session or a failed call reads as unavailable. */
-async function loadClarifications(): Promise<MyClarificationsLoad> {
-  const load = await getMyClarifications().catch(
-    () => ({ status: 'unavailable', now: new Date().toISOString() }) as const,
-  );
-  return load.status === 'unauthenticated' ? { status: 'unavailable', now: load.now } : load;
-}
 
 /** Notices to comply and warnings; an ended session or a failed call reads as unavailable. */
 async function loadNotices(): Promise<MyNoticesLoad> {
@@ -204,6 +196,16 @@ function Dashboard({
   const main = (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
       <h1 className="text-2xl font-semibold tracking-tight">Welcome, {firstName}</h1>
+      {/* The Commissions the declarant files with: whose declarant they are, on every visit. */}
+      {viewer.declarant.status === 'onboarded' &&
+      viewer.declarant.account.commissions.length > 0 ? (
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          You declare to{' '}
+          <span className="font-medium text-foreground">
+            {formatList(viewer.declarant.account.commissions.map((commission) => commission.name))}
+          </span>
+        </p>
+      ) : null}
       <div className="mt-8">
         <DashboardCards
           viewer={viewer}
@@ -254,4 +256,9 @@ function Dashboard({
       )}
     </ToastProvider>
   );
+}
+
+/** "A", "A and B", "A, B and C". */
+function formatList(items: readonly string[]): string {
+  return new Intl.ListFormat('en-GB', { style: 'long', type: 'conjunction' }).format(items);
 }

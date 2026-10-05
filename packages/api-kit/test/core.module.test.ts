@@ -90,6 +90,7 @@ describe('CoreModule', () => {
           serviceName: 'test',
           config,
           readiness: [HealthyDependency, new BrokenDependency()],
+          info: { provider: 'replay' },
         }),
       ],
       controllers: [TestController],
@@ -113,7 +114,7 @@ describe('CoreModule', () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it('reports not ready with the failing dependency named', async () => {
+  it('reports not ready with the failing dependency named, and the process info', async () => {
     const response = await app.inject({ method: 'GET', url: '/health/ready' });
 
     expect(response.statusCode).toBe(503);
@@ -123,6 +124,7 @@ describe('CoreModule', () => {
         healthy: { status: 'up' },
         broken: { status: 'down', error: 'connection refused' },
       },
+      info: { provider: 'replay' },
     });
   });
 

@@ -530,6 +530,75 @@ describe('AnthropicAdapter', () => {
     });
   });
 
+  it('sends each PDF as page images to an endpoint that takes no PDFs', async () => {
+    const { PDFDocument } = await import('pdf-lib');
+    const document = await PDFDocument.create();
+    document.addPage([595, 842]);
+    document.addPage([595, 842]);
+    const data = Buffer.from(await document.save()).toString('base64');
+    const { adapter, requests } = fakeAnthropic(() => json(message()), {
+      attachments: ['image', 'text'],
+    });
+
+    await adapter.generate({
+      model: 'claude-opus-5',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'attachment',
+              attachment: { kind: 'pdf', mediaType: 'application/pdf', data, name: 'Title deed' },
+            },
+            { type: 'text', text: 'Read it.' },
+          ],
+        },
+      ],
+      maxOutputTokens: 500,
+    });
+
+    expect(adapter.capabilities.attachments).toEqual(['image', 'text']);
+    const [sent] = (nth(requests, 0).body?.messages ?? []) as {
+      content: { type: string; text?: string; source?: { media_type: string } }[];
+    }[];
+    expect(sent?.content.map((block) => block.type)).toEqual(['text', 'image', 'image', 'text']);
+    expect(sent?.content[0]?.text).toBe('Title deed: 2 page image(s), in order.');
+    expect(sent?.content[1]?.source?.media_type).toBe('image/jpeg');
+    expect(JSON.stringify(sent)).not.toContain('application/pdf');
+  });
+
+  it('refuses a PDF it cannot render as a bad request, not a retryable failure', async () => {
+    const { adapter, requests } = fakeAnthropic(() => json(message()), {
+      attachments: ['image', 'text'],
+    });
+    const request = {
+      model: 'claude-opus-5',
+      messages: [
+        {
+          role: 'user' as const,
+          content: [
+            {
+              type: 'attachment' as const,
+              attachment: {
+                kind: 'pdf' as const,
+                mediaType: 'application/pdf',
+                data: 'bm90IGEgcGRm',
+              },
+            },
+          ],
+        },
+      ],
+      maxOutputTokens: 500,
+    };
+
+    await expect(adapter.generate(request)).rejects.toMatchObject({
+      name: 'ProviderError',
+      kind: 'bad-request',
+      retryable: false,
+    });
+    expect(requests).toHaveLength(0);
+  });
+
   it('declares its capabilities', () => {
     const { adapter } = fakeAnthropic(() => json(message()));
     expect(adapter.name).toBe('anthropic');

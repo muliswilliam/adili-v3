@@ -274,7 +274,7 @@ describe('the Form M workspace (S15)', () => {
     show(await load('2026-10-03'));
     expect(screen.getByText('Reviewed by Samuel Njoroge on 1 Oct 2026')).toBeTruthy();
     const signOff = within(screen.getByRole('region', { name: 'Sign-off' }));
-    expect(signOff.getByText('Samuel Njoroge')).toBeTruthy();
+    expect(signOff.getByText('Samuel Njoroge, 1 Oct 2026')).toBeTruthy();
     expect(
       signOff.getByText('Missing contact details, email address, Part B register answer'),
     ).toBeTruthy();

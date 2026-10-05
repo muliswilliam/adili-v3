@@ -1,8 +1,8 @@
-import { asc } from 'drizzle-orm';
+import { asc, inArray } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { cycleCalendar } from '../../src/db/schema.js';
-import { openDemoCycle } from '../../src/obligations/demo-seed.js';
+import { addDemoCycles, openDemoCycle } from '../../src/obligations/demo-seed.js';
 import { openedCycles } from '../../src/obligations/engine.js';
 import { type DeclarationsApi, startDeclarationsApi } from '../support/declarations-api.js';
 import { policyVersion } from '../support/fake-directory.js';
@@ -30,5 +30,24 @@ describe('demo seed', () => {
     ]);
     const rules = { ...policyVersion(), version: 1 };
     expect(openedCycles(calendar, rules, '2026-09-28')).toEqual([2027]);
+  });
+
+  it('adds the demo cycles once, open today with the demo policy’s statement date', async () => {
+    try {
+      expect(await addDemoCycles(api.db, [2024, 2026], 400)).toEqual([2024, 2026]);
+      expect(await addDemoCycles(api.db, [2024, 2026], 400)).toEqual([]);
+
+      const calendar = await api.db.select().from(cycleCalendar);
+      const rules = {
+        ...policyVersion(),
+        version: 1,
+        biennial: { statementDate: '06-30', dueDate: '12-31' },
+      };
+      expect(openedCycles(calendar, rules, '2026-10-05')).toEqual(
+        expect.arrayContaining([2024, 2026]),
+      );
+    } finally {
+      await api.db.delete(cycleCalendar).where(inArray(cycleCalendar.cycleYear, [2024, 2026]));
+    }
   });
 });

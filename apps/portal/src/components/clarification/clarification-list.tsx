@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   Card,
+  CardTitle,
   cn,
   EmptyState,
   focusRingInset,
@@ -158,6 +159,37 @@ export function ClarificationRows({
         <ClarificationRowLink key={clarification.id} row={rowOf(clarification, all, now)} />
       ))}
     </ul>
+  );
+}
+
+/** A card of clarification rows under a title, with View all (the dashboard, a declaration). */
+export function ClarificationsCardFrame({
+  titleId,
+  title,
+  className,
+  children,
+}: {
+  titleId: string;
+  title: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card asChild className={cn('overflow-hidden p-0 sm:p-0', className)}>
+      <section aria-labelledby={titleId}>
+        <div className="flex items-center gap-3 border-b border-border px-5 py-4 sm:px-6 sm:py-[18px]">
+          <CardTitle id={titleId} className="flex-1">
+            {title}
+          </CardTitle>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/clarifications" aria-label={COPY.viewAllLabel}>
+              {COPY.viewAll}
+            </Link>
+          </Button>
+        </div>
+        {children}
+      </section>
+    </Card>
   );
 }
 

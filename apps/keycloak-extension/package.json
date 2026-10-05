@@ -2,7 +2,7 @@
   "name": "@adili/keycloak-extension",
   "version": "0.0.0",
   "private": true,
-  "description": "Keycloak provider JAR (Java, Maven): the adili-otp authenticator. The TypeScript here is only its stack tests.",
+  "description": "Keycloak provider JAR (Java, Maven): the adili-otp and adili-demo authenticators. The TypeScript here is only their stack tests.",
   "type": "module",
   "scripts": {
     "lint": "eslint .",
@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@adili/bff-auth": "workspace:*",
+    "@adili/demo-auth": "workspace:*",
     "@adili/eslint-config": "workspace:*",
     "@adili/tsconfig": "workspace:*",
     "@types/node": "^24.0.0",

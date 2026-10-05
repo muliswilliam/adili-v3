@@ -45,7 +45,9 @@ export interface DocumentTemplate<TPayload = unknown> {
    */
   links?(payload: TPayload): Record<string, string>;
   /** The footer fields the template decides; issuance adds the code, URL and date. */
-  footer(payload: TPayload): Pick<FooterFields, 'issuerName' | 'reference' | 'version' | 'mark'>;
+  footer(
+    payload: TPayload,
+  ): Pick<FooterFields, 'issuerName' | 'reference' | 'version' | 'mark' | 'language'>;
   /** The main page's HTML document. */
   render(payload: TPayload, context: RenderContext): string;
 }

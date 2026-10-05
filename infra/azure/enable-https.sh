@@ -62,22 +62,41 @@ sed \
   -e "s|__HOST__|${host}|g" \
   "$CADDYFILE_SRC" >"$CADDYFILE_DST"
 
+# shellcheck disable=SC1091
+. "$ROOT/infra/azure/demo-vault.sh"
+adili_require_demo_vault
 python3 "$ROOT/infra/azure/patch-realm.py" "$ROOT/infra/compose/keycloak/adili-realm.json"
 
 COMPOSE="$ROOT/infra/compose/docker-compose.yml"
 OVERLAY="$ROOT/infra/compose/docker-compose.azure.yml"
 docker compose -f "$COMPOSE" -f "$OVERLAY" up -d --force-recreate --no-deps keycloak
 
+# kcadm signs in as the master admin with this host's password (deploy.sh sets it), or the
+# bootstrap admin_dev before the first deploy has. The password goes in through the environment,
+# never on the docker command line or in the output.
+kc_login() {
+  for candidate in "$(cat "$ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE" 2>/dev/null || true)" admin_dev; do
+    [ -n "$candidate" ] || continue
+    if KC_ADMIN_PASSWORD="$candidate" docker exec -e KC_ADMIN_PASSWORD adili-keycloak-1 \
+      bash -c '/opt/keycloak/bin/kcadm.sh config credentials --server http://127.0.0.1:8080 \
+        --realm master --user admin --password "$KC_ADMIN_PASSWORD"' >/dev/null 2>&1; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 echo "Waiting for Keycloak..."
 for _ in $(seq 1 36); do
-  if docker exec adili-keycloak-1 /opt/keycloak/bin/kcadm.sh config credentials \
-    --server http://127.0.0.1:8080 --realm master --user admin --password admin_dev >/dev/null 2>&1; then
+  if kc_login; then
     break
   fi
   sleep 5
 done
-docker exec adili-keycloak-1 /opt/keycloak/bin/kcadm.sh config credentials \
-  --server http://127.0.0.1:8080 --realm master --user admin --password admin_dev
+kc_login || {
+  echo "kcadm cannot sign in to Keycloak as admin" >&2
+  exit 1
+}
 docker exec adili-keycloak-1 /opt/keycloak/bin/kcadm.sh update realms/adili -s sslRequired=none
 portal_id="$(docker exec adili-keycloak-1 /opt/keycloak/bin/kcadm.sh get clients -r adili -q clientId=portal --fields id --format csv --noquotes | tail -n 1)"
 console_id="$(docker exec adili-keycloak-1 /opt/keycloak/bin/kcadm.sh get clients -r adili -q clientId=console --fields id --format csv --noquotes | tail -n 1)"

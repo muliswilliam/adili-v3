@@ -2,7 +2,9 @@ import csv
 import io
 
 import pytest
+from django.test import Client
 
+from ardhisasa.models import Parcel
 from demo.fixtures import load_roster_rows, parse_name
 from demo.rosters import (
     COMMISSIONS,
@@ -89,3 +91,70 @@ def test_planted_duplicates_follow_the_row_they_repeat(commission: str) -> None:
         position = rows.index(planted.values)
         earlier = [row[planted.field].lower() for row in rows[:position]]
         assert planted.values[planted.field].lower() in earlier
+
+
+SYNTHETIC_REQUEST = {
+    "seed": "test",
+    "anchor": "2026-10-01",
+    "commissions": [
+        {
+            "slug": "npsc",
+            "index": 4,
+            "count": 25,
+            "employerCode": "NPS",
+            "reportingEntity": "National Police Service",
+            "emailDomain": "npsc.go.ke",
+        }
+    ],
+}
+
+
+@pytest.mark.django_db
+def test_synthetic_officers_are_the_same_people_every_time(client: Client) -> None:
+    first = client.post(
+        "/demo/synthetic-officers", SYNTHETIC_REQUEST, content_type="application/json"
+    )
+    again = client.post(
+        "/demo/synthetic-officers", SYNTHETIC_REQUEST, content_type="application/json"
+    )
+
+    assert first.status_code == 200
+    assert first.json()["created"] == 25
+    assert again.json()["created"] == 0
+    assert again.json()["officers"] == first.json()["officers"]
+
+
+@pytest.mark.django_db
+def test_synthetic_officers_hold_what_their_registries_return(client: Client) -> None:
+    officers = client.post(
+        "/demo/synthetic-officers", SYNTHETIC_REQUEST, content_type="application/json"
+    ).json()["officers"]["npsc"]
+
+    for officer in officers:
+        assert Person.objects.filter(id_number=officer["nationalId"]).exists()
+        assert Employment.objects.filter(personal_number=officer["personnelFileNumber"]).exists()
+        vehicles = {h["reference"] for h in officer["holdings"] if h["kind"] == "vehicle"}
+        owned = set(
+            Vehicle.objects.filter(owner_id_number=officer["nationalId"]).values_list(
+                "registration_number", flat=True
+            )
+        )
+        assert owned == vehicles
+        parcels = {
+            (h["reference"], h["county"], h["areaHectares"])
+            for h in officer["holdings"]
+            if h["kind"] == "parcel"
+        }
+        held = {
+            (p.parcel_number, p.county, str(p.area_hectares))
+            for p in Parcel.objects.filter(owner_id_number=officer["nationalId"])
+        }
+        assert held == parcels
+
+
+@pytest.mark.django_db
+def test_synthetic_officers_refuse_a_bad_request(client: Client) -> None:
+    response = client.post(
+        "/demo/synthetic-officers", {"seed": "x"}, content_type="application/json"
+    )
+    assert response.status_code == 400

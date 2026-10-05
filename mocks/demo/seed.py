@@ -49,6 +49,10 @@ COMPANIES = [
 
 NON_COMPLIANT_TAXPAYERS = {"22607781"}
 
+# A PSC officer whose roster name is not the name IPRS holds for the ID (spec 03 identity check):
+# the demo seed puts him on the roster as "Daniel Kiprop Rotich"; IPRS knows another person.
+IPRS_NAME_MISMATCH = ("38221907", "Samuel", "Kiprotich", "Langat", date(1989, 4, 2), "M", "Kericho")
+
 # (employer_code, company registration, company name) - 07b supplier-directorship.
 SUPPLIERS = [
     ("KEMSA", "PVT-9XYZ2L4Q", "Afya Bora Medical Supplies Limited"),
@@ -166,6 +170,9 @@ def seed_demo() -> None:
             person.date_of_birth,
             person.annual_income,
         )
+
+    mismatch_id, first, middle, last, born, sex, place = IPRS_NAME_MISMATCH
+    _upsert_person(mismatch_id, first, middle, last, born, sex, place, date(born.year + 18, 1, 15))
 
     for child in load_dependants():
         _upsert_person(

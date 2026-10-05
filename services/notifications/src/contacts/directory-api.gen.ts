@@ -257,7 +257,7 @@ export interface paths {
         };
         /**
          * Roster template with column notes and a sample row
-         * @description reporting-officer, commission-admin, platform-admin, eacc-analyst and eacc-supervisor. The ten roster columns as headers and a sample row, generated from the same column definitions the import parser uses. The XLSX has a `Roster` sheet (file number, national ID, phone and employer code columns formatted as text) and a `Notes` sheet documenting each column. Sent as an attachment (`Content-Disposition`).
+         * @description reporting-officer, commission-admin, platform-admin, eacc-analyst and eacc-supervisor. The twelve roster columns as headers and a sample row, generated from the same column definitions the import parser uses. The XLSX has a `Roster` sheet (file number, national ID, phone and employer code columns formatted as text) and a `Notes` sheet documenting each column. Sent as an attachment (`Content-Disposition`).
          */
         get: operations["getRosterTemplate"];
         put?: never;
@@ -2133,6 +2133,11 @@ export interface components {
             fullName: string;
             /** @description Commissions whose roster records the person is linked to */
             commissions: components["schemas"]["Slug"][];
+            /** @description Whether a verified email and phone are on file, so the helpdesk knows where a recovery code can go; never the contacts themselves */
+            contactsOnFile: {
+                email: boolean;
+                phone: boolean;
+            };
             /**
              * Format: date-time
              * @description When the account was created

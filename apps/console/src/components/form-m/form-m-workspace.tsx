@@ -52,6 +52,7 @@ import {
   isPreview,
   manualMissing,
   periodLine,
+  reviewedOn,
   type SignOffStep,
   signOffSteps,
   yearEnded,
@@ -548,12 +549,7 @@ function ReportView({
                 ) : report.reviewedBy ? (
                   <p className="mt-0.5 flex items-center gap-1.5 text-[13px] font-medium text-success">
                     <Icon icon={UserCheck01Icon} className="size-3.5" />
-                    {m.reviewedBy(
-                      report.reviewedBy.name,
-                      document.partIII.compiledBy.date
-                        ? formatDate(document.partIII.compiledBy.date)
-                        : null,
-                    )}
+                    {m.reviewedBy(report.reviewedBy.name, reviewedOn(document))}
                   </p>
                 ) : null}
               </div>
@@ -748,20 +744,24 @@ export function WorkspaceFooter({
   actions?: ReactNode;
 }) {
   const due = dueLine(report.dueDate, today);
+  // Flush with the bottom, on a strip of the page's background wide enough to cover the cards'
+  // shadows: the report scrolls out of sight above the bar, not through it or into a gap under it.
   return (
-    <div className="sticky bottom-4 z-10 mt-1 flex flex-wrap items-center gap-3 rounded-2xl bg-card/95 px-4 py-3 shadow-pop backdrop-blur-md">
-      <span className={cn('flex items-center gap-2 text-sm font-medium', DUE_TONES[due.tone])}>
-        <Icon icon={Calendar03Icon} className="size-4" />
-        {due.text}
-      </span>
-      {note ? (
-        <span className="text-[13px] text-muted-foreground @max-[699px]:hidden">{note}</span>
-      ) : null}
-      {actions ? (
-        <span className="ml-auto flex items-center gap-2 @max-[699px]:ml-0 @max-[699px]:w-full @max-[699px]:[&>*]:flex-1">
-          {actions}
+    <div className="sticky bottom-0 z-10 -mx-3 mt-1 bg-background px-3 pb-4">
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-card px-4 py-3 shadow-pop">
+        <span className={cn('flex items-center gap-2 text-sm font-medium', DUE_TONES[due.tone])}>
+          <Icon icon={Calendar03Icon} className="size-4" />
+          {due.text}
         </span>
-      ) : null}
+        {note ? (
+          <span className="text-[13px] text-muted-foreground @max-[699px]:hidden">{note}</span>
+        ) : null}
+        {actions ? (
+          <span className="ml-auto flex items-center gap-2 @max-[699px]:ml-0 @max-[699px]:w-full @max-[699px]:[&>*]:flex-1">
+            {actions}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }

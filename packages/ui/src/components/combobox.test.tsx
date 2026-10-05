@@ -43,6 +43,32 @@ function input() {
 }
 
 describe('Combobox', () => {
+  it('shows supporting option text and reports opening and selection closure', () => {
+    const onOpenChange = vi.fn();
+    const onValueChange = vi.fn();
+    render(
+      <Combobox
+        aria-label="Commission"
+        options={[
+          {
+            value: 'tsc',
+            label: 'Teachers Service Commission',
+            secondaryText: 'Roster not imported yet',
+          },
+        ]}
+        value={null}
+        onValueChange={onValueChange}
+        onOpenChange={onOpenChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole('combobox', { name: 'Commission' }));
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    const option = screen.getByRole('option', { name: /Teachers Service Commission/ });
+    expect(option.textContent).toContain('Roster not imported yet');
+    fireEvent.click(option);
+    expect(onValueChange).toHaveBeenCalledWith('tsc');
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
   it('is labelled and described by its form field and starts closed', () => {
     render(<CommissionPicker />);
 

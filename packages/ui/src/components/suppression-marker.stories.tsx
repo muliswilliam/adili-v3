@@ -25,7 +25,7 @@ const KIND_NOTES = {
   suppressed: 'Suppressed: under 10 officers, or protects a total',
   complementary: 'Known complementary: protects a total',
   'not-reported': 'Commission did not report',
-  'not-collected': 'Not collected yet (access requests)',
+  'not-collected': 'Not collected yet (reporting entity types)',
 };
 
 export const EveryKind: Story = {

@@ -13,6 +13,32 @@ import {
 } from '../../src/enforcement/schema.js';
 import type { Caller, ReviewApi } from './review-api.js';
 
+/** `obligation.created.v1` (spec 04), as the RabbitMQ transport delivers it, announced at `time`. */
+export function obligationCreatedEvent(
+  tenant: string,
+  obligation: { obligationId: string; rosterRecordId: string; cycleKey: string; dueDate: string },
+  time: Date,
+): EventEnvelope {
+  return {
+    specversion: '1.0',
+    id: uuidv7(),
+    source: 'adili/declarations',
+    type: 'obligation.created.v1',
+    time: time.toISOString(),
+    subject: obligation.obligationId,
+    datacontenttype: 'application/json',
+    tenant,
+    data: {
+      obligationId: obligation.obligationId,
+      rosterRecordId: obligation.rosterRecordId,
+      type: 'biennial',
+      cycleKey: obligation.cycleKey,
+      statementDate: `${obligation.cycleKey.slice(-4)}-06-30`,
+      dueDate: obligation.dueDate,
+    },
+  };
+}
+
 /** `obligation.status-changed.v1` (spec 04), as the RabbitMQ transport delivers it. */
 export function obligationStatusChangedEvent(
   tenant: string,

@@ -1,4 +1,10 @@
-import { baseEnvSchema, loadConfig } from '@adili/api-kit';
+import {
+  baseEnvSchema,
+  demoModeSetting,
+  demoWindowSetting,
+  loadConfig,
+  refuseDemoWindowsOutsideDemo,
+} from '@adili/api-kit';
 import { z } from 'zod';
 
 export const SERVICE_NAME = 'review';
@@ -66,8 +72,39 @@ export const envSchema = baseEnvSchema.extend({
    * hourly by default. `off` keeps no schedule.
    */
   REGISTRY_SWEEP_CRON: z.string().min(1).default('0 * * * *'),
+  /** Demo stack only (#371): allows the demo windows below. Off by default. */
+  DEMO_MODE: demoModeSetting,
+  /**
+   * Demo only: a clarification's reply window (ISO-8601 duration, e.g. `PT2M`) instead of the
+   * policy's `replyWindowDays`, for clarifications issued while it is set. Unset: the policy's.
+   */
+  DEMO_CLARIFICATION_REPLY_WINDOW: demoWindowSetting,
+  /** Demo only: the window after a notice to comply, instead of the ladder policy's. */
+  DEMO_LADDER_NOTICE_WINDOW: demoWindowSetting,
+  /** Demo only: the window after a warning, instead of the ladder policy's. */
+  DEMO_LADDER_WARNING_WINDOW: demoWindowSetting,
+  /** Demo only: the window after a salary stoppage, instead of the ladder policy's. */
+  DEMO_LADDER_STOPPAGE_WINDOW: demoWindowSetting,
+  /**
+   * Demo only: a case's clarification window from receipt, instead of the policy's
+   * `issueWindowMonths`, for cases created while it is set (so the closure sweep can reach them).
+   */
+  DEMO_CASE_ISSUE_WINDOW: demoWindowSetting,
+});
+
+/** The demo window settings, refused outside a demo stack. */
+const DEMO_WINDOWS = [
+  'DEMO_CLARIFICATION_REPLY_WINDOW',
+  'DEMO_LADDER_NOTICE_WINDOW',
+  'DEMO_LADDER_WARNING_WINDOW',
+  'DEMO_LADDER_STOPPAGE_WINDOW',
+  'DEMO_CASE_ISSUE_WINDOW',
+] as const;
+
+export const checkedEnvSchema = envSchema.superRefine((env, ctx) => {
+  refuseDemoWindowsOutsideDemo(env, DEMO_WINDOWS, ctx);
 });
 
 export type Env = z.infer<typeof envSchema>;
 
-export const config: Env = loadConfig(envSchema);
+export const config: Env = loadConfig(checkedEnvSchema);

@@ -27,3 +27,5 @@ services/*/test/**/golden
 services/*/test/**/workflow-histories
 # Recorded model responses (ai-gateway eval fixtures), rewritten on every recording
 services/ai-gateway/evals/fixtures
+# Recorded model responses for the demo beats (`pnpm demo:ai record`), rewritten the same way
+services/ai-gateway/fixtures/demo/*.json
