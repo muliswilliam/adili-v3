@@ -15,7 +15,8 @@ export const demoSignIn: SeedStep = {
   title: 'Demo sign-in on the realm: authenticator, demo_key attribute and claim',
   async run({ config }) {
     const outcome = await repoScript('scripts/keycloak-demo-sign-in.mjs', {
-      KEYCLOAK_URL: config.KEYCLOAK_URL,
+      // Admin calls: the hosted VM serves Keycloak's admin API on loopback only.
+      KEYCLOAK_URL: config.KEYCLOAK_ADMIN_URL ?? config.KEYCLOAK_URL,
       KEYCLOAK_ADMIN_USER: config.KEYCLOAK_ADMIN_USER,
       KEYCLOAK_ADMIN_PASSWORD: config.KEYCLOAK_ADMIN_PASSWORD,
     });
