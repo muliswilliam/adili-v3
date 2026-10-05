@@ -18,6 +18,10 @@ export default defineConfig({
     env: {
       ...parseEnv(readFileSync('.env.example', 'utf8')),
       LOG_LEVEL: 'fatal',
+      // The broker the readiness check connects to at startup: CI's runs on 5672. Left at
+      // .env.example's 55672, where nothing listens in CI, a connect can reach itself (the port is
+      // in Linux's ephemeral range) and stall the app's start (see RABBITMQ_CONNECT_TIMEOUT_MS).
+      ...(process.env.TEST_RABBITMQ_URL && { RABBITMQ_URL: process.env.TEST_RABBITMQ_URL }),
       // Suites run the anchoring themselves; a schedule would fire on the shared Temporal.
       AUDIT_ANCHOR_CRON: 'off',
       TEMPORAL_ADDRESS: process.env.TEST_TEMPORAL_ADDRESS ?? 'localhost:7233',

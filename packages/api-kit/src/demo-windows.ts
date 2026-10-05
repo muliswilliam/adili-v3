@@ -107,3 +107,51 @@ export function refuseDemoWindowsOutsideDemo(
     }
   }
 }
+
+/**
+ * A service's demo windows as they stand now (#371): they start from the service's settings and
+ * a demo stack may change them while it runs (`PUT /v1/demo/windows`, mounted only in demo mode),
+ * so one seed run can start some windows short and others legal without restarting the service.
+ * A restart starts again from the settings, so nothing short outlives the process.
+ */
+export class DemoWindows<K extends string> {
+  private readonly current: Map<K, number | undefined>;
+
+  constructor(private readonly settings: Readonly<Record<K, number | undefined>>) {
+    this.current = new Map(Object.entries(settings) as [K, number | undefined][]);
+  }
+
+  /** The window for `key` in milliseconds, or undefined for the legal one. */
+  get(key: K): number | undefined {
+    return this.current.get(key);
+  }
+
+  /** The windows' names. */
+  keys(): K[] {
+    return Object.keys(this.settings) as K[];
+  }
+
+  /**
+   * Sets windows by name: an ISO-8601 duration, or null for the legal window. Throws on an
+   * unknown name or a malformed duration, changing nothing.
+   */
+  set(changes: Readonly<Partial<Record<string, string | null>>>): void {
+    const parsed = new Map<K, number | undefined>();
+    for (const [key, value] of Object.entries(changes)) {
+      if (!this.current.has(key as K)) throw new Error(`Unknown demo window ${key}`);
+      if (value === undefined) continue;
+      const ms = value === null ? undefined : isoDurationMs(value);
+      if (ms === null) throw new Error(`${key} must be a positive ISO-8601 duration`);
+      parsed.set(key as K, ms);
+    }
+    for (const [key, ms] of parsed) this.current.set(key, ms);
+  }
+
+  /** Every window in milliseconds, null where the legal one applies. */
+  view(): Record<K, number | null> {
+    return Object.fromEntries([...this.current].map(([key, ms]) => [key, ms ?? null])) as Record<
+      K,
+      number | null
+    >;
+  }
+}
