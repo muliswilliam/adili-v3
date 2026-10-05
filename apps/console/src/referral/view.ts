@@ -2,6 +2,7 @@ import { formatNumber } from '@adili/ui';
 
 import type {
   Assignee,
+  CaseListItem,
   Clarification,
   Flag,
   Referral,
@@ -87,6 +88,23 @@ function isAssetRule(value: string): value is AssetRule {
 /** The case's flags a referral can include: asset flags that still count. */
 export function referableFlags<F extends Flag>(flags: F[]): F[] {
   return flags.filter((flag) => ASSET_RULES.has(flag.ruleId) && !flag.closedReason);
+}
+
+/**
+ * Whether the viewer may refer the case to EACC: its assignee, while the case is not determined
+ * and has a flag a referral can rest on. The case's Refer to EACC and the propose dialog's Start
+ * referral (#610) both follow it.
+ */
+export function referralOffered(
+  item: Pick<CaseListItem, 'status' | 'assignee'>,
+  flags: Flag[],
+  viewer: Pick<Assignee, 'subject'>,
+): boolean {
+  return (
+    item.assignee?.subject === viewer.subject &&
+    item.status !== 'determined' &&
+    referableFlags(flags).length > 0
+  );
 }
 
 /** The clarifications a referral can include: every issued one, not drafts or withdrawn ones. */

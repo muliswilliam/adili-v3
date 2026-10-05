@@ -8,7 +8,6 @@ import {
   DialogContent,
   DialogFooter,
   FieldError,
-  FieldHint,
   formatNumber,
   Icon,
   Label,
@@ -17,8 +16,14 @@ import {
   RadioGroup,
   Spinner,
   Textarea,
+  useToast,
 } from '@adili/ui';
-import { InformationCircleIcon, JusticeScale01Icon } from '@hugeicons/core-free-icons';
+import {
+  Flag02Icon,
+  InformationCircleIcon,
+  JusticeScale01Icon,
+  Legal01Icon,
+} from '@hugeicons/core-free-icons';
 import { useId, useState } from 'react';
 
 import {
@@ -66,15 +71,21 @@ export interface ProposeDialogProps {
    * kept), or null when it was proposed (the dialog closes).
    */
   onSubmit: (input: DeterminationInput) => Promise<FailureText | null>;
+  /**
+   * Opens Refer to EACC over the proposal, which comes back to it with its text (#610); absent
+   * when the case cannot be referred.
+   */
+  onStartReferral?: () => void;
 }
 
 const EMPTY: ProposalForm = { outcome: null, reasons: '', note: '' };
 
 /**
  * Propose a compliance determination (spec 08 FE-2, S1): the outcome, the reasons (required, up
- * to 4,000) and, for further action, what is needed (up to 2,000). Approval is a supervisor's;
- * the dialog says what approval does. A refusal (409 already proposed, clarification open) keeps
- * the text.
+ * to 4,000) and, for further action, what is needed (up to 2,000) with the way to it: start a
+ * referral, or learn that administrative actions start on their own (#610). Approval is a
+ * supervisor's; the dialog says what approval does. A refusal (409 already proposed,
+ * clarification open) keeps the text.
  */
 export function ProposeDialog({
   open,
@@ -82,7 +93,9 @@ export function ProposeDialog({
   subject,
   revising = null,
   onSubmit,
+  onStartReferral,
 }: ProposeDialogProps) {
+  const { toast } = useToast();
   const [form, setForm] = useState<ProposalForm>(revising?.form ?? EMPTY);
   const [errors, setErrors] = useState<ProposalErrors>({});
   const [failure, setFailure] = useState<FailureText | null>(null);
@@ -212,13 +225,40 @@ export function ProposeDialog({
                   {errors.note ? (
                     <FieldError id={`${id}-note-help`}>{errors.note}</FieldError>
                   ) : (
-                    <FieldHint id={`${id}-note-help`}>{t.dialog.noteHint}</FieldHint>
+                    <span id={`${id}-note-help`} />
                   )}
                   <Counter
                     id={`${id}-note-count`}
                     length={form.note.length}
                     max={NOTE_MAX_LENGTH}
                   />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[13px] text-muted-foreground">{t.dialog.optional}</span>
+                  {onStartReferral ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={busy}
+                      onClick={onStartReferral}
+                    >
+                      <Icon icon={Flag02Icon} />
+                      {t.dialog.startReferral}
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => {
+                      toast({ title: t.dialog.actionsStartThemselves });
+                    }}
+                  >
+                    <Icon icon={Legal01Icon} />
+                    {t.dialog.startAction}
+                  </Button>
                 </div>
               </div>
             ) : null}
