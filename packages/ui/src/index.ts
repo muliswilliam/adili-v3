@@ -503,6 +503,7 @@ export {
   THEME_COOKIE,
   THEME_PREFERENCES,
   THEME_SCRIPT,
+  themeRootProps,
   type ThemePreference,
 } from './lib/theme';
 export { Skeleton } from './components/skeleton';

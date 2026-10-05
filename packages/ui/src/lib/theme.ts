@@ -21,6 +21,18 @@ export function serverTheme(preference: ThemePreference): 'light' | 'dark' | und
 }
 
 /**
+ * The `<html>` attributes for the preference: `data-theme` and `color-scheme` for an explicit
+ * choice, so the first paint is right before any script runs; none for `system`.
+ */
+export function themeRootProps(preference: ThemePreference): {
+  'data-theme'?: 'light' | 'dark';
+  style?: { colorScheme: 'light' | 'dark' };
+} {
+  const theme = serverTheme(preference);
+  return theme ? { 'data-theme': theme, style: { colorScheme: theme } } : {};
+}
+
+/**
  * Runs in `<head>` before the page paints: sets `data-theme` from the cookie, or from the device
  * for `system`, and follows the device while `system` is chosen. Kept in step with
  * `applyThemePreference`.

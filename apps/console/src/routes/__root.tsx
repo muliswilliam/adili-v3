@@ -1,16 +1,8 @@
-import {
-  DemoBar,
-  SiteHeaderAside,
-  THEME_SCRIPT,
-  ThemePreferenceContext,
-  ThemeSwitcher,
-  ToastProvider,
-  TooltipProvider,
-} from '@adili/ui';
-import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { DemoBar, SiteHeaderAside, ThemePreferenceContext, ThemeSwitcher } from '@adili/ui';
+import { createRootRoute, Outlet } from '@tanstack/react-router';
 
 import { DemoContext } from '../components/demo/demo-context';
+import { RootDocument } from '../components/root-document';
 import { getDemo } from '../server/demo/demo';
 import { getTheme } from '../server/theme';
 import appCss from '../styles.css?url';
@@ -42,7 +34,7 @@ export const Route = createRootRoute({
 function RootComponent() {
   const { demo, theme } = Route.useLoaderData();
   return (
-    <RootDocument>
+    <RootDocument theme={theme}>
       <ThemePreferenceContext value={theme}>
         <DemoContext value={demo}>
           {/* The signed-out pages' site header carries the switcher too, so it never covers a page. */}
@@ -74,27 +66,5 @@ function RootComponent() {
         </>
       ) : null}
     </RootDocument>
-  );
-}
-
-function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
-  return (
-    // The head script sets data-theme before React hydrates.
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Sets the theme before the first paint: the shared cookie's choice, or the device's. */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-        <HeadContent />
-      </head>
-      <body>
-        <TooltipProvider>
-          <ToastProvider>
-            {/* Pages place the site footer: below the content, never under the sidebar. */}
-            <div className="flex min-h-dvh flex-col">{children}</div>
-          </ToastProvider>
-        </TooltipProvider>
-        <Scripts />
-      </body>
-    </html>
   );
 }

@@ -1,7 +1,7 @@
-import { DemoBar, SiteHeaderAside, THEME_SCRIPT, ThemeSwitcher } from '@adili/ui';
-import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { DemoBar, SiteHeaderAside, ThemeSwitcher } from '@adili/ui';
+import { createRootRoute, Outlet } from '@tanstack/react-router';
 
+import { RootDocument } from '../components/root-document';
 import { getDemo } from '../server/demo/demo';
 import { getTheme } from '../server/theme';
 import appCss from '../styles.css?url';
@@ -33,7 +33,7 @@ export const Route = createRootRoute({
 function RootComponent() {
   const { demo, theme } = Route.useLoaderData();
   return (
-    <RootDocument>
+    <RootDocument theme={theme}>
       {/* In demo mode every site header carries the switcher, so it never covers a page. */}
       <SiteHeaderAside
         value={
@@ -61,22 +61,5 @@ function RootComponent() {
         </>
       ) : null}
     </RootDocument>
-  );
-}
-
-function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
-  return (
-    // The head script sets data-theme before React hydrates.
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Sets the theme before the first paint: the shared cookie's choice, or the device's. */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-        <HeadContent />
-      </head>
-      <body>
-        <div className="flex min-h-dvh flex-col">{children}</div>
-        <Scripts />
-      </body>
-    </html>
   );
 }
