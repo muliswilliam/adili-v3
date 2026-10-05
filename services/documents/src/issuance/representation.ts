@@ -79,6 +79,10 @@ export const issueDocumentBody = z.strictObject({
     description:
       'Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package and access-nil-letter',
   }),
+  validUntil: z.iso.datetime({ offset: true }).optional().meta({
+    description:
+      'When the document stops being in force (ADR-010): from then on the verify page answers `expired`. Must be after the issue. None: in force until superseded or revoked',
+  }),
   additionalDownloaders: z
     .array(z.string().trim().min(1).max(255))
     .max(10)

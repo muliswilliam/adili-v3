@@ -7,6 +7,8 @@ import { outbox } from './schema.js';
 export interface EventsModuleOptions {
   service: string;
   rabbitmqUrl: string;
+  /** Bounds opening a broker connection; `RABBITMQ_CONNECT_TIMEOUT_MS` by default. */
+  connectTimeoutMs?: number;
 }
 
 export const EVENTS_OPTIONS = Symbol('EVENTS_OPTIONS');

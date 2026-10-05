@@ -165,6 +165,7 @@ export {
   deadlineStatus,
   type DeadlineStatus,
 } from './components/deadline-chip';
+export { DemoBar, type DemoBarAccount, type DemoBarProps } from './components/demo-bar';
 export {
   DescriptionItem,
   type DescriptionItemProps,

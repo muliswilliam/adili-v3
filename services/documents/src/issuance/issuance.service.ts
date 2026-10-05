@@ -120,6 +120,8 @@ export interface IssueRequest {
   downloadWindowDays?: number;
   /** Subjects of the issuing Commission's staff who may download it too. */
   additionalDownloaders?: string[];
+  /** When it stops being in force (ISO 8601); none: until superseded or revoked. */
+  validUntil?: string;
   /** The fields the template renders, or for a pulled type the record's id (pulled-payloads.ts). */
   payload: unknown;
 }
@@ -255,6 +257,10 @@ export class IssuanceService {
       request.downloadWindowDays === undefined
         ? null
         : new Date(issuedAt.getTime() + request.downloadWindowDays * DAY_MS);
+    const expiresAt = request.validUntil === undefined ? null : new Date(request.validUntil);
+    if (expiresAt !== null && expiresAt <= issuedAt) {
+      throw validationProblem([{ path: 'validUntil', message: 'Must be after the issue' }]);
+    }
     // Spec 06: the issued bucket keeps every document at `issued/<documentId>.pdf`.
     const objectKey = `issued/${documentId}.pdf`;
     const verifyUrl = this.verifyUrlOf(verificationId);
@@ -291,7 +297,7 @@ export class IssuanceService {
         statusReasonCategory: null,
         supersededBy: null,
         statusChangedAt: null,
-        expiresAt: null,
+        expiresAt: expiresAt?.toISOString() ?? null,
       };
       const signature = await this.records.sign(record);
       await this.store(objectKey, pdf);
@@ -341,6 +347,7 @@ export class IssuanceService {
               issuedAt,
               contentSha256: sha256,
               publicPayload,
+              expiresAt,
               recordSignature: signature.signature,
               recordSigningKeyVersion: signature.keyVersion,
             })
@@ -847,6 +854,7 @@ export class IssuanceService {
       sha256: document.sha256,
       issuedAt: document.issuedAt.toISOString(),
       status: record.status,
+      expiresAt: record.expiresAt?.toISOString() ?? null,
     };
   }
 

@@ -41,6 +41,8 @@ interface StoredSession {
   /** Absent on sessions opened before step-up existed. */
   acr?: string | null;
   authTime?: number | null;
+  /** When the tokens were last obtained (ms); absent on sessions opened before it was kept. */
+  obtainedAt?: number;
 }
 
 interface LoginTransaction {
@@ -100,6 +102,28 @@ export interface BffOptions {
   provider: OidcProvider;
   store: SessionStore;
   now?: () => number;
+  /**
+   * More authorize request parameters for a sign-in or step-up, e.g. a demo ticket (#616): a
+   * demo account's step-up then needs no code. None by default.
+   */
+  authorizeParams?: (
+    request: Request,
+    kind: 'login' | 'step-up',
+  ) => Promise<Record<string, string> | undefined>;
+  /**
+   * Refresh the tokens when they are older than this (ms), not only when they are about to expire,
+   * so a session Keycloak ended elsewhere (another app switched the browser's account, #616) ends
+   * here within this time. Only when tokens expire by default.
+   */
+  revalidateAfterMs?: number;
+}
+
+/** How {@link Bff.signInAfresh} signs in. */
+export interface FreshSignIn {
+  /** More authorize request parameters, e.g. a demo ticket. */
+  authorizeParams?: Record<string, string>;
+  /** Where to land after the callback; `/` by default. */
+  returnTo?: string;
 }
 
 const TRANSACTION_TTL_SECONDS = 600;
@@ -143,8 +167,34 @@ export class Bff {
     return this.authorize(request, true);
   }
 
-  private async authorize(request: Request, stepUp: boolean): Promise<Response> {
-    const returnTo = safeReturnTo(new URL(request.url).searchParams.get('returnTo'));
+  /**
+   * Ends this app's session and starts a new sign-in with `authorizeParams`, e.g. the demo role
+   * switcher's ticket (#616). The callback opens a session for whoever Keycloak signs in.
+   */
+  async signInAfresh(request: Request, { authorizeParams, returnTo }: FreshSignIn = {}) {
+    const sessionId = readCookie(request, this.options.cookieName);
+    if (sessionId) await this.options.store.delete(sessionKey(sessionId));
+    const response = await this.authorize(request, false, {
+      returnTo: safeReturnTo(returnTo ?? '/'),
+      extraParams: authorizeParams,
+    });
+    response.headers.append(
+      'set-cookie',
+      clearCookie(this.options.cookieName, { secure: this.secure }),
+    );
+    return response;
+  }
+
+  private async authorize(
+    request: Request,
+    stepUp: boolean,
+    fresh?: { returnTo: string; extraParams?: Record<string, string> },
+  ): Promise<Response> {
+    const returnTo =
+      fresh?.returnTo ?? safeReturnTo(new URL(request.url).searchParams.get('returnTo'));
+    const extraParams =
+      fresh?.extraParams ??
+      (await this.options.authorizeParams?.(request, stepUp ? 'step-up' : 'login'));
     const transaction: LoginTransaction = {
       codeVerifier: oidc.randomPKCECodeVerifier(),
       state: oidc.randomState(),
@@ -158,6 +208,7 @@ export class Bff {
       nonce: transaction.nonce,
       codeChallenge: await oidc.calculatePKCECodeChallenge(transaction.codeVerifier),
       ...(stepUp ? { acrValues: STEP_UP_ACR } : {}),
+      ...(extraParams ? { extraParams } : {}),
     });
 
     const transactionId = randomId();
@@ -272,7 +323,11 @@ export class Bff {
     if (!raw) return null;
 
     let session: StoredSession | null = JSON.parse(raw) as StoredSession;
-    if (session.accessTokenExpiresAt - this.now() < REFRESH_MARGIN_MS) {
+    const revalidate = this.options.revalidateAfterMs;
+    if (
+      session.accessTokenExpiresAt - this.now() < REFRESH_MARGIN_MS ||
+      (revalidate !== undefined && this.now() - (session.obtainedAt ?? 0) >= revalidate)
+    ) {
       session = await this.refreshOnce(sessionId, session);
     }
     return session
@@ -308,6 +363,11 @@ export class Bff {
       await this.saveSession(sessionId, refreshed, tokens);
       return refreshed;
     } catch {
+      // Another request may have refreshed this session after this one read it: Keycloak then
+      // refuses the used refresh token (revokeRefreshToken), but the session goes on.
+      const raw = await this.options.store.get(sessionKey(sessionId));
+      const current = raw ? (JSON.parse(raw) as StoredSession) : null;
+      if (current?.refreshToken && current.refreshToken !== session.refreshToken) return current;
       // Refresh token expired or revoked in Keycloak: the SSO session is over.
       await this.options.store.delete(sessionKey(sessionId));
       return null;
@@ -323,6 +383,7 @@ export class Bff {
       user,
       accessToken: tokens.accessToken,
       accessTokenExpiresAt: this.now() + tokens.expiresInSeconds * 1000,
+      obtainedAt: this.now(),
       // Keycloak may rotate refresh tokens; keep the old one only if none was returned.
       refreshToken: tokens.refreshToken ?? previous?.refreshToken,
       idToken: tokens.idToken ?? previous?.idToken,

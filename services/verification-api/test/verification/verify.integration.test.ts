@@ -88,6 +88,37 @@ describe('S14 public verification of issued documents', () => {
     });
   });
 
+  it('answers expired once a valid document is past the end of its validity', async () => {
+    const lapsed = issuedData({ expiresAt: new Date(Date.now() - 1000).toISOString() });
+    const current = issuedData({ expiresAt: new Date(Date.now() + 3_600_000).toISOString() });
+    await api.consumers.issued(issued(lapsed));
+    await api.consumers.issued(issued(current));
+
+    const expired = await api.get(`/v1/verify/${lapsed.verificationId}`);
+    const valid = await api.get(`/v1/verify/${current.verificationId}`);
+
+    expect(expired.statusCode).toBe(200);
+    const body = expired.json<Record<string, unknown>>();
+    expect(contractErrors(okResponse(VERIFY, 'get'), body)).toEqual([]);
+    expect(body).toMatchObject({ status: 'expired', sha256: lapsed.sha256 });
+    expect(valid.json()).toMatchObject({ status: 'valid' });
+  });
+
+  it('keeps revoked for a revoked document past its validity', async () => {
+    const package_ = issuedData({
+      disclosureLevel: 'confidential',
+      publicPayload: null,
+      expiresAt: new Date(Date.now() + 500).toISOString(),
+    });
+    await api.consumers.issued(issued(package_));
+    await api.consumers.revoked(revoked(package_, 'withdrawn'));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    const response = await api.get(`/v1/verify/${package_.verificationId}`);
+
+    expect(response.json()).toMatchObject({ status: 'revoked', disclosureLevel: 'confidential' });
+  });
+
   it('shows validity only for a confidential document', async () => {
     const older = issuedData({ disclosureLevel: 'confidential', publicPayload: null });
     const newer = issuedData({ disclosureLevel: 'confidential', publicPayload: null });

@@ -33,6 +33,9 @@ importers:
       '@adili/bff-auth':
         specifier: workspace:*
         version: link:../../packages/bff-auth
+      '@adili/demo-auth':
+        specifier: workspace:*
+        version: link:../../packages/demo-auth
       '@adili/forms':
         specifier: workspace:*
         version: link:../../packages/forms
@@ -215,6 +218,9 @@ importers:
       '@adili/bff-auth':
         specifier: workspace:*
         version: link:../../packages/bff-auth
+      '@adili/demo-auth':
+        specifier: workspace:*
+        version: link:../../packages/demo-auth
       '@adili/numbering':
         specifier: workspace:*
         version: link:../../packages/numbering
@@ -643,9 +649,21 @@ importers:
 
   packages/demo-auth:
     dependencies:
+      '@adili/bff-auth':
+        specifier: workspace:*
+        version: link:../bff-auth
+      '@adili/events':
+        specifier: workspace:*
+        version: link:../events
+      amqplib:
+        specifier: ^2.0.1
+        version: 2.0.1
       openid-client:
         specifier: ^6.8.8
         version: 6.8.8
+      uuid:
+        specifier: ^14.0.2
+        version: 14.0.2
     devDependencies:
       '@adili/eslint-config':
         specifier: workspace:*
@@ -653,6 +671,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@types/amqplib':
+        specifier: ^0.10.8
+        version: 0.10.8
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
@@ -1456,9 +1477,18 @@ importers:
       '@adili/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@adili/roles':
+        specifier: workspace:*
+        version: link:../../packages/roles
       '@adili/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
+      '@adili/temporal':
+        specifier: workspace:*
+        version: link:../../packages/temporal
+      '@aws-sdk/client-s3':
+        specifier: ^3.1140.0
+        version: 3.1140.0
       '@nestjs/common':
         specifier: ^12.1.0
         version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
@@ -1471,6 +1501,15 @@ importers:
       '@nestjs/swagger':
         specifier: ^12.0.2
         version: 12.0.2(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(reflect-metadata@0.2.2)(typescript@6.0.3)
+      '@temporalio/client':
+        specifier: ^1.24.0
+        version: 1.24.0
+      '@temporalio/common':
+        specifier: ^1.24.0
+        version: 1.24.0
+      '@temporalio/workflow':
+        specifier: ^1.24.0
+        version: 1.24.0
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(pg@8.23.0)
@@ -1487,9 +1526,15 @@ importers:
       '@adili/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
+      '@adili/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@nestjs/platform-fastify':
+        specifier: ^12.1.0
+        version: 12.1.0(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)
       '@nestjs/testing':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
@@ -1499,15 +1544,27 @@ importers:
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
+      '@temporalio/testing':
+        specifier: ^1.24.0
+        version: 1.24.0(esbuild@0.28.2)
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.20.0)
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
       eslint:
         specifier: ^10.11.0
         version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
+      jose:
+        specifier: ^6.2.12
+        version: 6.2.12
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -1517,6 +1574,9 @@ importers:
       vitest:
         specifier: ^5.0.1
         version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(jsdom@30.1.1)(vite@8.3.1)
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   services/declarations:
     dependencies:

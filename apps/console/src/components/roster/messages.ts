@@ -166,7 +166,7 @@ export const en = {
   backToRoster: 'Back to roster',
   // Step 1: template
   templateTitle: 'Get the template',
-  templateIntroBefore: 'Fill the template from your HR extract. Ten columns;',
+  templateIntroBefore: 'Fill the template from your HR extract. Twelve columns;',
   templateIntroAnd: 'and',
   templateIntroAfter: 'are required.',
   downloadCsvTemplate: 'Download CSV template',

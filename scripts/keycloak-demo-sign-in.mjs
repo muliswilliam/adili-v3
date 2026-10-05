@@ -4,7 +4,7 @@
 // existing one. Idempotent. From the realm file it applies:
 //   - the adili-demo execution (ALTERNATIVE, first, before the SSO cookie) and its config in the
 //     adili browser flow
-//   - the admin-only demo_key user profile attribute
+//   - the admin-only demo_key user profile attribute, and its claim on portal and console tokens
 //   - each demo user's demo_key and display name
 // The authenticator stays inert unless Keycloak runs with ADILI_DEMO_MODE=true.
 //
@@ -34,6 +34,7 @@ const admin = `${base}/admin/realms/${REALM}`;
 const flowPath = `${admin}/authentication/flows/${encodeURIComponent(FLOW)}`;
 
 await ensureProfileAttribute();
+await ensureClaimMappers();
 await ensureExecution();
 await ensureDemoUsers();
 console.log(`Demo sign-in applied to ${base} realm ${REALM}`);
@@ -96,6 +97,20 @@ async function ensureProfileAttribute() {
   }
   await call('PUT', `${admin}/users/profile`, profile);
   console.log(`${existing ? 'made admin-only' : 'added'} user profile attribute ${ATTRIBUTE}`);
+}
+
+async function ensureClaimMappers() {
+  // The apps' role switcher reads the signed-in demo account from the demo_key claim.
+  for (const clientId of ['portal', 'console']) {
+    const wanted = realmFile.clients
+      .find((client) => client.clientId === clientId)
+      .protocolMappers.find((mapper) => mapper.name === ATTRIBUTE);
+    const [client] = await call('GET', `${admin}/clients?clientId=${clientId}`);
+    const mappers = await call('GET', `${admin}/clients/${client.id}/protocol-mappers/models`);
+    if (mappers.some((mapper) => mapper.name === ATTRIBUTE)) continue;
+    await call('POST', `${admin}/clients/${client.id}/protocol-mappers/models`, wanted);
+    console.log(`added ${ATTRIBUTE} claim to ${clientId}`);
+  }
 }
 
 async function ensureExecution() {

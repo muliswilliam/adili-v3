@@ -14,6 +14,7 @@ import { Route as AccessRouteRouteImport } from './routes/access/route'
 import { Route as ActionsRouteRouteImport } from './routes/actions/route'
 import { Route as AiPolicyRouteRouteImport } from './routes/ai-policy/route'
 import { Route as ApprovalsRouteRouteImport } from './routes/approvals/route'
+import { Route as AuditRouteRouteImport } from './routes/audit/route'
 import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
 import { Route as FormMRouteRouteImport } from './routes/form-m/route'
 import { Route as HelpRouteRouteImport } from './routes/help/route'
@@ -32,7 +33,10 @@ import { Route as ActionsLadderIdRouteImport } from './routes/actions/$ladderId'
 import { Route as AiPolicyIndexRouteImport } from './routes/ai-policy/index'
 import { Route as ApprovalsIndexRouteImport } from './routes/approvals/index'
 import { Route as ApprovalsBulkClosureRouteImport } from './routes/approvals_/bulk-closure'
+import { Route as AuditIndexRouteImport } from './routes/audit/index'
+import { Route as AuditIntegrityRouteImport } from './routes/audit/integrity'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as AuthDemoSwitchRouteImport } from './routes/auth/demo-switch'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as AuthStepUpRouteImport } from './routes/auth/step-up'
@@ -138,6 +142,11 @@ const ApprovalsRouteRoute = ApprovalsRouteRouteImport.update({
   path: '/approvals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuditRouteRoute = AuditRouteRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
   id: '/commissions',
   path: '/commissions',
@@ -229,9 +238,24 @@ const ApprovalsBulkClosureRoute = ApprovalsBulkClosureRouteImport.update({
   path: '/approvals/bulk-closure',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuditIndexRoute = AuditIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuditRouteRoute,
+} as any)
+const AuditIntegrityRoute = AuditIntegrityRouteImport.update({
+  id: '/integrity',
+  path: '/integrity',
+  getParentRoute: () => AuditRouteRoute,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthDemoSwitchRoute = AuthDemoSwitchRouteImport.update({
+  id: '/auth/demo-switch',
+  path: '/auth/demo-switch',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
@@ -660,6 +684,7 @@ export interface FileRoutesByFullPath {
   '/actions': typeof ActionsRouteRouteWithChildren
   '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/approvals': typeof ApprovalsRouteRouteWithChildren
+  '/audit': typeof AuditRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
   '/form-m': typeof FormMRouteRouteWithChildren
   '/help': typeof HelpRouteRouteWithChildren
@@ -684,7 +709,9 @@ export interface FileRoutesByFullPath {
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
   '/actions/$ladderId': typeof ActionsLadderIdRoute
   '/approvals/bulk-closure': typeof ApprovalsBulkClosureRoute
+  '/audit/integrity': typeof AuditIntegrityRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/demo-switch': typeof AuthDemoSwitchRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/step-up': typeof AuthStepUpRoute
@@ -703,6 +730,7 @@ export interface FileRoutesByFullPath {
   '/actions/': typeof ActionsIndexRoute
   '/ai-policy/': typeof AiPolicyIndexRoute
   '/approvals/': typeof ApprovalsIndexRoute
+  '/audit/': typeof AuditIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/form-m/': typeof FormMIndexRoute
   '/help/': typeof HelpIndexRoute
@@ -763,7 +791,9 @@ export interface FileRoutesByTo {
   '/review': typeof ReviewQueueIndexRoute
   '/actions/$ladderId': typeof ActionsLadderIdRoute
   '/approvals/bulk-closure': typeof ApprovalsBulkClosureRoute
+  '/audit/integrity': typeof AuditIntegrityRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/demo-switch': typeof AuthDemoSwitchRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/step-up': typeof AuthStepUpRoute
@@ -782,6 +812,7 @@ export interface FileRoutesByTo {
   '/actions': typeof ActionsIndexRoute
   '/ai-policy': typeof AiPolicyIndexRoute
   '/approvals': typeof ApprovalsIndexRoute
+  '/audit': typeof AuditIndexRoute
   '/commissions': typeof CommissionsIndexRoute
   '/form-m': typeof FormMIndexRoute
   '/help': typeof HelpIndexRoute
@@ -839,6 +870,7 @@ export interface FileRoutesById {
   '/actions': typeof ActionsRouteRouteWithChildren
   '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/approvals': typeof ApprovalsRouteRouteWithChildren
+  '/audit': typeof AuditRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
   '/form-m': typeof FormMRouteRouteWithChildren
   '/help': typeof HelpRouteRouteWithChildren
@@ -863,7 +895,9 @@ export interface FileRoutesById {
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
   '/actions/$ladderId': typeof ActionsLadderIdRoute
   '/approvals_/bulk-closure': typeof ApprovalsBulkClosureRoute
+  '/audit/integrity': typeof AuditIntegrityRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/demo-switch': typeof AuthDemoSwitchRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/step-up': typeof AuthStepUpRoute
@@ -883,6 +917,7 @@ export interface FileRoutesById {
   '/actions/': typeof ActionsIndexRoute
   '/ai-policy/': typeof AiPolicyIndexRoute
   '/approvals/': typeof ApprovalsIndexRoute
+  '/audit/': typeof AuditIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/form-m/': typeof FormMIndexRoute
   '/help/': typeof HelpIndexRoute
@@ -946,6 +981,7 @@ export interface FileRouteTypes {
     | '/actions'
     | '/ai-policy'
     | '/approvals'
+    | '/audit'
     | '/commissions'
     | '/form-m'
     | '/help'
@@ -970,7 +1006,9 @@ export interface FileRouteTypes {
     | '/roster/records'
     | '/actions/$ladderId'
     | '/approvals/bulk-closure'
+    | '/audit/integrity'
     | '/auth/callback'
+    | '/auth/demo-switch'
     | '/auth/login'
     | '/auth/logout'
     | '/auth/step-up'
@@ -989,6 +1027,7 @@ export interface FileRouteTypes {
     | '/actions/'
     | '/ai-policy/'
     | '/approvals/'
+    | '/audit/'
     | '/commissions/'
     | '/form-m/'
     | '/help/'
@@ -1049,7 +1088,9 @@ export interface FileRouteTypes {
     | '/review'
     | '/actions/$ladderId'
     | '/approvals/bulk-closure'
+    | '/audit/integrity'
     | '/auth/callback'
+    | '/auth/demo-switch'
     | '/auth/login'
     | '/auth/logout'
     | '/auth/step-up'
@@ -1068,6 +1109,7 @@ export interface FileRouteTypes {
     | '/actions'
     | '/ai-policy'
     | '/approvals'
+    | '/audit'
     | '/commissions'
     | '/form-m'
     | '/help'
@@ -1124,6 +1166,7 @@ export interface FileRouteTypes {
     | '/actions'
     | '/ai-policy'
     | '/approvals'
+    | '/audit'
     | '/commissions'
     | '/form-m'
     | '/help'
@@ -1148,7 +1191,9 @@ export interface FileRouteTypes {
     | '/roster/records'
     | '/actions/$ladderId'
     | '/approvals_/bulk-closure'
+    | '/audit/integrity'
     | '/auth/callback'
+    | '/auth/demo-switch'
     | '/auth/login'
     | '/auth/logout'
     | '/auth/step-up'
@@ -1168,6 +1213,7 @@ export interface FileRouteTypes {
     | '/actions/'
     | '/ai-policy/'
     | '/approvals/'
+    | '/audit/'
     | '/commissions/'
     | '/form-m/'
     | '/help/'
@@ -1230,6 +1276,7 @@ export interface RootRouteChildren {
   ActionsRouteRoute: typeof ActionsRouteRouteWithChildren
   AiPolicyRouteRoute: typeof AiPolicyRouteRouteWithChildren
   ApprovalsRouteRoute: typeof ApprovalsRouteRouteWithChildren
+  AuditRouteRoute: typeof AuditRouteRouteWithChildren
   CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren
   FormMRouteRoute: typeof FormMRouteRouteWithChildren
   HelpRouteRoute: typeof HelpRouteRouteWithChildren
@@ -1245,6 +1292,7 @@ export interface RootRouteChildren {
   ObligationsNationalRouteRoute: typeof ObligationsNationalRouteRouteWithChildren
   ApprovalsBulkClosureRoute: typeof ApprovalsBulkClosureRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthDemoSwitchRoute: typeof AuthDemoSwitchRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   AuthStepUpRoute: typeof AuthStepUpRoute
@@ -1288,6 +1336,13 @@ declare module '@tanstack/react-router' {
       path: '/approvals'
       fullPath: '/approvals'
       preLoaderRoute: typeof ApprovalsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/audit': {
+      id: '/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuditRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/commissions': {
@@ -1416,11 +1471,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApprovalsBulkClosureRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/audit/': {
+      id: '/audit/'
+      path: '/'
+      fullPath: '/audit/'
+      preLoaderRoute: typeof AuditIndexRouteImport
+      parentRoute: typeof AuditRouteRoute
+    }
+    '/audit/integrity': {
+      id: '/audit/integrity'
+      path: '/integrity'
+      fullPath: '/audit/integrity'
+      preLoaderRoute: typeof AuditIntegrityRouteImport
+      parentRoute: typeof AuditRouteRoute
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/demo-switch': {
+      id: '/auth/demo-switch'
+      path: '/auth/demo-switch'
+      fullPath: '/auth/demo-switch'
+      preLoaderRoute: typeof AuthDemoSwitchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/login': {
@@ -2119,6 +2195,20 @@ const ApprovalsRouteRouteWithChildren = ApprovalsRouteRoute._addFileChildren(
   ApprovalsRouteRouteChildren,
 )
 
+interface AuditRouteRouteChildren {
+  AuditIntegrityRoute: typeof AuditIntegrityRoute
+  AuditIndexRoute: typeof AuditIndexRoute
+}
+
+const AuditRouteRouteChildren: AuditRouteRouteChildren = {
+  AuditIntegrityRoute: AuditIntegrityRoute,
+  AuditIndexRoute: AuditIndexRoute,
+}
+
+const AuditRouteRouteWithChildren = AuditRouteRoute._addFileChildren(
+  AuditRouteRouteChildren,
+)
+
 interface CommissionsSlugObligationsRouteRouteChildren {
   CommissionsSlugObligationsIndexRoute: typeof CommissionsSlugObligationsIndexRoute
 }
@@ -2467,6 +2557,7 @@ const rootRouteChildren: RootRouteChildren = {
   ActionsRouteRoute: ActionsRouteRouteWithChildren,
   AiPolicyRouteRoute: AiPolicyRouteRouteWithChildren,
   ApprovalsRouteRoute: ApprovalsRouteRouteWithChildren,
+  AuditRouteRoute: AuditRouteRouteWithChildren,
   CommissionsRouteRoute: CommissionsRouteRouteWithChildren,
   FormMRouteRoute: FormMRouteRouteWithChildren,
   HelpRouteRoute: HelpRouteRouteWithChildren,
@@ -2482,6 +2573,7 @@ const rootRouteChildren: RootRouteChildren = {
   ObligationsNationalRouteRoute: ObligationsNationalRouteRouteWithChildren,
   ApprovalsBulkClosureRoute: ApprovalsBulkClosureRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthDemoSwitchRoute: AuthDemoSwitchRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   AuthStepUpRoute: AuthStepUpRoute,

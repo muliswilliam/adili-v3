@@ -112,11 +112,11 @@ Repo secret (Actions -> Secrets):
 
 - Image built from `infra/docker/keycloak.Dockerfile` (theme + `adili-otp` extension)
 - Realm file `infra/compose/keycloak/adili-realm.json`
-- File vault at `/opt/keycloak/vault` (`adili_keycloak-extension-secret`)
+- File vault at `/opt/keycloak/vault`, mounted from `/home/adili/.config/adili/keycloak-vault` (outside the rsync tree, mode 700/600, owned by adili, Keycloak's uid). `deploy.sh` creates it once (`demo-vault.sh`): the repo's development entries, plus a **random demo ticket secret per host** (#616), since that secret signs demo accounts in with no password or code. `configure-app-env.sh` copies it into the portal and console `.env` (mode 600) from the file; it is never printed. To rotate: delete `adili_demo-ticket-secret` there and redeploy.
 - `start-dev --import-realm` for the demo (same as local)
 - Staff TOTP and declarant/applicant SMS OTP unchanged
 
-The committed `vault-dev` secrets are for local and this demo only (ADR-012). Do not use them for a real EACC deployment.
+The committed `vault-dev` secrets are for local and this demo only (ADR-012), except the demo ticket secret, which the demo host replaces with its own. Do not use them for a real EACC deployment.
 
 ## Tear down
 
