@@ -3,8 +3,8 @@
  * `/v1/eacc/open-data/releases` request): an in-memory stand-in for the reporting service's EACC
  * releases endpoints (reporting.yaml `listOpenDataReleasesEacc`, `buildOpenDataRelease`,
  * `getOpenDataReleaseEacc`), used when REPORTING_MOCK is set. The Commission open-data preview
- * (`open-data-mock.server.ts`) reads the same store, through `commissionPreviewRelease`. It follows #491's rules
- * (`services/reporting/src/open-data`):
+ * (`open-data-mock.server.ts`) reads the same store, through `commissionPreviewRelease`. It
+ * follows #491's rules (`services/reporting/src/open-data`):
  *
  * - EACC analysts and supervisors of tenant `eacc` only (403 for anyone else).
  * - A build makes the year's next version of its kind, as a `preview`, from the year's national

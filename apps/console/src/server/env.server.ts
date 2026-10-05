@@ -73,7 +73,10 @@ export const envSchema = bffEnvSchema.extend({
    * 2025/2026's mid-year snapshot v1, withdrawn, and v2, published (and the annual release once
    * that year's NCR is approved); `none` built yet; `unavailable` (the list fails);
    * `reconciliation-failed`, the history with every build refused for totals that do not match;
-   * `documents-unavailable`, the history with every publish and withdraw 503 (#353).
+   * `documents-unavailable`, the history with every publish and withdraw 503 (#353). The
+   * Commission open-data preview (`open-data-mock.server.ts`) reads this same store, so these
+   * seeds drive it too: `none` makes the preview 404 (no release built), and `unavailable` fails
+   * both EACC's list and the Commission preview (503).
    */
   REPORTING_MOCK_RELEASES: z
     .enum(['history', 'none', 'unavailable', 'reconciliation-failed', 'documents-unavailable'])
