@@ -111,6 +111,13 @@ case "$cmd" in
       echo "usage: $0 wipe yes  (deletes all demo data)" >&2
       exit 2
     fi
+    # The Azure overlay needs the public URLs and this host's Keycloak vault, as in deploy.sh.
+    set -a
+    # shellcheck disable=SC1090
+    . "${ADILI_PUBLIC_ENV:-/etc/adili/public.env}"
+    set +a
+    # shellcheck disable=SC1091
+    . "$ROOT/infra/azure/demo-vault.sh"
     sudo -n "${ADILI_ROOT_HELPER:-/usr/local/sbin/adili-demo-root}" stop-apps
     docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.azure.yml \
       down --remove-orphans
