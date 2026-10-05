@@ -179,15 +179,33 @@ export class OfficerService {
               .limit(query.limit + 1)
           : [];
         return [
-          ...formK.map((row) => ({ item: toQueueItem(row, now), closed: isClosed(row.status) })),
-          ...lea.map((row) => ({ item: leaQueueItem(row, now), closed: isLeaClosed(row.status) })),
+          ...formK.map((row) => ({
+            item: toQueueItem(row, now),
+            closed: isClosed(row.status),
+            formKRow: row,
+          })),
+          ...lea.map((row) => ({
+            item: leaQueueItem(row, now),
+            closed: isLeaClosed(row.status),
+            formKRow: null,
+          })),
         ].sort(compareQueueEntries);
       },
     );
     const page = entries.slice(0, query.limit);
     const last = page.at(-1);
     return {
-      items: page.map((entry) => entry.item),
+      items: await Promise.all(
+        page.map(async (entry) =>
+          entry.formKRow
+            ? {
+                ...entry.item,
+                applicantOccupation: (await openFormK(this.cipher, entry.formKRow)).partI
+                  .occupation,
+              }
+            : entry.item,
+        ),
+      ),
       nextCursor:
         entries.length > query.limit && last
           ? encodeCursor({

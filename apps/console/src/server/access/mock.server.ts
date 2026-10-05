@@ -1114,6 +1114,7 @@ function queueItem(stored: Stored, now: number): QueueItem {
     id: view.id,
     reference: view.reference,
     applicantOrAgency: view.formK.partI.name,
+    applicantOccupation: view.formK.partI.occupation,
     officerSought: view.formK.partII.name,
     resolvedName: view.resolvedName,
     resolvedFileNumber: view.resolvedFileNumber,

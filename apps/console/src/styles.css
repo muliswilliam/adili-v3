@@ -2,3 +2,8 @@
 @import '@adili/ui/styles.css';
 
 @source './';
+
+/* Keep the content width stable as lists switch between loading, empty and full states. */
+html {
+  scrollbar-gutter: stable;
+}

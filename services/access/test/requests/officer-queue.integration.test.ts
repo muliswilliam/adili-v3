@@ -67,6 +67,7 @@ describe("The Commission's queue and a request as its access officer reads it (S
       id: first,
       reference: expect.stringMatching(/^ARQ-PSC-2027-0000001-/) as unknown,
       applicantOrAgency: 'Mercy Wanjiku Kamau',
+      applicantOccupation: 'Investigative journalist',
       officerSought: 'Anne Njeri Mutua',
       resolvedName: null,
       resolvedFileNumber: null,

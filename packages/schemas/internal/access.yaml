@@ -2840,6 +2840,8 @@ components:
           type: string
         applicantOrAgency:
           type: string
+        applicantOccupation:
+          type: string
         officerSought:
           type: string
         resolvedName:

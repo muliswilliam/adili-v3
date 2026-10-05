@@ -30,7 +30,7 @@ export function AccessTabs({ current }: { current: AccessTab }) {
     <TabsNav aria-label={s.tabsLabel} className="mb-4">
       {TABS.map(({ tab, to, search, label }) => (
         <TabsLink key={tab} asChild current={tab === current}>
-          <Link to={to} search={search}>
+          <Link to={to} search={search} activeOptions={{ exact: true }}>
             {label}
           </Link>
         </TabsLink>

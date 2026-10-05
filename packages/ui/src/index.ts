@@ -748,3 +748,8 @@ export {
   shapeMoneyText,
 } from './lib/money';
 export { COUNTIES, COUNTRIES, countryName, countyName } from './lib/places';
+export {
+  NewDataTable,
+  NewDataTableToolbar,
+  type NewDataTableProps,
+} from './components/new-data-table';
