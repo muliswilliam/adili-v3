@@ -748,10 +748,10 @@ export function WorkspaceFooter({
   actions?: ReactNode;
 }) {
   const due = dueLine(report.dueDate, today);
-  // Flush with the bottom, on a strip of the page's background: the report scrolls out of sight
-  // above the bar, not through it or into a gap under it.
+  // Flush with the bottom, on a strip of the page's background wide enough to cover the cards'
+  // shadows: the report scrolls out of sight above the bar, not through it or into a gap under it.
   return (
-    <div className="sticky bottom-0 z-10 mt-1 bg-background pb-4">
+    <div className="sticky bottom-0 z-10 -mx-3 mt-1 bg-background px-3 pb-4">
       <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-card px-4 py-3 shadow-pop">
         <span className={cn('flex items-center gap-2 text-sm font-medium', DUE_TONES[due.tone])}>
           <Icon icon={Calendar03Icon} className="size-4" />
