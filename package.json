@@ -32,7 +32,8 @@
     "contracts:drift": "turbo run build --filter='./services/*^...' --output-logs=errors-only && pnpm --filter @adili/schemas check:drift",
     "check": "pnpm format:check && pnpm contracts:lint && pnpm contracts:drift && turbo run lint typecheck test && pnpm deps:check",
     "health": "node scripts/health.mjs",
-    "keycloak:check": "node scripts/check-keycloak-realm.mjs"
+    "keycloak:check": "node scripts/check-keycloak-realm.mjs",
+    "keycloak:demo-sign-in": "node scripts/keycloak-demo-sign-in.mjs"
   },
   "devDependencies": {
     "dependency-cruiser": "^18.4.0",

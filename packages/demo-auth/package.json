@@ -1,17 +1,21 @@
 {
-  "name": "@adili/keycloak-extension",
+  "name": "@adili/demo-auth",
   "version": "0.0.0",
   "private": true,
-  "description": "Keycloak provider JAR (Java, Maven): the adili-otp and adili-demo authenticators. The TypeScript here is only their stack tests.",
+  "description": "Demo-mode sign-in (#616): mints the signed tickets Keycloak's adili-demo authenticator accepts, and signs a demo account in without a browser.",
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:stack": "vitest run --config vitest.stack.config.ts"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "openid-client": "^6.8.8"
   },
   "devDependencies": {
-    "@adili/bff-auth": "workspace:*",
-    "@adili/demo-auth": "workspace:*",
     "@adili/eslint-config": "workspace:*",
     "@adili/tsconfig": "workspace:*",
     "@types/node": "^24.0.0",
