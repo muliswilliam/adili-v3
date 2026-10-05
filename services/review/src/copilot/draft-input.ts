@@ -64,10 +64,10 @@ export interface DraftSources {
 /**
  * The `draft-clarification` input for a reviewer's selection (spec 07c S12): one selection per
  * selected item (with the selected flag that concerns it, if any, and the reviewer's
- * requirement), then one per item of each selected flag no selected item covers. Each carries the
- * item's context from the case's version. Throws `InvalidDraftSelection` for a flag the case does
- * not have, an item or section its version lacks, no selection at all, or more than the gateway
- * drafts at once.
+ * requirement), then one per item of each selected flag no selected item covers: flags about the
+ * same item or statement each get their own. Each carries the item's context from the case's
+ * version. Throws `InvalidDraftSelection` for a flag the case does not have, an item or section
+ * its version lacks, no selection at all, or more than the gateway drafts at once.
  */
 export function draftClarificationInput({
   document,
@@ -87,8 +87,10 @@ export function draftClarificationInput({
   const persons = new Set(document.statements.map((statement) => statement.personKey));
   const selections: Selection[] = [];
   const seen = new Set<string>();
+  // A ref is drafted once, except that each selected flag gets its own item: two flags about the
+  // same statement (an undeclared vehicle and an undeclared parcel) ask about different things.
   const add = (s: Selection) => {
-    const key = refKey(s.ref);
+    const key = JSON.stringify([refKey(s.ref), s.flag?.id ?? null]);
     if (seen.has(key)) return;
     seen.add(key);
     selections.push(s);

@@ -121,6 +121,48 @@ describe('draftClarificationInput', () => {
     ]);
   });
 
+  it('gives each selected flag about the same statement its own selection (#702)', () => {
+    type FlagRow = typeof reviewFlags.$inferSelect;
+    const statementFlag = (
+      id: string,
+      ruleId: FlagRow['ruleId'],
+      evidence: FlagRow['evidence'],
+    ): FlagRow => ({ ...flag(id, [null]), ruleId, evidence });
+    const vehicle = statementFlag(
+      '0199b000-0000-7000-8000-0000000000f3',
+      'registry-vehicle-undeclared',
+      {
+        registrationNumber: 'KDK 482M',
+      },
+    );
+    const parcel = statementFlag(
+      '0199b000-0000-7000-8000-0000000000f4',
+      'registry-parcel-undeclared',
+      {
+        parcelNumber: 'KAJIADO/KITENGELA/59821',
+      },
+    );
+    const input = draftClarificationInput({
+      document,
+      flags: [vehicle, parcel],
+      selection: { flagIds: [vehicle.id, parcel.id], itemRefs: [], language: 'en' },
+      commissionName: 'Public Service Commission',
+    });
+
+    expect(input.selections).toEqual([
+      expect.objectContaining({
+        ref: ref(null),
+        flag: expect.objectContaining({ evidence: { registrationNumber: 'KDK 482M' } }) as object,
+      }),
+      expect.objectContaining({
+        ref: ref(null),
+        flag: expect.objectContaining({
+          evidence: { parcelNumber: 'KAJIADO/KITENGELA/59821' },
+        }) as object,
+      }),
+    ]);
+  });
+
   it('takes a whole section, and a person by their statement', () => {
     const input = build({
       itemRefs: [
