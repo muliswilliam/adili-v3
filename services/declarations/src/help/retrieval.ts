@@ -101,6 +101,12 @@ export function searchTerms(
   };
 }
 
+/** A corpus wording or help article in force on `day` (`effective_to` exclusive). */
+function inForceOn(table: 'p' | 'a', day: SQL): SQL {
+  const t = sql.raw(table);
+  return sql`${t}.effective_from <= ${day} and (${t}.effective_to is null or ${t}.effective_to > ${day})`;
+}
+
 /**
  * One passage or article in full (#549), by the id search and citations give it, as help search
  * would read it: a corpus wording in force on `date`, or a published article in force on `date`
@@ -108,12 +114,6 @@ export function searchTerms(
  * own Commissions), with its Commission. The text in `language` where the passage has it, else in
  * English. `undefined` when there is no such passage.
  */
-/** A corpus wording or help article in force on `day` (`effective_to` exclusive). */
-function inForceOn(table: 'p' | 'a', day: SQL): SQL {
-  const t = sql.raw(table);
-  return sql`${t}.effective_from <= ${day} and (${t}.effective_to is null or ${t}.effective_to > ${day})`;
-}
-
 export async function passageById(
   tx: Transaction,
   query: { id: string; language: HelpLanguage; date: string },
