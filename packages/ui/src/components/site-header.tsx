@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from 'react';
+import { type ComponentProps, createContext, type ReactNode, useContext } from 'react';
 
 import { cn } from '../lib/cn';
 import { focusRing } from '../lib/focus';
@@ -14,6 +14,12 @@ export type SiteHeaderProps = ComponentProps<'header'> & {
   actions?: ReactNode;
 };
 
+/**
+ * Something an app shows in every site header, ahead of the page's own actions, e.g. the demo
+ * switcher (#616). The app's root provides it once; pages pass only their own actions.
+ */
+export const SiteHeaderAside = createContext<ReactNode>(null);
+
 export function SiteHeader({
   product,
   homeHref = '/',
@@ -22,6 +28,7 @@ export function SiteHeader({
   className,
   ...props
 }: SiteHeaderProps) {
+  const aside = useContext(SiteHeaderAside);
   return (
     <header
       className={cn('sticky top-0 z-20 border-b bg-background/85 backdrop-blur-md', className)}
@@ -34,7 +41,12 @@ export function SiteHeader({
           </a>
           {nav}
         </div>
-        {actions ? <div className="flex items-center gap-3">{actions}</div> : null}
+        {aside || actions ? (
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            {aside}
+            {actions}
+          </div>
+        ) : null}
       </div>
     </header>
   );

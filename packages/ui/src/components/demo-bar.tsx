@@ -66,10 +66,17 @@ export function DemoBar({
             className={cn(
               focusRing,
               'flex h-8 items-center gap-1.5 rounded-full bg-background px-3 font-medium text-foreground hover:bg-muted',
+              variant === 'inline' && 'max-[640px]:w-8 max-[640px]:justify-center max-[640px]:px-0',
             )}
           >
             <Icon icon={UserSwitchIcon} className="size-4 text-muted-foreground" />
-            <span className="max-w-[260px] truncate">
+            {/* In a header on a phone, the icon alone: the menu still names every account. */}
+            <span
+              className={cn(
+                'max-w-[260px] truncate',
+                variant === 'inline' && 'max-[640px]:sr-only',
+              )}
+            >
               {acting ? (
                 <>
                   Acting as {acting.name}
@@ -79,7 +86,13 @@ export function DemoBar({
                 'Act as'
               )}
             </span>
-            <Icon icon={ArrowDown01Icon} className="size-4 text-muted-foreground" />
+            <Icon
+              icon={ArrowDown01Icon}
+              className={cn(
+                'size-4 text-muted-foreground',
+                variant === 'inline' && 'max-[640px]:hidden',
+              )}
+            />
           </MenuTrigger>
           <MenuContent
             align={variant === 'floating' ? 'start' : 'end'}
