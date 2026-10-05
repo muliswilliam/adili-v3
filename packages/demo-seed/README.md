@@ -88,7 +88,7 @@ confirm); `syntheticOfficers(context)`, `PERSONAS` and `onboardees(context)` giv
 | `reminder-officer` | Faith Mwende, PSC | Initial due tomorrow: reminder sent today (Mailpit, SMS inbox) |
 | `overdue-officer` | Collins Were, PSC | Initial overdue, not filed |
 | `referral-officer` | Samuel Langat, EACC (25813407) | Filed neither 2022 nor 2024: referred after two missed cycles, ICMS case number |
-| (roster only) | Achieng Njeri, PSC (28836510) | Not onboarded: live onboarding with SMS OTP |
+| (roster only) | Lydia Kwamboka Nyaboke, PSC (28836510) | Not onboarded: live onboarding with SMS OTP |
 | (roster only) | Daniel Rotich, PSC (38221907) | IPRS name mismatch: the identity check fails |
 
 ## Access and verify (#620)

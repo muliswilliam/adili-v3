@@ -50,7 +50,7 @@ The seeded declarants sign in with **Act as**; their Keycloak usernames are the 
 
 | Who | Where | State | Use |
 | --- | --- | --- | --- |
-| Achieng Atieno Njeri, `PSC/2012/0311`, ID 28836510 | PSC roster | Not onboarded | Live onboarding with SMS OTP (portal, Get started) |
+| Lydia Kwamboka Nyaboke, `PSC/2012/0311`, ID 28836510 | PSC roster | Not onboarded | Live onboarding with SMS OTP (portal, Get started) |
 | Daniel Rotich, `PSC/2016/0533`, ID 38221907 | PSC roster | Roster name differs from IPRS | Onboarding fails the identity check |
 | Faith Mwende | PSC | Initial due tomorrow | Reminder sent today (Mailpit, SMS inbox) |
 | Collins Were | PSC | Initial overdue | Overdue obligation, enforcement ladder |

@@ -17,7 +17,7 @@ Every demo account, its login and purpose: [demo accounts](../demo-accounts.md).
 | Beat | App | Act as | Role |
 | --- | --- | --- | --- |
 | A | Console | Grace Mutiso | PSC reporting officer |
-| B | Portal | (no account yet: Get started) | Achieng Atieno Njeri, PSC roster, `PSC/2012/0311`, ID 28836510 |
+| B | Portal | (no account yet: Get started) | Lydia Kwamboka Nyaboke, PSC roster, `PSC/2012/0311`, ID 28836510 |
 | C, D | Portal | Wanjiku Kamau | Declarant, KEMSA |
 | E | Console | Achieng Njeri | PSC reviewer |
 | F | Console, portal | David Ochieng; Kiprono Chebet | PSC supervisor; declarant |
@@ -75,7 +75,7 @@ Live: A to E, Wanjiku's case end to end, in the 5-minute demo. Seeded: F to I, s
 ### B. Onboarding with SMS OTP (portal, a new officer)
 
 1. In a private window (no demo session), open the portal and choose **Get started** (`/get-started`).
-2. Identify as Achieng Atieno Njeri: Commission PSC, personnel file `PSC/2012/0311`, national ID `28836510`.
+2. Identify as Lydia Kwamboka Nyaboke: Commission PSC, personnel file `PSC/2012/0311`, national ID `28836510`.
 3. Enter the email code, then the SMS code. Locally they are in Mailpit (http://localhost:8025) and the mocks SMS inbox (http://localhost:8000/sms/inbox). The hosted demo publishes neither, so run this beat on the local stack or show it from the backup video.
 4. Confirm: IPRS checks the identity and the account is created. Optional: Daniel Rotich (`PSC/2016/0533`, ID `38221907`) fails the identity check (`/get-started/not-verified`).
 
