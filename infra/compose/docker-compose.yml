@@ -195,21 +195,37 @@ services:
     entrypoint: ['/bin/sh', '/scripts/create-buckets.sh']
     <<: *init-job
 
+  # Persistent server (integrated storage on openbao-data) that unseals itself with the committed
+  # demo seal key, so transit keys and the demo CA survive restarts and checkpoint restores.
+  # Healthy once it is unsealed, or before its first initialisation (openbao-init does that).
   openbao:
     image: openbao/openbao:2.7.0
-    command: ['server', '-dev', '-dev-listen-address=0.0.0.0:8200']
-    environment:
-      BAO_DEV_ROOT_TOKEN_ID: adili-dev-root-token
-    cap_add: [IPC_LOCK]
+    command: ['server', '-config=/etc/openbao/config.hcl']
     ports: ['8200:8200']
+    volumes:
+      - ./openbao/server:/etc/openbao:ro
+      - openbao-data:/openbao/file
     healthcheck:
       <<: *healthcheck-defaults
-      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8200/v1/sys/health']
+      test:
+        ['CMD-SHELL', 'wget -q -O /dev/null "http://127.0.0.1:8200/v1/sys/health?uninitcode=200"']
+
+  # Initialises OpenBao once and creates the fixed development root token the services use.
+  openbao-init:
+    image: openbao/openbao:2.7.0
+    depends_on:
+      openbao: { condition: service_healthy }
+    environment:
+      BAO_ADDR: http://openbao:8200
+      ADILI_BAO_ROOT_TOKEN: adili-dev-root-token
+    volumes: [./openbao/init.sh:/scripts/init.sh:ro]
+    entrypoint: ['/bin/sh', '/scripts/init.sh']
+    <<: *init-job
 
   openbao-keys:
     image: openbao/openbao:2.7.0
     depends_on:
-      openbao: { condition: service_healthy }
+      openbao-init: { condition: service_completed_successfully }
     environment:
       BAO_ADDR: http://openbao:8200
       BAO_TOKEN: adili-dev-root-token
@@ -217,12 +233,12 @@ services:
     entrypoint: ['/bin/sh', '/scripts/create-transit-keys.sh']
     <<: *init-job
 
-  # Demo root CA and the documents signing keys and certificate (ADR-010). OpenBao runs in dev
-  # mode (in memory), so every `infra:up` after a restart generates a fresh demo root.
+  # Demo root CA and the documents signing keys and certificate (ADR-010), generated once and kept
+  # on openbao-data.
   openbao-demo-ca:
     image: openbao/openbao:2.7.0
     depends_on:
-      openbao: { condition: service_healthy }
+      openbao-init: { condition: service_completed_successfully }
     environment:
       BAO_ADDR: http://openbao:8200
       BAO_TOKEN: adili-dev-root-token
@@ -267,4 +283,5 @@ volumes:
   valkey-data:
   rabbitmq-data:
   seaweedfs-data:
+  openbao-data:
   clamav-data:
