@@ -1,3 +1,4 @@
+import { putFile } from '@adili/ui';
 import { useState } from 'react';
 
 import {
@@ -6,11 +7,7 @@ import {
   getAttachmentUpload,
 } from '../server/documents/uploads';
 import type { AttachmentPurpose } from '../server/documents/uploads.server';
-import {
-  putToPresignedUrl,
-  uploadAttachment,
-  type UploadSteps,
-} from './declaration/attachment-upload';
+import { uploadAttachment, type UploadSteps } from './declaration/attachment-upload';
 import type { UploadsEvent } from './declaration/attachments';
 
 /** The purposes whose documents are tied to a response when it is sent, not linked one by one. */
@@ -43,7 +40,7 @@ export function useResponseUploads(
   function start(rowId: string, file: File) {
     const steps: UploadSteps = {
       reserve: (picked) => createAttachmentUpload({ data: { ...picked, purpose } }),
-      put: putToPresignedUrl,
+      put: putFile,
       complete: (uploadId) => completeAttachmentUpload({ data: { uploadId } }),
       check: (uploadId) => getAttachmentUpload({ data: { uploadId } }),
       link: () => Promise.resolve({ status: 'linked', size: file.size }),

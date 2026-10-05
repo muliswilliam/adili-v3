@@ -14,6 +14,7 @@ import {
   FormField,
   Icon,
   IconTile,
+  putFile,
   RadioCard,
   RadioGroup,
   Spinner,
@@ -32,7 +33,6 @@ import {
 } from '../../server/access-requests';
 import type { AccessResult } from '../../server/access-requests.server';
 import type { OfficerRequestView, Representations } from '../../server/access/types';
-import { putFile } from '../roster/upload';
 import { goToSignIn } from '../sign-in-redirect';
 import { messages as m } from './messages';
 import { actionFailure } from './request-view';

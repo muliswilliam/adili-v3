@@ -5,6 +5,7 @@ import {
   formatFileSize,
   MenuItem,
   MenuNote,
+  putFile,
   useToast,
 } from '@adili/ui';
 import { SparklesIcon } from '@hugeicons/core-free-icons';
@@ -28,12 +29,7 @@ import {
   createAttachmentUpload,
   getAttachmentUpload,
 } from '../../server/documents/uploads';
-import {
-  type LinkOutcome,
-  putToPresignedUrl,
-  uploadAttachment,
-  type UploadSteps,
-} from './attachment-upload';
+import { type LinkOutcome, uploadAttachment, type UploadSteps } from './attachment-upload';
 import {
   ATTACHMENT_ACCEPT,
   ATTACHMENT_COPY,
@@ -189,7 +185,7 @@ export function ItemAttachments({ slot }: { slot: ItemAttachmentSlot }) {
 
   const steps: UploadSteps = {
     reserve: (file) => createAttachmentUpload({ data: file }),
-    put: putToPresignedUrl,
+    put: putFile,
     complete: (uploadId) => completeAttachmentUpload({ data: { uploadId } }),
     check: (uploadId) => getAttachmentUpload({ data: { uploadId } }),
     link,
