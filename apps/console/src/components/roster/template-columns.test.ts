@@ -8,7 +8,7 @@ import {
   TEMPLATE_COLUMNS,
 } from './template-columns';
 
-// The generated types carry no order, so read the column list from the contract.
+// The generated types are a union, with no runtime list or order, so read the list from the contract.
 const contract = readFileSync(
   new URL('../../../node_modules/@adili/schemas/internal/directory.yaml', import.meta.url),
   'utf8',
