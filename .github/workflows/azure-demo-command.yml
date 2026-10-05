@@ -1,0 +1,57 @@
+name: Azure demo command
+
+# Runs one allow-listed demo command on the Azure VM (infra/azure/demo-command.sh): seed the demo,
+# reset it to a checkpoint, switch the AI provider, or check it. See docs/demo/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: Command
+        type: choice
+        options: [check, health, seed, reset, ai]
+        default: check
+      argument:
+        description: 'Checkpoint for reset (e.g. 0-start); mode for ai (anthropic, record, replay)'
+        type: string
+        required: false
+
+# Shares the deploy's group: a command never runs while a deploy restarts the apps.
+concurrency:
+  group: azure-demo
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AZURE_DEMO_HOST: adili-demo.southafricanorth.cloudapp.azure.com
+  AZURE_DEMO_USER: adili
+
+jobs:
+  run:
+    name: demo ${{ inputs.command }} ${{ inputs.argument }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: SSH key
+        env:
+          SSH_KEY: ${{ secrets.AZURE_DEMO_SSH_KEY }}
+        run: |
+          test -n "$SSH_KEY" || { echo 'Set repo secret AZURE_DEMO_SSH_KEY' >&2; exit 1; }
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          install -m 644 infra/azure/known_hosts ~/.ssh/known_hosts
+      - name: Run on the VM
+        env:
+          COMMAND: ${{ inputs.command }}
+          ARGUMENT: ${{ inputs.argument }}
+        run: |
+          # The argument reaches a shell on the VM: names only.
+          case "$ARGUMENT" in
+            *[!A-Za-z0-9._-]*) echo "Invalid argument: $ARGUMENT" >&2; exit 2 ;;
+          esac
+          # shellcheck disable=SC2029 # expanded here on purpose, after the check above
+          ssh "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}" \
+            "/opt/adili/infra/azure/demo-command.sh $COMMAND $ARGUMENT"

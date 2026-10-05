@@ -100,11 +100,16 @@ Caddy terminates TLS with Let's Encrypt. Set `letsencrypt_email` in `terraform.t
 
 It does **not** re-seed, re-issue certificates, or `terraform apply`. The SSH host key is pinned in `infra/azure/known_hosts`.
 
+Every deploy also puts the stack on the real backend (#615): all app mocks off and the ai-gateway on Anthropic, then checks it with `pnpm demo:check` (a warning, not a failed deploy). The API key comes from `/etc/adili/secrets.env` or, when the repo secret `ANTHROPIC_API_KEY` is set, from `~adili/.config/adili/secrets.env`, which the workflow writes over SSH stdin. See [docs/demo](../../docs/demo/README.md#real-backend-and-ai-provider).
+
+The **Azure demo command** workflow (`.github/workflows/azure-demo-command.yml`, run by hand) runs one allow-listed command on the VM through `infra/azure/demo-command.sh`: `check`, `health`, `seed`, `reset <checkpoint>` or `ai anthropic|record|replay`.
+
 Repo secret (Actions -> Secrets):
 
 | Name | Value |
 |---|---|
 | `AZURE_DEMO_SSH_KEY` | Private ed25519 key whose public half is in `~adili/.ssh/authorized_keys` on the VM |
+| `ANTHROPIC_API_KEY` | Optional. The demo's Anthropic key, written to the VM on each deploy; without it the AI stays on replay unless `/etc/adili/secrets.env` has one |
 
 `adili` may passwordless-sudo only `/usr/local/sbin/adili-demo-root` (root-owned, not in the rsync tree). PRs that touch `infra/azure` also `terraform fmt` / `validate` (no Azure credentials).
 

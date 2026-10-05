@@ -72,4 +72,21 @@ set_env "$ROOT/services/documents/.env" VERIFY_BASE_URL "${ADILI_VERIFY_URL}"
 # Public open-data releases link their manifest's verify page.
 set_env "$ROOT/services/reporting/.env" VERIFY_BASE_URL "${ADILI_VERIFY_URL}"
 
+# The hosted demo runs the real backend (#615), whatever an older .env says: every development
+# mock off (each `*_MOCK` setting the app declares), and settings the demo flows need. Mocks stay
+# the default for local development and tests (.env.example).
+for app in portal console verify; do
+  sed -n 's/^  \([A-Z_]*_MOCK\): .*/\1/p' "$ROOT/apps/$app/src/server/env.server.ts" |
+    while read -r key; do
+      set_env "$ROOT/apps/$app/.env" "$key" false
+    done
+done
+# Reminders at midday sharp, so a seeded reminder lands when the demo script says.
+set_env "$ROOT/services/declarations/.env" REMINDER_JITTER_HOURS 0
+# The demo Commissions hold synthetic data only, so the copilot may use the external provider.
+set_env "$ROOT/services/review/.env" AI_SYNTHETIC_DATA_TENANTS "${ADILI_DEMO_TENANTS:-psc,tsc}"
+# The AI provider: Anthropic with the key from the VM's secrets file, or the last `pnpm demo:ai`
+# choice; replay with a warning when there is no key. The key is never printed.
+node "$ROOT/scripts/demo-ai.mjs"
+
 echo "App URLs: portal=${ADILI_PORTAL_URL} console=${ADILI_CONSOLE_URL} issuer=${issuer}"

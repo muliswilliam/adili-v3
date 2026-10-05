@@ -16,6 +16,7 @@ import { Route as AiPolicyRouteRouteImport } from './routes/ai-policy/route'
 import { Route as ApprovalsRouteRouteImport } from './routes/approvals/route'
 import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
 import { Route as FormMRouteRouteImport } from './routes/form-m/route'
+import { Route as HealthRouteImport } from './routes/health'
 import { Route as HelpRouteRouteImport } from './routes/help/route'
 import { Route as LeaRouteRouteImport } from './routes/lea/route'
 import { Route as ObligationsRouteRouteImport } from './routes/obligations/route'
@@ -146,6 +147,11 @@ const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
 const FormMRouteRoute = FormMRouteRouteImport.update({
   id: '/form-m',
   path: '/form-m',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HelpRouteRoute = HelpRouteRouteImport.update({
@@ -669,6 +675,7 @@ export interface FileRoutesByFullPath {
   '/referrals': typeof ReferralsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
+  '/health': typeof HealthRoute
   '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
   '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
   '/access/requests': typeof AccessRequestsRouteRouteWithChildren
@@ -761,6 +768,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/review': typeof ReviewQueueIndexRoute
+  '/health': typeof HealthRoute
   '/actions/$ladderId': typeof ActionsLadderIdRoute
   '/approvals/bulk-closure': typeof ApprovalsBulkClosureRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -848,6 +856,7 @@ export interface FileRoutesById {
   '/referrals': typeof ReferralsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
+  '/health': typeof HealthRoute
   '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
   '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
   '/access/requests': typeof AccessRequestsRouteRouteWithChildren
@@ -955,6 +964,7 @@ export interface FileRouteTypes {
     | '/referrals'
     | '/review'
     | '/roster'
+    | '/health'
     | '/access/certified-copies'
     | '/access/lea-requests'
     | '/access/requests'
@@ -1047,6 +1057,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/review'
+    | '/health'
     | '/actions/$ladderId'
     | '/approvals/bulk-closure'
     | '/auth/callback'
@@ -1133,6 +1144,7 @@ export interface FileRouteTypes {
     | '/referrals'
     | '/review'
     | '/roster'
+    | '/health'
     | '/access/certified-copies'
     | '/access/lea-requests'
     | '/access/requests'
@@ -1239,6 +1251,7 @@ export interface RootRouteChildren {
   ReferralsRouteRoute: typeof ReferralsRouteRouteWithChildren
   ReviewRouteRoute: typeof ReviewRouteRouteWithChildren
   RosterRouteRoute: typeof RosterRouteRouteWithChildren
+  HealthRoute: typeof HealthRoute
   EaccOpenDataRouteRoute: typeof EaccOpenDataRouteRouteWithChildren
   EaccReferralsRouteRoute: typeof EaccReferralsRouteRouteWithChildren
   EaccReportsRouteRoute: typeof EaccReportsRouteRouteWithChildren
@@ -1302,6 +1315,13 @@ declare module '@tanstack/react-router' {
       path: '/form-m'
       fullPath: '/form-m'
       preLoaderRoute: typeof FormMRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/help': {
@@ -2476,6 +2496,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReferralsRouteRoute: ReferralsRouteRouteWithChildren,
   ReviewRouteRoute: ReviewRouteRouteWithChildren,
   RosterRouteRoute: RosterRouteRouteWithChildren,
+  HealthRoute: HealthRoute,
   EaccOpenDataRouteRoute: EaccOpenDataRouteRouteWithChildren,
   EaccReferralsRouteRoute: EaccReferralsRouteRouteWithChildren,
   EaccReportsRouteRoute: EaccReportsRouteRouteWithChildren,

@@ -35,6 +35,13 @@ const workflowsPath = fileURLToPath(
         TemporalReadinessCheck,
         TemporalWorkerReadinessCheck,
       ],
+      // Which provider answers tasks, so a deployment can be checked from outside (#615).
+      info: {
+        aiProvider:
+          config.AI_PROVIDER === 'replay' && config.AI_REPLAY_MODE === 'record'
+            ? 'record'
+            : config.AI_PROVIDER,
+      },
     }),
     DatabaseModule.forRoot({
       url: config.DATABASE_URL,
