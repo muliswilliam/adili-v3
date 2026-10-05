@@ -16,11 +16,11 @@ export interface PendingKey {
 }
 
 /**
- * The Idempotency-Key of a release page action (publish, withdraw, Build v{n+1}) that may have
- * been recorded, as the releases list keeps its build's per year: null until then, then
- * `{ key, scope, draft }`, `scope` the release id. The page stays mounted when a Versions link
- * opens another release, and that release's action is another request, so it gets a new key
- * rather than one the service has seen with another body (422).
+ * The Idempotency-Key of an open-data action that may have been recorded: null until then, then
+ * `{ key, scope, draft }`. On the release page (publish, withdraw, Build v{n+1}) `scope` is the
+ * release id: the page stays mounted when a Versions link opens another release, and that
+ * release's action is another request, so it gets a new key rather than one the service has seen
+ * with another body (422). The releases list's Build snapshot scopes it to the year it builds.
  */
 export function usePendingKey(scope: string): PendingKey {
   const [stored, setStored] = useState<{ key: string; scope: string; draft: string } | null>(null);

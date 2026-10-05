@@ -46,7 +46,9 @@ import { problemStatus } from '../../server/service-call';
 import { CursorPager } from '../cursor-pager';
 import { NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
-import { messages as m, mismatchLabel } from './messages';
+import { messages as m } from './messages';
+import { usePendingKey } from './pending-key';
+import { buildFailure, mayBeRecorded } from './problems';
 import { KindTag, releaseName } from './release-parts';
 
 /** Releases per page, as the prototype pages them. */
@@ -80,12 +82,11 @@ type BuildState =
 export function ReleasesView(props: ReleasesViewProps) {
   const { result, links } = props;
   const [build, setBuild] = useState<BuildState>({ kind: 'idle' });
-  // The key of a build that may have been recorded (no answer, or still running), with the year
-  // it was for: every build of that year started until it is settled reuses it, so the service
-  // replays it instead of building again. Another year (the page stays mounted across 1 July)
-  // gets a new key: the same key with another body would be refused (422).
-  const [pending, setPending] = useState<{ key: string; fy: number } | null>(null);
-  const keyFor = (fy: number) => (pending?.fy === fy ? pending.key : crypto.randomUUID());
+  // The year a build confirmed or stopped is for, kept across 1 July (the page stays mounted).
+  // A build that may have been recorded (no answer, or still running) keeps its key for that year,
+  // so every build of it until settled replays it; another year gets a new key.
+  const buildFy = build.kind === 'confirming' || build.kind === 'failed' ? build.fy : props.fy;
+  const buildKey = usePendingKey(String(buildFy));
   if (problemStatus(result) === 403) {
     return (
       <Page narrow>
@@ -98,13 +99,14 @@ export function ReleasesView(props: ReleasesViewProps) {
   const startBuild = () => {
     setBuild({ kind: 'confirming', fy: props.fy });
   };
-  /** Builds `fy`, under the year's pending key if a build of it may have been recorded. */
-  const runBuild = async (fy: number) => {
-    const key = keyFor(fy);
+  /** Builds `buildFy`, under its pending key if a build of it may have been recorded. */
+  const runBuild = async () => {
+    const fy = buildFy;
+    const key = buildKey.keyFor();
     setBuild({ kind: 'building' });
     const built = await props.build(fy, key);
     if (built.ok) {
-      setPending(null);
+      buildKey.settle(key, false);
       setBuild({ kind: 'idle' });
       props.onBuilt(built.data);
       return;
@@ -116,7 +118,7 @@ export function ReleasesView(props: ReleasesViewProps) {
     // A refusal (4xx) wrote nothing, so a retry is a new build. A build that got no answer may
     // have been recorded, and one still running (`idempotency-key-in-use`) will be: the retry, or
     // the next Build snapshot of that year, keeps its key and so replays it.
-    setPending(mayBeRecorded(built) ? { key, fy } : null);
+    buildKey.settle(key, mayBeRecorded(built));
     setBuild({ kind: 'failed', fy, message: buildFailure(built) });
   };
   return (
@@ -145,7 +147,7 @@ export function ReleasesView(props: ReleasesViewProps) {
         <BuildStopped
           message={build.message}
           busy={false}
-          onRetry={() => void runBuild(build.fy)}
+          onRetry={() => void runBuild()}
           onDismiss={() => {
             setBuild({ kind: 'idle' });
           }}
@@ -179,45 +181,11 @@ export function ReleasesView(props: ReleasesViewProps) {
           if (!open) setBuild({ kind: 'idle' });
         }}
         onBuild={() => {
-          if (build.kind === 'confirming') void runBuild(build.fy);
+          if (build.kind === 'confirming') void runBuild();
         }}
       />
     </Page>
   );
-}
-
-type BuildRefusal = Extract<ReleasesResult<unknown>, { ok: false }>;
-
-/** Whether a failed build may still have been, or be, recorded under its key. */
-function mayBeRecorded({ error }: BuildRefusal): boolean {
-  return (
-    error.kind === 'unavailable' ||
-    (error.kind === 'problem' && isProblem(error.problem, 'idempotency-key-in-use'))
-  );
-}
-
-/** api-kit names some problems by `type` (the idempotency ones), the service by `code`. */
-function isProblem(problem: { type: string; code?: string }, name: string): boolean {
-  return problem.code === name || problem.type === name;
-}
-
-function buildFailure(result: BuildRefusal): string {
-  const { error } = result;
-  if (error.kind === 'problem') {
-    const { code, mismatches } = error.problem;
-    if (code === 'reconciliation-failed') {
-      return m.reconciliationFailed((mismatches ?? []).map(mismatchLabel).join(', '));
-    }
-    if (code === 'fy-not-started') return m.fyNotStarted;
-    if (isProblem(error.problem, 'idempotency-key-in-use')) return m.buildStillRunning;
-  }
-  if (error.kind === 'unavailable' && error.problemType === 'storage-unavailable') {
-    return m.storageUnavailable;
-  }
-  if (error.kind === 'unavailable' && error.problemType === 'directory-unavailable') {
-    return m.directoryUnavailable;
-  }
-  return m.buildFailed;
 }
 
 function BackToOverview() {
