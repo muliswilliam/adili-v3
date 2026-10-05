@@ -5,6 +5,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 import { focusRingPlugin } from './focus-ring.js';
+import { serverImportsPlugin } from './server-imports.js';
 
 /**
  * Type-aware lint rules shared by the TanStack Start apps and the UI package.
@@ -19,7 +20,7 @@ export function reactConfig(tsconfigRootDir) {
     ...tseslint.configs.stylisticTypeChecked,
     reactHooks.configs.flat.recommended,
     {
-      plugins: { adili: focusRingPlugin },
+      plugins: { adili: { rules: { ...focusRingPlugin.rules, ...serverImportsPlugin.rules } } },
       languageOptions: {
         globals: { ...globals.browser, ...globals.node },
         parserOptions: { projectService: true, tsconfigRootDir },
@@ -31,7 +32,14 @@ export function reactConfig(tsconfigRootDir) {
         '@typescript-eslint/only-throw-error': 'off',
         // A visible keyboard focus ring (docs/design.md, Focus).
         'adili/focus-ring': 'error',
+        // Runtime values from `.server` modules never reach the browser bundle.
+        'adili/no-client-server-imports': 'error',
       },
+    },
+    {
+      // Tests and their helpers run on Node, where `.server` modules load like any other.
+      files: ['**/*.test.{ts,tsx}', '**/testing.{ts,tsx}', 'src/test/**'],
+      rules: { 'adili/no-client-server-imports': 'off' },
     },
     {
       files: ['**/*.config.{js,ts,mjs}', 'eslint.config.js'],
