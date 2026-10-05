@@ -16,10 +16,27 @@ import {
   valueOf,
 } from '../rules/match.js';
 
-/** A registry check's outcome for the summary (spec 07b); none until registry matching lands. */
+/** A registry check's outcome for the summary (spec 07b): `kra`, or `kra · spouse` for a household member. */
 export interface RegistryStatus {
   system: string;
   status: string;
+}
+
+/**
+ * The case's registry checks as the summary reads them (#603): one per person and registry, the
+ * officer's by the registry's name, a spouse's or child's as `<registry> · spouse` or `· child`
+ * (never their identifiers), in a fixed order so the same checks make the same input.
+ */
+export function registryStatusesOf(
+  checks: readonly { personKey: string; system: string; status: string }[],
+): RegistryStatus[] {
+  return checks
+    .map(({ personKey, system, status }) => ({
+      system:
+        personKey === 'officer' ? system : `${system} · ${personKey.split(':')[0] ?? personKey}`,
+      status,
+    }))
+    .sort((a, b) => a.system.localeCompare(b.system) || a.status.localeCompare(b.status));
 }
 
 /** What the copilot's inputs are built from: data the review service already holds or pulls. */

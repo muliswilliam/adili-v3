@@ -46,7 +46,13 @@ const lookups: RegistryLookups = {
   },
   suppliers: {},
 };
-const checked: RegistryCheckResult = { outcome: 'checked', flags: 0, statuses: [] };
+const checked: RegistryCheckResult = {
+  outcome: 'checked',
+  flags: 0,
+  statuses: [],
+  checkedAt: '2027-12-10T10:00:01.000Z',
+  changed: false,
+};
 
 const input: ProcessingInput = {
   tenant: 'psc',
@@ -140,6 +146,8 @@ describe('DeclarationProcessingWorkflow', () => {
       tenant: 'psc',
       caseId: 'case-1',
       trigger: 'case-created',
+      // The check's time, so the summary records which check it was built on (#603).
+      registryCheckedAt: '2027-12-10T10:00:01.000Z',
     });
     expect(mocks.copilotUnavailable).not.toHaveBeenCalled();
     expect(order(mocks.matchAndStoreRegistries)).toBeLessThan(order(mocks.requestCopilot));
@@ -186,6 +194,7 @@ describe('DeclarationProcessingWorkflow', () => {
       tenant: 'psc',
       caseId: 'case-1',
       trigger: 'amendment',
+      registryCheckedAt: '2027-12-10T10:00:01.000Z',
     });
 
     const repeated = activities({

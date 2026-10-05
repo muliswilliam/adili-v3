@@ -12,6 +12,7 @@ import type { RegistryCheckStatus, RegistrySystem } from '../rules/index.js';
 
 /** Workflow type names, for starting by name (the worker bundles the code, not the caller). */
 export const REGISTRY_CHECK_WORKFLOW = 'registryCheck';
+export const REGISTRY_RECHECK_WORKFLOW = 'registryRecheck';
 export const REGISTRY_SWEEP_WORKFLOW = 'registrySweep';
 
 /** The Temporal schedule that starts `registrySweep` hourly, one per task queue. */
@@ -137,7 +138,24 @@ export interface CheckStatus {
  * nothing was stored).
  */
 export type RegistryCheckResult =
-  { outcome: 'checked'; flags: number; statuses: CheckStatus[] } | { outcome: 'stale' };
+  | {
+      outcome: 'checked';
+      flags: number;
+      statuses: CheckStatus[];
+      /** When the statuses were stored (the database's time). */
+      checkedAt: string;
+      /** Whether a person's status in a registry differs from the case's check before. */
+      changed: boolean;
+    }
+  | { outcome: 'stale' };
+
+/**
+ * When a re-check asks the copilot anew (#603): `always` for a reviewer's re-check, `if-changed`
+ * for the sweep, so an hourly sweep that learns nothing new costs no AI call.
+ */
+export interface RecheckOptions {
+  refreshCopilot: 'always' | 'if-changed';
+}
 
 /** The legal basis of lookups at processing: comparing with other sources (Regs r.20(1)(b)). */
 export const PROCESSING_LEGAL_BASIS = 'regs-r20-1-b';

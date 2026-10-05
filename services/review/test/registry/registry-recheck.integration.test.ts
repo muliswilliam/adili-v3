@@ -12,6 +12,8 @@ import {
   reviewFlags,
   reviewTimeline,
 } from '../../src/db/schema.js';
+import { registryStatusesOf } from '../../src/copilot/copilot-inputs.js';
+import { reviewCopilots } from '../../src/copilot/schema.js';
 import { RegistryCheckActivities } from '../../src/registry/activities.js';
 import {
   REGISTRY_SWEEP_WORKFLOW,
@@ -131,6 +133,23 @@ describe('registry re-checks and the sweep', () => {
       .result();
   }
 
+  const copilotOf = async (caseId: string) => {
+    const [row] = await api.asPlatform((tx) =>
+      tx.select().from(reviewCopilots).where(eq(reviewCopilots.caseId, caseId)),
+    );
+    return row;
+  };
+  /** When the case's registries were last checked: the time their statuses were stored. */
+  const lastCheckedAt = async (caseId: string) => {
+    const rows = await api.asPlatform((tx) =>
+      tx.select().from(registryChecks).where(eq(registryChecks.caseId, caseId)),
+    );
+    return new Date(Math.max(...rows.map((row) => row.checkedAt.getTime()))).toISOString();
+  };
+  const lastSummaryInput = () =>
+    api.ai.calls.filter((call) => call.task === 'summarize-declaration').at(-1)?.request.input as
+      { registryStatuses: { system: string; status: string }[] } | undefined;
+
   const caseRow = async (caseId: string) => {
     const [row] = await api.asPlatform((tx) =>
       tx.select().from(reviewCases).where(eq(reviewCases.id, caseId)),
@@ -157,6 +176,36 @@ describe('registry re-checks and the sweep', () => {
     (await api.db.select().from(outbox).orderBy(asc(outbox.createdAt))).filter(
       (event) => event.eventType === type,
     );
+
+  // That a re-check request marks a ready copilot stale is the copilot's own test (copilot.integration).
+  it("#603 S11: a re-check asks the copilot anew with the case's registry statuses and the check's time", async () => {
+    const request = await checkedCase();
+    const { caseId } = request;
+    await api.copilot.requestCopilot({ tenant: 'psc', caseId, trigger: 'case-created' });
+    const before = await copilotOf(caseId);
+    expect(lastSummaryInput()?.registryStatuses).toContainEqual({
+      system: 'kra',
+      status: 'matched',
+    });
+    await claim(caseId);
+    seed(WANJIKU, { without: [SOLD_VEHICLE] });
+
+    expect((await api.send('POST', recheckPath(caseId), assignee)).statusCode).toBe(202);
+    expect(await recheckRun(caseId)).toMatchObject({ outcome: 'checked' });
+
+    const after = await copilotOf(caseId);
+    expect(after).toMatchObject({ attempt: (before?.attempt ?? 0) + 1 });
+    expect(after?.requestedSummaryJobId).not.toBe(before?.requestedSummaryJobId);
+    expect(after?.registryCheckedAt?.toISOString()).toBe(await lastCheckedAt(caseId));
+    // The summary is asked on exactly the statuses the re-check stored.
+    const stored = await api.asPlatform((tx) =>
+      tx.select().from(registryChecks).where(eq(registryChecks.caseId, caseId)),
+    );
+    expect(lastSummaryInput()?.registryStatuses).toEqual(registryStatusesOf(stored));
+    expect(lastSummaryInput()?.registryStatuses.some((s) => s.system.endsWith(' · spouse'))).toBe(
+      true,
+    );
+  });
 
   it('S11: the assignee re-checks: flags no longer raised are closed superseded-by-recheck, a reviewed one keeps its note', async () => {
     const request = await checkedCase();
@@ -473,6 +522,14 @@ describe('registry re-checks and the sweep', () => {
       expect((await registryFlags(request.caseId)).map((flag) => flag.ruleId)).toContain(
         'registry-parcel-undeclared',
       );
+      // ArdhiSasa's answer changed the statuses: the copilot asks anew with them (#603).
+      expect((await copilotOf(request.caseId))?.registryCheckedAt?.toISOString()).toBe(
+        await lastCheckedAt(request.caseId),
+      );
+      expect(lastSummaryInput()?.registryStatuses).toContainEqual({
+        system: 'ardhisasa',
+        status: 'mismatched',
+      });
       const checked = await eventsOf('review.registry.checked.v1');
       expect(checked).toHaveLength(2);
       expect(checked[1]?.envelope.data).toMatchObject({

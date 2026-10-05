@@ -388,7 +388,11 @@ describe('registry checks', () => {
     const eventsBefore = await api.db.select().from(outbox);
 
     // The activity retried after its commit: the same check, the same sequence.
-    expect(await registry.matchAndStoreRegistries({ check: request, lookups })).toEqual(first);
+    // The same answer, except that a store finding its own rows reports no change (#603).
+    expect(await registry.matchAndStoreRegistries({ check: request, lookups })).toEqual({
+      ...first,
+      changed: false,
+    });
 
     expect(await timelineOf(request.caseId)).toEqual(timelineBefore);
     expect(await api.db.select().from(outbox)).toHaveLength(eventsBefore.length);

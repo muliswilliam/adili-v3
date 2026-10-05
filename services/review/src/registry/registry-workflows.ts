@@ -5,13 +5,13 @@ import type { Client } from '@temporalio/client';
 import { config } from '../config.js';
 import { SweepScheduling } from '../sweep-schedule.js';
 import {
-  REGISTRY_CHECK_WORKFLOW,
+  REGISTRY_RECHECK_WORKFLOW,
   REGISTRY_SWEEP_WORKFLOW,
   type RegistryCheckRequest,
   registryRecheckWorkflowId,
   registrySweepScheduleId,
 } from './contract.js';
-import type { registryCheck } from './workflows.js';
+import type { registryRecheck } from './workflows.js';
 
 /**
  * Starts the registry check workflows on Temporal (ADR-003): a check of a case a reviewer or
@@ -30,12 +30,15 @@ export class RegistryWorkflows extends SweepScheduling {
     });
   }
 
-  /** A re-check of the case at its current version: one `registryCheck` per request. */
+  /**
+   * A re-check of the case at its current version: one `registryRecheck` per request, which asks
+   * the copilot anew once the check is stored (#603).
+   */
   async startRecheck(request: RegistryCheckRequest, recheckId: string): Promise<void> {
-    await this.temporal.workflow.start<typeof registryCheck>(REGISTRY_CHECK_WORKFLOW, {
+    await this.temporal.workflow.start<typeof registryRecheck>(REGISTRY_RECHECK_WORKFLOW, {
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowId: registryRecheckWorkflowId(request.caseId, recheckId),
-      args: [request],
+      args: [request, { refreshCopilot: 'always' }],
     });
   }
 }

@@ -11,8 +11,10 @@ import {
   workflowInfo,
 } from '@temporalio/workflow';
 
+import { requestCaseCopilot } from '../copilot/workflows.js';
 import type { RegistryCheckActivities } from './activities.js';
 import {
+  type RecheckOptions,
   type RegistryCheckRequest,
   type RegistryCheckResult,
   type RegistryLookups,
@@ -64,6 +66,28 @@ export async function registryCheck(request: RegistryCheckRequest): Promise<Regi
 }
 
 /**
+ * `registryRecheck` (#603): the registry check of a case at its current version, then its copilot
+ * asked anew with the check's time, so the summary is marked stale and rebuilt on the statuses the
+ * check stored (spec 07c S11). A reviewer's re-check always asks; the sweep asks only when a
+ * status changed (`RecheckOptions`). A stale check asks nothing.
+ */
+export async function registryRecheck(
+  request: RegistryCheckRequest,
+  options: RecheckOptions,
+): Promise<RegistryCheckResult> {
+  const result = await registryCheck(request);
+  if (result.outcome !== 'checked') return result;
+  if (options.refreshCopilot === 'if-changed' && !result.changed) return result;
+  await requestCaseCopilot({
+    tenant: request.tenant,
+    caseId: request.caseId,
+    trigger: 're-check',
+    registryCheckedAt: result.checkedAt,
+  });
+  return result;
+}
+
+/**
  * Whether a lookup or supplier check is still without an answer worth waiting for (one the
  * gateway refused is not: it needs fixing).
  */
@@ -106,9 +130,9 @@ async function checkSwept(
   result: RegistrySweepResult,
 ): Promise<void> {
   try {
-    const checked = await executeChild(registryCheck, {
+    const checked = await executeChild(registryRecheck, {
       workflowId: registrySweepCheckWorkflowId(request.caseId, workflowInfo().runId),
-      args: [request],
+      args: [request, { refreshCopilot: 'if-changed' }],
     });
     result[checked.outcome] += 1;
   } catch (error) {
