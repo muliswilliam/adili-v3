@@ -35,6 +35,16 @@ set -a
 set +a
 export KC_HOSTNAME ADILI_CONSOLE_URL ADILI_PORTAL_URL
 
+# The Keycloak image carries the login theme and the authenticators: rebuild it when they change,
+# before the apps stop, so the build does not lengthen the downtime.
+keycloak_inputs="$(cd "$ROOT" && find apps/keycloak-extension/src apps/keycloak-extension/pom.xml \
+  apps/keycloak-theme/src packages/ui/src infra/docker/keycloak.Dockerfile -type f -exec sha256sum {} + | sort | sha256sum)"
+keycloak_stamp="$HOME/.adili-keycloak-image"
+if [ "$(cat "$keycloak_stamp" 2>/dev/null || true)" != "$keycloak_inputs" ]; then
+  docker compose -f "$COMPOSE" -f "$OVERLAY" build keycloak
+  printf '%s\n' "$keycloak_inputs" >"$keycloak_stamp"
+fi
+
 sudo -n "$ROOT_HELPER" stop-apps
 
 echo "Compose stack"
@@ -48,6 +58,8 @@ fi
 
 echo "App dependencies and migrations"
 pnpm bootstrap
+# The realm import skips an existing realm: apply demo sign-in (#616) to the live one.
+KEYCLOAK_URL=http://127.0.0.1:18080 node scripts/keycloak-demo-sign-in.mjs
 ./infra/azure/configure-app-env.sh
 pnpm db:migrate
 if [ -f mocks/uv.lock ]; then

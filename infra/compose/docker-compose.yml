@@ -132,6 +132,9 @@ services:
       ADILI_PORTAL_URL: http://localhost:3010
       # Where the adili-otp authenticator sends sign-in codes: the notifications service on the host.
       ADILI_NOTIFICATIONS_URL: http://host.docker.internal:4010
+      # Demo sign-in (#616): demo accounts sign in from a signed ticket with no password or code.
+      # Off unless set (ADILI_DEMO_MODE=true pnpm infra:up); the Azure demo host turns it on.
+      ADILI_DEMO_MODE: ${ADILI_DEMO_MODE:-false}
     # Podman resolves host.docker.internal itself; Docker on Linux needs the mapping.
     extra_hosts: ['host.docker.internal:host-gateway']
     ports: ['8080:8080']

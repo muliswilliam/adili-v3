@@ -31,7 +31,8 @@ The hosted demo runs the real services and the real AI provider. Every deploy en
 
 - portal, console and verify: every development mock off (each `*_MOCK` setting the app declares)
 - ai-gateway: Anthropic, with the key from the VM's secrets file
-- services: reminders at midday sharp (`REMINDER_JITTER_HOURS=0`); the demo Commissions marked as synthetic data, so the copilot may use the external provider
+- services: reminders at midday sharp (`REMINDER_JITTER_HOURS=0`); the demo Commissions (`psc`, `tsc`, `eacc`, `jsc`, `npsc`) marked as synthetic data, so the copilot may use the external provider; onboarding and registry rate limits lifted so `pnpm demo:seed` can onboard and check every officer from the host's one IP
+- Keycloak: demo sign-in on (`ADILI_DEMO_MODE=true` in `docker-compose.azure.yml`, applied to the existing realm by `scripts/keycloak-demo-sign-in.mjs` on every deploy)
 
 Locally and in tests the mocks stay on (`.env.example`); a local stack runs the real backend once you set its `*_MOCK=false`.
 

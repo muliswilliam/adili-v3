@@ -1591,6 +1591,13 @@
         "clientSecret": "${vault.keycloak-extension-secret}",
         "requestTimeoutMs": "6000"
       }
+    },
+    {
+      "alias": "adili-demo",
+      "config": {
+        "ticketSecret": "${vault.demo-ticket-secret}",
+        "maxLifetimeSeconds": "120"
+      }
     }
   ],
   "authenticationFlows": [
@@ -1601,6 +1608,15 @@
       "topLevel": true,
       "builtIn": false,
       "authenticationExecutions": [
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 5,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "authenticator": "adili-demo",
+          "authenticatorConfig": "adili-demo"
+        },
         {
           "requirement": "ALTERNATIVE",
           "priority": 10,
@@ -1873,7 +1889,7 @@
         "subComponents": {},
         "config": {
           "kc.user.profile.config": [
-            "{\"unmanagedAttributePolicy\": \"ADMIN_VIEW\", \"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}}, {\"name\": \"email\", \"displayName\": \"${email}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"tenant\", \"displayName\": \"Tenant\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"tenants\", \"displayName\": \"Tenants\", \"multivalued\": true, \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"ofr\", \"displayName\": \"Officer reference\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"person_id\", \"displayName\": \"Person id\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"phone\", \"displayName\": \"Phone\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"commissionName\", \"displayName\": \"Commission name\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"invitedRole\", \"displayName\": \"Invited role\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"agency\", \"displayName\": \"Agency\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"identityStatus\", \"displayName\": \"Identity status\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}], \"groups\": []}"
+            "{\"unmanagedAttributePolicy\": \"ADMIN_VIEW\", \"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}}, {\"name\": \"email\", \"displayName\": \"${email}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"tenant\", \"displayName\": \"Tenant\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"tenants\", \"displayName\": \"Tenants\", \"multivalued\": true, \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"ofr\", \"displayName\": \"Officer reference\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"person_id\", \"displayName\": \"Person id\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"phone\", \"displayName\": \"Phone\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"commissionName\", \"displayName\": \"Commission name\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"invitedRole\", \"displayName\": \"Invited role\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"agency\", \"displayName\": \"Agency\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"identityStatus\", \"displayName\": \"Identity status\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"demo_key\", \"displayName\": \"Demo key\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}], \"groups\": []}"
           ]
         }
       }
@@ -1888,6 +1904,7 @@
       "lastName": "Kamau",
       "enabled": true,
       "attributes": {
+        "demo_key": ["declarant"],
         "tenant": ["psc"],
         "phone": ["+254700000001"],
         "person_id": ["7d3f9b2a-4c1e-4a8b-9f60-2e5d8c1b0a47"]
@@ -1905,10 +1922,11 @@
       "username": "reporting-officer",
       "email": "reporting-officer@demo.adili.go.ke",
       "emailVerified": true,
-      "firstName": "Otieno",
-      "lastName": "Odhiambo",
+      "firstName": "Grace",
+      "lastName": "Mutiso",
       "enabled": true,
       "attributes": {
+        "demo_key": ["reporting-officer"],
         "tenant": ["psc"],
         "phone": ["+254700000002"]
       },
@@ -1929,6 +1947,7 @@
       "lastName": "Chelimo",
       "enabled": true,
       "attributes": {
+        "demo_key": ["tsc-reporting-officer"],
         "tenant": ["tsc"],
         "phone": ["+254700000014"]
       },
@@ -1949,6 +1968,7 @@
       "lastName": "Njeri",
       "enabled": true,
       "attributes": {
+        "demo_key": ["reviewer"],
         "tenant": ["psc"],
         "phone": ["+254700000003"]
       },
@@ -1965,10 +1985,11 @@
       "username": "supervisor",
       "email": "supervisor@demo.adili.go.ke",
       "emailVerified": true,
-      "firstName": "Kiprono",
-      "lastName": "Chebet",
+      "firstName": "David",
+      "lastName": "Ochieng",
       "enabled": true,
       "attributes": {
+        "demo_key": ["supervisor"],
         "tenant": ["psc"],
         "phone": ["+254700000004"]
       },
@@ -1989,6 +2010,7 @@
       "lastName": "Wairimu",
       "enabled": true,
       "attributes": {
+        "demo_key": ["commission-admin"],
         "tenant": ["psc"],
         "phone": ["+254700000005"]
       },
@@ -2005,10 +2027,11 @@
       "username": "access-officer",
       "email": "access-officer@demo.adili.go.ke",
       "emailVerified": true,
-      "firstName": "Amina",
-      "lastName": "Hassan",
+      "firstName": "Halima",
+      "lastName": "Yusuf",
       "enabled": true,
       "attributes": {
+        "demo_key": ["access-officer"],
         "tenant": ["psc"],
         "phone": ["+254700000006"]
       },
@@ -2029,6 +2052,7 @@
       "lastName": "Mutua",
       "enabled": true,
       "attributes": {
+        "demo_key": ["eacc-analyst"],
         "tenant": ["eacc"],
         "phone": ["+254700000007"]
       },
@@ -2049,6 +2073,7 @@
       "lastName": "Wekesa",
       "enabled": true,
       "attributes": {
+        "demo_key": ["eacc-supervisor"],
         "tenant": ["eacc"],
         "phone": ["+254700000008"]
       },
@@ -2069,6 +2094,7 @@
       "lastName": "Muriithi",
       "enabled": true,
       "attributes": {
+        "demo_key": ["auditor"],
         "tenant": ["eacc"],
         "phone": ["+254700000009"]
       },
@@ -2089,6 +2115,7 @@
       "lastName": "Akinyi",
       "enabled": true,
       "attributes": {
+        "demo_key": ["helpdesk"],
         "tenant": ["platform"],
         "phone": ["+254700000010"]
       },
@@ -2109,6 +2136,7 @@
       "lastName": "Omondi",
       "enabled": true,
       "attributes": {
+        "demo_key": ["platform-admin"],
         "tenant": ["platform"],
         "phone": ["+254700000011"]
       },
@@ -2130,6 +2158,7 @@
       "lastName": "Wambua",
       "enabled": true,
       "attributes": {
+        "demo_key": ["applicant"],
         "person_id": ["2c2097c9-c981-44f4-8343-3e5a124422cd"],
         "phone": ["+254700000012"],
         "identityStatus": ["verified"]
@@ -2152,6 +2181,7 @@
       "lastName": "Ali",
       "enabled": true,
       "attributes": {
+        "demo_key": ["law-enforcement"],
         "tenant": ["lea"],
         "agency": ["DCI"],
         "person_id": ["a0221136-2e38-49ef-8a9b-7cdc1882e84e"],

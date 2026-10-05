@@ -81,13 +81,23 @@ for app in portal console verify; do
       set_env "$ROOT/apps/$app/.env" "$key" false
     done
 done
-# The console's audit trail mock (#593), named here too in case it lands after this script reads
-# env.server.ts.
-set_env "$ROOT/apps/console/.env" AUDIT_MOCK false
+# The console reads the audit trail (#593) from the audit service on this host.
+set_env "$ROOT/apps/console/.env" AUDIT_API_URL http://localhost:4011
 # Reminders at midday sharp, so a seeded reminder lands when the demo script says.
 set_env "$ROOT/services/declarations/.env" REMINDER_JITTER_HOURS 0
-# The demo Commissions hold synthetic data only, so the copilot may use the external provider.
-set_env "$ROOT/services/review/.env" AI_SYNTHETIC_DATA_TENANTS "${ADILI_DEMO_TENANTS:-psc,tsc}"
+# The demo Commissions (packages/demo-seed) hold synthetic data only, so the copilot may use the
+# external provider.
+set_env "$ROOT/services/review/.env" AI_SYNTHETIC_DATA_TENANTS "${ADILI_DEMO_TENANTS:-psc,tsc,eacc,jsc,npsc}"
+# `pnpm demo:seed` onboards every officer from this host's one IP and checks every filing against
+# the registries (packages/demo-seed/README.md): onboarding and registry limits lifted for it.
+# Roster limits and the rest stay at their defaults.
+set_env "$ROOT/services/directory/.env" RATE_LIMITS \
+  "roster-write=120/60s,roster-read=600/60s,onboarding-identify=100000/60s,onboarding-identify-commission=100000/60s,onboarding-session=100000/60s,onboarding-commissions=60/60s"
+set_env "$ROOT/services/directory/.env" ONBOARDING_ABUSE_THRESHOLD 1000000
+set_env "$ROOT/mocks/.env" MOCK_REGISTRY_RATE_LIMIT 100000
+for registry in KRA NTSA BRS ARDHISASA HR_SUPPLIERS; do
+  set_env "$ROOT/services/integration-gateway/.env" "${registry}_RATE_LIMIT_PER_MINUTE" 100000
+done
 # The AI provider: Anthropic with the key from the VM's secrets file, or the last `pnpm demo:ai`
 # choice; replay with a warning when there is no key. The key is never printed.
 node "$ROOT/scripts/demo-ai.mjs"
