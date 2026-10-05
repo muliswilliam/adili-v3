@@ -108,22 +108,22 @@
     "model": "claude-opus-5-5",
     "usage": {
       "inputTokens": 2341,
-      "outputTokens": 3260,
-      "cacheReadTokens": 0,
-      "cacheWriteTokens": 1944
+      "outputTokens": 3199,
+      "cacheReadTokens": 1944,
+      "cacheWriteTokens": 0
     },
     "status": "completed",
     "output": {
       "explanations": [
         {
           "flagId": "01a10c2c-7458-75fa-ad2e-47ee25f9c771",
-          "meaning": "The declared value of Land in Kiambu, now KES 1,000,000, is 74% lower than in the previous declaration. Land values can fall for many reasons, such as a revaluation, a partial sale or a correction of an earlier figure. This is an indicator to check, not a finding of wrongdoing.",
+          "meaning": "The declared value of Land in Kiambu, now KES 1,000,000, is 74% lower than in the previous declaration. A fall this large can have ordinary causes, such as a revaluation, a partial sale or a correction of an earlier figure. This is an indicator to check, not a finding of wrongdoing.",
           "whatToCheck": [
             "Compare the Land in Kiambu entry in the current and previous declarations, including size, location and valuation basis.",
-            "Check whether any part of the land is recorded as disposed of in paragraph 9.",
-            "Consult ArdhiSasa for the parcel's current registration and any subdivision or transfer."
+            "Check whether part of the parcel was sold, subdivided or transferred, and whether paragraph 9 records it.",
+            "Consult ArdhiSasa for the current registered extent and ownership of the Kiambu land."
           ],
-          "typicalResolution": "An explanation from the declarant for the lower value, supported by a valuation report, a sale agreement or a note correcting the earlier figure.",
+          "typicalResolution": "An explanation from the declarant for the lower value, supported by a valuation report or a sale or transfer document, would usually resolve this.",
           "refs": [
             {
               "sectionKey": "statement:officer",
@@ -135,12 +135,12 @@
         },
         {
           "flagId": "01a10c2c-7458-75fa-ad2e-486b98e618a5",
-          "meaning": "The comparison shows the value of Land in Kiambu changed by 74%, but the declarant did not mark this item as changed. This may be an oversight in the marking or a correction of a past figure. It is an indicator to check, not a finding of wrongdoing.",
+          "meaning": "The comparison shows a 74% change in the value of Land in Kiambu, but the declarant did not mark the item as changed. This may be an oversight in the change marking rather than anything more. It is an indicator to check, not a finding of wrongdoing.",
           "whatToCheck": [
-            "Reread the Land in Kiambu entry to confirm whether the change marking was left unset.",
-            "Check whether the declarant gave any explanation elsewhere in the declaration for the lower value."
+            "Reread the change marking on the Land in Kiambu entry and check whether any explanation was given elsewhere in the declaration.",
+            "Confirm with the related value-change flag whether the earlier or the current figure is the correct one."
           ],
-          "typicalResolution": "The declarant confirms the change and adds an explanation, or clarifies that the earlier value was recorded in error.",
+          "typicalResolution": "The declarant correcting the change marking and briefly explaining the change in value would usually resolve this.",
           "refs": [
             {
               "sectionKey": "statement:officer",
@@ -152,102 +152,90 @@
         },
         {
           "flagId": "01a10c2c-7458-75fa-ad2e-4fb1e76a03b8",
-          "meaning": "The income item 'Salary and emoluments as Senior Procurement Officer, Kenya Medical Supplies Authority' was not matched to the previous declaration and was not marked as a new source of income. The previous declaration held a similar item, 'Salary from Kenya Medical Supplies Authority', so this may be the same salary described differently. This is an indicator to check, not a finding of wrongdoing.",
+          "meaning": "The income item 'Salary and emoluments as Senior Procurement Officer, Kenya Medical Supplies Authority' does not match any item in the previous declaration, and it was not marked as a new source of income. The previous declaration listed 'Salary from Kenya Medical Supplies Authority', so this may be the same salary described differently. This is an indicator to check, not a finding of wrongdoing.",
           "whatToCheck": [
-            "Compare this salary entry with 'Salary from Kenya Medical Supplies Authority' in the previous declaration.",
-            "Confirm with the employer's records or KRA whether the salary comes from the same employer and position.",
-            "Check whether the declarant's role changed, for example a promotion to Senior Procurement Officer."
+            "Compare this salary entry with 'Salary from Kenya Medical Supplies Authority' in the previous declaration to see whether it is the same source.",
+            "Check whether the declarant's role or position changed between declarations.",
+            "Consult KRA records for the declarant's employment income, if available."
           ],
-          "typicalResolution": "Confirmation that this is the same salary under a revised description, or the declarant marks it as a new source of income with an explanation.",
+          "typicalResolution": "Confirmation from the declarant that this is the same continuing salary, or marking it as new with an explanation, would usually resolve this.",
           "refs": [
             {
               "sectionKey": "statement:officer",
               "personKey": "officer",
               "itemId": "01a10c2c-1770-7071-94a0-d0ff007be57f",
-              "fieldPath": null
-            },
-            {
-              "sectionKey": "statement:officer",
-              "personKey": "officer",
-              "itemId": "6384e43c-02b1-7bdf-89b4-a7edc68afd75",
               "fieldPath": null
             }
           ]
         },
         {
           "flagId": "01a10c2c-7458-75fa-ad2e-50e4eee2f37c",
-          "meaning": "The income item 'Salary from Kenya Medical Supplies Authority' from the previous declaration does not appear in this one, and no ended source is recorded in paragraph 9. The current declaration holds a similar salary item from the same employer, so this may be the same income described differently. This is an indicator to check, not a finding of wrongdoing.",
+          "meaning": "The income item 'Salary from Kenya Medical Supplies Authority' appeared in the previous declaration but not in this one, and paragraph 9 records no ended source of income. The current declaration lists a salary from the same employer under a different description, so the item may simply have been relabelled. This is an indicator to check, not a finding of wrongdoing.",
           "whatToCheck": [
-            "Compare this previous entry with 'Salary and emoluments as Senior Procurement Officer, Kenya Medical Supplies Authority' in the current declaration.",
-            "Check paragraph 9 for any recorded end of a source of income."
+            "Check whether the current salary entry from Kenya Medical Supplies Authority continues this previous item.",
+            "Reread paragraph 9 for any recorded ended source of income."
           ],
-          "typicalResolution": "Confirmation that the salary continues under a new description, or the declarant records the ended source in paragraph 9.",
+          "typicalResolution": "An explanation from the declarant that the salary continues under a new description, or a paragraph 9 entry if the source ended, would usually resolve this.",
           "refs": [
             {
               "sectionKey": "statement:officer",
               "personKey": "officer",
               "itemId": "6384e43c-02b1-7bdf-89b4-a7edc68afd75",
-              "fieldPath": null
-            },
-            {
-              "sectionKey": "statement:officer",
-              "personKey": "officer",
-              "itemId": "01a10c2c-1770-7071-94a0-d0ff007be57f",
               "fieldPath": null
             }
           ]
         },
         {
           "flagId": "01a10c2c-7458-75fa-ad2e-54554d648bd2",
-          "meaning": "The declarant declared no liabilities in this declaration, although the previous declaration listed one liability. A loan that was fully repaid would explain this. This is an indicator to check, not a finding of wrongdoing.",
+          "meaning": "The declarant declared no liabilities, while the previous declaration listed one liability. A loan that was fully repaid would explain this, but paragraph 9 should usually show the settlement. This is an indicator to check, not a finding of wrongdoing.",
           "whatToCheck": [
-            "Reread the liabilities entry in the previous declaration to identify the item listed.",
-            "Check paragraph 9 for any recorded settlement of that liability."
+            "Reread the liabilities section of the previous declaration to identify the earlier liability.",
+            "Check paragraph 9 of the current declaration for a recorded settlement of that liability."
           ],
-          "typicalResolution": "A clearance letter or statement from the lender showing the liability was settled, or a correction from the declarant.",
+          "typicalResolution": "A loan clearance letter or a statement from the lender, together with a paragraph 9 settlement entry, would usually resolve this.",
           "refs": []
         },
         {
           "flagId": "01a10c2c-74ef-715b-b3dc-854c34998769",
-          "meaning": "NTSA lists vehicle [[REGISTRATION_1]] in the declarant's name, but no declared vehicle carries that registration. A sale whose transfer was not yet registered can explain this. This is an indicator to check, not a finding of wrongdoing.",
+          "meaning": "NTSA lists vehicle [[REGISTRATION_1]] in the declarant's name, but no declared vehicle carries this registration. A sale whose transfer was not yet registered at NTSA can explain this. This is an indicator to check, not a finding of wrongdoing.",
           "whatToCheck": [
-            "Reread the declarant's vehicle entries for any vehicle that might match [[REGISTRATION_1]].",
-            "Consult NTSA for the ownership history and any pending transfer of [[REGISTRATION_1]].",
-            "Check paragraph 9 for a recorded disposal of a vehicle."
+            "Consult NTSA for the ownership history and any pending transfer of vehicle [[REGISTRATION_1]].",
+            "Reread the assets section and paragraph 9 for any vehicle or vehicle disposal that could match."
           ],
-          "typicalResolution": "A sale agreement or transfer record showing the vehicle was sold, or an amended declaration that includes the vehicle.",
+          "typicalResolution": "A sale agreement or transfer document showing the vehicle was disposed of, or an amended declaration that includes it, would usually resolve this.",
           "refs": []
         },
         {
           "flagId": "01a10c2c-74ef-715b-b3dc-8a062e7f2823",
           "meaning": "BRS lists the declarant as a director and shareholder of company PVT-9XYZ2L4Q, which the declaration does not mention. A role that ended but was not yet updated at BRS can explain this. This is an indicator to check, not a finding of wrongdoing.",
           "whatToCheck": [
-            "Search the declaration for any company, shareholding or directorship entry that could match PVT-9XYZ2L4Q.",
-            "Consult BRS for the company's current officers, shareholders and filing dates."
+            "Consult BRS for the current directors, shareholders and filing history of company PVT-9XYZ2L4Q.",
+            "Reread the assets, income and interests sections for any reference to this company.",
+            "Check paragraph 9 for any recorded disposal of shares or ended role."
           ],
-          "typicalResolution": "BRS records or a resignation and share transfer document showing the role ended, or an amended declaration listing the interest.",
+          "typicalResolution": "Proof that the role ended, such as a BRS filing or resignation and share transfer documents, or an amended declaration listing the interest, would usually resolve this.",
           "refs": []
         },
         {
           "flagId": "01a10c2c-74ef-715b-b3dc-8c14b25fd04e",
-          "meaning": "BRS lists the declarant as a director and shareholder of company PVT-9XYZ2L4Q, which appears on the supplier list of the declarant's employer, and the interest is not declared. Since the declarant's role involves procurement, this may be a conflict of interest to look into, or one already disclosed and managed. This is an indicator to check, not a finding of wrongdoing.",
+          "meaning": "BRS lists the declarant as a director and shareholder of company PVT-9XYZ2L4Q, which appears on the supplier list of the declarant's employer, and the interest is not declared. This may be a conflict of interest to look into, or one that has already been disclosed and managed by the employer. This is an indicator to check, not a finding of wrongdoing.",
           "whatToCheck": [
-            "Consult BRS to confirm the declarant's current role in PVT-9XYZ2L4Q.",
-            "Ask the employer whether the declarant disclosed this interest and whether any conflict register entry exists.",
-            "Check whether the declarant took part in any procurement involving this supplier."
+            "Confirm with BRS whether the declarant's role in company PVT-9XYZ2L4Q is current or has ended.",
+            "Check with the employer whether the interest was disclosed and whether any conflict-management measures are on record.",
+            "Check whether the company has supplied the employer during the declaration period."
           ],
-          "typicalResolution": "Evidence that the role ended or that the interest was disclosed and managed by the employer, together with an amended declaration.",
+          "typicalResolution": "Evidence that the role ended, or an employer record of disclosure and recusal, together with an amended declaration, would usually resolve this.",
           "refs": []
         },
         {
           "flagId": "01a10c2c-74ef-715b-b3dc-91dfce739a81",
-          "meaning": "ArdhiSasa lists parcel [[PARCEL_1]] in the declarant's name, but no declared land or building carries that parcel number. A recent sale not yet registered, or a parcel held in trust, can explain this. This is an indicator to check, not a finding of wrongdoing.",
+          "meaning": "ArdhiSasa lists parcel [[PARCEL_1]] in the declarant's name, but no declared land or building carries this parcel number. A recent sale not yet registered, or a parcel held in trust, can explain this. This is an indicator to check, not a finding of wrongdoing.",
           "whatToCheck": [
-            "Check whether Land in Kiambu or any other land entry could correspond to [[PARCEL_1]].",
-            "Consult ArdhiSasa for the title history and any pending transfer of [[PARCEL_1]].",
-            "Check paragraph 9 for a recorded disposal of land."
+            "Consult ArdhiSasa for the ownership record and any pending transfer of parcel [[PARCEL_1]].",
+            "Check whether parcel [[PARCEL_1]] could be the declared Land in Kiambu entered without its parcel number.",
+            "Reread paragraph 9 for any recorded land disposal."
           ],
-          "typicalResolution": "A sale agreement, transfer record or trust document for the parcel, or an amended declaration that includes it.",
+          "typicalResolution": "A sale agreement or transfer document, a trust deed, or an amended declaration showing the parcel number would usually resolve this.",
           "refs": []
         }
       ]

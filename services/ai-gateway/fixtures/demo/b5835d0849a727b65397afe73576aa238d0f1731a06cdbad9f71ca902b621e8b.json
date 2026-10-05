@@ -188,74 +188,50 @@
     "model": "claude-opus-5-5",
     "usage": {
       "inputTokens": 5462,
-      "outputTokens": 2783,
+      "outputTokens": 2146,
       "cacheReadTokens": 2812,
       "cacheWriteTokens": 0
     },
     "status": "completed",
     "output": {
-      "overview": "This biennial declaration (statement date 2026-06-30, income period 2024-06-30 to 2026-06-30) covers the officer [[PERSON_1]] [[PERSON_3]], a Senior Procurement Officer at Kenya Medical Supplies Authority; no spouse or child is declared. It lists salary income, a vehicle and a land parcel, and declares liabilities nil. It is not a first declaration: a previous biennial declaration with statement date 2024-06-30 exists. No directorships or other registrable interests are declared.",
+      "overview": "This is a biennial declaration by [[PERSON_1]] [[PERSON_3]], a Senior Procurement Officer (Job Group M) at Kenya Medical Supplies Authority, with a statement date of 2026-06-30 and an income period from 2024-06-30 to 2026-06-30. It covers the officer only: no spouse or children are declared, although marital status is given as married. The officer declares salary income, a vehicle and a parcel of land, and declares liabilities as nil. It follows a previous declaration with statement date 2024-06-30.",
       "changesSincePrevious": [
         {
-          "text": "The Toyota Fielder's declared value went from KES 1,150,000 to KES 1,000,000, a change of -13%.",
-          "refs": [
-            {
-              "sectionKey": "statement:officer",
-              "personKey": "officer",
-              "itemId": "01a10c2c-1727-730e-9a68-69cd573e8ecc",
-              "fieldPath": "/statements/0/assets/0/value"
-            },
-            {
-              "sectionKey": "statement:officer",
-              "personKey": "officer",
-              "itemId": "2ba8284e-e679-7c7a-8c2b-aab3eb592a18",
-              "fieldPath": null
-            }
-          ]
-        },
-        {
-          "text": "The land parcel [[PARCEL_1]] (0.045 ha) went from KES 3,800,000 to KES 1,000,000, a change of -74%, and is not marked as changed.",
+          "text": "The land parcel [[PARCEL_1]] is valued at KES 1,000,000, against KES 3,800,000 previously (-74%), and is not marked as changed.",
           "refs": [
             {
               "sectionKey": "statement:officer",
               "personKey": "officer",
               "itemId": "01a10c2c-1754-7079-a1ae-686e9eaa2343",
               "fieldPath": "/statements/0/assets/1/value"
-            },
-            {
-              "sectionKey": "statement:officer",
-              "personKey": "officer",
-              "itemId": "1f3aa241-f576-7823-8e8e-d60a664938a4",
-              "fieldPath": null
             }
           ]
         },
         {
-          "text": "The comparison treats the salary of KES 6,240,000 as a newly acquired item and the previous salary item of KES 5,880,000 as disposed.",
+          "text": "The Toyota Fielder is valued at KES 1,000,000, against KES 1,150,000 previously (-13%).",
+          "refs": [
+            {
+              "sectionKey": "statement:officer",
+              "personKey": "officer",
+              "itemId": "01a10c2c-1727-730e-9a68-69cd573e8ecc",
+              "fieldPath": "/statements/0/assets/0/value"
+            }
+          ]
+        },
+        {
+          "text": "The comparison treats the salary as a new item (KES 6,240,000) and the previous salary entry (KES 5,880,000) as no longer declared.",
           "refs": [
             {
               "sectionKey": "statement:officer",
               "personKey": "officer",
               "itemId": "01a10c2c-1770-7071-94a0-d0ff007be57f",
               "fieldPath": "/statements/0/income/0/amount"
-            },
-            {
-              "sectionKey": "statement:officer",
-              "personKey": "officer",
-              "itemId": "6384e43c-02b1-7bdf-89b4-a7edc68afd75",
-              "fieldPath": null
             }
           ]
         },
         {
-          "text": "The development loan from [[PARTY_1]] (KES 640,000 outstanding previously) no longer appears, and liabilities are now declared nil.",
+          "text": "The development loan from [[PARTY_1]], previously outstanding at KES 640,000, is no longer declared, and liabilities are now declared nil.",
           "refs": [
-            {
-              "sectionKey": "statement:officer",
-              "personKey": "officer",
-              "itemId": "129ec40f-9393-7b1e-846e-fa953bfe6012",
-              "fieldPath": null
-            },
             {
               "sectionKey": "statement:officer",
               "personKey": "officer",
@@ -265,19 +241,13 @@
           ]
         },
         {
-          "text": "Marital status changed from single to married, while no marital status change is marked and no spouse is declared.",
+          "text": "Marital status changed from single to married, while the marital status change is marked as not changed and no spouse is declared.",
           "refs": [
             {
               "sectionKey": "bio",
               "personKey": "officer",
               "itemId": null,
               "fieldPath": "/officer/maritalStatus"
-            },
-            {
-              "sectionKey": "bio",
-              "personKey": "officer",
-              "itemId": null,
-              "fieldPath": "/officer/maritalStatusChange"
             },
             {
               "sectionKey": "household",
@@ -291,7 +261,7 @@
       "sections": [
         {
           "sectionKey": "statement:officer",
-          "text": "The officer declares salary and emoluments of KES 6,240,000 from Kenya Medical Supplies Authority, a 2016 Toyota Fielder valued at KES 1,000,000 and land parcel [[PARCEL_1]] valued at KES 1,000,000. Liabilities are declared nil.",
+          "text": "The officer declares salary and emoluments of KES 6,240,000 from Kenya Medical Supplies Authority, a 2016 Toyota Fielder valued at KES 1,000,000 and land parcel [[PARCEL_1]] (0.045 ha) valued at KES 1,000,000. Liabilities are declared nil.",
           "refs": [
             {
               "sectionKey": "statement:officer",
@@ -316,42 +286,32 @@
       ],
       "worthAttention": [
         {
-          "text": "BRS lists the officer as director/shareholder of company PVT-9XYZ2L4Q, which is not declared and is on the employer's supplier list.",
+          "text": "BRS lists the officer as director/shareholder of company PVT-9XYZ2L4Q, which is not declared and is on the supplier list of the officer's employer.",
           "flagIds": [
+            "01a10c2c-74ef-715b-b3dc-854c34998769",
             "01a10c2c-74ef-715b-b3dc-8a062e7f2823",
             "01a10c2c-74ef-715b-b3dc-8c14b25fd04e"
           ]
         },
         {
-          "text": "ArdhiSasa lists parcel [[PARCEL_2]] in the officer's name, which no declared land item carries.",
+          "text": "ArdhiSasa lists parcel [[PARCEL_2]] in the officer's name, which no declared land carries.",
           "flagIds": [
             "01a10c2c-74ef-715b-b3dc-91dfce739a81"
           ]
         },
         {
-          "text": "NTSA lists vehicle [[REGISTRATION_2]] in the officer's name, which no declared vehicle carries.",
-          "flagIds": [
-            "01a10c2c-74ef-715b-b3dc-854c34998769"
-          ]
-        },
-        {
-          "text": "The land value moved down 74% and the item is not marked as changed.",
+          "text": "The land value fell by 74% without being marked as changed.",
           "flagIds": [
             "01a10c2c-7458-75fa-ad2e-47ee25f9c771",
             "01a10c2c-7458-75fa-ad2e-486b98e618a5"
           ]
         },
         {
-          "text": "The salary appears as an unmarked new item and the previous salary as removed without a recorded ended source.",
+          "text": "Liabilities are declared nil after a loan was previously declared, and the previous salary entry has no recorded ending while the current one is not marked new.",
           "flagIds": [
-            "01a10c2c-7458-75fa-ad2e-4fb1e76a03b8",
-            "01a10c2c-7458-75fa-ad2e-50e4eee2f37c"
-          ]
-        },
-        {
-          "text": "Liabilities are declared nil although the previous declaration listed one liability.",
-          "flagIds": [
-            "01a10c2c-7458-75fa-ad2e-54554d648bd2"
+            "01a10c2c-7458-75fa-ad2e-54554d648bd2",
+            "01a10c2c-7458-75fa-ad2e-50e4eee2f37c",
+            "01a10c2c-7458-75fa-ad2e-4fb1e76a03b8"
           ]
         }
       ]
