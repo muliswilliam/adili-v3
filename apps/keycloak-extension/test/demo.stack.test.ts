@@ -177,6 +177,23 @@ describe('demo sign-in (#616)', () => {
     expect(context(await signInWith(ticket)).pageId).toBe('login.ftl');
   });
 
+  it("never ends another account's session with a used ticket", async () => {
+    const used = mintDemoTicket({ demoKey: 'auditor', secret: SECRET });
+    expect((await signInWith(used)).location).toMatch(/code=/);
+
+    const browser = new Browser(KEYCLOAK);
+    const first = await signInWith(
+      mintDemoTicket({ demoKey: 'helpdesk', secret: SECRET }),
+      browser,
+    );
+    const signedIn = await exchangeTokens(first.location);
+
+    // The replay is refused and the SSO cookie signs in the browser's account as before.
+    const replay = await signInWith(used, browser);
+    expect((await exchange(replay.location)).preferred_username).toBe('helpdesk');
+    expect(await refreshStatus(signedIn.refresh_token)).toBe(200);
+  });
+
   it('falls through to the password form for a ticket signed with another secret', async () => {
     const page = await signInWith(mintDemoTicket({ demoKey: 'auditor', secret: 'not-the-secret' }));
 

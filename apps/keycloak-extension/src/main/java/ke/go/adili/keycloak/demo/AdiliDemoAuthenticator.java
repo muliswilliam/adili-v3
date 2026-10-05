@@ -95,11 +95,18 @@ public final class AdiliDemoAuthenticator implements Authenticator {
             context.attempted();
             return;
         }
+        // One ticket, one sign-in: a replay of the same authorize request must not reuse it.
+        String used = "adili-demo-ticket." + valid.nonce();
+        if (session.singleUseObjects().contains(used)) {
+            LOG.warnf("demo ticket refused: reused (key %s)", valid.demoKey());
+            context.attempted();
+            return;
+        }
         // A switch: the browser's SSO session belongs to someone else. End it and send the browser
         // back to this same authorize request, which then signs the ticket's account in on a
         // fresh session: the new account never inherits the previous one's session, and the
         // other app's session for it lapses at its next token refresh. The ticket is used below,
-        // on that second request.
+        // on that second request; a used one (checked above) never ends anyone's session.
         AuthenticationManager.AuthResult signedIn =
                 AuthenticationManager.authenticateIdentityCookie(session, context.getRealm(), true);
         if (signedIn != null && !signedIn.user().getId().equals(user.getId())) {
@@ -121,9 +128,9 @@ public final class AdiliDemoAuthenticator implements Authenticator {
             context.forceChallenge(Response.seeOther(again).build());
             return;
         }
-        // One ticket, one sign-in: a replay of the same authorize request must not reuse it.
+        // Checked again as it is used: two requests with the same ticket at once sign in once.
         long ttl = Math.max(1, valid.expiresAt().getEpochSecond() - now.getEpochSecond() + 60);
-        if (!session.singleUseObjects().putIfAbsent("adili-demo-ticket." + valid.nonce(), ttl)) {
+        if (!session.singleUseObjects().putIfAbsent(used, ttl)) {
             LOG.warnf("demo ticket refused: reused (key %s)", valid.demoKey());
             context.attempted();
             return;
