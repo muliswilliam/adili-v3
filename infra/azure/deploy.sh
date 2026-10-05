@@ -80,6 +80,10 @@ pnpm db:migrate
 if [ -f mocks/uv.lock ]; then
   (cd mocks && uv sync --locked)
 fi
+# Portal, console and verify run from their production builds (run-apps.sh, #371). They read
+# their .env at start, so configure-app-env.sh changes need a restart, not a rebuild.
+pnpm exec turbo run build --filter=@adili/portal --filter=@adili/console --filter=@adili/verify \
+  --output-logs=errors-only
 
 sudo -n "$ROOT_HELPER" restart-apps
 

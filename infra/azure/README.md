@@ -6,10 +6,10 @@ This is **not** the production architecture. The platform design is:
 |---|---|---|
 | Local | laptop | `pnpm infra:up` (Compose) |
 | Hackathon demo | 3-node Dokploy / Swarm + Traefik | per-app container images (ADR-012) |
-| Hackathon stand-in | Azure VM, South Africa North | Compose for infra; `pnpm dev` for apps (ADR-016) |
+| Hackathon stand-in | Azure VM, South Africa North | Compose for infra; `pnpm dev` for services and mocks, production builds for the apps (ADR-016) |
 | EACC production | Kenyan DCs (Konza / Nairobi), RKE2, Ceph | Helm, not Azure |
 
-Azure is a **credit-funded stand-in for the Dokploy demo host** ([ADR-016](../../docs/adr/0016-azure-vm-demo-stand-in.md)). It runs the same Compose file and the same Keycloak image (`adili/keycloak:dev`, realm `adili`, OTP extension, theme). Apps on this VM are `pnpm dev`, not the CI-built images. Do not replace Keycloak with Microsoft Entra ID.
+Azure is a **credit-funded stand-in for the Dokploy demo host** ([ADR-016](../../docs/adr/0016-azure-vm-demo-stand-in.md)). It runs the same Compose file and the same Keycloak image (`adili/keycloak:dev`, realm `adili`, OTP extension, theme). Services and mocks on this VM run as `pnpm dev`; portal, console and verify run from their production builds (`deploy.sh` builds them, `run-apps.sh` starts them, #371), but not as the CI-built images. Do not replace Keycloak with Microsoft Entra ID.
 
 ## What is Terraform vs what is not
 
@@ -95,13 +95,15 @@ Caddy terminates TLS with Let's Encrypt. Set `letsencrypt_email` in `terraform.t
 `.github/workflows/azure-demo.yml` deploys when the CI workflow succeeds on `main` (`workflow_run`) and on `workflow_dispatch`:
 
 1. rsync the checkout to `/opt/adili` (keeps `.env`, `node_modules`, `.venv`)
-2. `/opt/adili/infra/azure/deploy.sh` as `adili` - Compose `up`, Caddy reload, `pnpm bootstrap`, migrate, restart `adili-apps`, install the nightly backup cron
+2. `/opt/adili/infra/azure/deploy.sh` as `adili` - Compose `up`, Caddy reload, `pnpm bootstrap`, migrate, build portal, console and verify, restart `adili-apps`, install the nightly backup cron
 3. curl the HTTPS portal, console and Keycloak issuer until they return 200
 4. check the security headers on portal, console and verify
 
 It does **not** re-seed, re-issue certificates, or `terraform apply`. The SSH host key is pinned in `infra/azure/known_hosts`.
 
-Portal, console and verify send a content security policy (including `frame-ancestors 'none'`), `X-Frame-Options: DENY`, and HSTS when the request is https. Check the hosted demo:
+`adili-apps` runs `infra/azure/run-apps.sh`: `turbo dev` for the services and mocks (as locally) and `turbo start` for portal, console and verify, which serves each app's production build (`apps/<app>/.output/server/index.mjs`) on the `PORT` in its `.env`. Vite's dev server sends the browser hundreds of unbundled modules, which over the network held up hydration (the demo switcher, the theme) by seconds. The apps read their `.env` when they start, so after `configure-app-env.sh` a restart is enough; a code change needs `deploy.sh` (or a `turbo run build` of the app). A missing build is built when the unit starts.
+
+Portal, console and verify send a content security policy (including `frame-ancestors 'none'`), `X-Frame-Options: DENY`, and HSTS when the request is https. Portal and console pages upload files straight to presigned URLs on the object store, so their `connect-src` allows its public origin: `S3_PUBLIC_ENDPOINT` in their `.env`, which `configure-app-env.sh` sets to the same `https://<host>:8333` as the documents service's (#676). Check the hosted demo:
 
 ```sh
 ./infra/azure/check-security-headers.sh https://adili-demo.southafricanorth.cloudapp.azure.com
