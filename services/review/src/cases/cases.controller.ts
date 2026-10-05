@@ -12,7 +12,9 @@ import {
   ApiProblemResponse,
   AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   type Principal,
+  type ReadAudit,
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
@@ -69,7 +71,7 @@ export class CasesController {
     operationId: 'getReviewCase',
     summary:
       'Case with flags, clarifications, notes, timeline and the declaration pulled on demand',
-    description: `${STAFF} Every call reads the declaration from the declarations service, which audits it with the viewer and the case, and records review.case.viewed.v1.`,
+    description: `${STAFF} Every call reads the declaration from the declarations service, which audits it with the viewer and the case, and records review.case.viewed.v1; its audit.read.v1 names the declarant (the person the data is about) and the case as its legal basis (\`review-case\`).`,
   })
   @ApiOkResponse({ description: 'Case detail', schema: schemaRef('CaseDetail') })
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -80,8 +82,9 @@ export class CasesController {
   detail(
     @CurrentPrincipal() principal: Principal,
     @Param('caseId') caseId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<CaseDetail> {
-    return this.view.detail(principal, caseId);
+    return this.view.detail(principal, caseId, audit);
   }
 
   @Get('attachments/:uploadId/download')
@@ -111,8 +114,9 @@ export class CasesController {
     @CurrentPrincipal() principal: Principal,
     @Param('caseId') caseId: string,
     @Param('uploadId') uploadId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<AttachmentDownload> {
-    return this.view.attachmentDownload(principal, caseId, uploadId);
+    return this.view.attachmentDownload(principal, caseId, uploadId, audit);
   }
 
   @Post('claim')

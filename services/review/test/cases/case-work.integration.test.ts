@@ -408,10 +408,17 @@ describe('review case: assignment, detail, notes and flags', () => {
       ]);
       const audited = await eventsOf('audit.read.v1');
       expect(audited).toHaveLength(2);
+      // #687: a case view reads the declarant's personal data, so it names them and why.
       expect(audited[0]?.data).toMatchObject({
         action: 'review.case.viewed',
-        resource: { type: 'review-case', params: { caseId } },
+        resource: {
+          type: 'review-case',
+          params: { caseId },
+          tenant: 'psc',
+          subjectPersonId: version.personId,
+        },
         actor: { subject: 'reviewer-a' },
+        legalBasis: { basis: 'review-case', reference: caseId },
       });
 
       // No declaration content anywhere in the review database.
