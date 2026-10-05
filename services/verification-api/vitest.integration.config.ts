@@ -15,6 +15,10 @@ export default defineConfig({
     env: {
       ...parseEnv(readFileSync('.env.example', 'utf8')),
       LOG_LEVEL: 'fatal',
+      // The broker the readiness check connects to at startup: CI's runs on 5672. Left at
+      // .env.example's 55672, where nothing listens in CI, a connect can reach itself (the port is
+      // in Linux's ephemeral range) and stall the app's start (see RABBITMQ_CONNECT_TIMEOUT_MS).
+      ...(process.env.TEST_RABBITMQ_URL && { RABBITMQ_URL: process.env.TEST_RABBITMQ_URL }),
       TEST_DATABASE_URL:
         process.env.TEST_DATABASE_URL ??
         'postgres://adili_test:adili_test_dev@localhost:55432/adili_test',
