@@ -158,3 +158,43 @@ def test_synthetic_officers_refuse_a_bad_request(client: Client) -> None:
         "/demo/synthetic-officers", {"seed": "x"}, content_type="application/json"
     )
     assert response.status_code == 400
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("commission", COMMISSIONS)
+def test_the_served_roster_file_names_officers_as_iprs_does(
+    client: Client, commission: str
+) -> None:
+    # #679: beat A imported a roster file from a stale checkout and renamed PSC/2012/0311 back to
+    # a name IPRS no longer holds, so beat B's identity check failed. The stack serves the file.
+    seed_demo()
+    response = client.get(f"/demo/files/{commission}-roster.csv")
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "text/csv"
+    assert f'filename="{commission}-roster.csv"' in response["Content-Disposition"]
+    served = response.getvalue().decode("utf-8")
+    assert served == roster_csv(commission)
+    names = {
+        (row["personnel_file_number"], row["national_id"]): row["full_name"]
+        for row in csv.DictReader(io.StringIO(served))
+    }
+    for officer in load_roster_rows(commission):
+        person = Person.objects.get(id_number=officer.national_id)
+        iprs_name = " ".join(
+            part for part in (person.first_name, person.middle_name, person.last_name) if part
+        )
+        key = (officer.personnel_file_number, officer.national_id)
+        assert names[key] == iprs_name, officer.personnel_file_number
+
+
+def test_the_served_files_include_the_filing_samples(client: Client) -> None:
+    response = client.get("/demo/files/payslip-kemsa-june-2026.pdf")
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "application/pdf"
+
+
+@pytest.mark.parametrize("name", ["nope.csv", "..", ".gitkeep", "README.md"])
+def test_only_demo_files_are_served(client: Client, name: str) -> None:
+    assert client.get(f"/demo/files/{name}").status_code == 404

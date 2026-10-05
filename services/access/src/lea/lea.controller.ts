@@ -31,7 +31,6 @@ import {
   type RosterCandidatesQuery,
   rosterCandidatesQuery,
 } from '../requests/officer-representation.js';
-import { type WrittenNoticeBody, writtenNoticeBody } from '../written-notice.js';
 import { LeaService } from './lea.service.js';
 import {
   type LeaRequest,
@@ -64,7 +63,7 @@ export class LeaController {
     summary:
       'Law enforcement officer submits a written request (no Form K); allocates the LEA reference',
     description:
-      "From a provisioned, active officer account (role `law-enforcement`, tenant `lea`, the token's `person_id` an officer of an agency in the directory). The request is `received` (`lea.request.received.v1`) with its fourteen-day deadline; the declarant is not told (only after a grant, r.23(2)).",
+      "From a provisioned, active officer account (role `law-enforcement`, tenant `lea`, the token's `person_id` an officer of an agency in the directory). The request is `received` (`lea.request.received.v1`) with its fourteen-day deadline; the declarant is never told (product decision, 2026-10-05; #614).",
   })
   @ApiBody({ required: true, schema: schemaRef('LeaRequestInput') })
   @ApiCreatedResponse({ description: 'Received', schema: schemaRef('LeaRequest') })
@@ -159,7 +158,7 @@ export class LeaController {
     summary:
       "Search the Commission's roster for the officer a law enforcement request names (audited)",
     description:
-      'As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying: its declarant is told after a grant.',
+      'As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying.',
   })
   @ApiQueryParameters(rosterCandidatesQuery)
   @ApiOkResponse({ description: 'Records', schema: schemaRef('RosterCandidates') })
@@ -209,38 +208,6 @@ export class LeaController {
     return this.lea.verify(principal, requestId, body);
   }
 
-  @Post(':leaRequestId/written-notice')
-  @HttpCode(HttpStatus.OK)
-  @Roles(...OFFICER_ROUTE_ROLES)
-  @AcceptIdempotencyKey()
-  @ApiTags('officer')
-  @ApiParam(LEA_REQUEST_ID)
-  @ApiOperation({
-    operationId: 'recordLeaWrittenNotice',
-    summary: 'Record the written notice of a grant served on a declarant with no account',
-    description:
-      'r.23(2), spec 10 decision 2: the officer identified has no declarant account, so the access officer tells them of the grant in writing and records the day it was served (not in the future, not before the grant). The request records the declarant told (`declarantNotice.channel` `written`; `lea.request.notified.v1`). They were invited to onboard; once they do, the notice shows in their account.',
-  })
-  @ApiBody({ required: true, schema: schemaRef('WrittenNotice') })
-  @ApiOkResponse({ description: 'Recorded', schema: schemaRef('LeaRequest') })
-  @ApiProblemResponse(
-    400,
-    'leaRequestId is not a UUID, or the body failed validation: `notifiedOn` in the future or before the grant',
-  )
-  @ApiProblemResponse(403, 'The Commission supervisor reads requests; only its access officer acts')
-  @ApiProblemResponse(404, NOT_VISIBLE)
-  @ApiProblemResponse(
-    409,
-    'Problem code `declarant-notified` (told already), `not-under-decision` (not granted yet) or `request-closed`; or the request was denied, or the declarant has an account (told online)',
-  )
-  recordWrittenNotice(
-    @CurrentPrincipal() principal: Principal,
-    @Param('leaRequestId', new ZodValidationPipe(z.uuid())) requestId: string,
-    @Body(new ZodValidationPipe(writtenNoticeBody)) body: WrittenNoticeBody,
-  ): Promise<LeaRequest> {
-    return this.lea.recordWrittenNotice(principal, requestId, body);
-  }
-
   @Post(':leaRequestId/decision')
   @HttpCode(HttpStatus.OK)
   @Roles(...OFFICER_ROUTE_ROLES)
@@ -251,7 +218,7 @@ export class LeaController {
     operationId: 'decideLeaRequest',
     summary: 'Grant (package, declarant notified after) or deny with reasons (final)',
     description:
-      "As for Form K: a grant is of the requested scope and cites no grounds; a partial grant narrows it and cites Regulation 24 grounds; a denial cites grounds. A grant or partial grant needs the request `verified`; a denial may be decided before. The request becomes `granted` (in full or in part: see `decision.outcome`) or `denied` (`lea.request.decided.v1`). The agency's officer is told next; after a grant the declarant is told (r.23(2)) and the officer's package (`act-s36-2`) follows.",
+      "As for Form K: a grant is of the requested scope and cites no grounds; a partial grant narrows it and cites Regulation 24 grounds; a denial cites grounds. A grant or partial grant needs the request `verified`; a denial may be decided before. The request becomes `granted` (in full or in part: see `decision.outcome`) or `denied` (`lea.request.decided.v1`). The agency's officer is told next; after a grant the officer's package (`act-s36-2`) follows. The declarant is never told (product decision, 2026-10-05; #614).",
   })
   @ApiBody({ required: true, schema: schemaRef('DecisionInput') })
   @ApiOkResponse({

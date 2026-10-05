@@ -4,6 +4,7 @@ import {
   ToastProvider,
   TooltipProvider,
   type ThemePreference,
+  ZOD_JITLESS_SCRIPT,
 } from '@adili/ui';
 import { HeadContent, Scripts, ScriptOnce } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
@@ -23,6 +24,8 @@ export function RootDocument({
          * Server-rendered with the request's CSP nonce, without which the browser blocks it.
          */}
         <ScriptOnce>{THEME_SCRIPT}</ScriptOnce>
+        {/* Before the app's modules: Zod must not compile code under the CSP (#686). */}
+        <ScriptOnce>{ZOD_JITLESS_SCRIPT}</ScriptOnce>
         <HeadContent />
       </head>
       <body>

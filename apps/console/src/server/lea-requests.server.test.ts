@@ -116,12 +116,11 @@ describe("the access officer's law enforcement request (S11)", () => {
     );
     if (!granted.ok) throw new Error(JSON.stringify(granted.error));
     expect(granted.data).toMatchObject({ status: 'granted', package: null });
-    expect(granted.data.declarantNotifiedAt).not.toBeNull();
+    // The declarant is never told (#614): no `notified` step.
     expect(granted.data.timeline.map((entry) => entry.kind)).toEqual([
       'received',
       'verified',
       'decided',
-      'notified',
     ]);
   });
 
@@ -143,7 +142,8 @@ describe("the access officer's law enforcement request (S11)", () => {
       key(),
     );
     if (!denied.ok) throw new Error(JSON.stringify(denied.error));
-    expect(denied.data).toMatchObject({ status: 'denied', declarantNotifiedAt: null });
+    expect(denied.data).toMatchObject({ status: 'denied' });
+    expect(denied.data.timeline.map((entry) => entry.kind)).not.toContain('notified');
   });
 
   it('lets the supervisor read but not act', async () => {

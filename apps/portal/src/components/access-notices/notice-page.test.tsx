@@ -311,49 +311,4 @@ describe('after the window and the decision', () => {
     // The response card and the history.
     expect(screen.getAllByText('You added context')).toHaveLength(2);
   });
-
-  it('shows a law-enforcement grant without a form', async () => {
-    renderPage(await seededNotice(IDS.lea));
-    expect(screen.getByRole('heading', { level: 1, name: 'Law-enforcement access' })).toBeTruthy();
-    expect(banner()).toMatch(
-      /^A law-enforcement agency was granted access on 6 Sep 2026 \(Asset Recovery Agency, case ARA\/INV\/2026\/014\)\./,
-    );
-    expect(screen.getAllByText('ARA/INV/2026/014', { selector: 'span' })).not.toHaveLength(0);
-    expect(screen.queryByRole('radiogroup')).toBeNull();
-    expect(screen.queryByText('Your response')).toBeNull();
-  });
-
-  it('shows only the agency, case reference, outcome, dates and scope granted of a law-enforcement grant', async () => {
-    renderPage(await seededNotice(IDS.leaPartial));
-    const facts = Object.fromEntries(
-      screen
-        .getAllByRole('term')
-        .map((term) => [term.textContent, term.nextElementSibling?.textContent]),
-    );
-    expect(facts).toEqual({
-      Agency: 'Directorate of Criminal Investigations',
-      'Case reference': 'DCI/ECU/2026/0331',
-      Commission: 'Teachers Service Commission',
-      Outcome: 'Partially granted',
-      'Granted on': '15 May 2026',
-      'Notified on': '15 May 2026',
-      // The scope granted, what was disclosed: one year, the declarant only, assets.
-      'Declaration year': '2025',
-      People: 'YouSpouse (not disclosed)Children (not disclosed)',
-      Sections: 'Assets',
-    });
-    expect(screen.getByText('Scope granted (what was disclosed)')).toBeTruthy();
-    expect(banner()).toMatch(/^A law-enforcement agency was partially granted access on /);
-    for (const hidden of [
-      /scope asked/i,
-      /purpose/i,
-      /reasons/i,
-      /grounds/i,
-      /decision/i,
-      /window/i,
-    ]) {
-      expect(screen.queryByText(hidden)).toBeNull();
-    }
-    expect(screen.getByText('You were notified')).toBeTruthy();
-  });
 });

@@ -29,9 +29,7 @@ export async function seededNotice(id: string): Promise<DeclarantNotice> {
   return found;
 }
 
-/** A seeded Form K notice (not a law-enforcement grant). */
+/** A seeded Form K notice. */
 export async function seededFormKNotice(id: string): Promise<FormKDeclarantNotice> {
-  const found = await seededNotice(id);
-  if (found.kind !== 'form-k') throw new Error(`Seeded notice ${id} is not a Form K request`);
-  return found;
+  return seededNotice(id);
 }

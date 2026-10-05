@@ -507,6 +507,7 @@ export {
   type ThemePreference,
 } from './lib/theme';
 export { Skeleton } from './components/skeleton';
+export { ZOD_JITLESS_SCRIPT } from './lib/zod-jitless';
 export {
   describeSource,
   type ItemSourceDetails,

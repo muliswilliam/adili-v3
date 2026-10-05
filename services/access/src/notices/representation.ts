@@ -2,7 +2,6 @@ import type { FormKV1 } from '@adili/forms';
 import { z } from 'zod';
 
 import { publicDecision, publicDecisionSchema } from '../decision.js';
-import type { LeaRequestRow } from '../lea/representation.js';
 import {
   representationsSchema,
   type RepresentationsRow,
@@ -93,40 +92,11 @@ export const formKDeclarantNoticeSchema = z.object({
 export type FormKDeclarantNotice = z.infer<typeof formKDeclarantNoticeSchema>;
 
 /**
- * access.yaml `LeaDeclarantNotice`: a law enforcement request about the declarant, once granted and
- * they are told (r.23(2)). The agency, its case reference, the outcome, the scope granted (what was
- * disclosed) and the dates: never the agency's stated reason, nor the decision's reasons or
- * grounds, whose telling could prejudice the investigation (Reg 24(b)). It takes no
- * representations.
+ * access.yaml `DeclarantNotice`: a request about the declarant they are told of, by `kind`. Only
+ * Form K requests: a law enforcement request is never the declarant's to see (product decision,
+ * 2026-10-05; #614).
  */
-export const leaDeclarantNoticeSchema = z.object({
-  requestId: z.uuid(),
-  reference: z.string(),
-  kind: z.literal('lea'),
-  commission: commissionRefSchema,
-  status: z.literal('granted'),
-  agency: z.object({ code: z.string(), name: z.string() }),
-  caseReference: z.string().meta({ description: "The agency's case reference" }),
-  outcome: z.enum(['grant', 'partial-grant']).meta({
-    description: 'Granted in full or in part',
-  }),
-  grantedScope: scopeSchema.meta({
-    description:
-      'What the grant disclosed: the years, whether the spouses and the children are included, and the sections',
-  }),
-  decidedAt: z.iso.datetime({ offset: true }),
-  /** When the declarant was told of the grant. */
-  notifiedAt: z.iso.datetime({ offset: true }),
-  noticeChannel: noticeChannelSchema,
-});
-
-export type LeaDeclarantNotice = z.infer<typeof leaDeclarantNoticeSchema>;
-
-/** access.yaml `DeclarantNotice`: a Form K or a law enforcement request, by `kind`. */
-export const declarantNoticeSchema = z.discriminatedUnion('kind', [
-  formKDeclarantNoticeSchema,
-  leaDeclarantNoticeSchema,
-]);
+export const declarantNoticeSchema = z.discriminatedUnion('kind', [formKDeclarantNoticeSchema]);
 
 export type DeclarantNotice = z.infer<typeof declarantNoticeSchema>;
 
@@ -162,29 +132,5 @@ export function toDeclarantNotice(
     representations:
       representationsRow === null ? null : toRepresentations(representationsRow, 'declarant'),
     decision: publicDecision(row.decision),
-  };
-}
-
-/** A granted law enforcement request the declarant has been told of (r.23(2)). */
-export function toLeaDeclarantNotice(row: LeaRequestRow): LeaDeclarantNotice {
-  const { declarantNotifiedAt, decision } = row;
-  if (declarantNotifiedAt === null) throw new Error(`Request ${row.id} is not notified`);
-  if (decision === null || decision.outcome === 'deny') {
-    throw new Error(`Request ${row.id} is not granted`);
-  }
-  return {
-    requestId: row.id,
-    reference: row.reference,
-    kind: 'lea',
-    commission: { slug: row.tenant, name: row.commissionName },
-    status: 'granted',
-    agency: { code: row.agencyCode, name: row.agencyName },
-    caseReference: row.caseReference,
-    outcome: decision.outcome,
-    // A grant is of the requested scope (`decisionOf` stores it); a partial grant narrows it.
-    grantedScope: decision.grantedScope ?? row.scope,
-    decidedAt: decision.decidedAt,
-    notifiedAt: declarantNotifiedAt.toISOString(),
-    noticeChannel: row.writtenNotice === null ? 'online' : 'written',
   };
 }

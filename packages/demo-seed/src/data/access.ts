@@ -96,7 +96,10 @@ export const PSC_FORM_K: readonly FormKPlan[] = [
   },
 ];
 
-/** The law enforcement request: DCI asks for Kiprono's declaration in a tax investigation. */
+/**
+ * The law enforcement request: DCI asks for Kiprono's declaration in a tax investigation. Kiprono
+ * never sees it (product decision, 2026-10-05; #614).
+ */
 export const LEA_REQUEST = {
   marker: 'DCI/ECU/2026/0417',
   commission: 'psc',

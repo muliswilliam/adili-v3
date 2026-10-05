@@ -18,17 +18,14 @@ import {
 } from '@adili/ui';
 import {
   Alert02Icon,
-  File01Icon,
   InformationCircleIcon,
   JusticeScale01Icon,
-  Notification03Icon,
   Undo02Icon,
   ViewOffSlashIcon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 
 import type { LeaRequest } from '../../../server/access/types';
-import { recordLeaNotice } from '../../../server/lea-requests';
 import { ReadOnlyBadge } from '../../commissions/badges';
 import { Page } from '../../page';
 import { usePollWhile } from '../../use-poll-while';
@@ -38,9 +35,7 @@ import { StatusBadge } from '../queue-list';
 import { Muted, OutcomeLine, SideCard, WaitingCard } from '../side-cards';
 import { DecidedCard } from '../decision/decided-card';
 import { PackageCard, usePackageState } from '../decision/package-card';
-import { formatDay, nairobiDay } from '../request-view';
-import { WrittenNoticeCard } from '../written-notice-card';
-import { awaitingLeaNotice, isBreached, isOpenLea, leaStep, leaTimelineOf } from './lea-view';
+import { isBreached, isOpenLea, leaStep, leaTimelineOf } from './lea-view';
 import { messages as m } from './messages';
 import { LeaVerifyCard } from './verify-card';
 
@@ -52,8 +47,8 @@ const PACKAGE_POLLS = 30;
  * A law enforcement request as its Commission's access officer works it and its supervisor reads
  * it (spec 10 FE-6, S11): the written request (no Form K) and the access register on the left;
  * on the right the step it is at (verify, then decide), the decision and its package, and the
- * verification. A line on top says who has been told: the declarant only after a grant
- * (r.23(2)).
+ * verification. A line on top says who has been told: never the declarant (product decision,
+ * 2026-10-05; #614).
  */
 export function LeaRequestDetail({
   request,
@@ -135,24 +130,6 @@ export function LeaRequestDetail({
           {step.kind === 'waiting' ? <WaitingCard text={step.text} /> : null}
           {step.kind === 'decide' ? <DecideCard request={request} readOnly={readOnly} /> : null}
           {step.kind === 'withdrawn' ? <WithdrawnCard request={request} /> : null}
-          {awaitingLeaNotice(request) && request.decision ? (
-            readOnly ? (
-              <WaitingCard text={m.waitingNotice} />
-            ) : (
-              <WrittenNoticeCard
-                intro={m.noticeIntro(request.resolvedName ?? m.officerIdentified)}
-                invitedAt={request.declarantInvitedAt}
-                earliest={nairobiDay(request.decision.decidedAt)}
-                earliestMessage={m.noticeDayEarly}
-                hint={m.noticeDayHint}
-                now={now}
-                success={m.noticeRecorded}
-                record={(notifiedOn, idempotencyKey) =>
-                  recordLeaNotice({ data: { requestId: request.id, notifiedOn, idempotencyKey } })
-                }
-              />
-            )
-          ) : null}
           {request.decision ? <DecidedCard decision={request.decision} /> : null}
           {pkg ? (
             <PackageCard
@@ -168,31 +145,11 @@ export function LeaRequestDetail({
   );
 }
 
-/** Who knows of the request: the declarant only after a grant; the agency always hears. */
+/**
+ * Who knows of the request: the agency hears of the decision; the declarant never hears of a law
+ * enforcement request (product decision, 2026-10-05; #614).
+ */
 function WhoIsTold({ request }: { request: LeaRequest }) {
-  if (request.status === 'granted' && awaitingLeaNotice(request)) {
-    return (
-      <Alert variant="warning" role="status" className="mb-4">
-        <Icon icon={File01Icon} />
-        <AlertDescription>{m.declarantNoAccount}</AlertDescription>
-      </Alert>
-    );
-  }
-  if (request.status === 'granted') {
-    const notice = request.declarantNotice;
-    return (
-      <Alert variant="success" role="status" className="mb-4">
-        <Icon icon={Notification03Icon} />
-        <AlertDescription>
-          {notice?.channel === 'written' && notice.notifiedOn
-            ? m.declarantNotifiedInWriting(formatDay(notice.notifiedOn))
-            : request.declarantNotifiedAt
-              ? m.declarantNotified(formatDate(request.declarantNotifiedAt))
-              : m.declarantBeingNotified}
-        </AlertDescription>
-      </Alert>
-    );
-  }
   return (
     <Alert role="status" className="mb-4">
       <Icon icon={ViewOffSlashIcon} />
@@ -201,7 +158,7 @@ function WhoIsTold({ request }: { request: LeaRequest }) {
           ? m.notToldDenied(request.agency.code)
           : request.status === 'withdrawn'
             ? m.notToldWithdrawn
-            : m.toldAfterGrant}
+            : m.neverTold}
       </AlertDescription>
     </Alert>
   );

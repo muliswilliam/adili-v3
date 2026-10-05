@@ -6,7 +6,6 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { invariantBroken, requireTransactionEnded } from '../activity-failures.js';
 import { Clock, nairobiDate } from '../clock.js';
 import type { AccessDatabase } from '../db/database.js';
-import { declarantAccount } from '../declarant-account.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
@@ -15,7 +14,7 @@ import { recordPackageExpired, recordPackageIssued } from '../grant-records.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { AccessRegister } from '../register/access-register.js';
 import { ReviewClient } from '../review/review-client.js';
-import { declarantNoticesUrl, leaRequestUrl, officerLeaRequestUrl } from '../requests/links.js';
+import { leaRequestUrl, officerLeaRequestUrl } from '../requests/links.js';
 import { CHANNELS, messageKey, send } from '../requests/workflow-support.js';
 import { systemContext } from '../system-context.js';
 import type {
@@ -217,74 +216,15 @@ export class LeaRequestActivities {
   }
 
   /**
-   * After a grant, and only then (r.23(2)): the declarant is told a law enforcement agency was
-   * granted access, by email and SMS; the request records when, with the `notified` register
-   * entry and its event, once. The case and the reason wait behind sign-in.
-   *
-   * A declarant with no account (spec 10 decision 2): linked first if the directory says they
-   * have onboarded since; otherwise invited to onboard (once), and `awaiting-notice` until they
-   * do or the access officer records the written notice (then `notified`).
+   * Kept only so runs started before 2026-10-05 replay: a law enforcement request is not the
+   * declarant's to see (product decision, #614), so its grant is told to nobody. Answers
+   * `notified`, which lets such a run go on to the package; runs started since never call it.
    */
   async notifyDeclarantOfLeaGrant({
     tenant,
     requestId,
   }: LeaRequestWorkflowInput): Promise<LeaDeclarantNoticeOutcome> {
-    let found = await loadLea(this.db, tenant, requestId);
-    if (!found) return 'missing';
-    if (decidedStatusOf(found) !== 'granted' || found.resolvedRosterRecordId === null) {
-      throw invariantBroken('The request has no grant to tell the declarant of');
-    }
-    // Told in writing already.
-    if (found.writtenNotice !== null) return 'notified';
-    if (found.resolvedPersonId === null) {
-      const account = await declarantAccount(this.db, this.directory, this.logger, 'lea', found);
-      if (account === 'none') return 'awaiting-notice';
-      found = await loadLea(this.db, tenant, requestId);
-      if (!found) return 'missing';
-    }
-    const { decision, resolvedPersonId } = found;
-    if (decision === null || resolvedPersonId === null) {
-      throw invariantBroken('The request has no grant to tell the declarant of');
-    }
-    const notified = await withTenant(this.db, systemContext(tenant), async (tx) => {
-      const now = this.clock.now();
-      const [updated] = await tx
-        .update(leaRequests)
-        .set({ declarantNotifiedAt: now })
-        .where(and(eq(leaRequests.id, requestId), isNull(leaRequests.declarantNotifiedAt)))
-        .returning();
-      if (!updated) return found;
-      await this.register.record(tx, {
-        tenant,
-        subjectKind: 'lea-request',
-        subjectId: requestId,
-        reference: updated.reference,
-        personId: resolvedPersonId,
-        kind: 'notified',
-        actor: null,
-        at: now,
-        details: { channel: 'online' },
-        eventData: { channel: 'online', notifiedOn: null },
-      });
-      return updated;
-    });
-    for (const channel of CHANNELS) {
-      await send(this.notifications, this.logger, notified, {
-        channel,
-        recipient: { kind: 'person', personId: resolvedPersonId },
-        template: `lea-grant-notice-${channel}`,
-        params: {
-          reference: notified.reference,
-          commissionName: notified.commissionName,
-          agencyName: notified.agencyName,
-          grantedOn: nairobiDate(new Date(decision.decidedAt)),
-          signInUrl: declarantNoticesUrl(),
-        },
-        tenant,
-        idempotencyKey: messageKey(requestId, `lea-grant-notice:${channel}`),
-      });
-    }
-    return 'notified';
+    return (await loadLea(this.db, tenant, requestId)) ? 'notified' : 'missing';
   }
 
   /**

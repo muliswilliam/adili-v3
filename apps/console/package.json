@@ -9,6 +9,7 @@
     "dev": "pnpm generate:api && node --env-file-if-exists=.env node_modules/vite/bin/vite.js dev",
     "build": "pnpm generate:api && vite build",
     "start": "node --env-file-if-exists=.env .output/server/index.mjs",
+    "smoke:csp": "node ../../scripts/smoke-csp.mjs",
     "lint": "eslint .",
     "typecheck": "pnpm generate:api && tsc --noEmit",
     "test": "vitest run"

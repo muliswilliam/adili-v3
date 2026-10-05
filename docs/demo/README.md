@@ -72,7 +72,7 @@ Live: A to E, Wanjiku's case end to end, in the 5-minute demo. Seeded: F to I, s
 ### A. Roster import (console, Grace Mutiso)
 
 1. Act as **Grace Mutiso**. Open **Declarant roster** (`/roster`), then **Import** (`/roster/import`).
-2. Upload `mocks/demo/rosters/psc-roster.csv`. The import report shows the planted bad rows (spec 02); the rows the roster already holds are unchanged.
+2. Upload `psc-roster.csv`, downloaded from **Demo panel**, **Demo files**: the stack serves it, generated from the fixtures it was seeded from. The import report shows the planted bad rows (spec 02); the rows the roster already holds are unchanged (5 unchanged, 0 updated). Not a copy from a local checkout: one older than the stack renames officers back, and beat B then fails the identity check (#679). Any row updated means the file was not the stack's: `pnpm demo:seed` (workflow: `seed`) puts the roster back.
 3. Point out **Coverage** (`/roster/coverage`) and **API access** (`/roster/api-access`): HR systems push the same roster by API.
 
 ### B. Onboarding with SMS OTP (portal, a new officer)
@@ -84,7 +84,7 @@ Live: A to E, Wanjiku's case end to end, in the 5-minute demo. Seeded: F to I, s
 
 ### C. Filing with AI pre-fill and Ask Adili (portal, Wanjiku)
 
-Sample files: `mocks/demo/files/` (`payslip-kemsa-june-2026.pdf`, `logbook-fielder-kcx-214j.jpg`, `title-deed-kiambu-ruiru.pdf`). Have them on the presenter's machine.
+Sample files: `payslip-kemsa-june-2026.pdf`, `logbook-fielder-kcx-214j.jpg`, `title-deed-kiambu-ruiru.pdf` (`mocks/demo/files/`). Download them from the console's **Demo panel**, **Demo files**, before the demo, so they are the stack's.
 
 1. Act as **Wanjiku Kamau**. On the home page **Continue** her 2026 declaration (`/declarations/<id>`). It opens at 75%: Your details, Spouses and children, Other information and "no liabilities" are what she carried over from her 2024 declaration, already confirmed. What is left is her financial statement.
 2. **Financial statement: you**, then **Check registries**: tick "I request this check", **Continue**. **Add** three suggestion cards: **Salary and emoluments** (KRA: it has her declared income on record, a hint, never a value), the Fielder (KCX 214J, NTSA) and the Kiambu Ruiru parcel (ArdhiSasa). Leave the Prado, the Kajiado parcel and Afya Bora for the reviewer (beat E).
@@ -282,7 +282,7 @@ Set the demo service settings first (the table in [packages/demo-seed](../../pac
 - [ ] `pnpm demo:check` green (workflow `check`): every mock off, AI provider real.
 - [ ] Warm the AI provider: one Ask Adili question and one copilot refresh before going on stage.
 - [ ] Replay fixtures match the script: after a change to `0-start` or to a scripted question, run beats C and E once from `0-start` with `pnpm demo:ai record` and commit the fixtures.
-- [ ] Sample files from `mocks/demo/files/` on the presenter's machine, in an easy folder.
+- [ ] `psc-roster.csv` and the three sample files downloaded from the console's **Demo panel**, **Demo files**, in an easy folder.
 - [ ] Fresh verify codes (`pnpm demo:seed --only verify`) printed on the QR card.
 - [ ] Browser: one window, portal left, console right, zoom at 100%; a private window ready for beat B, with the console's Demo panel inbox beside it for the codes.
 - [ ] Phone for the slip's QR code.

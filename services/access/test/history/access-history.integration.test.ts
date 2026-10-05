@@ -108,7 +108,6 @@ describe('Who accessed my declaration (S12)', () => {
           reference: row.reference,
           commission: { slug: 'psc', name: 'Public Service Commission' },
           requester: 'Mercy Wanjiku Kamau',
-          caseReference: null,
           purposeInGeneralTerms: PURPOSE,
           scope: row.scope,
           outcome: null,
@@ -356,7 +355,7 @@ describe('Who accessed my declaration (S12)', () => {
       return { id, reference };
     }
 
-    it('S12: a law enforcement request shows only once granted: the agency and case, the scope granted, the decision, package and downloads', async () => {
+    it('S12: a law enforcement request never shows, before or after its grant, package and downloads (#614)', async () => {
       const { anne } = givenCommissions(api, NOW);
       const personId = anne.personId ?? '';
       const { id, reference } = await verifiedLeaRequest(personId);
@@ -404,33 +403,17 @@ describe('Who accessed my declaration (S12)', () => {
         eventData: { documentId: PACKAGE_ID },
       });
 
-      const entries = await historyOf(declarantOf(anne));
+      // Rows a stack recorded while the declarant was still told (a `notified` entry) stay hidden.
+      await record({
+        ...common,
+        kind: 'notified',
+        actor: null,
+        at: new Date('2027-03-05T10:05:00.000Z'),
+        details: { channel: 'online' },
+        eventData: { channel: 'online', notifiedOn: null },
+      });
 
-      expect(kinds(entries)).toEqual(['downloaded', 'package-issued', 'decided']);
-      for (const entry of entries) {
-        expect(entry).toMatchObject({
-          subjectKind: 'lea-request',
-          subjectId: id,
-          reference,
-          commission: { slug: 'psc', name: 'Public Service Commission' },
-          requester: 'Directorate of Criminal Investigations',
-          caseReference: 'DCI/INV/118/2027',
-          actor: null,
-          // Never the agency's reason (decision 4); the scope granted, what was disclosed, and
-          // not the one requested (round 2 decision).
-          purposeInGeneralTerms: null,
-          scope: LEA_GRANTED,
-        });
-      }
-      expect(entries.at(-1)).toMatchObject({ outcome: 'partial-grant' });
-      // Neither the law enforcement officer nor the access officer is named.
-      expect(JSON.stringify(entries)).not.toContain('Peter Mwangi');
-      expect(JSON.stringify(entries)).not.toContain(callers.officer.name);
-      // Agency, case, outcome and dates only: never the agency's reason or the decision's.
-      expect(JSON.stringify(entries)).not.toContain('Investigation into procurement');
-      expect(JSON.stringify(entries)).not.toContain('Investigation shown.');
-      // Nor the decision's grounds.
-      expect(JSON.stringify(entries)).not.toContain('prejudice-proceeding');
+      expect(await historyOf(declarantOf(anne))).toEqual([]);
       expect(await historyOf(otieno)).toEqual([]);
     });
   });
@@ -481,7 +464,6 @@ describe('Who accessed my declaration (S12)', () => {
           reference: 'DCB-PSC-2027-0000009-4',
           commission: { slug: 'psc', name: 'Public Service Commission' },
           requester: null,
-          caseReference: null,
           purposeInGeneralTerms: null,
           scope: null,
           outcome: null,

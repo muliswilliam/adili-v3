@@ -44,6 +44,7 @@
   },
   "devDependencies": {
     "dependency-cruiser": "^18.4.0",
+    "playwright-core": "^1.63.0",
     "prettier": "^3.9.9",
     "turbo": "^2.11.4",
     "typescript": "~6.0.3"

@@ -44,7 +44,7 @@ pnpm --filter @adili/demo-seed seed --list
 | `policies` | Demo policy: biennial statement date 30 June (due 31 December), obligations from 30 June 2024 (EACC from 2022), reminders 30/14/7/1 days | `pnpm --filter @adili/directory demo:policy` (no API changes these) |
 | `cycles` | Demo cycles 2022 (EACC only), 2024 (previous, closed) and 2026 (current, open) | `pnpm --filter @adili/declarations demo:cycles` (no API for the calendar) |
 | `synthetic-people` | Synthetic officers in IPRS, KRA, HR, NTSA, ArdhiSasa, BRS | the mocks' `POST /demo/synthetic-officers` (deterministic) |
-| `rosters` | Every Commission's roster: personas, roster-only officers, timed officers, volume | roster file import as the reporting officer |
+| `rosters` | Every Commission's roster: personas, roster-only officers, timed officers, volume. A record that differs from its fixture (name, ID, designation, job group, appointment date, contacts) is imported again, so a re-run puts back what a stale roster file changed (#679) | roster file import as the reporting officer |
 | `onboarding` | Every officer but the roster-only ones onboarded, each a demo account | public onboarding API, codes from Mailpit and the SMS inbox |
 | `filings` | Personas' declarations, the volume's (on time, late, missing, registry mismatches) | the portal's draft and submit API, as each declarant |
 | `settle` | Waits for every declaration's review case and the personas' slips | review and declarations APIs |
@@ -98,7 +98,7 @@ confirm); `syntheticOfficers(context)`, `PERSONAS` and `onboardees(context)` giv
 | `access-officer` (console, Access requests) | The four PSC requests: Kiprono's awaiting representations, Otieno's granted with the package, Amina's denied, DCI's granted |
 | `applicant` (portal) | Her three PSC requests and the JSC one; the packages to download; Amina's denial with its Regulation 24 ground and reasons |
 | `law-enforcement` (console) | DCI/ECU/2026/0417 granted, the package to download |
-| `kiprono` (portal) | The request to answer (7 days); Who accessed: the request and DCI's grant |
+| `kiprono` (portal) | The request to answer (7 days); Who accessed: the request. Never DCI's request: law enforcement requests are not the declarant's to see (#614) |
 | `otieno`, `amina` (portal) | Who accessed: the grant and package; the denial and the certified copy |
 | `auditor` (console, Audit trail) | Every read, change, verify lookup and demo switch since the audit service started |
 
