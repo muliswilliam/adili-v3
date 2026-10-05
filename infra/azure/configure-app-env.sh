@@ -92,6 +92,10 @@ for app in portal console; do
   set_env_from_file "$ROOT/apps/$app/.env" DEMO_TICKET_SECRET "$ADILI_DEMO_TICKET_SECRET_FILE"
 done
 
+# The demo seed (#618) switches review's demo windows (PUT /v1/demo/windows, platform admins)
+# while it seeds states past a reply, ladder or case window; every window is legal by default.
+set_env "$ROOT/services/review/.env" DEMO_MODE true
+
 set_env "$ROOT/apps/verify/.env" APP_URL "${ADILI_VERIFY_URL}"
 set_env "$ROOT/apps/verify/.env" PORT "$verify_port"
 set_env "$ROOT/apps/verify/.env" ADILI_DEMO_BIND 1

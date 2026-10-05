@@ -5,6 +5,7 @@ import { mapLimit, waitFor } from '../clients/http.js';
 import type { SeedContext } from '../context.js';
 import { DEMO_COMMISSIONS } from '../data/commissions.js';
 import { PERSONAS, TIMED_OFFICERS } from '../data/personas.js';
+import { REFERRAL_OFFICER } from '../data/review.js';
 import { fixtureRoster } from '../data/roster.js';
 import { syntheticOfficers } from '../data/synthetic.js';
 import type { SeedStep } from '../step.js';
@@ -33,6 +34,15 @@ export async function onboardees(context: SeedContext): Promise<Onboardee[]> {
       throw new Error(`Persona ${persona.demoKey} is not in the ${persona.commission} fixture`);
     people.push({ ...row, commission: persona.commission, demoKey: persona.demoKey });
   }
+  const referral = fixtureRoster(REFERRAL_OFFICER.commission).find(
+    (r) => r.nationalId === REFERRAL_OFFICER.nationalId,
+  );
+  if (!referral) throw new Error('The referral officer is not in the eacc roster fixture');
+  people.push({
+    ...referral,
+    commission: REFERRAL_OFFICER.commission,
+    demoKey: REFERRAL_OFFICER.demoKey,
+  });
   for (const timed of TIMED_OFFICERS)
     people.push({ ...timed.row, commission: 'psc', demoKey: timed.demoKey });
   for (const [slug, officers] of await syntheticOfficers(context)) {

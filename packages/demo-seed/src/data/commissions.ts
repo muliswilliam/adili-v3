@@ -36,7 +36,7 @@ export const DEMO_COMMISSIONS: readonly DemoCommission[] = [
     volumeShare: 0.2,
     reportingOfficer: {
       demoKey: 'reporting-officer',
-      name: 'Otieno Odhiambo',
+      name: 'Grace Mutiso',
       email: 'reporting-officer@demo.adili.go.ke',
       phone: '+254700000002',
     },
