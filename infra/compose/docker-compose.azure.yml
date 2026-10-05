@@ -28,8 +28,8 @@ services:
   # Object storage behind Caddy's TLS on :8333 (Caddyfile.cloudapp): browsers on the https portal
   # and console PUT uploads to presigned https URLs, and only those two origins may (CORS).
   seaweedfs:
-    command: !override
-      [
+    command:
+      !override [
         'server',
         '-dir=/data',
         '-s3',
