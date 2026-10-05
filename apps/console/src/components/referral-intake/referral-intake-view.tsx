@@ -14,9 +14,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableRowLink,
   useToast,
 } from '@adili/ui';
-import { Download04Icon, FilterIcon, Flag02Icon } from '@hugeicons/core-free-icons';
+import {
+  ArrowRight01Icon,
+  Download04Icon,
+  FilterIcon,
+  Flag02Icon,
+} from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
@@ -42,6 +48,10 @@ export type IntakeFilter = (typeof INTAKE_FILTERS)[number];
 const PUSHED_POLL_MS = 5_000;
 const PUSHED_POLL_TIMES = 12;
 
+/** The table where the list is wide enough, else one card per referral (the prototype's 800px). */
+const TABLE_ONLY = 'hidden @[800px]:block';
+const CARDS_ONLY = '@[800px]:hidden';
+
 export interface ReferralIntakeViewProps {
   /** The page for `filter`; null while it loads. */
   result: ServiceResult<ReferralIntakePage> | null;
@@ -63,7 +73,8 @@ export interface ReferralIntakeViewProps {
  * evidence package to download, where the hand-off to ICMS stands (the case number once
  * registered, why the last push failed), and Push to ICMS with a confirm, or Retry. A row opens
  * the referral's drawer with its history. After a push the page reloads, so the row shows what
- * reporting recorded.
+ * reporting recorded. On a phone each referral is a card instead (#542); its package is in the
+ * drawer.
  */
 export function ReferralIntakeView({
   result,
@@ -139,7 +150,7 @@ export function ReferralIntakeView({
 
   return (
     <>
-      <Card className="overflow-hidden p-0 sm:p-0">
+      <Card className="@container overflow-hidden p-0 sm:p-0">
         {result?.ok && !(firstPage && filter === 'all' && items.length === 0) ? (
           <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
             <div role="group" aria-label={t.list.filtersLabel} className="flex flex-wrap gap-1.5">
@@ -194,96 +205,110 @@ export function ReferralIntakeView({
           )
         ) : (
           <>
-            <Table caption={t.list.caption} className="[&_caption]:sr-only">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t.list.reference}</TableHead>
-                  <TableHead>{t.list.commission}</TableHead>
-                  <TableHead>{t.list.groundsColumn}</TableHead>
-                  <TableHead>{t.list.sent}</TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1.5">
-                      {t.list.packageColumn}
-                      <InfoTip label={t.list.packageColumn} content={t.packageTip} />
-                    </span>
-                  </TableHead>
-                  <TableHead>{t.list.icmsStatus}</TableHead>
-                  <TableHead>
-                    <span className="sr-only">{t.list.actions}</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((referral) => (
-                  <TableRow
-                    key={referral.referralId}
-                    className="cursor-pointer"
-                    onClick={(event) => {
-                      // A click on a control in the row is that control's; anywhere else opens it.
-                      if (!(event.target as HTMLElement).closest('button, a')) {
-                        setOpenedId(referral.referralId);
-                      }
-                    }}
-                  >
-                    <TableCell className="whitespace-nowrap">
-                      <button
-                        type="button"
-                        className={cn(
-                          'rounded-sm font-mono text-[13.5px] font-semibold hover:underline',
-                          focusRing,
-                        )}
-                        onClick={() => {
-                          setOpenedId(referral.referralId);
-                        }}
-                      >
-                        {referral.reference}
-                      </button>
-                    </TableCell>
-                    <TableCell className="min-w-[160px]">{referral.commission.name}</TableCell>
-                    <TableCell className="min-w-[150px]">{t.grounds[referral.grounds]}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {formatDate(referral.sentAt)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="grid justify-items-start gap-1">
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          aria-label={t.list.packageFor(referral.reference)}
-                          disabled={downloading === referral.referralId}
-                          onClick={() => void download(referral)}
-                        >
-                          <Icon icon={Download04Icon} />
-                          {t.list.package}
-                        </Button>
-                        <ConfidentialBadge />
-                      </div>
-                    </TableCell>
-                    <TableCell className="min-w-[170px]">
-                      <IcmsStatusCell referral={referral} />
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        {canPush && pushAction(referral) ? (
-                          <PushButton referral={referral} size="sm" onPush={askPush} />
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            aria-label={t.list.viewFor(referral.reference)}
-                            onClick={() => {
-                              setOpenedId(referral.referralId);
-                            }}
-                          >
-                            {t.list.view}
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
+            <div className={TABLE_ONLY}>
+              <Table caption={t.list.caption} className="[&_caption]:sr-only">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t.list.reference}</TableHead>
+                    <TableHead>{t.list.commission}</TableHead>
+                    <TableHead>{t.list.groundsColumn}</TableHead>
+                    <TableHead>{t.list.sent}</TableHead>
+                    <TableHead>
+                      <span className="inline-flex items-center gap-1.5">
+                        {t.list.packageColumn}
+                        <InfoTip label={t.list.packageColumn} content={t.packageTip} />
+                      </span>
+                    </TableHead>
+                    <TableHead>{t.list.icmsStatus}</TableHead>
+                    <TableHead>
+                      <span className="sr-only">{t.list.actions}</span>
+                    </TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {items.map((referral) => (
+                    <TableRow
+                      key={referral.referralId}
+                      className="cursor-pointer"
+                      onClick={(event) => {
+                        // A click on a control in the row is that control's; anywhere else opens it.
+                        if (!(event.target as HTMLElement).closest('button, a')) {
+                          setOpenedId(referral.referralId);
+                        }
+                      }}
+                    >
+                      <TableCell className="whitespace-nowrap">
+                        <button
+                          type="button"
+                          className={cn(
+                            'rounded-sm font-mono text-[13.5px] font-semibold hover:underline',
+                            focusRing,
+                          )}
+                          onClick={() => {
+                            setOpenedId(referral.referralId);
+                          }}
+                        >
+                          {referral.reference}
+                        </button>
+                      </TableCell>
+                      <TableCell className="min-w-[160px]">{referral.commission.name}</TableCell>
+                      <TableCell className="min-w-[150px]">{t.grounds[referral.grounds]}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {formatDate(referral.sentAt)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="grid justify-items-start gap-1">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            aria-label={t.list.packageFor(referral.reference)}
+                            disabled={downloading === referral.referralId}
+                            onClick={() => void download(referral)}
+                          >
+                            <Icon icon={Download04Icon} />
+                            {t.list.package}
+                          </Button>
+                          <ConfidentialBadge />
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-[170px]">
+                        <IcmsStatusCell referral={referral} />
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          {canPush && pushAction(referral) ? (
+                            <PushButton referral={referral} size="sm" onPush={askPush} />
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-label={t.list.viewFor(referral.reference)}
+                              onClick={() => {
+                                setOpenedId(referral.referralId);
+                              }}
+                            >
+                              {t.list.view}
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <ul aria-label={t.list.caption} className={CARDS_ONLY}>
+              {items.map((referral) => (
+                <IntakeCard
+                  key={referral.referralId}
+                  referral={referral}
+                  onOpen={() => {
+                    setOpenedId(referral.referralId);
+                  }}
+                  onPush={canPush ? askPush : null}
+                />
+              ))}
+            </ul>
             {pager}
           </>
         )}
@@ -307,6 +332,52 @@ export function ReferralIntakeView({
         onConfirm={push}
       />
     </>
+  );
+}
+
+/**
+ * A referral on a phone, as the prototype's intake card: reference, Commission and sent date,
+ * grounds, the ICMS status line, and Push to ICMS or Retry where the viewer pushes. The whole card
+ * opens the drawer through its reference, one tab stop.
+ */
+function IntakeCard({
+  referral,
+  onOpen,
+  onPush,
+}: {
+  referral: ReferralIntakeItem;
+  onOpen: () => void;
+  /** Null where the viewer does not push (EACC supervisors). */
+  onPush: ((referral: ReferralIntakeItem) => void) | null;
+}) {
+  return (
+    <li className="relative grid gap-2.5 border-b px-4 py-3.5 transition-colors last:border-b-0 has-[[data-row-link]:hover]:bg-muted/50">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <TableRowLink asChild>
+            <button
+              type="button"
+              className="rounded-sm text-left font-mono text-[13.5px] font-semibold"
+              onClick={onOpen}
+            >
+              {referral.reference}
+            </button>
+          </TableRowLink>
+          <p className="text-[13px] text-muted-foreground">
+            {t.detail.subtitle(referral.commission.name, referral.sentAt)}
+          </p>
+        </div>
+        <Icon icon={ArrowRight01Icon} className="mt-0.5 flex-none text-muted-foreground" />
+      </div>
+      <p className="text-[13px]">{t.grounds[referral.grounds]}</p>
+      <IcmsStatusCell referral={referral} />
+      {onPush && pushAction(referral) ? (
+        // Above the card's stretched link, so the button is its own.
+        <div className="relative z-10 justify-self-start">
+          <PushButton referral={referral} size="sm" onPush={onPush} />
+        </div>
+      ) : null}
+    </li>
   );
 }
 
