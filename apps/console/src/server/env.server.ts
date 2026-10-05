@@ -63,14 +63,6 @@ export const envSchema = bffEnvSchema.extend({
    */
   REPORTING_MOCK_TODAY: z.iso.date().optional(),
   /**
-   * With REPORTING_MOCK: the Commission open-data preview (spec 09b) the mock answers with, the
-   * latest `published` release by default, a `preview` built since, `none` built yet, or
-   * `unavailable` (object storage down).
-   */
-  REPORTING_MOCK_OPEN_DATA: z
-    .enum(['published', 'preview', 'none', 'unavailable'])
-    .default('published'),
-  /**
    * With REPORTING_MOCK: where FY 2025/2026's national report starts. `not-built` by default;
    * `draft` built with a narrative by another analyst; `stale` that draft with one more report
    * received since; `approved` approved with its reference and PDF.

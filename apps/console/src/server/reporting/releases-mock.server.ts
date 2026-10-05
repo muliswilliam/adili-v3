@@ -177,6 +177,28 @@ function seedFromEnv(): ReleasesMockSeed {
   );
 }
 
+/**
+ * The release a Commission's open-data preview shows (`open-data-mock.server.ts`), as
+ * `CommissionOpenDataPreviewService` picks it: of the most recent year with a preview or published
+ * release, the one built last; a withdrawn one never. Null while there is none; `unavailable` for
+ * the `unavailable` seed, the files out of reach.
+ */
+export function currentReleaseOf():
+  { release: OpenDataRelease; tables: TableFiles } | 'unavailable' | null {
+  const data = ensureSeeded();
+  if (data.seed === 'unavailable') return 'unavailable';
+  publishAnnualOnApproval(data);
+  const [current] = data.releases
+    .filter((each) => each.release.status !== 'withdrawn')
+    .sort(
+      (a, b) =>
+        b.release.fy - a.release.fy ||
+        b.release.builtAt.localeCompare(a.release.builtAt) ||
+        b.release.version - a.release.version,
+    );
+  return current ? { release: current.release, tables: current.tables } : null;
+}
+
 /** Answers the reporting client's releases requests as the service would, from the store. */
 export async function mockReleasesFetch(request: Request): Promise<Response> {
   const data = ensureSeeded();
