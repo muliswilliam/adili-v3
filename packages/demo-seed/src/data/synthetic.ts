@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 
+import { COUNTIES } from '@adili/forms';
+
 import { jsonBody, requestJson } from '../clients/http.js';
 import type { SeedContext } from '../context.js';
 import { DEMO_COMMISSIONS, commissionIndex } from './commissions.js';
@@ -21,6 +23,9 @@ export interface SyntheticOfficer extends RosterRow {
     description: string;
     registeredOn: string;
     valueKes: number;
+    /** Parcels: the county name and area (hectares) ArdhiSasa holds; empty for the rest. */
+    county: string;
+    areaHectares: string;
   }[];
 }
 
@@ -68,6 +73,17 @@ export function syntheticGeneration(
     });
     return { created: body.created, officers: new Map(Object.entries(body.officers)) };
   });
+}
+
+/** The mocks' county names the declaration form spells otherwise. */
+const COUNTY_ALIASES: Readonly<Record<string, string>> = { Nairobi: 'Nairobi City' };
+
+/** The declaration form's code for a county the mocks name, e.g. `Kisumu` is `042`. */
+function countyCode(name: string): string {
+  const formName = COUNTY_ALIASES[name] ?? name;
+  const county = COUNTIES.find((candidate) => candidate.name === formName);
+  if (!county) throw new Error(`Unknown county ${name}`);
+  return county.code;
 }
 
 /** A number in [0, 1) fixed by the officer and a purpose, so behaviour never changes per run. */
@@ -129,8 +145,8 @@ export function holdingsOf(
       .map((h) => ({
         parcelNumber: h.reference,
         description: h.description,
-        size: '0.05 ha',
-        county: '047',
+        size: `${h.areaHectares} ha`,
+        county: countyCode(h.county),
         valueKes: h.valueKes,
       })),
     companies: held

@@ -1,7 +1,9 @@
-import { ToastProvider, TooltipProvider } from '@adili/ui';
+import { DemoBar, ToastProvider, TooltipProvider } from '@adili/ui';
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
+import { DemoContext } from '../components/demo/demo-context';
+import { getDemo } from '../server/demo/demo';
 import appCss from '../styles.css?url';
 
 export const Route = createRootRoute({
@@ -21,13 +23,26 @@ export const Route = createRootRoute({
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
     ],
   }),
+  // Demo mode only (#616); null otherwise. A switch reloads the page, so it is loaded once.
+  loader: () => getDemo(),
+  staleTime: Infinity,
   component: RootComponent,
 });
 
 function RootComponent() {
+  const demo = Route.useLoaderData();
   return (
     <RootDocument>
-      <Outlet />
+      <DemoContext value={demo}>
+        <Outlet />
+      </DemoContext>
+      {demo ? (
+        <>
+          {/* Room below the footer, so the fixed demo bar never covers the end of a page. */}
+          <div aria-hidden="true" className="h-16 shrink-0" />
+          <DemoBar accounts={demo.accounts} current={demo.current} />
+        </>
+      ) : null}
     </RootDocument>
   );
 }

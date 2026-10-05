@@ -75,6 +75,9 @@ class Holding:
     description: str
     registered_on: str
     value_kes: int
+    # Parcels only: the county and area ArdhiSasa holds, which the officer declares.
+    county: str = ""
+    area_hectares: str = ""
 
 
 @dataclass
@@ -141,6 +144,8 @@ def _officer(seed: str, spec: CommissionSpec, n: int, anchor: date) -> Synthetic
                 description=f"Plot in {county}",
                 registered_on=_registered(rng, appointed).isoformat(),
                 value_kes=rng.randrange(8, 120) * 100_000,
+                county=county,
+                area_hectares=str(Decimal("0.0450") * (1 + int(national_id) % 5)),
             )
         )
     if rng.random() < 0.15:
@@ -275,8 +280,8 @@ def store(officers: list[SyntheticOfficer]) -> int:
         [
             Parcel(
                 parcel_number=h.reference,
-                county=h.description.removeprefix("Plot in "),
-                area_hectares=Decimal("0.0450") * (1 + int(o.national_id) % 5),
+                county=h.county,
+                area_hectares=Decimal(h.area_hectares),
                 tenure="freehold",
                 owner_id_number=o.national_id,
                 registered_on=date.fromisoformat(h.registered_on),

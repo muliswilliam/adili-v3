@@ -1,6 +1,7 @@
 export {
   Bff,
   type BffOptions,
+  type FreshSignIn,
   hasFreshStepUp,
   type Session,
   type SessionUser,

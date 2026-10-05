@@ -27,13 +27,17 @@ const officer = (nationalId: string): SyntheticOfficer => ({
       description: 'Toyota Axio',
       registeredOn: '2015-01-01',
       valueKes: 800_000,
+      county: '',
+      areaHectares: '',
     },
     {
       kind: 'parcel',
-      reference: 'NAKURU/DEMO 3/1',
-      description: 'Plot in Nakuru',
+      reference: 'NAIROBI/DEMO 3/1',
+      description: 'Plot in Nairobi',
       registeredOn: '2025-03-01',
       valueKes: 2_000_000,
+      county: 'Nairobi',
+      areaHectares: '0.0900',
     },
   ],
 });
@@ -59,5 +63,10 @@ describe('synthetic officers', () => {
     expect(holdingsOf(officer('63000001'), '2024-06-30', PREVIOUS_CYCLE).parcels).toEqual([]);
     const current = holdingsOf(officer('63000003'), '2026-06-30', CURRENT_CYCLE);
     expect(current.salaryKes).toBe(2_160_000);
+  });
+
+  it('declare a parcel where and as large as ArdhiSasa holds it', () => {
+    const [parcel] = holdingsOf(officer('63000001'), '2026-06-30', CURRENT_CYCLE).parcels;
+    expect(parcel).toMatchObject({ county: '047', size: '0.0900 ha' });
   });
 });

@@ -62,6 +62,9 @@ sed \
   -e "s|__HOST__|${host}|g" \
   "$CADDYFILE_SRC" >"$CADDYFILE_DST"
 
+# shellcheck disable=SC1091
+. "$ROOT/infra/azure/demo-vault.sh"
+adili_require_demo_vault
 python3 "$ROOT/infra/azure/patch-realm.py" "$ROOT/infra/compose/keycloak/adili-realm.json"
 
 COMPOSE="$ROOT/infra/compose/docker-compose.yml"

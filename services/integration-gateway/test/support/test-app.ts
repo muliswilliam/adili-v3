@@ -11,6 +11,7 @@ import { createDatabase, DATABASE, type Database, FieldCipher } from '@adili/dat
 import { FakeCipher } from '@adili/data-access/testing';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { OutboxRelay } from '@adili/events';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
 import pg from 'pg';
 import { vi } from 'vitest';
@@ -165,6 +166,11 @@ export async function createTestApp({
     .useValue(valkey)
     .overrideProvider(FieldCipher)
     .useValue(cipher)
+    // Events stay in the outbox for the tests to read, as in the other services' suites. A relay
+    // would publish them to the shared broker, and while a publish waited it held the rows it
+    // claimed locked against the tests' deletes.
+    .overrideProvider(OutboxRelay)
+    .useValue({})
     .overrideProvider(IPRS_CLIENT_OPTIONS)
     .useValue({ baseUrl: iprsBaseUrl } satisfies IprsClientOptions)
     .overrideProvider(SYSTEM_POLICIES)

@@ -30,6 +30,8 @@ export interface OidcProvider {
     codeChallenge: string;
     /** Requested authentication context classes (`acr_values`), e.g. `step-up`. */
     acrValues?: string;
+    /** More parameters for the provider, e.g. a demo ticket; never replace the ones above. */
+    extraParams?: Record<string, string>;
   }): Promise<URL>;
   exchangeCode(
     callbackUrl: URL,
@@ -66,8 +68,9 @@ export function createOpenIdProvider(options: OpenIdProviderOptions): OidcProvid
   };
 
   return {
-    async authorizationUrl({ redirectUri, state, nonce, codeChallenge, acrValues }) {
+    async authorizationUrl({ redirectUri, state, nonce, codeChallenge, acrValues, extraParams }) {
       const parameters: Record<string, string> = {
+        ...extraParams,
         redirect_uri: redirectUri,
         scope: 'openid profile email',
         code_challenge: codeChallenge,
