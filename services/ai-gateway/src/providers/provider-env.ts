@@ -26,6 +26,11 @@ export const providerEnvShape = {
   /** Resolved from the working directory. */
   AI_FIXTURES_DIR: z.string().min(1).default('fixtures/ai'),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  /**
+   * A bearer token instead of an API key, for an Anthropic-compatible gateway that authenticates
+   * with `Authorization: Bearer` (a self-hosted LLM Gateway). Takes precedence over ANTHROPIC_API_KEY.
+   */
+  ANTHROPIC_AUTH_TOKEN: z.string().min(1).optional(),
   ANTHROPIC_BASE_URL: z.url().optional(),
   /**
    * `prompted` for an Anthropic-compatible gateway that drops `output_config`: the schema goes
@@ -67,11 +72,13 @@ export function checkProviderEnv(env: ParsedProviderEnv, context: z.RefinementCt
     });
   }
   const reachesAnthropic = env.AI_PROVIDER === 'anthropic' || env.AI_REPLAY_MODE === 'record';
-  if (reachesAnthropic && !env.ANTHROPIC_API_KEY) {
+  if (reachesAnthropic && !env.ANTHROPIC_API_KEY && !env.ANTHROPIC_AUTH_TOKEN) {
     context.addIssue({
       code: 'custom',
       path: ['ANTHROPIC_API_KEY'],
-      message: 'ANTHROPIC_API_KEY is required when AI_PROVIDER=anthropic or AI_REPLAY_MODE=record',
+      message:
+        'ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN is required when AI_PROVIDER=anthropic or ' +
+        'AI_REPLAY_MODE=record',
     });
   }
 }

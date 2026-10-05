@@ -6,9 +6,11 @@
 //   pnpm demo:ai             re-applies the last choice (deploys run this)
 //
 // The choice is kept in ~/.config/adili/ai-mode so a deploy does not undo a switch to replay.
-// The API key comes from /etc/adili/secrets.env, then ~/.config/adili/secrets.env, then the
-// environment; it is written to services/ai-gateway/.env (mode 600) and never printed. Without a
-// key, anthropic and record fall back to replay with a warning. A running ai-gateway (`pnpm dev`)
+// The provider settings come from /etc/adili/secrets.env, then ~/.config/adili/secrets.env, then
+// the environment: ANTHROPIC_API_KEY, or for a self-hosted LLM Gateway ANTHROPIC_AUTH_TOKEN with
+// ANTHROPIC_BASE_URL, plus ANTHROPIC_STRUCTURED_OUTPUT and AI_MODEL. They are written to
+// services/ai-gateway/.env (mode 600) and never printed. Without a key or token, anthropic and
+// record fall back to replay with a warning. A running ai-gateway (`pnpm dev`)
 // is restarted and the switch is confirmed from its /health/ready.
 import { chmodSync, existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -22,6 +24,14 @@ const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'
 const STATE = join(CONFIG_DIR, 'ai-mode');
 const SECRETS = ['/etc/adili/secrets.env', join(CONFIG_DIR, 'secrets.env')];
 const MODES = ['anthropic', 'record', 'replay'];
+/** Read from the secrets files and environment, never printed. */
+const PROVIDER_SETTINGS = [
+  'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'ANTHROPIC_BASE_URL',
+  'ANTHROPIC_STRUCTURED_OUTPUT',
+  'AI_MODEL',
+];
 /** Relative to services/ai-gateway, where the service runs. */
 const FIXTURES_DIR = 'fixtures/demo';
 
@@ -37,12 +47,14 @@ if (asked) {
   writeFileSync(STATE, `${asked}\n`);
 }
 
-const key = apiKey();
+const credentials = providerSettings();
+const key = Boolean(credentials.ANTHROPIC_API_KEY || credentials.ANTHROPIC_AUTH_TOKEN);
 const mode = wanted !== 'replay' && !key ? 'replay' : wanted;
 if (mode !== wanted) {
   console.warn(
-    `WARNING: no ANTHROPIC_API_KEY in ${SECRETS.join(' or ')} or the environment; ` +
-      'the ai-gateway answers from the recorded demo fixtures (replay) until one is added.',
+    `WARNING: no ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN in ${SECRETS.join(' or ')} or the ` +
+      'environment; the ai-gateway answers from the recorded demo fixtures (replay) until one ' +
+      'is added.',
   );
 }
 
@@ -51,9 +63,10 @@ const settings = {
   AI_REPLAY_MODE: mode === 'record' ? 'record' : 'replay',
   AI_REPLAY_MATCH: 'normalised',
   AI_FIXTURES_DIR: FIXTURES_DIR,
-  ...(key && { ANTHROPIC_API_KEY: key }),
 };
-writeEnv(GATEWAY_ENV, settings);
+// With a credential, the provider settings are exactly the sources' (a gateway token left over
+// from an earlier setup would otherwise outrank a new API key); without one, .env keeps its own.
+writeEnv(GATEWAY_ENV, settings, key ? credentials : {});
 if (key) chmodSync(GATEWAY_ENV, 0o600);
 console.log(`ai-gateway: ${mode} (fixtures services/ai-gateway/${FIXTURES_DIR})`);
 
@@ -65,19 +78,21 @@ function readState() {
   return MODES.includes(value) ? value : undefined;
 }
 
-/** The key from the first secrets file that has one, else the environment. */
-function apiKey() {
-  for (const file of SECRETS) {
-    let text;
+/** Each provider setting from the first secrets file that has it, else the environment. */
+function providerSettings() {
+  const files = SECRETS.map((file) => {
     try {
-      text = readFileSync(file, 'utf8');
+      return parseEnv(readFileSync(file, 'utf8'));
     } catch {
-      continue;
+      return {};
     }
-    const value = parseEnv(text).ANTHROPIC_API_KEY;
-    if (value) return value;
+  });
+  const values = {};
+  for (const name of PROVIDER_SETTINGS) {
+    const value = files.find((file) => file[name])?.[name] || process.env[name];
+    if (value) values[name] = value;
   }
-  return process.env.ANTHROPIC_API_KEY || undefined;
+  return values;
 }
 
 function parseEnv(text) {
@@ -90,23 +105,41 @@ function parseEnv(text) {
 }
 
 /**
- * Sets each key in an existing .env: replaces its line, else fills its commented-out placeholder
- * (`# KEY=` with a value or nothing, not prose that mentions it), else appends.
+ * Sets each key in an existing .env (see setLine). With `provider` given, every provider setting
+ * it lacks is commented out.
  */
-function writeEnv(file, values) {
+function writeEnv(file, values, provider) {
   if (!existsSync(file)) {
     console.error(`missing ${file}; run pnpm bootstrap first`);
     process.exit(1);
   }
   const lines = readFileSync(file, 'utf8').replace(/\n$/, '').split('\n');
-  for (const [name, value] of Object.entries(values)) {
-    const set = lines.findIndex((line) => line.startsWith(`${name}=`));
-    const placeholder = lines.findIndex((line) => new RegExp(`^#\\s*${name}=\\S*$`).test(line));
-    const index = set >= 0 ? set : placeholder;
-    if (index >= 0) lines[index] = `${name}=${value}`;
-    else lines.push(`${name}=${value}`);
+  for (const [name, value] of Object.entries(values)) setLine(lines, name, value);
+  if (Object.keys(provider).length > 0) {
+    for (const name of PROVIDER_SETTINGS) {
+      if (name in provider) setLine(lines, name, provider[name]);
+      else unsetLine(lines, name);
+    }
   }
   writeFileSync(file, `${lines.join('\n')}\n`);
+}
+
+/**
+ * Replaces the key's line, else fills its commented-out placeholder (`# KEY=` with a value or
+ * nothing, not prose that mentions it), else appends.
+ */
+function setLine(lines, name, value) {
+  const set = lines.findIndex((line) => line.startsWith(`${name}=`));
+  const placeholder = lines.findIndex((line) => new RegExp(`^#\\s*${name}=\\S*$`).test(line));
+  const index = set >= 0 ? set : placeholder;
+  if (index >= 0) lines[index] = `${name}=${value}`;
+  else lines.push(`${name}=${value}`);
+}
+
+/** Turns a set key back into an empty placeholder, so the service default applies. */
+function unsetLine(lines, name) {
+  const index = lines.findIndex((line) => line.startsWith(`${name}=`));
+  if (index >= 0) lines[index] = `# ${name}=`;
 }
 
 /** The running ai-gateway's readiness, on the port its .env gives it. */

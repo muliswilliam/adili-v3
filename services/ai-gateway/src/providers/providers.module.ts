@@ -9,8 +9,13 @@ import type { ProviderEnv } from './provider-env.js';
 import { ReplayAdapter } from './replay.adapter.js';
 
 function anthropic(env: ProviderEnv): AnthropicAdapter {
+  // A gateway's bearer token replaces the API key; null stops the SDK reading one from the
+  // environment and sending it as x-api-key as well.
+  const credentials = env.ANTHROPIC_AUTH_TOKEN
+    ? { apiKey: null, authToken: env.ANTHROPIC_AUTH_TOKEN }
+    : { apiKey: env.ANTHROPIC_API_KEY };
   const client = new Anthropic({
-    apiKey: env.ANTHROPIC_API_KEY,
+    ...credentials,
     baseURL: env.ANTHROPIC_BASE_URL,
     timeout: env.AI_PROVIDER_TIMEOUT_MS,
     // Retries, backoff and the circuit breaker belong to the job executor, not the SDK.

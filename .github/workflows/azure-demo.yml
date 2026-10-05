@@ -69,16 +69,25 @@ jobs:
           rsync -az --delete --exclude-from=infra/azure/rsync-exclude \
             --filter='P services/ai-gateway/fixtures/demo/*.json' \
             ./ "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}:/opt/adili/"
-      - name: AI provider key
-        # Over stdin into a file only adili reads; never on a command line or in the log.
+      - name: AI provider settings
+        # Over stdin into a file only adili reads; never on a command line or in the log. Either
+        # an Anthropic API key, or a self-hosted LLM Gateway's token with its URL (repo variables).
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ vars.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_STRUCTURED_OUTPUT: ${{ vars.ANTHROPIC_STRUCTURED_OUTPUT }}
+          AI_MODEL: ${{ vars.AI_MODEL }}
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo '::warning::Repo secret ANTHROPIC_API_KEY is not set. The demo AI stays on replay unless /etc/adili/secrets.env on the VM has a key.'
+          if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$ANTHROPIC_AUTH_TOKEN" ]; then
+            echo '::warning::Neither repo secret ANTHROPIC_API_KEY nor ANTHROPIC_AUTH_TOKEN is set. The demo AI stays on replay unless /etc/adili/secrets.env on the VM has one.'
             exit 0
           fi
-          printf 'ANTHROPIC_API_KEY=%s\n' "$ANTHROPIC_API_KEY" |
+          for name in ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL \
+            ANTHROPIC_STRUCTURED_OUTPUT AI_MODEL; do
+            value=$(printenv "$name" || true)
+            if [ -n "$value" ]; then printf '%s=%s\n' "$name" "$value"; fi
+          done |
             ssh "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}" \
               'umask 077 && mkdir -p ~/.config/adili && cat > ~/.config/adili/secrets.env'
       - name: Run deploy.sh
