@@ -71,9 +71,16 @@ export interface ClarificationClock {
   dueAt: string;
 }
 
-/** The due date of a clarification issued at `issuedAt`: the Commission's reply window later. */
-export function clarificationDueAt(issuedAt: Date, replyWindowDays: number): Date {
-  return new Date(issuedAt.getTime() + replyWindowDays * DAY_MS);
+/**
+ * The due date of a clarification issued at `issuedAt`: the Commission's reply window later, or
+ * the demo stack's reply window (`DEMO_CLARIFICATION_REPLY_WINDOW`, milliseconds) when it has one.
+ */
+export function clarificationDueAt(
+  issuedAt: Date,
+  replyWindowDays: number,
+  demoReplyWindowMs?: number,
+): Date {
+  return new Date(issuedAt.getTime() + (demoReplyWindowMs ?? replyWindowDays * DAY_MS));
 }
 
 /**
