@@ -5,6 +5,7 @@ import { type DeclarationV1, validateDeclaration } from '@adili/forms';
 import { ApplicationFailure } from '@temporalio/common';
 import { eq } from 'drizzle-orm';
 
+import { demoWindows } from '../demo/demo-windows.js';
 import { upsertCase } from '../cases/case-creation.js';
 import { reviewCases } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
@@ -120,6 +121,7 @@ export class ProcessingActivities {
     const policy = await this.directory.getClarificationPolicy(input.tenant);
     return upsertCase(this.db, this.events, request, {
       issueWindowMonths: policy.issueWindowMonths,
+      demoIssueWindowMs: demoWindows.get('DEMO_CASE_ISSUE_WINDOW'),
       declarant: {
         declarantName: pulled.declarantName,
         personnelFileNumber: pulled.personnelFileNumber,
