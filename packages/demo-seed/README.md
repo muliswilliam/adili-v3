@@ -25,6 +25,7 @@ pnpm --filter @adili/demo-seed seed --list
 | mocks | `MOCK_REGISTRY_RATE_LIMIT=100000` | Registry checks of every filing |
 | integration-gateway | `KRA_`, `NTSA_`, `BRS_`, `ARDHISASA_`, `HR_SUPPLIERS_RATE_LIMIT_PER_MINUTE=100000` | Same |
 | declarations | `REMINDER_JITTER_HOURS=0` | The reminder officer's reminder goes out at noon |
+| review | `DEMO_MODE=true` | The review steps switch review's demo windows (`PUT /v1/demo/windows`) to seed states past a reply window, a ladder window or a case's clarification window in minutes, and back to legal |
 | ai-gateway | `AI_PROVIDER=anthropic` | PSC cases get their copilot; documents are read |
 
 `DEMO_SEED_VOLUME` (default 500 synthetic officers per volume Commission; PSC gets a fifth),
@@ -35,12 +36,19 @@ pnpm --filter @adili/demo-seed seed --list
 | Step | Makes | Through |
 | --- | --- | --- |
 | `commissions` | psc, tsc, eacc, jsc, npsc and their reporting officers (demo accounts) | directory API (platform-admin), Keycloak admin for `demo_key` |
-| `policies` | Demo policy: biennial statement date 30 June (due 31 December), obligations from 30 June 2024, reminders 30/14/7/1 days | `pnpm --filter @adili/directory demo:policy` (no API changes these) |
-| `cycles` | Demo cycles 2024 (previous, closed) and 2026 (current, open) | `pnpm --filter @adili/declarations demo:cycles` (no API for the calendar) |
+| `mock-fixtures` | The mocks' named people (IPRS, KRA, HR) from `mocks/demo/fixtures`, refreshed | the mocks' own idempotent `db:seed` |
+| `policies` | Demo policy: biennial statement date 30 June (due 31 December), obligations from 30 June 2024 (EACC from 2022), reminders 30/14/7/1 days | `pnpm --filter @adili/directory demo:policy` (no API changes these) |
+| `cycles` | Demo cycles 2022 (EACC only), 2024 (previous, closed) and 2026 (current, open) | `pnpm --filter @adili/declarations demo:cycles` (no API for the calendar) |
 | `synthetic-people` | Synthetic officers in IPRS, KRA, HR, NTSA, ArdhiSasa, BRS | the mocks' `POST /demo/synthetic-officers` (deterministic) |
 | `rosters` | Every Commission's roster: personas, roster-only officers, timed officers, volume | roster file import as the reporting officer |
 | `onboarding` | Every officer but the roster-only ones onboarded, each a demo account | public onboarding API, codes from Mailpit and the SMS inbox |
 | `filings` | Personas' declarations, the volume's (on time, late, missing, registry mismatches) | the portal's draft and submit API, as each declarant |
+| `settle` | Waits for every declaration's review case and the personas' slips | review queue summary, declarant's slips |
+| `review-team` | Two more PSC reviewers (Brian Kiptoo, Mercy Wanjala) and EACC's own staff supervisor (Lilian Chepkoech) | Keycloak admin (no API creates Commission staff) |
+| `review-queue` | 22 PSC volume cases across the bands claimed by the three reviewers; Amina's amended case with the second; copilot summaries the seeding burst failed asked again | review API (claim, copilot refresh) |
+| `review-clarifications` | Kiprono's AI-drafted clarification, edited and issued, awaiting his reply (legal window); one answered, resolved and determined compliant (approved); Otieno's case proposed compliant, awaiting the supervisor; one unanswered past its window with the ladder at a notice and a warning; one carried to a salary stoppage the payroll mock acknowledged | review API as reviewer, declarant and supervisor; short windows through review's demo windows |
+| `review-closure` | Clean low-risk PSC cases (officers who had not filed 2026 file now, with a short case window) proposed by the closure sweep and approved in bulk | declarations and review APIs, the closure sweep's Temporal schedule triggered |
+| `review-referral` | EACC's officer who missed 2022 and 2024: referral proposed by the sweep, approved by EACC's staff supervisor, pushed to ICMS with its case number | review and reporting APIs, the referral sweep's schedule triggered |
 
 Why demo cycles: the first real cycle (2027) has its statement date on 1 November 2027, so
 nothing can be filed or compared before then. The demo runs two earlier cycles on the same
@@ -65,6 +73,7 @@ confirm); `syntheticOfficers(context)`, `PERSONAS` and `onboardees(context)` giv
 | `amina` | Amina Hassan, PSC | Current amended to version 2 |
 | `reminder-officer` | Faith Mwende, PSC | Initial due tomorrow: reminder sent today (Mailpit, SMS inbox) |
 | `overdue-officer` | Collins Were, PSC | Initial overdue, not filed |
+| `referral-officer` | Samuel Langat, EACC (25813407) | Filed neither 2022 nor 2024: referred after two missed cycles, ICMS case number |
 | (roster only) | Achieng Njeri, PSC (28836510) | Not onboarded: live onboarding with SMS OTP |
 | (roster only) | Daniel Rotich, PSC (38221907) | IPRS name mismatch: the identity check fails |
 
