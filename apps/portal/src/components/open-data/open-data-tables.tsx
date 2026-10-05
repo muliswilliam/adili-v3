@@ -167,7 +167,7 @@ export function TablesCard({ page, language }: { page: OpenDataPage; language: L
               </a>
             </Button>
           </div>
-          {tab === 'access-requests' || table.notCollected.length > 0 ? (
+          {table.notCollected.length > 0 ? (
             <p className="border-b bg-muted/50 px-5 py-2.5 text-[13px] text-secondary-foreground sm:px-6">
               {copy.notCollectedNote}
             </p>
