@@ -93,6 +93,15 @@ export function partIMissing(document: Pick<FormMV1, 'partI'>): string[] {
   return missing;
 }
 
+/**
+ * When the supervisor reviewed the report, formatted: the date of their Part III signature, which
+ * the header and the sign-off step both show. Null until they have signed.
+ */
+export function reviewedOn(document: Pick<FormMV1, 'partIII'>): string | null {
+  const { date } = document.partIII.compiledBy;
+  return date ? formatDate(date) : null;
+}
+
 export type SignOffState = 'done' | 'current' | 'upcoming';
 
 export interface SignOffStep {
@@ -116,8 +125,7 @@ export function signOffSteps(
   const submitted = report.status === 'submitted';
   const reviewed = submitted || report.reviewedBy !== null;
   const filled = submitted || missing.length === 0;
-  // The review's date is the supervisor's Part III signature, as the draft's header has it.
-  const reviewedOn = report.document?.partIII.compiledBy.date;
+  const reviewedDate = report.document ? reviewedOn(report.document) : null;
   const state = (done: boolean, next: boolean): SignOffState =>
     done ? 'done' : next ? 'current' : 'upcoming';
   return [
@@ -131,7 +139,7 @@ export function signOffSteps(
       id: 'reviewed',
       label: m.steps.reviewed,
       detail: report.reviewedBy
-        ? [report.reviewedBy.name, reviewedOn && formatDate(reviewedOn)].filter(Boolean).join(', ')
+        ? [report.reviewedBy.name, reviewedDate].filter(Boolean).join(', ')
         : null,
       state: state(reviewed, true),
     },

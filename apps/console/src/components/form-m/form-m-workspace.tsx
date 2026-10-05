@@ -52,6 +52,7 @@ import {
   isPreview,
   manualMissing,
   periodLine,
+  reviewedOn,
   type SignOffStep,
   signOffSteps,
   yearEnded,
@@ -548,12 +549,7 @@ function ReportView({
                 ) : report.reviewedBy ? (
                   <p className="mt-0.5 flex items-center gap-1.5 text-[13px] font-medium text-success">
                     <Icon icon={UserCheck01Icon} className="size-3.5" />
-                    {m.reviewedBy(
-                      report.reviewedBy.name,
-                      document.partIII.compiledBy.date
-                        ? formatDate(document.partIII.compiledBy.date)
-                        : null,
-                    )}
+                    {m.reviewedBy(report.reviewedBy.name, reviewedOn(document))}
                   </p>
                 ) : null}
               </div>
