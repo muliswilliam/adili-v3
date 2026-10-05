@@ -44,10 +44,19 @@ export function createDatabase<TSchema extends Record<string, unknown>>(
   pool.on('error', (error) => {
     logger.warn({ err: error }, 'Idle database connection lost; the pool will open a new one');
   });
+  // A checked-out connection (a transaction's) has no pool listener: the pool removes its idle
+  // listener on checkout. Dropped then, its 'error' would be unhandled and end the process
+  // (#636). Its query fails on its own; on release the pool discards the broken client.
+  pool.on('acquire', (client) => client.on('error', onCheckedOutError));
+  pool.on('release', (_error, client) => client.removeListener('error', onCheckedOutError));
   return drizzle({ client: pool, schema: options.schema, casing: 'snake_case' });
 }
 
 const logger = new Logger('Database');
+
+function onCheckedOutError(error: Error): void {
+  logger.warn({ err: error }, 'Database connection lost while in use; its work fails');
+}
 
 /**
  * The database could not be reached: no connection within the timeout, refused, or the server
