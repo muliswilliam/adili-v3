@@ -13,6 +13,8 @@ export const envSchema = bffEnvSchema.extend({
   REPORTING_API_URL: z.url(),
   /** The ai-gateway: AI policy, routing and usage for platform admins (spec 07c). */
   AI_GATEWAY_API_URL: z.url(),
+  /** The audit service: the audit trail and its chains for auditors (ADR-008). */
+  AUDIT_API_URL: z.url(),
   /** Base URL of the public API that Commissions' own systems (HR) call, shown in the API docs. */
   PUBLIC_API_URL: z.url(),
   /**
@@ -111,6 +113,12 @@ export const envSchema = bffEnvSchema.extend({
    * Honoured in `vite dev` and tests only, like REVIEW_MOCK.
    */
   HELP_MOCK: z.stringbool().default(false),
+  /**
+   * Serve the audit trail (events, chains and their verification; ADR-008) from in-memory
+   * fixtures, so the auditor's pages run without the audit service. Honoured in `vite dev` and
+   * tests only, like REVIEW_MOCK.
+   */
+  AUDIT_MOCK: z.stringbool().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;
