@@ -1,20 +1,20 @@
-import { EACC_ANALYST, EACC_TENANT } from '@adili/roles';
+import { EACC_ANALYST, EACC_TENANT, REPORTING_OFFICER } from '@adili/roles';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { unsignedMockToken } from '../mock-http';
 import { mockEaccIntake, setEaccIntakeMockLatency } from './eacc-mock.server';
-import { resetReportingMock } from './mock.server';
+import { resetReportingMock, setReportingMockLatency, submitMockReport } from './mock.server';
 import { resetNcrMock } from './ncr-mock.server';
 import { mockReportDocumentsFetch } from './report-documents-mock.server';
 
 const TODAY = '2026-10-03';
 const NCR_PDF = '0199b200-0000-7000-8000-000000000001';
 
-function download(documentId: string, tenant: string = EACC_TENANT) {
+function download(documentId: string, tenant: string = EACC_TENANT, role = EACC_ANALYST) {
   const token = unsignedMockToken({
     subject: 'mock-analyst',
     name: 'Baraka Mutua',
-    roles: [EACC_ANALYST],
+    roles: [role],
     tenant,
   });
   return mockReportDocumentsFetch(
@@ -26,10 +26,12 @@ function download(documentId: string, tenant: string = EACC_TENANT) {
 
 beforeAll(() => {
   setEaccIntakeMockLatency(0);
+  setReportingMockLatency(0);
 });
 
 afterAll(() => {
   setEaccIntakeMockLatency(1);
+  setReportingMockLatency(1);
 });
 
 beforeEach(() => {
@@ -58,5 +60,17 @@ describe("EACC's report documents under REPORTING_MOCK", () => {
   it('answers 404 for a document neither mock knows, and to anyone outside EACC', async () => {
     expect((await download('0199c900-0000-7000-8000-202500000001')).status).toBe(404);
     expect((await download(NCR_PDF, 'psc')).status).toBe(404);
+  });
+
+  it("hands psc's PDF to EACC and to psc's officers alike, as the workspace issued it", async () => {
+    submitMockReport(2025, '2026-07-28');
+    const psc = mockEaccIntake(2025).commissions.find((row) => row.commission.slug === 'psc');
+    const id = psc?.formMDocumentId ?? '';
+
+    for (const response of [await download(id), await download(id, 'psc', REPORTING_OFFICER)]) {
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ downloadUrl: `/api/mock-files/${id}` });
+    }
+    expect((await download(id, 'tsc', REPORTING_OFFICER)).status).toBe(404);
   });
 });

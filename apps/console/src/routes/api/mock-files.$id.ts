@@ -39,12 +39,12 @@ const MOCK_FILES: readonly {
   {
     on: (config) => config.REPORTING_MOCK,
     title: async (id) =>
-      (await import('../../server/reporting/mock.server')).mockReportingFileTitle(id),
+      (await import('../../server/reporting/mock.server')).mockWorkspaceFileTitle(id),
   },
   {
     on: (config) => config.REPORTING_MOCK,
     title: async (id) =>
-      (await import('../../server/reporting/eacc-mock.server')).mockReportingFileTitle(id),
+      (await import('../../server/reporting/eacc-mock.server')).mockEaccIntakeFileTitle(id),
   },
   {
     on: (config) => config.REPORTING_MOCK,
