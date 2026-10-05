@@ -216,3 +216,42 @@ export function clashes(item: unknown, fields: JsonObject): Clash[] {
     ];
   });
 }
+
+/** A field the reading would change: what the declarant entered, and both values in words. */
+export interface Entered {
+  /** As the sheet's controls take it: an amount's cents in digits, a county's code. */
+  value: string;
+  display: string;
+  readDisplay: string;
+}
+
+/**
+ * The fields the reading would change in the item: those holding something other than what was
+ * read. The sheet keeps what the declarant entered unless they choose what was read (#683).
+ */
+export function enteredValues(item: unknown, suggestion: LoadedSuggestion): Map<string, Entered> {
+  return new Map(
+    clashes(item, suggestion.fields).map(({ entry, existing }) => [
+      entry.path,
+      {
+        value: valueText(readPath(item, entry.path)),
+        display: existing,
+        readDisplay: entry.display,
+      },
+    ]),
+  );
+}
+
+/**
+ * What applying writes: each field as the sheet shows it, so a field the declarant kept holds
+ * what they entered. `overwrite` exactly when that changes something the item already holds, so
+ * nothing shown is silently left out, and nothing kept is replaced.
+ */
+export function applyRequest(
+  suggestion: LoadedSuggestion,
+  shown: Record<string, string>,
+  item: unknown,
+): { fields: JsonObject; overwrite: boolean } {
+  const fields = acceptedFields(suggestion, shown);
+  return { fields, overwrite: clashes(item, fields).length > 0 };
+}

@@ -42,12 +42,12 @@ const SUGGESTED: Record<AskTopic, Record<Language, readonly string[]>> = {
     sw: ["Nitaandika nini kwenye 'aina ya ajira'?", 'Nitapata wapi nambari yangu ya faili?'],
   },
   household: {
-    en: ["Do I declare my wife's salary?", 'Do I include a child who turned 18?'],
-    sw: ['Je, nitaje mshahara wa mke wangu?', 'Je, nimjumuishe mtoto aliyetimiza miaka 18?'],
+    en: ["Do I declare my spouse's salary?", 'Do I include a child who turned 18?'],
+    sw: ['Je, nitaje mshahara wa mwenzi wangu?', 'Je, nimjumuishe mtoto aliyetimiza miaka 18?'],
   },
   income: {
-    en: ["Do I declare my wife's salary?", 'What counts as a material change?'],
-    sw: ['Je, nitaje mshahara wa mke wangu?', 'Mabadiliko makubwa ni nini?'],
+    en: ["Do I declare my spouse's salary?", 'What counts as a material change?'],
+    sw: ['Je, nitaje mshahara wa mwenzi wangu?', 'Mabadiliko makubwa ni nini?'],
   },
   assets: {
     en: [

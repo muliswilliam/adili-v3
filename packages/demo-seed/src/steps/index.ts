@@ -3,6 +3,7 @@ import { access } from './access.js';
 import { commissions } from './commissions.js';
 import { cycles, policies } from './cycles.js';
 import { filings } from './filings.js';
+import { helpArticles } from './help.js';
 import { mockFixtures } from './mock-fixtures.js';
 import { onboarding } from './onboarding.js';
 import { demoSignIn } from './realm.js';
@@ -39,6 +40,7 @@ export const STEPS: readonly SeedStep[] = [
   commissions,
   policies,
   cycles,
+  helpArticles,
   syntheticPeople,
   rosters,
   onboarding,

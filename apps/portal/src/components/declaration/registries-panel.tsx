@@ -57,6 +57,7 @@ import {
   categoryOf,
   editFields,
   editValue,
+  incomeHintText,
   isChecking,
   lastChecked,
   REGISTRIES,
@@ -72,7 +73,7 @@ import {
   valuesAt,
   withSuggestion,
 } from '../../declaration/suggestions';
-import { REGISTRY_COPY } from '../../declaration/copy';
+import { REGISTRY_COPY, SUGGESTION_COPY } from '../../declaration/copy';
 import { TYPE_LABELS } from '../../declaration/labels';
 import { useWorkspace } from './workspace';
 
@@ -371,7 +372,18 @@ export function RegistriesPanel({
     }
 
     if (categoryOf(suggestion.itemType) === null) {
-      return <SuggestionCard key={suggestion.id} {...common} fields={fields} />;
+      return (
+        <SuggestionCard
+          key={suggestion.id}
+          {...common}
+          description={
+            suggestionKind(suggestion.itemType).key === 'directorship'
+              ? SUGGESTION_COPY.directorship
+              : undefined
+          }
+          fields={fields}
+        />
+      );
     }
 
     // Add and Edit and add are offered on every item card: the main actions when nothing
@@ -429,7 +441,9 @@ export function RegistriesPanel({
         key={suggestion.id}
         {...common}
         acceptedAs={acceptedAs}
-        description={REGISTRY_COPY.addValue(typeWord(suggestion.itemType))}
+        description={
+          incomeHintText(suggestion) || REGISTRY_COPY.addValue(typeWord(suggestion.itemType))
+        }
         fields={fields}
         {...addActions}
       />

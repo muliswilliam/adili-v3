@@ -13,6 +13,11 @@ export interface PersonaFilings {
   current?: Holdings;
   /** Amended to version 2 with these holdings after filing `current`. */
   amendedTo?: Holdings;
+  /**
+   * The current cycle's declaration started, holding what carries over unchanged from `previous`
+   * (`startCarriedOver`), and left as a draft for the live filing (#682).
+   */
+  startsCurrent?: true;
 }
 
 /** A declarant the demo names (#617 personas table): onboarded and a demo account. */
@@ -62,7 +67,7 @@ export const PERSONAS: readonly Persona[] = [
     demoKey: 'wanjiku',
     commission: 'psc',
     nationalId: '27451863',
-    filings: { previous: WANJIKU_PREVIOUS },
+    filings: { previous: WANJIKU_PREVIOUS, startsCurrent: true },
     purpose:
       'Live filing: Check registries, Read into the form, Ask Adili, submit; then the 07b flags (Prado, Kajiado, Afya Bora supplier)',
   },

@@ -52,7 +52,7 @@ import type { ItemAttachmentSlot, RenderAttachments } from './statement-item-edi
 import { useWorkspace } from './workspace';
 
 /**
- * The documents under an asset or liability (#125). The provider keeps the files on their way
+ * The documents under an income, asset or liability item (#125; a payslip under a salary, #681). The provider keeps the files on their way
  * for the whole statement screen, so an upload carries on when its item's editor closes; each
  * editor renders `ItemAttachments` in the slot the statement section leaves for it.
  *

@@ -10,7 +10,13 @@ import {
   syntheticOfficers,
 } from '../data/synthetic.js';
 import { fixtureRoster } from '../data/roster.js';
-import { type Declarant, declarantState, fileObligation, type MyObligation } from '../filing.js';
+import {
+  type Declarant,
+  declarantState,
+  fileObligation,
+  type MyObligation,
+  startCarriedOver,
+} from '../filing.js';
 import type { SeedStep } from '../step.js';
 import { syntheticDemoKey } from './onboarding.js';
 
@@ -89,7 +95,8 @@ export function syntheticPlans(officer: SyntheticOfficer): FilingPlan[] {
 
 /**
  * The declarations filed by `0-start`, through the portal's API as each declarant: the personas'
- * (Wanjiku's previous cycle only, so she files the current one live; Amina amended to version 2)
+ * (Wanjiku's previous cycle only, with her current one started from what carries over, so she
+ * files it live; Amina amended to version 2)
  * and the synthetic officers', most on time, a minority not at all, some leaving a registry
  * holding out. Review cases, registry checks and acknowledgement slips follow from the services'
  * own workflows.
@@ -100,7 +107,7 @@ export const filings: SeedStep = {
   async run(context) {
     let submitted = 0;
     for (const persona of PERSONAS) {
-      const { previous, current, amendedTo } = persona.filings;
+      const { previous, current, amendedTo, startsCurrent } = persona.filings;
       const row = fixtureRoster(persona.commission).find(
         (r) => r.nationalId === persona.nationalId,
       );
@@ -115,6 +122,23 @@ export const filings: SeedStep = {
           ? [{ cycleKey: currentKey, holdings: current, previous, amendTo: amendedTo }]
           : []),
       ]);
+      if (startsCurrent) {
+        const { obligations, declarations } = await declarantState(
+          await context.as(persona.demoKey),
+        );
+        const obligation = obligations.find(
+          (o) => o.cycleKey === currentKey && o.status !== 'cancelled',
+        );
+        if (!obligation) throw new Error(`${persona.demoKey} has no ${currentKey} obligation`);
+        const { started } = await startCarriedOver(
+          context,
+          declarant,
+          obligation,
+          declarations.find((d) => d.obligationId === obligation.id && d.status !== 'discarded'),
+          previous,
+        );
+        if (started) context.log(`    ${persona.demoKey}: current declaration started`);
+      }
     }
     const officers = [...(await syntheticOfficers(context)).values()].flat();
     let done = 0;

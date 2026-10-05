@@ -79,6 +79,9 @@ describe('document kinds', () => {
     expect(defaultKind('shareholding')).toBe('share-certificate');
     expect(defaultKind('bank-account')).toBe('bank-letter');
     expect(defaultKind('loan')).toBe('bank-letter');
+    expect(defaultKind('salary-emoluments')).toBe('payslip');
+    expect(defaultKind('allowances')).toBe('payslip');
+    expect(defaultKind('rent')).toBe('other');
     expect(defaultKind('cash')).toBe('other');
     expect(defaultKind(undefined)).toBe('other');
   });

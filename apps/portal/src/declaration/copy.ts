@@ -76,9 +76,9 @@ export const PREFILL_COPY = {
     page: en((page: number) => `Page ${String(page)}`),
     checked: en('I checked this against the document'),
     yes: en('Yes'),
-    kept: en((value: string) => `You entered: ${value} (kept)`),
-    replaced: en((value: string) => `You entered: ${value} (replaced)`),
-    replace: en('Replace details I already entered'),
+    kept: en((read: string) => `You already entered this, so it is kept. Read: ${read}`),
+    replacing: en((entered: string) => `Replaces what you entered: ${entered}`),
+    useRead: en('Use what was read'),
     tickLow: en((count: number) => `Tick the Low field${count === 1 ? '' : 's'} to continue.`),
     addNew: en('Add as new item'),
     applyHere: en('Apply to this item'),
@@ -158,6 +158,14 @@ export const PREFILL_COPY = {
     landIn: en((location: string) => `Land in ${location}`),
     sharesIn: en((company: string) => `Shares in ${company}`),
     shareCount: en((shares: string) => `${shares} shares`),
+    incomeHint: en(
+      (amount: string) =>
+        `KRA has ${amount} of income on record for the year. Add your salary and enter its amount for the income period yourself.`,
+    ),
+    incomeHintNoFigure: en(
+      'KRA has income on record for you. Add your salary and enter its amount for the income period yourself.',
+    ),
+    directorship: en('Declare it under Other information, with your other directorships.'),
   },
   /** What KRA answers about a PIN: the card title and the line under Your details. */
   kra: {

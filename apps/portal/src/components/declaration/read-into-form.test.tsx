@@ -297,24 +297,68 @@ describe('Read into the form (S6, S11)', () => {
     expect(acceptMock.mock.calls[0]?.[0].data).not.toHaveProperty('overwrite');
   });
 
-  it('keeps what the declarant entered unless they choose to replace it', async () => {
+  // #683: the field showed what was read while applying kept what the declarant had entered.
+  // What a field shows is what applying writes.
+  it('shows and keeps what the declarant entered, unless they use what was read', async () => {
     renderSheet({
       item: { id: ITEM_ID, type: 'vehicle', details: { registration: 'KCB 782N' } },
     });
     read();
     await within(sheet()).findByRole('heading', { name: 'Check what was read' });
-    expect(within(sheet()).getByText('Registration: You entered: KCB 782N (kept)')).toBeTruthy();
-    fireEvent.click(
-      within(sheet()).getByRole('checkbox', { name: 'Replace details I already entered' }),
-    );
+    const registration = within(sheet()).getByLabelText('Registration');
+    expect(registration).toHaveProperty('value', 'KCB 782N');
+    expect(registration).toHaveProperty('disabled', true);
     expect(
-      within(sheet()).getByText('Registration: You entered: KCB 782N (replaced)'),
+      field('Registration').getByText('You already entered this, so it is kept. Read: KCB 782M'),
     ).toBeTruthy();
+
     fireEvent.click(within(sheet()).getByRole('checkbox', { name: /I checked this/ }));
     fireEvent.click(within(sheet()).getByRole('button', { name: 'Apply to this item' }));
     await waitFor(() => {
-      expect(acceptMock.mock.calls[0]?.[0].data).toMatchObject({ overwrite: true });
+      expect(acceptMock).toHaveBeenCalledTimes(1);
     });
+    expect(acceptMock.mock.calls[0]?.[0].data).toMatchObject({
+      fields: { 'details.registration': 'KCB 782N', 'details.makeModel': 'Toyota Premio' },
+      overwrite: false,
+    });
+  });
+
+  it('applies what was read over what the declarant entered once they choose it', async () => {
+    renderSheet({
+      item: { id: ITEM_ID, type: 'vehicle', details: { registration: 'KCB 782N' } },
+    });
+    read();
+    await within(sheet()).findByRole('heading', { name: 'Check what was read' });
+    fireEvent.click(
+      within(sheet()).getByRole('checkbox', { name: 'Use what was read: Registration' }),
+    );
+    const registration = within(sheet()).getByLabelText('Registration');
+    expect(registration).toHaveProperty('value', 'KCB 782M');
+    expect(registration).toHaveProperty('disabled', false);
+    expect(field('Registration').getByText('Replaces what you entered: KCB 782N')).toBeTruthy();
+    fireEvent.change(registration, { target: { value: 'KCB 782P' } });
+
+    fireEvent.click(within(sheet()).getByRole('checkbox', { name: /I checked this/ }));
+    fireEvent.click(within(sheet()).getByRole('button', { name: 'Apply to this item' }));
+    await waitFor(() => {
+      expect(acceptMock.mock.calls[0]?.[0].data).toMatchObject({
+        fields: { 'details.registration': 'KCB 782P' },
+        overwrite: true,
+      });
+    });
+  });
+
+  it('needs no tick on a Low field the declarant keeps', async () => {
+    renderSheet({
+      item: { id: ITEM_ID, type: 'vehicle', value: { kesCents: 100_000_000 } },
+    });
+    read();
+    await within(sheet()).findByRole('heading', { name: 'Check what was read' });
+    expect(within(sheet()).queryByRole('checkbox', { name: /I checked this/ })).toBeNull();
+    expect(within(sheet()).getByRole('button', { name: 'Apply to this item' })).toHaveProperty(
+      'disabled',
+      false,
+    );
   });
 
   it('refreshes a changed section and applies again', async () => {

@@ -213,6 +213,10 @@ describe('issueText', () => {
     expect(
       issueText(issue('statement:officer', '/assets/1/value/kesCents', 'is required'), document),
     ).toBe('Asset 2: Value is required');
+    // An income's amount is named too, not left as "Salary: is required" (#682 dry run).
+    expect(issueText(issue('statement:officer', '/income/0/amount', 'is required'), document)).toBe(
+      'Income 1: Amount is required',
+    );
     expect(
       issueText(issue('household', '/spouses/items/0/separationDate', 'is required'), document),
     ).toBe('Mary Wanjiru: Date of separation is required');

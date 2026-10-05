@@ -41,10 +41,10 @@ import { markExtractionOff } from './extraction-availability';
 import { EXTRACTION_COPY as COPY, FAILURE_REASONS } from '../../declaration/copy';
 import { DOCUMENT_KIND_LABELS } from '../../declaration/labels';
 import {
-  acceptedFields,
-  clashes,
+  applyRequest,
   defaultKind,
   DOCUMENT_KINDS,
+  enteredValues,
   levelOf,
   readingState,
   readSuggestion,
@@ -365,14 +365,23 @@ function Review({
     Object.fromEntries(reading.fields.map((field) => [field.key, field.value])),
   );
   const [ticked, setTicked] = useState<ReadonlySet<string>>(new Set());
-  const [overwrite, setOverwrite] = useState(false);
+  // Fields the declarant already filled in differently: theirs is kept, and shown, unless they
+  // choose what was read (#683). What a field shows is what applying writes.
+  const [entered] = useState(() => enteredValues(item, suggestion));
+  const [useRead, setUseRead] = useState<ReadonlySet<string>>(new Set());
   const [working, setWorking] = useState<'idle' | 'busy' | 'refreshing'>('idle');
   const [failed, setFailed] = useState(false);
 
-  const low = reading.fields.filter((field) => levelOf(field) === 'low');
+  const kept = (key: string) => entered.has(key) && !useRead.has(key);
+  const shown = Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [
+      key,
+      kept(key) ? (entered.get(key)?.value ?? value) : value,
+    ]),
+  );
+  // A kept field holds what the declarant entered, not what was read: no tick needed.
+  const low = reading.fields.filter((field) => levelOf(field) === 'low' && !kept(field.key));
   const unticked = low.filter((field) => !ticked.has(field.key)).length;
-  const fields = acceptedFields(suggestion, values);
-  const met = clashes(item, fields);
   const documentKind = DOCUMENT_KIND_LABELS[reading.documentKind ?? kind];
   const empty = reading.fields.length === 0;
 
@@ -380,6 +389,7 @@ function Review({
     setWorking('busy');
     setFailed(false);
     onBusy(true);
+    const { fields, overwrite } = applyRequest(suggestion, shown, item);
     const result = await accept(
       suggestion,
       {
@@ -428,29 +438,36 @@ function Review({
         ))}
         {reading.fields.map((field) => {
           const level = levelOf(field);
+          const theirs = entered.get(field.key);
+          const keeping = kept(field.key);
+          const locked = disabled || keeping;
+          const value = shown[field.key] ?? '';
           return (
             <div key={field.key} className="grid gap-2" data-field={field.key}>
               <FormField
                 label={field.label}
+                // A kept field shows what the declarant entered: the reading's chips are not its.
                 hint={
-                  <span className="inline-flex flex-wrap items-center gap-2">
-                    {level ? <ConfidenceChip confidence={level} /> : null}
-                    {field.page === null ? null : <Badge>{COPY.page(field.page)}</Badge>}
-                  </span>
+                  keeping ? undefined : (
+                    <span className="inline-flex flex-wrap items-center gap-2">
+                      {level ? <ConfidenceChip confidence={level} /> : null}
+                      {field.page === null ? null : <Badge>{COPY.page(field.page)}</Badge>}
+                    </span>
+                  )
                 }
               >
                 {field.input === 'county' ? (
                   <CountySelect
-                    value={values[field.key] === '' ? null : (values[field.key] ?? null)}
-                    disabled={disabled}
+                    value={value === '' ? null : value}
+                    disabled={locked}
                     onValueChange={(code) => {
                       setValues((current) => ({ ...current, [field.key]: code ?? '' }));
                     }}
                   />
                 ) : field.input === 'money' ? (
                   <MoneyInput
-                    value={/^\d+$/.test(values[field.key] ?? '') ? Number(values[field.key]) : null}
-                    disabled={disabled}
+                    value={/^\d+$/.test(value) ? Number(value) : null}
+                    disabled={locked}
                     onValueChange={(cents) => {
                       setValues((current) => ({
                         ...current,
@@ -461,8 +478,8 @@ function Review({
                 ) : field.input === 'boolean' ? (
                   <CheckboxItem
                     label={COPY.yes}
-                    checked={values[field.key] === 'true'}
-                    disabled={disabled}
+                    checked={value === 'true'}
+                    disabled={locked}
                     onChange={(event) => {
                       const on = event.target.checked;
                       setValues((current) => ({ ...current, [field.key]: String(on) }));
@@ -471,8 +488,8 @@ function Review({
                 ) : (
                   <Input
                     maxLength={200}
-                    value={values[field.key] ?? ''}
-                    disabled={disabled}
+                    value={value}
+                    disabled={locked}
                     onChange={(event) => {
                       const value = event.target.value;
                       setValues((current) => ({ ...current, [field.key]: value }));
@@ -480,7 +497,29 @@ function Review({
                   />
                 )}
               </FormField>
-              {level === 'low' ? (
+              {theirs ? (
+                <div className="grid gap-1.5">
+                  <FieldHint>
+                    {keeping ? COPY.kept(theirs.readDisplay) : COPY.replacing(theirs.display)}
+                  </FieldHint>
+                  <CheckboxItem
+                    label={COPY.useRead}
+                    aria-label={`${COPY.useRead}: ${field.label}`}
+                    checked={!keeping}
+                    disabled={disabled}
+                    onChange={(event) => {
+                      const on = event.target.checked;
+                      setUseRead((current) => {
+                        const next = new Set(current);
+                        if (on) next.add(field.key);
+                        else next.delete(field.key);
+                        return next;
+                      });
+                    }}
+                  />
+                </div>
+              ) : null}
+              {level === 'low' && !keeping ? (
                 <CheckboxItem
                   label={COPY.checked}
                   aria-label={`${COPY.checked}: ${field.label}`}
@@ -500,23 +539,6 @@ function Review({
             </div>
           );
         })}
-        {met.length > 0 ? (
-          <div className="grid gap-2 rounded-lg bg-muted px-3 py-2.5">
-            {met.map(({ entry, existing }) => (
-              <FieldHint key={entry.path}>
-                {entry.label}: {overwrite ? COPY.replaced(existing) : COPY.kept(existing)}
-              </FieldHint>
-            ))}
-            <CheckboxItem
-              label={COPY.replace}
-              checked={overwrite}
-              disabled={disabled}
-              onChange={(event) => {
-                setOverwrite(event.target.checked);
-              }}
-            />
-          </div>
-        ) : null}
         {failed ? (
           <Alert variant="destructive">
             <Icon icon={AlertCircleIcon} />

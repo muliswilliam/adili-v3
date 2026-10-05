@@ -214,6 +214,9 @@ export class JobsController {
       'cache-control': 'no-cache',
       'x-accel-buffering': 'no',
     });
+    // Node holds written headers until the first body byte; the caller times out waiting for them
+    // (5 s), and a model can take longer than that to its first token on a long prompt (#685).
+    raw.flushHeaders();
     const left = new AbortController();
     raw.on('close', () => {
       if (!raw.writableEnded) left.abort();

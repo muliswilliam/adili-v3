@@ -215,7 +215,7 @@ describe('Ask Adili panel (S12)', () => {
     expect(openMock).toHaveBeenCalledWith({ data: { declarationId: DRAFT, language: 'en' } });
     expect(await within(panel).findByText('Suggested questions')).toBeTruthy();
     expect(
-      within(panel).getByRole('button', { name: "Do I declare my wife's salary?" }),
+      within(panel).getByRole('button', { name: "Do I declare my spouse's salary?" }),
     ).toBeTruthy();
     expect(
       within(panel).getByRole('img', { name: /^AI-assisted · not legal advice/ }),

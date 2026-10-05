@@ -1,5 +1,5 @@
 import type { RegistryStatus, RegistryStatusEntry } from '@adili/ui';
-import { countyName, SOURCE_NAMES } from '@adili/ui';
+import { countyName, formatMoney, SOURCE_NAMES } from '@adili/ui';
 
 import type {
   JsonObject,
@@ -32,6 +32,9 @@ import { CATEGORIES, type Category, type Item, NIL_KEY } from './statement';
  * - `shareholding` (BRS; the spec's `investment`, which declaration.v1 does not have):
  *   companyName, registrationNumber, role, shares
  * - `bio-tax` (KRA): kraPin, complianceStatus
+ * - `income-hint` (KRA): incomeType; the income KRA has on record is in `sourceRef`
+ *   (`annualIncomeDeclaredKesCents`), a hint to check the salary, never a value
+ * - `directorship` (BRS, a registrable interest in Other information): companyName, role
  * Any type may also carry `description`, which the declarant can edit before adding.
  *
  * From those it composes the card's title, the item fields a suggestion fills (the same paths
@@ -109,7 +112,7 @@ type Fields = Record<string, unknown>;
  * document kind "Read into the form" offers first.
  */
 export interface SuggestionKind {
-  key: 'vehicle' | 'land' | 'shares' | 'bank' | 'tax' | 'other';
+  key: 'vehicle' | 'land' | 'shares' | 'bank' | 'income' | 'tax' | 'directorship' | 'other';
   /** `tax` fills a person's tax fields (`bio-tax`) rather than adding a statement item. */
   target: 'item' | 'tax';
   /** The title from the fields, or '' when they say nothing usable. */
@@ -217,6 +220,19 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
     editFields: [],
     documentKind: 'bank-letter',
   },
+  income: {
+    key: 'income',
+    target: 'item',
+    // KRA's income hint names the income type it is about; a typed income item has none.
+    title: (fields) => {
+      const type = fieldText(fields.incomeType);
+      return type === '' ? '' : (TYPE_LABELS.income[type] ?? '');
+    },
+    patch: () => [],
+    identifier: null,
+    editFields: [],
+    documentKind: 'payslip',
+  },
   tax: {
     key: 'tax',
     target: 'tax',
@@ -235,6 +251,15 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
       const pin = fieldText(fields.kraPin);
       return entry('kraPin', FIELD_LABELS.kraPin, pin, maskKraPin(pin));
     },
+    identifier: null,
+    editFields: [],
+    documentKind: 'other',
+  },
+  directorship: {
+    key: 'directorship',
+    target: 'item',
+    title: (fields) => joined([fieldText(fields.companyName), fieldText(fields.role)], ' · '),
+    patch: () => [],
     identifier: null,
     editFields: [],
     documentKind: 'other',
@@ -267,7 +292,12 @@ const ITEM_TYPES: Record<string, { kind: SuggestionKind['key']; declared?: strin
   mortgage: { kind: 'bank' },
   loan: { kind: 'bank' },
   guarantee: { kind: 'bank' },
+  'salary-emoluments': { kind: 'income' },
+  allowances: { kind: 'income' },
+  pension: { kind: 'income' },
+  'income-hint': { kind: 'income', declared: 'salary-emoluments' },
   'bio-tax': { kind: 'tax' },
+  directorship: { kind: 'directorship' },
 };
 
 /** How a suggestion of this item type reads; `other` for types the portal has no rules for. */
@@ -296,6 +326,22 @@ export function typeWord(itemType: string): string {
   return (
     (category && TYPE_LABELS[category][declaredType(itemType)]) ?? SUGGESTION_COPY.fallbackType
   );
+}
+
+/**
+ * What KRA's income hint says, for its card: the income KRA has on record for the year. Never a
+ * value: the declarant enters their own amount for the period. '' for any other suggestion.
+ */
+export function incomeHintText(suggestion: SuggestionLike & { sourceRef?: unknown }): string {
+  if (suggestion.itemType !== 'income-hint') return '';
+  const ref = suggestion.sourceRef;
+  const cents =
+    typeof ref === 'object' && ref !== null
+      ? (ref as Record<string, unknown>).annualIncomeDeclaredKesCents
+      : undefined;
+  return typeof cents === 'number' && Number.isInteger(cents) && cents >= 0
+    ? SUGGESTION_COPY.incomeHint(formatMoney(cents, { currency: 'KES' }))
+    : SUGGESTION_COPY.incomeHintNoFigure;
 }
 
 /**

@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import {
+  notFoundIfInvisible,
+  type Principal,
+  ProblemException,
+  type ReadAudit,
+} from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, asc, eq, inArray } from 'drizzle-orm';
@@ -63,13 +68,14 @@ export class CaseViewService {
    * The case with its declaration. When declarations cannot give the document, 502 with the rest
    * of the case in the problem, so the reviewer still sees the case's own data.
    */
-  async detail(principal: Principal, caseId: string): Promise<CaseDetail> {
+  async detail(principal: Principal, caseId: string, audit: ReadAudit): Promise<CaseDetail> {
     const tenant = caseTenant(principal);
     const context = { tenant, subject: principal.subject };
     const { row, detail } = await withTenant(this.db, context, async (tx) => {
       const found = await findCase(tx, tenant, caseId);
       return { row: found, detail: await caseData(tx, found) };
     });
+    auditCaseRead(audit, row);
 
     const pulled = await this.pull(principal, row).catch((error: unknown) => {
       if (error instanceof ProblemException) {
@@ -97,12 +103,14 @@ export class CaseViewService {
     principal: Principal,
     caseId: string,
     uploadId: string,
+    audit: ReadAudit,
   ): Promise<AttachmentDownload> {
     const tenant = caseTenant(principal);
     const upload = visibleId(uploadId);
     const row = await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
       findCase(tx, tenant, caseId),
     );
+    auditCaseRead(audit, row);
     const pulled = await this.pull(principal, row);
     notFoundIfInvisible(pulled.attachments.find((attachment) => attachment.uploadId === upload));
     let link: AttachmentDownload | null;
@@ -123,6 +131,15 @@ export class CaseViewService {
   private pull(principal: Principal, row: CaseRow): Promise<PulledVersion> {
     return pullViewedVersion(this.declarations, principal, row);
   }
+}
+
+/**
+ * A case read is a read of the declarant's personal data (ADR-008): its audit event names them
+ * and the case it was read for (#687).
+ */
+function auditCaseRead(audit: ReadAudit, row: CaseRow): void {
+  audit.resource({ tenant: row.tenant, subjectPersonId: row.personId });
+  audit.legalBasis({ basis: 'review-case', reference: row.id });
 }
 
 /** Everything the case view shows from the review database. */

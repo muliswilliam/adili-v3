@@ -14,6 +14,7 @@ import {
   editFields,
   editValue,
   findMatch,
+  incomeHintText,
   isChecking,
   lastChecked,
   maskKraPin,
@@ -91,6 +92,39 @@ describe('suggestionTitle', () => {
     );
     expect(suggestionTitle({ itemType: 'vehicle', fields: {} })).toBe('Vehicle');
     expect(suggestionTitle({ itemType: 'hint', fields: { amount: {} } })).toBe('Suggestion');
+  });
+});
+
+// #680: KRA's income hint showed as a blank card titled "Suggestion". Every item type the
+// declarations service's registry mapping emits, with the fields it gives (registry-mapping.ts,
+// declarations.yaml `Suggestion.fields`), reads as something.
+describe('every registry suggestion the service emits', () => {
+  const emitted = [
+    vehicle,
+    land,
+    shares,
+    kra,
+    { itemType: 'income-hint', fields: { incomeType: 'salary-emoluments' } },
+    { itemType: 'directorship', fields: { companyName: 'Afya Bora Ltd', role: 'Director' } },
+  ];
+
+  it.each(emitted)('has a title of its own: $itemType', (each) => {
+    expect(suggestionTitle(each)).not.toBe('Suggestion');
+  });
+
+  it("reads KRA's income hint as the salary it is about, with KRA's figure as a hint", () => {
+    const hint = {
+      itemType: 'income-hint',
+      fields: { incomeType: 'salary-emoluments' },
+      sourceRef: { kraPin: 'A005231876K', annualIncomeDeclaredKesCents: 240_000_000 },
+    };
+    expect(suggestionTitle(hint)).toBe('Salary and emoluments');
+    expect(categoryOf('income-hint')).toBe('income');
+    expect(incomeHintText(hint)).toBe(
+      'KRA has KES 2,400,000 of income on record for the year. Add your salary and enter its amount for the income period yourself.',
+    );
+    expect(incomeHintText({ ...hint, sourceRef: {} })).toMatch(/^KRA has income on record/);
+    expect(incomeHintText(vehicle)).toBe('');
   });
 });
 

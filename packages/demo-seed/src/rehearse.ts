@@ -2,8 +2,9 @@
  * `pnpm --filter @adili/demo-seed rehearse`: runs the demo's live filing beat end to end through
  * the APIs, as the presenter does it in the portal, and checks what the demo promises (#617):
  *
- * 1. Wanjiku starts her current declaration and asks the registries: KRA, NTSA, BRS and ArdhiSasa
- *    suggest her Fielder, her Kiambu parcel and her salary.
+ * 1. Wanjiku opens her current declaration, which `0-start` leaves holding what carries over from
+ *    her previous one, and asks the registries: KRA, NTSA, BRS and ArdhiSasa suggest her Fielder,
+ *    her Kiambu parcel and her salary.
  * 2. She accepts them, attaches the sample files (`mocks/demo/files`) and has each read into the
  *    form (the AI provider's `extract-document`).
  * 3. She submits; the reviewer's case then shows the three 07b flags (the Prado, the Kajiado
@@ -24,7 +25,7 @@ import { loadConfig } from './config.js';
 import { createContext } from './context.js';
 import { CURRENT_CYCLE, PERSONAS } from './data/personas.js';
 import { fixtureRoster } from './data/roster.js';
-import { declarantState } from './filing.js';
+import { declarantState, startCarriedOver } from './filing.js';
 import { REPO_ROOT } from './repo.js';
 import { demoTicketSignIn, Tokens } from './tokens.js';
 
@@ -47,24 +48,32 @@ if (!obligation) throw new Error('Wanjiku has no current-cycle obligation');
 if (declarations.some((d) => d.obligationId === obligation.id && d.status === 'submitted')) {
   throw new Error('Wanjiku filed her current declaration already: reset to 0-start first');
 }
-// A draft left by an earlier rehearsal is discarded, so this one starts as the presenter does.
-for (const stale of declarations.filter(
-  (d) => d.obligationId === obligation.id && d.status === 'draft',
-)) {
-  ok(
-    await api.declarations.DELETE('/v1/declarations/{declarationId}', {
-      params: { path: { declarationId: stale.id } },
+const declarant = {
+  demoKey: wanjiku.demoKey,
+  birth: { date: row.dateOfBirth, place: row.placeOfBirth },
+};
+const previous = wanjiku.filings.previous;
+// `0-start` leaves her draft holding what carries over from her previous declaration (#682). A
+// draft an earlier rehearsal got further with is discarded and started again the same way.
+let current = declarations.find((d) => d.obligationId === obligation.id && d.status === 'draft');
+if (current) {
+  const statement = ok(
+    await api.declarations.GET('/v1/declarations/{declarationId}/sections/{sectionKey}', {
+      params: { path: { declarationId: current.id, sectionKey: 'statement:officer' } },
     }),
-    'discard an earlier draft',
-  );
+    'statement',
+  ).contents as { income?: unknown[]; assets?: unknown[] };
+  if ((statement.income?.length ?? 0) + (statement.assets?.length ?? 0) > 0) {
+    ok(
+      await api.declarations.DELETE('/v1/declarations/{declarationId}', {
+        params: { path: { declarationId: current.id } },
+      }),
+      'discard an earlier rehearsal',
+    );
+    current = undefined;
+  }
 }
-const draft = ok(
-  await api.declarations.POST('/v1/obligations/{id}/declaration', {
-    params: { path: { id: obligation.id } },
-  }),
-  'start the current declaration',
-);
-const declarationId = draft.id;
+const { declarationId } = await startCarriedOver(context, declarant, obligation, current, previous);
 const path = { declarationId };
 const version = async () =>
   String(
@@ -73,36 +82,6 @@ const version = async () =>
       'draft',
     ).draftVersion,
   );
-
-// Bio and household as she would type them; the registries are asked for the officer.
-const bio = ok(
-  await api.declarations.GET('/v1/declarations/{declarationId}/sections/{sectionKey}', {
-    params: { path: { declarationId, sectionKey: 'bio' } },
-  }),
-  'bio',
-).contents;
-for (const [sectionKey, contents] of [
-  [
-    'bio',
-    {
-      ...bio,
-      birth: { date: row.dateOfBirth, place: row.placeOfBirth },
-      maritalStatus: 'married',
-      maritalStatusChange: { changed: false },
-      address: { postal: 'P.O. Box 47715-00100, Nairobi', physical: 'Ruiru, Kiambu' },
-      employment: { nature: 'permanent', ...(bio.employment as Record<string, unknown>) },
-    },
-  ],
-  ['household', { spouses: { none: true, items: [] }, children: { none: true, items: [] } }],
-] as const) {
-  ok(
-    await api.declarations.PUT('/v1/declarations/{declarationId}/sections/{sectionKey}', {
-      params: { path: { declarationId, sectionKey }, header: { 'If-Match': await version() } },
-      body: contents,
-    }),
-    `save ${sectionKey}`,
-  );
-}
 
 const systems = ['kra', 'ntsa', 'brs', 'ardhisasa'] as const;
 ok(
@@ -215,7 +194,7 @@ for (const sample of files) {
   }
 }
 
-// The rest as she would leave it, then submit with a fresh sign-in.
+// The values the presenter types, then submit with a fresh sign-in; the rest carried over.
 const statement = ok(
   await api.declarations.GET('/v1/declarations/{declarationId}/sections/{sectionKey}', {
     params: { path: { declarationId, sectionKey: 'statement:officer' } },
@@ -256,25 +235,6 @@ ok(
     },
   }),
   'save the statement',
-);
-ok(
-  await api.declarations.PUT('/v1/declarations/{declarationId}/sections/{sectionKey}', {
-    params: {
-      path: { declarationId, sectionKey: 'other' },
-      header: { 'If-Match': await version() },
-    },
-    body: {
-      materialChanges: [],
-      registrableInterests: {
-        directorships: [],
-        memberships: [],
-        dualCitizenship: { holds: false, pendingApplication: false },
-        pendingCases: [],
-      },
-      freeText: '',
-    },
-  }),
-  'save other information',
 );
 const fresh = await context.as('wanjiku', { fresh: true });
 const submitted = await fresh.declarations.POST('/v1/declarations/{declarationId}/submit', {
