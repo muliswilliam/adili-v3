@@ -363,6 +363,11 @@ export class Bff {
       await this.saveSession(sessionId, refreshed, tokens);
       return refreshed;
     } catch {
+      // Another request may have refreshed this session after this one read it: Keycloak then
+      // refuses the used refresh token (revokeRefreshToken), but the session goes on.
+      const raw = await this.options.store.get(sessionKey(sessionId));
+      const current = raw ? (JSON.parse(raw) as StoredSession) : null;
+      if (current?.refreshToken && current.refreshToken !== session.refreshToken) return current;
       // Refresh token expired or revoked in Keycloak: the SSO session is over.
       await this.options.store.delete(sessionKey(sessionId));
       return null;

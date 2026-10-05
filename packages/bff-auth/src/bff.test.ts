@@ -423,6 +423,33 @@ describe('Bff', () => {
       provider.refresh.mockRejectedValueOnce(new Error('invalid_grant'));
       expect(await bff.getSession(request())).toBeNull();
     });
+
+    it('keeps a session another request refreshed while this one read it', async () => {
+      // A request reads the session just before another one's refresh saves rotated tokens, so
+      // it refreshes with the used refresh token, which Keycloak refuses (revokeRefreshToken).
+      const store = new MemorySessionStore(() => now);
+      bff = new Bff({ appUrl: APP_URL, cookieName: COOKIE, provider, store, now: () => now });
+      const cookie = await signIn();
+      const request = () => new Request(APP_URL, { headers: { cookie } });
+      now += 300_000;
+      const get = store.get.bind(store);
+      vi.spyOn(store, 'get')
+        .mockImplementation(get)
+        .mockImplementationOnce(async (key) => {
+          const stale = await get(key);
+          await bff.getSession(request());
+          return stale;
+        });
+      const used = new Set<string>();
+      provider.refresh.mockImplementation((refreshToken) => {
+        if (used.has(refreshToken)) return Promise.reject(new Error('invalid_grant'));
+        used.add(refreshToken);
+        return Promise.resolve(tokens({ accessToken: 'access-2', refreshToken: 'refresh-2' }));
+      });
+
+      expect((await bff.getSession(request()))?.accessToken).toBe('access-2');
+      expect((await bff.getSession(request()))?.accessToken).toBe('access-2');
+    });
   });
 
   it('marks cookies Secure on HTTPS origins', async () => {
