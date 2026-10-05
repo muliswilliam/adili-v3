@@ -16,6 +16,11 @@ vi.mock('@tanstack/react-router', async () => ({
 
 const TODAY = '2026-10-03';
 const COMMISSION = { scope: { kind: 'commission', slug: 'psc' }, readOnly: false } as const;
+/** A platform admin's choice who is also the PSC's administrator. */
+const BOTH_SCOPES = [
+  { kind: 'platform', label: 'Platform' },
+  { kind: 'commission', label: 'Public Service Commission' },
+] as const;
 
 const article = (n: number, patch: Partial<HelpArticle> = {}): HelpArticle => ({
   id: `0199c0de-a000-7000-8000-${String(n).padStart(12, '0')}`,
@@ -52,6 +57,8 @@ function renderView(
     setJustPublished: vi.fn(),
     searchAsDeclarants,
     onUnauthenticated: vi.fn(),
+    scopes: [],
+    chooseScope: vi.fn(),
     ...session,
   };
   render(
@@ -157,6 +164,34 @@ describe('help articles list (spec 11 FE-4)', () => {
       within(tabs).getByRole('link', { name: 'Platform articles' }).getAttribute('aria-current'),
     ).toBe('page');
     expect(within(tabs).getByRole('link', { name: 'Legal corpus' })).toBeTruthy();
+  });
+
+  it('offers no choice of help to a viewer who may open only one', () => {
+    renderView({}, { scopes: [{ kind: 'commission', label: 'Public Service Commission' }] });
+    expect(screen.queryByRole('group', { name: 'Whose help' })).toBeNull();
+  });
+
+  it("lets a platform admin with a Commission role switch to the Commission's help", () => {
+    const chooseScope = vi.fn();
+    renderView({ workspace: { scope: { kind: 'platform' }, readOnly: false } }, {
+      scopes: BOTH_SCOPES,
+      chooseScope,
+    });
+    const choice = screen.getByRole('group', { name: 'Whose help' });
+    expect(within(choice).getByRole('radio', { name: 'Platform' })).toHaveProperty('checked', true);
+    fireEvent.click(within(choice).getByRole('radio', { name: 'Public Service Commission' }));
+    expect(chooseScope).toHaveBeenCalledWith('commission');
+  });
+
+  it("shows the Commission's tabs once the Commission's help is chosen", () => {
+    renderView({}, { scopes: BOTH_SCOPES });
+    const choice = screen.getByRole('group', { name: 'Whose help' });
+    expect(
+      within(choice).getByRole('radio', { name: 'Public Service Commission' }),
+    ).toHaveProperty('checked', true);
+    const tabs = screen.getByRole('navigation', { name: 'Help pages' });
+    expect(within(tabs).getByRole('link', { name: 'Question themes' })).toBeTruthy();
+    expect(within(tabs).queryByRole('link', { name: 'Legal corpus' })).toBeNull();
   });
 });
 

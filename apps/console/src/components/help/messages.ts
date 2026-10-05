@@ -112,6 +112,8 @@ export const messages = {
   title: 'Help articles',
   readOnly: 'Read only',
   tabsLabel: 'Help pages',
+  scopeLabel: 'Whose help',
+  scopePlatform: 'Platform',
   tabArticles: 'Articles',
   tabPlatformArticles: 'Platform articles',
   tabCorpus: 'Legal corpus',

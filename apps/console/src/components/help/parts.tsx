@@ -1,4 +1,4 @@
-import { Badge, cn, formatDate, Icon, TabsLink, TabsNav } from '@adili/ui';
+import { Badge, cn, formatDate, Icon, SegmentedChoice, TabsLink, TabsNav } from '@adili/ui';
 import {
   Archive02Icon,
   ChartColumnIcon,
@@ -16,7 +16,7 @@ import type { HelpTag } from '../../server/declarations/client';
 import { PageHead } from '../page';
 import { messages as m } from './messages';
 import { type ArticleStatus } from './model';
-import type { HelpWorkspace } from './scope';
+import { type HelpWorkspace, useHelpSession } from './scope';
 
 export type HelpTab = 'articles' | 'corpus' | 'themes';
 
@@ -25,7 +25,8 @@ const TAB_ICONS = { articles: File01Icon, corpus: JusticeScale01Icon, themes: Ch
 /**
  * The help pages' title, read-only badge and actions, over the tabs between them: the
  * platform's articles and the legal corpus for platform admins, the Commission's articles and
- * its question themes for its staff. Links between pages, as a `TabsNav`.
+ * its question themes for its staff. Links between pages, as a `TabsNav`. A platform admin who
+ * also holds a Commission role chooses whose help to work on.
  */
 export function HelpHeader({
   workspace,
@@ -46,12 +47,26 @@ export function HelpHeader({
           { tab: 'articles', to: '/help', label: m.tabArticles },
           { tab: 'themes', to: '/help/themes', label: m.tabThemes },
         ];
+  const { scopes, chooseScope } = useHelpSession();
+  const choosing = scopes.length > 1;
   return (
     <>
       <PageHead title={m.title} actions={actions}>
-        {workspace.readOnly ? (
+        {choosing || workspace.readOnly ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <ReadOnlyBadge />
+            {choosing ? (
+              <SegmentedChoice
+                variant="track"
+                legend={m.scopeLabel}
+                options={scopes.map(({ kind, label }) => ({ value: kind, label }))}
+                value={workspace.scope.kind}
+                onValueChange={(value) => {
+                  const chosen = scopes.find(({ kind }) => kind === value);
+                  if (chosen) chooseScope(chosen.kind);
+                }}
+              />
+            ) : null}
+            {workspace.readOnly ? <ReadOnlyBadge /> : null}
           </div>
         ) : null}
       </PageHead>

@@ -15,6 +15,7 @@ import type { HelpResult } from '../../server/help.server';
 export const Route = createFileRoute('/help/corpus')({
   validateSearch: corpusSearch,
   shouldReload: ({ cause }) => cause !== 'stay',
+  loaderDeps: ({ search }) => ({ scope: search.scope }),
   loader: async ({ context, location }): Promise<HelpResult<CorpusPassage[]> | null> => {
     if (context.help?.scope.kind !== 'platform') return null;
     const result = await listCorpus();

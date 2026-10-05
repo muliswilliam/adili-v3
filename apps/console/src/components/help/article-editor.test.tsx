@@ -57,6 +57,8 @@ function renderEditor(props: Partial<ComponentProps<typeof ArticleEditor>> = {})
     setJustPublished: vi.fn(),
     searchAsDeclarants: vi.fn(),
     onUnauthenticated: vi.fn(),
+    scopes: [],
+    chooseScope: vi.fn(),
   };
   render(
     <ToastProvider>
