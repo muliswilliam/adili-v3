@@ -1299,6 +1299,56 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/help/passages/{passageId}:
+    get:
+      tags:
+        - help
+      summary: One passage of the corpus or one help article in full, for the portal's help pages
+      description: "Declarants (by the person_id claim), with the visibility of `searchHelp`: the Act and Regulations, the platform's published articles and those of the declarant's own Commissions, in force on `date`. The text is in `language` where the passage has it, else in English (`language` of the response says which). Deterministic: no AI. Anything else, and other callers, 404."
+      operationId: getHelpPassage
+      parameters:
+        - name: passageId
+          required: true
+          in: path
+          description: A `HelpPassage` id, as `searchHelp` and answer citations give it
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: language
+          required: true
+          in: query
+          schema:
+            type: string
+            enum:
+              - en
+              - sw
+        - name: date
+          required: false
+          in: query
+          description: Read the law in force on this day (`YYYY-MM-DD`); today by default
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: The passage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelpPassageDetail'
+        '400':
+          description: Query failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/help/articles:
     get:
       tags:
@@ -2657,45 +2707,6 @@ paths:
                 $ref: '#/components/schemas/CorpusPassageText'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/help/passages/{passageId}:
-    get:
-      tags:
-        - help
-      summary: One passage of the corpus or one help article in full, for the portal's help pages
-      description: "Declarants (by the person_id claim), with the visibility of `searchHelp`: the Act and Regulations, the platform's published articles and those of the declarant's own Commissions, in force on `date`. The text is in `language` where the passage has it, else in English (`language` of the response says which). Deterministic: no AI. Anything else, and other callers, 404."
-      operationId: getHelpPassage
-      x-draft: true
-      parameters:
-        - name: passageId
-          in: path
-          required: true
-          description: A `HelpPassage` id, as `searchHelp` and answer citations give it
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 100
-        - name: language
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/HelpLanguage'
-        - name: date
-          in: query
-          description: Read the law in force on this day (`YYYY-MM-DD`); today by default
-          schema:
-            type: string
-            format: date
-      responses:
-        '200':
-          description: The passage
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HelpPassageDetail'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
         '404':
           $ref: '#/components/responses/NotFound'
 components:
@@ -4336,6 +4347,63 @@ components:
         - title
         - snippet
         - language
+    HelpPassageDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+          enum:
+            - act
+            - regs
+            - am
+            - help
+        citation:
+          type: string
+          examples:
+            - Act s.31(4)
+            - 'Help: Joint assets'
+        title:
+          type: string
+          description: 'The stored title: help articles and corpus passages have no Swahili title yet, so it is in English even when `language` is `sw` (#677)'
+        text:
+          type: string
+          description: The whole passage or article body, in `language`; statutory text as published
+        language:
+          description: The language of the text; `en` when the passage has no Swahili text
+          $ref: '#/components/schemas/HelpLanguage'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/HelpTag'
+          description: Section kinds, statement item types and topics it covers
+        commission:
+          anyOf:
+            - $ref: '#/components/schemas/CommissionRef'
+            - type: 'null'
+          description: The Commission whose article it is; null for the law and platform articles
+        effectiveFrom:
+          type: string
+          format: date
+        effectiveTo:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+          description: Exclusive; null while in force
+      required:
+        - id
+        - source
+        - citation
+        - title
+        - text
+        - language
+        - tags
+        - commission
+        - effectiveFrom
+        - effectiveTo
+      description: A passage of the corpus or a help article, whole, as the help pages show it
     HelpArticleInput:
       type: object
       properties:
@@ -5441,63 +5509,6 @@ components:
               type:
                 - string
                 - 'null'
-    HelpPassageDetail:
-      type: object
-      description: A passage of the corpus or a help article, whole, as the help pages show it
-      required:
-        - id
-        - source
-        - citation
-        - title
-        - text
-        - language
-        - tags
-        - commission
-        - effectiveFrom
-        - effectiveTo
-      properties:
-        id:
-          type: string
-        source:
-          type: string
-          enum:
-            - act
-            - regs
-            - am
-            - help
-        citation:
-          type: string
-          examples:
-            - Act s.31(4)
-            - 'Help: Joint assets'
-        title:
-          type: string
-          description: In `language`
-        text:
-          type: string
-          description: The whole passage or article body, in `language`; statutory text as published
-        language:
-          description: The language of the title and text; `en` when the passage has no Swahili text
-          $ref: '#/components/schemas/HelpLanguage'
-        tags:
-          type: array
-          items:
-            $ref: '#/components/schemas/HelpTag'
-          description: Section kinds, statement item types and topics it covers
-        commission:
-          description: The Commission whose article it is; null for the law and platform articles
-          anyOf:
-            - $ref: '#/components/schemas/CommissionRef'
-            - type: 'null'
-        effectiveFrom:
-          type: string
-          format: date
-        effectiveTo:
-          description: Exclusive; null while in force
-          type:
-            - string
-            - 'null'
-          format: date
   parameters:
     DeclarationId:
       name: declarationId

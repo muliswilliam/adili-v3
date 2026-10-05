@@ -3,7 +3,13 @@ import { randomUUID } from 'node:crypto';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { corpusPassages, filingObligations, outbox, rosterSnapshots } from '../../src/db/schema.js';
+import {
+  commissionRefs,
+  corpusPassages,
+  filingObligations,
+  outbox,
+  rosterSnapshots,
+} from '../../src/db/schema.js';
 import { type CorpusFile, corpusVersion, loadCorpus } from '../../src/help/corpus.js';
 import type {
   CorpusImportResult,
@@ -11,6 +17,7 @@ import type {
   HelpArticle,
   HelpArticleInput,
   HelpPassage,
+  HelpPassageDetail,
 } from '../../src/help/representation.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import {
@@ -608,5 +615,165 @@ describe('S10 authorisation', () => {
       expect((await api.request('POST', '/v1/help/corpus/import', caller)).statusCode).toBe(403);
     }
     expect((await api.request('DELETE', one, platformAdmin)).statusCode).toBe(204);
+  });
+});
+
+describe('#549 one passage or article in full (getHelpPassage)', () => {
+  const passagePath = (id: string, params: Record<string, string> = { language: 'en' }) =>
+    `/v1/help/passages/${encodeURIComponent(id)}?${new URLSearchParams(params).toString()}`;
+
+  async function publish(slug: string, input: HelpArticleInput) {
+    const path = slug === 'platform' ? '/v1/help/articles' : articles(slug);
+    const response = await api.request(
+      'POST',
+      path,
+      slug === 'platform' ? platformAdmin : pscAdmin,
+      {
+        headers: freshKey(),
+        body: input,
+      },
+    );
+    expect(response.statusCode).toBe(201);
+    return response.json<HelpArticle>();
+  }
+
+  // The read model holds every Commission, as the directory's events keep it.
+  beforeEach(async () => {
+    await api.asPlatform((tx) =>
+      tx
+        .insert(commissionRefs)
+        .values({ slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' })
+        .onConflictDoNothing(),
+    );
+  });
+
+  /** A wording of the committed corpus in force today (the Act's first section). */
+  async function actPassage() {
+    const [row] = await api.asPlatform((tx) =>
+      tx.select().from(corpusPassages).where(eq(corpusPassages.citation, 'Act s.30')),
+    );
+    if (!row) throw new Error('no Act s.30 in the corpus');
+    return row;
+  }
+
+  async function detail(id: string, params?: Record<string, string>, caller = pscDeclarant) {
+    const response = await api.get(passagePath(id, params), caller);
+    expect(response.statusCode).toBe(200);
+    const body = response.json<HelpPassageDetail>();
+    expect(contractErrors(okResponse('/v1/help/passages/{passageId}', 'get'), body)).toEqual([]);
+    return body;
+  }
+
+  it('reads a statutory passage in full, in English where it has no Swahili', async () => {
+    const act = await actPassage();
+    expect(await detail(act.id, { language: 'sw' })).toEqual({
+      id: act.id,
+      source: 'act',
+      citation: 'Act s.30',
+      title: act.title,
+      text: act.textEn,
+      language: 'en',
+      tags: act.tags,
+      commission: null,
+      effectiveFrom: act.effectiveFrom,
+      effectiveTo: act.effectiveTo,
+    });
+  });
+
+  it("gives a passage's Swahili wording where the corpus has it", async () => {
+    const act = await actPassage();
+    await api.asPlatform((tx) =>
+      tx
+        .update(corpusPassages)
+        .set({ textSw: 'Maandishi ya Kiswahili ya kifungu hiki.' })
+        .where(eq(corpusPassages.id, act.id)),
+    );
+    expect(await detail(act.id, { language: 'sw' })).toMatchObject({
+      text: 'Maandishi ya Kiswahili ya kifungu hiki.',
+      language: 'sw',
+    });
+    expect(await detail(act.id, { language: 'en' })).toMatchObject({
+      text: act.textEn,
+      language: 'en',
+    });
+  });
+
+  it('reads a platform article in full, its Swahili body when asked', async () => {
+    const created = await publish(
+      'platform',
+      article({ title: 'Joint assets', bodySw: 'Mali ya pamoja na mwenzi wako.' }),
+    );
+    expect(await detail(created.id)).toMatchObject({
+      id: created.id,
+      source: 'help',
+      citation: 'Help: Joint assets',
+      title: 'Joint assets',
+      text: created.bodyEn,
+      language: 'en',
+      commission: null,
+      effectiveFrom: '2026-01-01',
+      effectiveTo: null,
+    });
+    expect(await detail(created.id, { language: 'sw' })).toMatchObject({
+      text: 'Mali ya pamoja na mwenzi wako.',
+      language: 'sw',
+    });
+  });
+
+  it("carries the Commission of a Commission's article", async () => {
+    const created = await publish('psc', article());
+    expect((await detail(created.id)).commission).toEqual({
+      slug: 'psc',
+      issuerCode: 'PSC',
+      name: 'Public Service Commission',
+    });
+  });
+
+  it("is 404 for another Commission's article, an unpublished or superseded one, a wording not in force, an unknown id", async () => {
+    const pscArticle = await publish('psc', article());
+    const draft = await publish('psc', article({ title: 'Draft', published: false }));
+    const old = await publish(
+      'psc',
+      article({ title: 'Old', effectiveFrom: '2025-01-01', effectiveTo: '2026-01-01' }),
+    );
+    const notFound = async (id: string, params?: Record<string, string>, caller = pscDeclarant) => {
+      expect((await api.get(passagePath(id, params), caller)).statusCode).toBe(404);
+    };
+
+    await notFound(pscArticle.id, undefined, tscDeclarant);
+    await notFound(draft.id);
+    await notFound(old.id, { language: 'en', date: '2026-06-01' });
+    expect((await detail(old.id, { language: 'en', date: '2025-06-01' })).citation).toBe(
+      'Help: Old',
+    );
+    const act = await actPassage();
+    await notFound(act.id, { language: 'en', date: '2020-01-01' });
+    await notFound(randomUUID());
+    await notFound('not-a-passage');
+  });
+
+  it("does not hide a Commission's article when the read model lacks its Commission: it fails", async () => {
+    const created = await publish('psc', article());
+    await api.asPlatform((tx) => tx.delete(commissionRefs).where(eq(commissionRefs.slug, 'psc')));
+    expect((await api.get(passagePath(created.id), pscDeclarant)).statusCode).toBe(500);
+  });
+
+  it('is for declarants: staff and platform tokens without a person get 404', async () => {
+    const act = await actPassage();
+    for (const caller of [pscAdmin, pscReviewer, platformAdmin]) {
+      expect((await api.get(passagePath(act.id), caller)).statusCode).toBe(404);
+    }
+  });
+
+  it('refuses a bad language or date', async () => {
+    const act = await actPassage();
+    const invalid: Record<string, string>[] = [
+      { language: 'fr' },
+      { language: 'en', date: '1 June 2026' },
+      {},
+    ];
+    for (const params of invalid) {
+      expect((await api.get(passagePath(act.id, params), pscDeclarant)).statusCode).toBe(400);
+    }
   });
 });

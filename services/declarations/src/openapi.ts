@@ -47,6 +47,7 @@ import {
   helpArticleInputSchema,
   helpArticleSchema,
   helpLanguageSchema,
+  helpPassageDetailSchema,
   helpPassageSchema,
   helpTagSchema,
 } from './help/representation.js';
@@ -165,6 +166,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   HelpLanguage: helpLanguageSchema,
   HelpTag: helpTagSchema,
   HelpPassage: helpPassageSchema,
+  HelpPassageDetail: helpPassageDetailSchema,
   HelpArticleInput: helpArticleInputSchema,
   HelpArticle: helpArticleSchema,
   CorpusPassage: corpusPassageSchema,
