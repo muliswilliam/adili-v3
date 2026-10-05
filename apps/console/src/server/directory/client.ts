@@ -25,6 +25,7 @@ export type TenantPolicyHistory = Schemas['TenantPolicyHistory'];
 export type RosterApiCredential = Schemas['RosterApiCredential'];
 export type RosterApiCredentialWithSecret = Schemas['RosterApiCredentialWithSecret'];
 export type RosterSummary = Schemas['RosterSummary'];
+export type OnboardingFailures = Schemas['OnboardingFailures'];
 export type Agency = Schemas['Agency'];
 export type LeaOfficerAccount = Schemas['LeaOfficerAccount'];
 export type LeaOfficerState = Schemas['LeaOfficerState'];

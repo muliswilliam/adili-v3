@@ -45,6 +45,7 @@ import { messages as m } from '../../components/roster/messages';
 import { importRunning } from '../../components/roster/import-report';
 import { ImportRosterButton } from '../../components/roster/import-roster-button';
 import { type NextStep, nextSteps } from '../../components/roster/next-steps';
+import { OnboardingFailuresCard } from '../../components/roster/onboarding-failures-card';
 import { ImportChannelBadge, ImportStateBadge } from '../../components/roster/roster-badges';
 import { RunningImportBanner } from '../../components/roster/running-import-banner';
 import { Tile, TileValue, WARNING_TILE } from '../../components/roster/tile';
@@ -54,9 +55,11 @@ import { goToSignIn } from '../../components/sign-in-redirect';
 import type {
   Commission,
   DirectoryResult,
+  OnboardingFailures,
   RosterImport,
   RosterSummary,
 } from '../../server/directory/client';
+import { getOnboardingFailures } from '../../server/onboarding-failures';
 import { getRosterApiCredential } from '../../server/roster-api-credential';
 import { findRunningRosterImport, getRosterImport } from '../../server/roster-imports';
 import { SERVICE_UNAVAILABLE } from '../../server/service-call';
@@ -69,6 +72,8 @@ interface OverviewData {
   credential: CredentialState | null;
   /** The import still running, if any (or null when that could not be read). */
   running: RosterImport | null;
+  /** Failed onboarding attempts in the last 24 hours (spec 03, story 30). */
+  failures: DirectoryResult<OnboardingFailures>;
 }
 
 export const Route = createFileRoute('/roster/')({
@@ -78,14 +83,21 @@ export const Route = createFileRoute('/roster/')({
     // Roster screens are about the viewer's own Commission, the tenant of their session.
     const slug = context.tenant;
     if (!slug) {
-      return { commission: SERVICE_UNAVAILABLE, lastImport: null, credential: null, running: null };
+      return {
+        commission: SERVICE_UNAVAILABLE,
+        lastImport: null,
+        credential: null,
+        running: null,
+        failures: SERVICE_UNAVAILABLE,
+      };
     }
-    const [layout, credential, running] = await Promise.all([
+    const [layout, credential, running, failures] = await Promise.all([
       // The layout loads the Commission (and signs in again when the session ended).
       parentMatchPromise,
       // Credentials are the reporting officer's alone; the directory refuses anyone else.
       context.workspace.readOnly ? null : getRosterApiCredential({ data: { slug } }),
       findRunningRosterImport({ data: { slug } }),
+      getOnboardingFailures({ data: { slug } }),
     ]);
     const commission = layout.loaderData?.commission ?? SERVICE_UNAVAILABLE;
     const lastImportId = commission.ok ? commission.data.roster.lastImportId : null;
@@ -97,6 +109,7 @@ export const Route = createFileRoute('/roster/')({
       lastImport,
       credential: credential?.ok ? credentialState(credential.data) : null,
       running: running.ok ? running.data : null,
+      failures,
     };
   },
   head: () => ({ meta: [{ title: `${m.title} · Adili Online Console` }] }),
@@ -191,6 +204,7 @@ function RosterOverview() {
             lastImport: data.lastImport?.ok ? data.lastImport.data : null,
           })}
         />
+        <OnboardingFailuresCard result={data.failures} className="min-[1000px]:col-span-2" />
       </div>
     </Page>
   );
