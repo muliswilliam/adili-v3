@@ -134,6 +134,7 @@ describe('submitting (S1, S2)', () => {
       status: 'ok',
       declaration: result.declaration,
       version: result.version,
+      references: [reference],
     });
   });
 

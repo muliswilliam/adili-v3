@@ -11,6 +11,7 @@ import { AlertCircleIcon } from '@hugeicons/core-free-icons';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
+import { DeclarationClarificationsSection } from '../../components/clarification/declaration-clarifications';
 import {
   DeclarationNotFound,
   requireDeclarationId,
@@ -18,11 +19,13 @@ import {
 } from '../../components/declaration/route-helpers';
 import { SubmittedView } from '../../components/declaration/submitted-view';
 import { DeclarantHeaderActions } from '../../components/help/parts';
+import { myClarificationsOrUnavailable } from '../../server/clarifications';
 import { getMySlipContext, getMySubmission } from '../../server/submission';
 
 /**
  * The submission success page (spec 06 FE-3), outside the workspace: the declaration is filed,
- * so there is nothing left to edit. A declaration not submitted yet goes back to its summary.
+ * so there is nothing left to edit, but its clarifications show here. A declaration not
+ * submitted yet goes back to its summary.
  */
 export const Route = createFileRoute('/declarations/$id_/submitted')({
   loader: async ({ params, location }) => {
@@ -35,7 +38,9 @@ export const Route = createFileRoute('/declarations/$id_/submitted')({
     if (load.status === 'not-submitted') {
       throw redirect({ to: '/declarations/$id/summary', params: { id: declarationId } });
     }
-    return { load, slip: settleLoad(slipContext, location.href) };
+    // Not awaited: the declaration's clarifications stream in under the slip.
+    const clarifications = load.status === 'ok' ? myClarificationsOrUnavailable() : null;
+    return { load, slip: settleLoad(slipContext, location.href), clarifications };
   },
   head: () => ({ meta: [{ title: 'Declaration submitted · Adili Online' }] }),
   component: SubmittedRoute,
@@ -57,11 +62,24 @@ function Page({ children }: { children: ReactNode }) {
 }
 
 function SubmittedRoute() {
-  const { load, slip } = Route.useLoaderData();
+  const { load, slip, clarifications } = Route.useLoaderData();
   return (
     <Page>
       {load.status === 'ok' ? (
-        <SubmittedView declaration={load.declaration} version={load.version} slip={slip} />
+        <SubmittedView
+          declaration={load.declaration}
+          version={load.version}
+          slip={slip}
+          clarifications={
+            clarifications ? (
+              <DeclarationClarificationsSection
+                className="mt-5"
+                clarifications={clarifications}
+                references={load.references}
+              />
+            ) : null
+          }
+        />
       ) : (
         <Alert variant="destructive">
           <Icon icon={AlertCircleIcon} />
