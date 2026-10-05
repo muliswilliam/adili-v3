@@ -17,6 +17,8 @@ services:
       ADILI_PORTAL_URL: ${ADILI_PORTAL_URL}
       # Notifications run on the host via pnpm, same as local.
       ADILI_NOTIFICATIONS_URL: http://host.docker.internal:4010
+      # The hackathon demo: demo accounts sign in with one click (#616).
+      ADILI_DEMO_MODE: 'true'
     # Demo vault only. Replace the mount with a host secret dir before a public pitch.
     volumes:
       - ./keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro

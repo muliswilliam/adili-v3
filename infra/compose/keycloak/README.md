@@ -10,7 +10,7 @@ Demo users in the file are a local convenience. #371 can replace them with seed 
 
 | Flow | What it does |
 | --- | --- |
-| `adili browser` | Cookie, broker, then forms |
+| `adili browser` | Cookie, demo ticket (`adili-demo`, demo mode only), broker, then forms |
 | `adili password` | Username/password at LoA 1 (stays valid for the SSO session) |
 | `adili otp` | LoA 2, max age 180 seconds (the 300 s submit window less a 120 s margin, so a silent step-up still leaves time to submit). A step-up request with `acr_values=step-up` re-runs only this |
 | `adili declarant otp` | Role `declarant`. `adili-otp`: a code by SMS, email as fallback |
@@ -20,6 +20,17 @@ Demo users in the file are a local convenience. #371 can replace them with seed 
 ACR mapping: `step-up` → 2. Portal and console default ACR is `step-up`, so login is MFA.
 
 Step-up before submission (spec 06): the portal's `/auth/step-up` (`Bff.stepUp` in `packages/bff-auth`) sends `acr_values=step-up`. Once the code's 180 s have lapsed Keycloak asks for a new code only (the password holds for the session) and issues tokens with `acr` `step-up` and a new `auth_time`; within the 180 s it answers without a page and keeps the old `auth_time`, which the declarations service accepts for 300 s, so every step-up leaves at least 120 s to affirm and submit. The `acr` scope and the `basic` scope's `auth_time` mapper put both claims in ID and access tokens, which services read as `Principal.acr` and `Principal.authTime` (`packages/api-kit`). S16 in `apps/keycloak-extension/test/step-up.stack.test.ts` drives it.
+
+## Demo sign-in (#616)
+
+The hackathon demo switches roles in one click, so demo accounts sign in with no password or code. The `adili-demo` authenticator (apps/keycloak-extension) sits right after the SSO cookie in `adili browser`. It is inert unless Keycloak runs with `ADILI_DEMO_MODE=true` (compose: off unless set; the Azure overlay and CI turn it on).
+
+- The app sends a `demo_ticket` parameter with the authorize request: `v1.<payload>.<HMAC-SHA256>`, minted by `mintDemoTicket` in `packages/demo-auth` with the vault secret `demo-ticket-secret` (`vault-dev/adili_demo-ticket-secret`, development only). Tickets live at most 120 s and work once.
+- A ticket names an account by its admin-only `demo_key` attribute, never by username, so only demo accounts can be signed in this way. Every demo user in this file has one; the demo seed gives the declarant personas theirs.
+- The authenticator records LoA 1 and 2, so the session carries `acr=step-up` as password plus code would. A step-up request with a fresh ticket for the same account passes without a page.
+- A missing, bad, expired or reused ticket, or an unknown key, falls through to the normal sign-in: demo accounts still need their codes when demo mode is off.
+- `demoSignIn` in `packages/demo-auth` walks the code flow without a browser (for the demo seed). `apps/keycloak-extension/test/demo.stack.test.ts` drives it.
+- The import skips an existing realm: `pnpm keycloak:demo-sign-in` applies the execution, its config, the `demo_key` profile attribute and the demo users' keys to a running Keycloak (the Azure deploy runs it on every deploy).
 
 ## Person claim (spec 04)
 
