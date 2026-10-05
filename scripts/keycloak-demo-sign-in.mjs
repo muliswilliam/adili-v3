@@ -10,6 +10,9 @@
 //
 //   pnpm keycloak:demo-sign-in
 //   KEYCLOAK_URL=http://127.0.0.1:18080 node scripts/keycloak-demo-sign-in.mjs   # Azure VM
+//
+// `pnpm demo:seed` runs it first too, so a seeded stack always has it. The last line printed is
+// `changed` or `unchanged`, as the seed's scripts report.
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +32,9 @@ const realmFile = JSON.parse(
   ),
 );
 
+/** What this run changed in the realm; 0 on a realm that already has it all. */
+let changes = 0;
+
 const token = await adminToken();
 const admin = `${base}/admin/realms/${REALM}`;
 const flowPath = `${admin}/authentication/flows/${encodeURIComponent(FLOW)}`;
@@ -38,6 +44,7 @@ await ensureClaimMappers();
 await ensureExecution();
 await ensureDemoUsers();
 console.log(`Demo sign-in applied to ${base} realm ${REALM}`);
+console.log(changes > 0 ? 'changed' : 'unchanged');
 
 async function adminToken() {
   // Keycloak may still be starting (deploy runs this right after compose up).
@@ -96,6 +103,7 @@ async function ensureProfileAttribute() {
     profile.attributes.push({ name: ATTRIBUTE, displayName: 'Demo key', permissions });
   }
   await call('PUT', `${admin}/users/profile`, profile);
+  changes++;
   console.log(`${existing ? 'made admin-only' : 'added'} user profile attribute ${ATTRIBUTE}`);
 }
 
@@ -109,6 +117,7 @@ async function ensureClaimMappers() {
     const mappers = await call('GET', `${admin}/clients/${client.id}/protocol-mappers/models`);
     if (mappers.some((mapper) => mapper.name === ATTRIBUTE)) continue;
     await call('POST', `${admin}/clients/${client.id}/protocol-mappers/models`, wanted);
+    changes++;
     console.log(`added ${ATTRIBUTE} claim to ${clientId}`);
   }
 }
@@ -125,12 +134,14 @@ async function ensureExecution() {
   let execution = executions.find((each) => each.providerId === PROVIDER && each.level === 0);
   if (!execution) {
     await call('POST', `${flowPath}/executions/execution`, { provider: PROVIDER });
+    changes++;
     executions = await call('GET', `${flowPath}/executions`);
     execution = executions.find((each) => each.providerId === PROVIDER && each.level === 0);
     console.log(`added ${PROVIDER} to ${FLOW}`);
   }
   if (execution.requirement !== wanted.requirement) {
     await call('PUT', `${flowPath}/executions`, { ...execution, requirement: wanted.requirement });
+    changes++;
   }
   // First, before the SSO cookie: a ticket decides who signs in, so a switch never reuses the
   // previous account's SSO session.
@@ -138,12 +149,14 @@ async function ensureExecution() {
     const top = (await call('GET', `${flowPath}/executions`)).filter((each) => each.level === 0);
     if (top.findIndex((each) => each.id === execution.id) === 0) break;
     await call('POST', `${admin}/authentication/executions/${execution.id}/raise-priority`);
+    changes++;
   }
   if (!execution.authenticationConfig) {
     await call('POST', `${admin}/authentication/executions/${execution.id}/config`, {
       alias: config.alias,
       config: config.config,
     });
+    changes++;
     console.log(`added config ${config.alias}`);
   }
 }
@@ -175,6 +188,7 @@ async function ensureDemoUsers() {
       lastName: wanted.lastName,
       attributes: { ...user.attributes, [ATTRIBUTE]: [demoKey] },
     });
+    changes++;
     console.log(`updated ${wanted.username}`);
   }
 }
