@@ -138,6 +138,13 @@ set_env "$ROOT/services/declarations/.env" REMINDER_JITTER_HOURS 0
 # The demo Commissions (packages/demo-seed) hold synthetic data only, so the copilot may use the
 # external provider.
 set_env "$ROOT/services/review/.env" AI_SYNTHETIC_DATA_TENANTS "${ADILI_DEMO_TENANTS:-psc,tsc,eacc,jsc,npsc}"
+# Demo windows (#371): the review service takes its short windows at run time from the seed
+# (`PUT /v1/demo/windows`, demo mode only); the access service's grant documents expire after two
+# minutes for the Commission that shows an expired document (jsc), so verify can show one.
+set_env "$ROOT/services/review/.env" DEMO_MODE true
+set_env "$ROOT/services/access/.env" DEMO_MODE true
+set_env "$ROOT/services/access/.env" DEMO_PACKAGE_VALIDITY PT2M
+set_env "$ROOT/services/access/.env" DEMO_WINDOW_TENANTS jsc
 # `pnpm demo:seed` onboards every officer from this host's one IP and checks every filing against
 # the registries (packages/demo-seed/README.md): onboarding and registry limits lifted for it.
 # Roster limits and the rest stay at their defaults.
