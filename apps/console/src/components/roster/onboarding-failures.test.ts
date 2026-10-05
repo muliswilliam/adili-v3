@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { OnboardingFailures } from '../../server/directory/client';
 import { failureBreakdown } from './onboarding-failures';
 
-const view: OnboardingFailures = {
+const failures: OnboardingFailures = {
   since: '2026-09-30T10:00:00.000Z',
   failedAttempts: 15,
   hours: [
@@ -15,7 +15,7 @@ const view: OnboardingFailures = {
 
 describe('failureBreakdown', () => {
   it('lists the hours with failed attempts, latest first', () => {
-    expect(failureBreakdown(view).hours.map((hour) => hour.windowStart)).toEqual([
+    expect(failureBreakdown(failures).hours.map((hour) => hour.windowStart)).toEqual([
       '2026-10-01T09:00:00.000Z',
       '2026-10-01T02:00:00.000Z',
       '2026-09-30T10:00:00.000Z',
@@ -23,16 +23,16 @@ describe('failureBreakdown', () => {
   });
 
   it('sizes each hour against the busiest one, in whole percent of it', () => {
-    expect(failureBreakdown(view).hours.map((hour) => hour.share)).toEqual([20, 100, 30]);
+    expect(failureBreakdown(failures).hours.map((hour) => hour.share)).toEqual([20, 100, 30]);
   });
 
   it('names the busiest hour, the latest of equal ones', () => {
-    expect(failureBreakdown(view).peak).toEqual({
+    expect(failureBreakdown(failures).peak).toEqual({
       windowStart: '2026-10-01T02:00:00.000Z',
       failedAttempts: 10,
     });
     const tied = failureBreakdown({
-      ...view,
+      ...failures,
       failedAttempts: 8,
       hours: [
         { windowStart: '2026-09-30T10:00:00.000Z', failedAttempts: 4 },
@@ -43,13 +43,12 @@ describe('failureBreakdown', () => {
   });
 
   it("keeps the directory's total", () => {
-    expect(failureBreakdown(view).total).toBe(15);
+    expect(failureBreakdown(failures).failedAttempts).toBe(15);
   });
 
   it('has no hours and no peak when nothing failed', () => {
-    expect(failureBreakdown({ since: view.since, failedAttempts: 0, hours: [] })).toEqual({
-      since: view.since,
-      total: 0,
+    expect(failureBreakdown({ since: failures.since, failedAttempts: 0, hours: [] })).toEqual({
+      failedAttempts: 0,
       hours: [],
       peak: null,
     });
@@ -57,7 +56,7 @@ describe('failureBreakdown', () => {
 
   it('gives a sliver to an hour far below the peak, so its bar still shows', () => {
     const skewed = failureBreakdown({
-      ...view,
+      ...failures,
       failedAttempts: 1001,
       hours: [
         { windowStart: '2026-09-30T10:00:00.000Z', failedAttempts: 1000 },

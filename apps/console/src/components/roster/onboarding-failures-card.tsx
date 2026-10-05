@@ -51,7 +51,7 @@ function Failures({ failures }: { failures: OnboardingFailures }) {
   return (
     <div className="grid gap-3 p-5">
       <p className="text-[26px] leading-tight font-semibold tracking-[-0.02em] tabular-nums">
-        {formatNumber(breakdown.total)}
+        {formatNumber(breakdown.failedAttempts)}
       </p>
       <p className="text-[13.5px] text-pretty text-muted-foreground">{m.failuresWhat}</p>
       {breakdown.peak ? (

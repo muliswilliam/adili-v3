@@ -1,6 +1,10 @@
 import { formatDate } from '@adili/ui';
 import { formatNumber } from '../format';
 
+/** `1 attempt`, `12 attempts`. */
+const attempts = (count: number) =>
+  `${formatNumber(count)} ${count === 1 ? 'attempt' : 'attempts'}`;
+
 /**
  * Copy of the Roster workspace (spec 02 frontend). One English string per key; the Swahili slot
  * stays empty until translations are reviewed by EACC. Replace with the console-wide message
@@ -618,16 +622,14 @@ export const en = {
     `${formatNumber(count)} reporting ${count === 1 ? 'entity' : 'entities'}`,
   // Failed onboarding attempts (spec 03, story 30)
   failuresTitle: 'Failed onboarding attempts',
-  failuresWindow: 'Last 24 hours',
+  failuresWindow: 'Last 24 hours, Kenyan time',
   failuresWhat:
     'Attempts whose identifiers matched nobody on the roster (wrong, unknown or exited), and sessions that ran out of codes or resends. Many may mean a stale roster or someone guessing.',
   failuresNone: 'No failed attempts in the last 24 hours.',
   failuresError: 'Failed attempts could not be loaded.',
-  failuresAttempts: (count: number) =>
-    `${formatNumber(count)} ${count === 1 ? 'attempt' : 'attempts'}`,
-  failuresHour: (from: string, to: string) => `${from}–${to}`,
-  failuresPeak: (hour: string, count: number) =>
-    `Busiest hour: ${hour} (${formatNumber(count)} ${count === 1 ? 'attempt' : 'attempts'})`,
+  failuresAttempts: attempts,
+  failuresHour: (from: string, to: string) => `${from}-${to}`,
+  failuresPeak: (hour: string, count: number) => `Busiest hour: ${hour} (${attempts(count)})`,
   failuresByHour: 'Show by hour',
   failuresByHourList: 'Failed attempts by hour',
 } as const;

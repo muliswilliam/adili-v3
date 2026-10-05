@@ -22,11 +22,11 @@ describe('OnboardingFailuresCard', () => {
     render(<OnboardingFailuresCard result={{ ok: true, data: failures }} />);
 
     expect(within(card()).getByText('15')).toBeTruthy();
-    expect(card().textContent).toContain('Last 24 hours');
+    expect(card().textContent).toContain('Last 24 hours, Kenyan time');
     expect(card().textContent).toContain('matched nobody on the roster');
     expect(card().textContent).toContain('ran out of codes or resends');
     // 02:00 UTC is 05:00 in Kenya.
-    expect(card().textContent).toContain('Busiest hour: 1 Oct 2026, 05:00–06:00 (10 attempts)');
+    expect(card().textContent).toContain('Busiest hour: 1 Oct 2026, 05:00-06:00 (10 attempts)');
   });
 
   it('drills down by hour, latest first', () => {
@@ -38,9 +38,9 @@ describe('OnboardingFailuresCard', () => {
       .getAllByRole('listitem')
       .map((item) => item.textContent);
     expect(hours).toEqual([
-      '1 Oct 2026, 12:00–13:002 attempts',
-      '1 Oct 2026, 05:00–06:0010 attempts',
-      '30 Sep 2026, 13:00–14:003 attempts',
+      '1 Oct 2026, 12:00-13:002 attempts',
+      '1 Oct 2026, 05:00-06:0010 attempts',
+      '30 Sep 2026, 13:00-14:003 attempts',
     ]);
   });
 
