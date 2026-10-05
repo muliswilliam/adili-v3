@@ -68,6 +68,8 @@ export function ReleaseActions(props: ReleaseActionsProps) {
   const [open, setOpen] = useState<'publish' | 'withdraw' | null>(null);
   const publishKey = usePendingKey(release.id);
   const withdrawKey = usePendingKey(release.id);
+  // Here rather than in the button: a Versions link away unmounts it, and back must keep the key.
+  const rebuildKey = usePendingKey(release.id);
   // The latest version of its year and kind: a withdrawn one with a newer version is replaced.
   const canRebuild = release.status === 'withdrawn' && versions?.[0]?.id === release.id;
   return (
@@ -93,7 +95,7 @@ export function ReleaseActions(props: ReleaseActionsProps) {
           {m.withdraw}
         </Button>
       ) : null}
-      {canRebuild ? <RebuildButton {...props} /> : null}
+      {canRebuild ? <RebuildButton {...props} rebuildKey={rebuildKey} /> : null}
       {open === 'publish' ? (
         <PublishDialog
           {...props}
@@ -462,18 +464,23 @@ function Consequences({ items }: { items: [IconSvg, string][] }) {
  * Build v{n+1}: the next version of the latest withdrawn release, of its kind, as a preview; opens
  * it. A preview is not public, so it needs no confirmation.
  */
-function RebuildButton({ view, rebuild, onRebuilt, onUnauthenticated }: ReleaseActionsProps) {
+function RebuildButton({
+  view,
+  rebuild,
+  rebuildKey,
+  onRebuilt,
+  onUnauthenticated,
+}: ReleaseActionsProps & { rebuildKey: PendingKey }) {
   const { release } = view;
   const { toast } = useToast();
-  const key = usePendingKey(release.id);
   const [busy, setBusy] = useState(false);
   const next = release.version + 1;
   const run = async () => {
     setBusy(true);
-    const sent = key.keyFor();
-    const result = await rebuild(release.fy, release.kind, sent);
+    const key = rebuildKey.keyFor();
+    const result = await rebuild(release.fy, release.kind, key);
     setBusy(false);
-    key.settle(sent, !result.ok && mayBeRecorded(result));
+    rebuildKey.settle(key, !result.ok && mayBeRecorded(result));
     if (result.ok) {
       toast({ title: m.rebuiltToast(result.data.version) });
       onRebuilt(result.data);
