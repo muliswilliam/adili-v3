@@ -24,9 +24,10 @@ export function createModelProvider(env: ProviderEnv): ModelProvider {
     return anthropic(env);
   }
   const fixturesDir = resolve(env.AI_FIXTURES_DIR);
+  const match = env.AI_REPLAY_MATCH;
   return env.AI_REPLAY_MODE === 'record'
-    ? new ReplayAdapter({ fixturesDir, mode: 'record', inner: anthropic(env) })
-    : new ReplayAdapter({ fixturesDir, mode: 'replay' });
+    ? new ReplayAdapter({ fixturesDir, mode: 'record', inner: anthropic(env), match })
+    : new ReplayAdapter({ fixturesDir, mode: 'replay', match });
 }
 
 /**

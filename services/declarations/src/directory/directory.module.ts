@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ServiceTokenClient } from '@adili/api-kit';
+import { oidcRealmUrl, ServiceTokenClient } from '@adili/api-kit';
 import { DIRECTORY_INTERNAL_SCOPE, DIRECTORY_PERSON_NATIONAL_ID_SCOPE } from '@adili/roles';
 
 import { config } from '../config.js';
@@ -15,7 +15,7 @@ import { HttpDirectoryClient } from './http-directory-client.js';
         new HttpDirectoryClient({
           directoryUrl: config.DIRECTORY_API_URL,
           tokens: new ServiceTokenClient({
-            issuerUrl: config.OIDC_ISSUER_URL,
+            issuerUrl: oidcRealmUrl(config),
             clientId: config.KEYCLOAK_CLIENT_ID,
             clientSecret: config.KEYCLOAK_CLIENT_SECRET,
             // The national ID: the declarant's, for registry lookups they ask for (spec 05b).

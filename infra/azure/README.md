@@ -100,6 +100,10 @@ Caddy terminates TLS with Let's Encrypt. Set `letsencrypt_email` in `terraform.t
 
 It does **not** re-seed, re-issue certificates, or `terraform apply`. The SSH host key is pinned in `infra/azure/known_hosts`.
 
+Every deploy also puts the stack on the real backend (#615): all app mocks off and the ai-gateway on Anthropic, then checks it with `pnpm demo:check` (a warning, not a failed deploy). The API key comes from `/etc/adili/secrets.env` or, when the repo secret `ANTHROPIC_API_KEY` is set, from `~adili/.config/adili/secrets.env`, which the workflow writes over SSH stdin. See [docs/demo](../../docs/demo/README.md#real-backend-and-ai-provider).
+
+The **Azure demo command** workflow (`.github/workflows/azure-demo-command.yml`, run by hand) runs one allow-listed command on the VM through `infra/azure/demo-command.sh`: `check`, `health`, `diagnose`, `seed`, `reset <checkpoint>` or `ai anthropic|record|replay`. Its log is public, so every line goes through a redactor (API keys, bearer tokens, JWTs, demo tickets, secret- and password-named values). `diagnose` prints health, whether the stack is on the real backend, Keycloak discovery on loopback and on the public URL, the containers, and the last log lines of whatever is down.
+
 ## Backups
 
 Dumps live in `/home/adili/adili-backups/<utc-stamp>/` (override with `ADILI_BACKUP_ROOT`). That path is outside `/opt/adili`, so the deploy rsync cannot delete them. Each directory has one custom-format dump per demo database plus `SHA256SUMS`, readable only by the user who ran the backup. `adili_test` is not included. Retention removes stamp directories older than 7 days and leaves anything else under the backup root alone.
@@ -129,6 +133,7 @@ Repo secret (Actions -> Secrets):
 | Name | Value |
 |---|---|
 | `AZURE_DEMO_SSH_KEY` | Private ed25519 key whose public half is in `~adili/.ssh/authorized_keys` on the VM |
+| `ANTHROPIC_API_KEY` | Optional. The demo's Anthropic key, written to the VM on each deploy; without it the AI stays on replay unless `/etc/adili/secrets.env` has one |
 
 `adili` may passwordless-sudo only `/usr/local/sbin/adili-demo-root` (root-owned, not in the rsync tree). PRs that touch `infra/azure` also `terraform fmt` / `validate` (no Azure credentials).
 
