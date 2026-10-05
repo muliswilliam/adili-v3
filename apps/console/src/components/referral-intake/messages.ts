@@ -50,6 +50,7 @@ export const messages = {
     commission: 'Commission',
     groundsColumn: 'Grounds',
     sent: 'Sent',
+    cardMeta: (commission: string, sentAt: string) => `${commission} · ${formatDate(sentAt)}`,
     packageColumn: 'Package',
     icmsStatus: 'ICMS status',
     actions: 'Actions',

@@ -347,7 +347,7 @@ describe('ReferralIntakeView (spec 09 FE-5, S12, S15)', () => {
     it('shows each referral as a card with its Commission, sent date, grounds and ICMS status', async () => {
       await open();
       const notPushed = card('RFL-PSC-2026-0000003-7');
-      expect(notPushed.getByText(/^Public Service Commission · sent \d+ \w+ 2026$/)).toBeTruthy();
+      expect(notPushed.getByText(/^Public Service Commission · \d+ \w+ 2026$/)).toBeTruthy();
       expect(notPushed.getByText('Two missed biennial cycles')).toBeTruthy();
       expect(notPushed.getByText('Not pushed')).toBeTruthy();
       expect(notPushed.getByRole('button', { name: 'Push to ICMS' })).toBeTruthy();

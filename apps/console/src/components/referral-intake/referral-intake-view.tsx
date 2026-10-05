@@ -272,7 +272,7 @@ export function ReferralIntakeView({
                         </div>
                       </TableCell>
                       <TableCell className="min-w-[170px]">
-                        <IcmsStatusCell referral={referral} />
+                        <IcmsStatusDetail referral={referral} />
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
@@ -338,7 +338,7 @@ export function ReferralIntakeView({
 /**
  * A referral on a phone, as the prototype's intake card: reference, Commission and sent date,
  * grounds, the ICMS status line, and Push to ICMS or Retry where the viewer pushes. The whole card
- * opens the drawer through its reference, one tab stop.
+ * opens the drawer through its reference, the card's one link. Push or Retry is its own control.
  */
 function IntakeCard({
   referral,
@@ -364,13 +364,13 @@ function IntakeCard({
             </button>
           </TableRowLink>
           <p className="text-[13px] text-muted-foreground">
-            {t.detail.subtitle(referral.commission.name, referral.sentAt)}
+            {t.list.cardMeta(referral.commission.name, referral.sentAt)}
           </p>
         </div>
         <Icon icon={ArrowRight01Icon} className="mt-0.5 flex-none text-muted-foreground" />
       </div>
       <p className="text-[13px]">{t.grounds[referral.grounds]}</p>
-      <IcmsStatusCell referral={referral} />
+      <IcmsStatusDetail referral={referral} />
       {onPush && pushAction(referral) ? (
         // Above the card's stretched link, so the button is its own.
         <div className="relative z-10 justify-self-start">
@@ -382,7 +382,7 @@ function IntakeCard({
 }
 
 /** The ICMS status, with the case number, the wait for it, or why the push failed. */
-function IcmsStatusCell({ referral }: { referral: ReferralIntakeItem }) {
+function IcmsStatusDetail({ referral }: { referral: ReferralIntakeItem }) {
   return (
     <div className="grid justify-items-start gap-1">
       <IcmsStatusBadge status={referral.icmsStatus} />
