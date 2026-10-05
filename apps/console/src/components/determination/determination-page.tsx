@@ -51,6 +51,7 @@ import {
   determinationState,
   type HistoryEntry,
 } from '../../determination/view';
+import { referralOffered } from '../../referral/view';
 import { reportingEntityOf } from '../../review-case/declaration';
 import { DECLARATION_TYPES, SYSTEM_PROPOSER } from '../../review-case/labels';
 import {
@@ -130,6 +131,8 @@ export function DeterminationPage({
     supervisor,
   });
   const [proposing, setProposing] = useState<{ revise: boolean; key: string } | null>(null);
+  /** Refer to EACC, from the case's button or from the proposal's Start referral (#610). */
+  const [referring, setReferring] = useState<'case' | 'proposal' | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
   const [busy, setBusy] = useState<'withdraw' | 'letter' | null>(null);
   const idempotencyKey = useRef<string | null>(null);
@@ -222,7 +225,24 @@ export function DeterminationPage({
               {t.propose}
             </Button>
           ) : null}
-          <ReferAction load={load} />
+          <ReferAction
+            load={load}
+            open={referring !== null}
+            onOpenChange={(open) => {
+              setReferring((current) => (open ? (current ?? 'case') : null));
+            }}
+            onProposed={(referral) => {
+              setReferring(null);
+              // From the proposal: back to it, its text kept, the case read again; it is not
+              // finished. From the case: on to the referral.
+              if (referring === 'proposal') void router.invalidate();
+              else
+                void router.navigate({
+                  to: '/referrals/$referralId',
+                  params: { referralId: referral.id },
+                });
+            }}
+          />
           <Button asChild variant="secondary">
             <Link to="/review/cases/$caseId" params={{ caseId: item.id }}>
               <Icon icon={LinkSquare02Icon} />
@@ -301,13 +321,21 @@ export function DeterminationPage({
       {proposing ? (
         <ProposeDialog
           key={proposing.key}
-          open
+          // Hidden, not closed, while Refer to EACC is over it: it keeps its text.
+          open={referring !== 'proposal'}
           onOpenChange={(open) => {
             if (!open) setProposing(null);
           }}
           subject={`${item.reference} · ${item.declarantName}`}
           revising={revising}
           onSubmit={propose}
+          onStartReferral={
+            referralOffered(item, detail.flags, viewer)
+              ? () => {
+                  setReferring('proposal');
+                }
+              : undefined
+          }
         />
       ) : null}
       {current && state.kind === 'proposed' ? (

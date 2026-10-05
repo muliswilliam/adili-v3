@@ -292,6 +292,23 @@ describe('DeterminationPage (spec 08 FE-2)', () => {
     expect(await within(dialog).findByText('Your session has ended. Sign in again.')).toBeTruthy();
     expect(within(dialog).getByLabelText<HTMLTextAreaElement>('Reasons').value).toBe('Seen.');
   });
+
+  it('links further action to a referral, and says actions start on their own (#610)', async () => {
+    await open(CASES.ready);
+    fireEvent.click(screen.getByRole('button', { name: 'Propose determination' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByRole('button', { name: 'Start referral' })).toBeNull();
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Further action' }));
+    // Refer to EACC itself is tested in components/referrals/refer-action.test.tsx.
+    expect(within(dialog).getByRole('button', { name: 'Start referral' })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Start action' }));
+    expect(
+      await screen.findByText(
+        'Administrative actions start on their own when a declaration or clarification is overdue.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Propose determination' })).toBeTruthy();
+  });
 });
 
 /** Opens the ready case with a proposal of the viewer's awaiting approval. */

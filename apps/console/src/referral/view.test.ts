@@ -9,6 +9,7 @@ import {
   referableClarifications,
   referableFlags,
   referralErrors,
+  referralOffered,
   referralPhase,
   referralTitle,
 } from './view';
@@ -53,6 +54,24 @@ describe('referableFlags', () => {
     }));
     const kept = referableFlags([...flags, ...closed]).map((flag) => flag.ruleId);
     expect(kept).toEqual(['value-change-25', 'acquisition-unflagged', 'income-vs-asset-growth']);
+  });
+});
+
+describe('referralOffered', () => {
+  const flags = mockFlags('v1');
+  const held = { status: 'ready-for-determination' as const, assignee: ME };
+
+  it('offers Refer to EACC to the assignee of an open case with an asset flag', () => {
+    expect(referralOffered(held, flags, ME)).toBe(true);
+  });
+
+  it('offers it to nobody else, on no determined case, and not without an asset flag', () => {
+    expect(
+      referralOffered({ ...held, assignee: { subject: 'peter', name: 'Peter' } }, flags, ME),
+    ).toBe(false);
+    expect(referralOffered({ ...held, assignee: null }, flags, ME)).toBe(false);
+    expect(referralOffered({ ...held, status: 'determined' }, flags, ME)).toBe(false);
+    expect(referralOffered(held, [], ME)).toBe(false);
   });
 });
 

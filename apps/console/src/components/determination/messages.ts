@@ -76,7 +76,11 @@ export const messages = {
     reasonsPlaceholder: 'Say what you found and why. Refer to flags, clarifications and responses.',
     note: 'Further action',
     notePlaceholder: 'For example: refer to EACC for the undeclared parcel.',
-    noteHint: 'Start the referral or action from the case once this is approved.',
+    optional: 'Optional:',
+    startReferral: 'Start referral',
+    startAction: 'Start action',
+    actionsStartThemselves:
+      'Administrative actions start on their own when a declaration or clarification is overdue.',
     consequence: 'On approval the decision letter is issued and the declarant is notified.',
     cancel: 'Cancel',
     submit: 'Propose for approval',
