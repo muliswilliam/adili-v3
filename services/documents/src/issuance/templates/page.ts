@@ -44,6 +44,24 @@ export function esc(value: string | number): string {
 const TIME_ZONE = 'Africa/Nairobi';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** Month names of a Swahili letter (#592). */
+const SW_MONTHS = [
+  'Januari',
+  'Februari',
+  'Machi',
+  'Aprili',
+  'Mei',
+  'Juni',
+  'Julai',
+  'Agosti',
+  'Septemba',
+  'Oktoba',
+  'Novemba',
+  'Desemba',
+];
+
+/** The language a letter prints its own text in: English, or Swahili for a Swahili letter. */
+export type LetterLanguage = 'en' | 'sw';
 
 /** The calendar parts of an instant in Kenyan time. */
 function kenyanParts(date: Date): Record<'year' | 'month' | 'day' | 'hour' | 'minute', number> {
@@ -68,16 +86,17 @@ function kenyanParts(date: Date): Record<'year' | 'month' | 'day' | 'hour' | 'mi
 }
 
 /**
- * `30 Sep 2026` (the design's three-letter months, whatever the ICU version), in Kenyan time for
- * instants; calendar dates (`2026-09-30`) as they are.
+ * `30 Sep 2026` (the design's three-letter months, whatever the ICU version), or `30 Septemba
+ * 2026` in a Swahili letter, in Kenyan time for instants; calendar dates (`2026-09-30`) as they
+ * are.
  */
-export function formatDate(value: string | Date): string {
+export function formatDate(value: string | Date, language: LetterLanguage = 'en'): string {
   const date =
     typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
       ? new Date(`${value}T12:00:00+03:00`)
       : new Date(value);
   const { day, month, year } = kenyanParts(date);
-  return `${day} ${MONTHS[month - 1]} ${year}`;
+  return `${day} ${(language === 'sw' ? SW_MONTHS : MONTHS)[month - 1]} ${year}`;
 }
 
 /** The calendar date of an instant in Kenyan time, `YYYY-MM-DD`. */
@@ -110,10 +129,10 @@ export function reportDueDate(financialYear: string): string {
 export const EACC_ISSUER = { name: 'Ethics and Anti-Corruption Commission', code: 'EACC' };
 
 /** `30 Sep 2026, 14:05 EAT`. */
-export function formatDateTime(value: string | Date): string {
+export function formatDateTime(value: string | Date, language: LetterLanguage = 'en'): string {
   const { hour, minute } = kenyanParts(new Date(value));
   const pad = (number: number) => String(number).padStart(2, '0');
-  return `${formatDate(value)}, ${pad(hour)}:${pad(minute)} EAT`;
+  return `${formatDate(value, language)}, ${pad(hour)}:${pad(minute)} EAT`;
 }
 
 export interface LetterheadIssuer {
@@ -143,8 +162,16 @@ export const LETTERHEAD_STYLES = `
 const SHIELD = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>`;
 
 /** The note that the PDF carries a digital signature; the signature itself is invisible. */
-export function signatureNote(signerName: string, signedAt: Date): string {
-  return `<div class="sigbox">${SHIELD}<div><b>Digitally signed by ${esc(signerName)}</b><br />${esc(formatDateTime(signedAt))}<br />PAdES · Reason: issued through Adili Online</div></div>`;
+export function signatureNote(
+  signerName: string,
+  signedAt: Date,
+  language: LetterLanguage = 'en',
+): string {
+  const [signedBy, reason] =
+    language === 'sw'
+      ? ['Imetiwa saini kidijitali na', 'Sababu: imetolewa kupitia Adili Online']
+      : ['Digitally signed by', 'Reason: issued through Adili Online'];
+  return `<div class="sigbox">${SHIELD}<div><b>${signedBy} ${esc(signerName)}</b><br />${esc(formatDateTime(signedAt, language))}<br />PAdES · ${reason}</div></div>`;
 }
 
 /**

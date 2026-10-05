@@ -4,6 +4,7 @@ import {
   esc,
   formatDate,
   INK,
+  type LetterLanguage,
   LETTERHEAD_STYLES,
   LINE,
   MUTED,
@@ -86,11 +87,25 @@ export function portalLink(url: string): string {
  * How to check the letter (or the document `what` names, e.g. `receipt`), and what the check shows
  * of a Restricted document.
  */
-export function restrictedVerifyNote(verificationId: string, what = 'letter'): string {
-  return `<p class="fine">Check that this ${esc(what)} is genuine: scan the QR code at the foot of any page, or enter <span class="mono nw">${esc(verificationId)}</span> on the Adili Online verify page. The check shows only the reference, type, Commission and date.</p>`;
+export function restrictedVerifyNote(
+  verificationId: string,
+  what = 'letter',
+  language: LetterLanguage = 'en',
+): string {
+  const id = `<span class="mono nw">${esc(verificationId)}</span>`;
+  if (language === 'sw') {
+    return `<p class="fine">Hakikisha kwamba barua hii ni halali: changanua msimbo wa QR ulio chini ya ukurasa wowote, au weka ${id} kwenye ukurasa wa uthibitishaji wa Adili Online. Uthibitishaji unaonyesha kumbukumbu, aina, Tume na tarehe pekee.</p>`;
+  }
+  return `<p class="fine">Check that this ${esc(what)} is genuine: scan the QR code at the foot of any page, or enter ${id} on the Adili Online verify page. The check shows only the reference, type, Commission and date.</p>`;
 }
 
 /** The closing: the Commission's name and the note of the digital signature. */
-export function letterClose(commissionName: string, signerName: string, issuedAt: Date): string {
-  return `<div class="sign"><div><div>Yours faithfully,</div><div class="nm">${esc(commissionName)}</div></div>${signatureNote(signerName, issuedAt)}</div>`;
+export function letterClose(
+  commissionName: string,
+  signerName: string,
+  issuedAt: Date,
+  language: LetterLanguage = 'en',
+): string {
+  const yours = language === 'sw' ? 'Wako mwaminifu,' : 'Yours faithfully,';
+  return `<div class="sign"><div><div>${yours}</div><div class="nm">${esc(commissionName)}</div></div>${signatureNote(signerName, issuedAt, language)}</div>`;
 }
