@@ -31,7 +31,7 @@ export const Route = createFileRoute('/eacc/open-data')({
 function OpenDataLayout() {
   const { viewer, roles, workspace } = Route.useRouteContext();
   return (
-    <ConsoleShell userName={viewer.user.name} roles={roles}>
+    <ConsoleShell userName={viewer.user.name} organisation={viewer.organisation} roles={roles}>
       {!viewer.directory.ok ? (
         <Page narrow>
           <PageHead title={m.title} />

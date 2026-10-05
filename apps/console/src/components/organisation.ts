@@ -15,6 +15,20 @@ export type Organisation =
  * Resolves the viewer's organisation from their tenant key and, for a Commission, the display
  * name the directory returned (or null when the lookup failed or found nothing).
  */
+/** The organisation's name on one line, e.g. in the sidebar under the role; null for none. */
+export function organisationLabel(organisation: Organisation): string | null {
+  switch (organisation.kind) {
+    case 'commission':
+      return organisation.name;
+    case 'platform':
+      return 'Adili Online platform team';
+    case 'key-only':
+      return organisation.key.toUpperCase();
+    case 'none':
+      return null;
+  }
+}
+
 export function organisationOf(tenant: string | null, commissionName: string | null): Organisation {
   if (!tenant) return { kind: 'none' };
   if (tenant === PLATFORM_TENANT) return { kind: 'platform', key: tenant };

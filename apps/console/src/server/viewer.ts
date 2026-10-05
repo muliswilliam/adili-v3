@@ -12,11 +12,12 @@ export interface Viewer {
   user: SessionUser;
   /** The platform's view of the caller, from the directory service. */
   directory: PrincipalResult;
+  /** The caller's Commission by name (or the platform team), shown under their role. */
+  organisation: Organisation;
 }
 
-/** The viewer and their organisation by name, for the dashboard's account card. */
+/** The viewer and their Commission's roster, for the dashboard. */
 export interface DashboardViewer extends Viewer {
-  organisation: Organisation;
   /** Their Commission's roster summary, for the sidebar's flagged count; null when unknown. */
   roster: RosterSummary | null;
 }
@@ -34,24 +35,41 @@ export const getDashboardViewer = createServerFn({ method: 'GET' }).handler(
     const { viewer, accessToken } = loaded;
     const tenant = viewer.directory.ok ? viewer.directory.principal.tenant : null;
     const commission = await ownCommission(accessToken, tenant);
-    return {
-      ...viewer,
-      organisation: organisationOf(tenant, commission?.name ?? null),
-      roster: commission?.roster ?? null,
-    };
+    return { ...viewer, roster: commission?.roster ?? null };
   },
 );
 
 async function loadViewer(): Promise<{ viewer: Viewer; accessToken: string } | null> {
   const session = await getBff().getSession(getRequest());
   if (!session) return null;
+  const directory = await fetchPrincipal(env().DIRECTORY_API_URL, session.accessToken);
+  const tenant = directory.ok ? directory.principal.tenant : null;
   return {
     viewer: {
       user: session.user,
-      directory: await fetchPrincipal(env().DIRECTORY_API_URL, session.accessToken),
+      directory,
+      organisation: organisationOf(tenant, await commissionName(session.accessToken, tenant)),
     },
     accessToken: session.accessToken,
   };
+}
+
+/** How long a Commission's name is reused: names change rarely, and every page shows it. */
+const COMMISSION_NAME_TTL_MS = 10 * 60_000;
+const commissionNames = new Map<string, { name: string; expiresAt: number }>();
+
+/** The caller's own Commission's display name, reused for a while per tenant; null if unknown. */
+async function commissionName(accessToken: string, tenant: string | null): Promise<string | null> {
+  if (!tenant || tenant === PLATFORM_TENANT) return null;
+  const cached = commissionNames.get(tenant);
+  if (cached && cached.expiresAt > Date.now()) return cached.name;
+  const commission = await ownCommission(accessToken, tenant);
+  if (!commission) return null;
+  commissionNames.set(tenant, {
+    name: commission.name,
+    expiresAt: Date.now() + COMMISSION_NAME_TTL_MS,
+  });
+  return commission.name;
 }
 
 /**

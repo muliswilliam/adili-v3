@@ -70,7 +70,12 @@ function RosterLayout() {
   const data = Route.useLoaderData();
   const roster = data?.commission.ok ? data.commission.data.roster : null;
   return (
-    <ConsoleShell userName={viewer.user.name} roles={roles} navCounts={rosterNavCounts(roster)}>
+    <ConsoleShell
+      userName={viewer.user.name}
+      organisation={viewer.organisation}
+      roles={roles}
+      navCounts={rosterNavCounts(roster)}
+    >
       {!viewer.directory.ok ? (
         <Page narrow>
           <PageHead title={m.title} />
