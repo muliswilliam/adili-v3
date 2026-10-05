@@ -146,7 +146,29 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     expect(within(desktop).getByText('Seeking declaration(s) made by')).toBeTruthy();
     expect(within(desktop).getByText('Specific information requested')).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Request properties' })).toBeTruthy();
-    expect(screen.getByRole('list', { name: 'Request activity' })).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'Access register' })).toBeTruthy();
+  });
+
+  it('keeps officer notice details visible in the desktop rail', async () => {
+    renderDetail(await viewOf(R.writtenNotice));
+    const officer = within(side()).getByRole('region', { name: 'Officer identified' });
+    expect(officer.textContent).toMatch(/Recorded by Lucy Wambui/);
+    expect(officer.textContent).toContain('Not onboarded');
+    for (
+      let node: HTMLElement | null = officer;
+      node && node !== side();
+      node = node.parentElement
+    ) {
+      expect(node.className).not.toContain('min-[1200px]:hidden');
+    }
+  });
+
+  it('preserves read-only and deadline signals in desktop properties', async () => {
+    renderDetail(await viewOf(R.identify), true);
+    const properties = screen.getByRole('region', { name: 'Request properties' });
+    expect(within(properties).getByText('Read only')).toBeTruthy();
+    expect(within(properties).getByText('Form K')).toBeTruthy();
+    expect(properties.textContent).toContain('Decision due');
   });
 
   it('S3: searches the roster by name or file number and identifies the officer, notifying the declarant', async () => {
@@ -416,7 +438,7 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     const reps = screen.getByRole('region', { name: 'Representations' });
     expect(within(reps).getByText('Received in writing')).toBeTruthy();
     expect(within(reps).getByText(/^Entered by Lucy Wambui · /)).toBeTruthy();
-    const register = screen.getByRole('list', { name: 'Request activity' });
+    const register = screen.getByRole('list', { name: 'Access register' });
     expect(within(register).getByText('Declarant notified in writing')).toBeTruthy();
     expect(within(register).getByText('Representations received in writing')).toBeTruthy();
 
@@ -580,7 +602,9 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
 
   it('S16: the supervisor reads everything but takes no step', async () => {
     renderDetail(await viewOf(R.unresolved), true);
-    expect(screen.getByText('Read only')).toBeTruthy();
+    expect(
+      within(screen.getByRole('region', { name: 'Request properties' })).getByText('Read only'),
+    ).toBeTruthy();
     expect(
       within(side()).getByText('Waiting for the access officer to identify the officer.'),
     ).toBeTruthy();

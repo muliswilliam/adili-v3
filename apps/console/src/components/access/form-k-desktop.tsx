@@ -1,7 +1,16 @@
-import { formatLongDate, formatPhone, formatScopeSections, formatScopeYears } from '@adili/ui';
+import {
+  Badge,
+  DeadlineChip,
+  deadlineSoonDays,
+  formatLongDate,
+  formatPhone,
+  formatScopeSections,
+  formatScopeYears,
+} from '@adili/ui';
 import type { ReactNode } from 'react';
 
 import type { OfficerRequestView } from '../../server/access/types';
+import { ReadOnlyBadge } from '../commissions/badges';
 import { scopePeople } from './format';
 import { messages as m } from './messages';
 import { StatusBadge } from './queue-list';
@@ -18,11 +27,11 @@ export function FormKDesktop({ view }: { view: OfficerRequestView }) {
 
       <div className="mt-8 space-y-6 text-sm">
         <section>
-          <h2 className="font-semibold">Seeking declaration(s) made by</h2>
+          <h2 className="font-semibold">{m.seekingDeclarations}</h2>
           <p className="mt-2 text-secondary-foreground">{view.resolvedName ?? partII.name}</p>
         </section>
         <section>
-          <h2 className="font-semibold">Specific information requested</h2>
+          <h2 className="font-semibold">{m.specificInformationRequested}</h2>
           <p className="mt-2 whitespace-pre-line text-secondary-foreground">
             {partIII.informationSought}
           </p>
@@ -64,23 +73,42 @@ function Property({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Desktop properties rail, shown alongside the reading layout. */
-export function FormKDesktopProperties({ view }: { view: OfficerRequestView }) {
+export function FormKDesktopProperties({
+  view,
+  readOnly,
+  deadlineInHead,
+}: {
+  view: OfficerRequestView;
+  readOnly: boolean;
+  deadlineInHead: boolean;
+}) {
   const { partI, partII } = view.formK;
   const document = partI.identityDocument;
   return (
     <div className="hidden min-w-0 min-[1200px]:block">
-      <section className="border-b px-5 py-5" aria-label="Request properties">
-        <h2 className="mb-2 text-sm font-semibold">Properties</h2>
+      <section className="border-b px-5 py-5" aria-label={m.requestProperties}>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Badge>{m.formK}</Badge>
+          {readOnly ? <ReadOnlyBadge /> : null}
+          {deadlineInHead ? (
+            <DeadlineChip
+              due={view.decisionDeadlineAt}
+              soonDays={deadlineSoonDays.decision}
+              label={m.decisionDue}
+            />
+          ) : null}
+        </div>
+        <h2 className="mb-2 text-sm font-semibold">{m.properties}</h2>
         <dl>
-          <Property label="Reference code">{view.reference}</Property>
-          <Property label="Requested on">{formatLongDate(view.submittedAt)}</Property>
-          <Property label="Deadline">{formatLongDate(view.decisionDeadlineAt)}</Property>
+          <Property label={m.columnReference}>{view.reference}</Property>
+          <Property label={m.requestedOn}>{formatLongDate(view.submittedAt)}</Property>
+          <Property label={m.columnDeadline}>{formatLongDate(view.decisionDeadlineAt)}</Property>
           <Property label={m.columnStatus}>
             <StatusBadge status={view.status} />
           </Property>
         </dl>
       </section>
-      <section className="border-b px-5 py-5" aria-label="Officer sought">
+      <section className="border-b px-5 py-5" aria-label={m.columnOfficer}>
         <h2 className="mb-2 text-sm font-semibold">{m.columnOfficer}</h2>
         <dl>
           <Property label={m.name}>{view.resolvedName ?? partII.name}</Property>
@@ -91,8 +119,8 @@ export function FormKDesktopProperties({ view }: { view: OfficerRequestView }) {
           </Property>
         </dl>
       </section>
-      <section className="px-5 py-5" aria-label="Applicant details">
-        <h2 className="mb-2 text-sm font-semibold">Applicant details</h2>
+      <section className="px-5 py-5" aria-label={m.applicantDetails}>
+        <h2 className="mb-2 text-sm font-semibold">{m.applicantDetails}</h2>
         <dl>
           <Property label={m.name}>{partI.name}</Property>
           <Property label={m.identity}>
@@ -100,7 +128,7 @@ export function FormKDesktopProperties({ view }: { view: OfficerRequestView }) {
               ? m.passport(document.number, document.country ?? '')
               : m.nationalId(document.number)}
           </Property>
-          <Property label="Identity check">
+          <Property label={m.identityCheck}>
             {view.applicantIdentityStatus === 'pending-verification'
               ? m.pendingVerification
               : document.kind === 'passport'

@@ -377,11 +377,11 @@ export function RepresentationsCard({
               </Badge>
             ) : null}
             {reps.receivedInWriting ? null : (
-              <span className="text-sm text-muted-foreground">{when}</span>
+              <span className="text-[13px] text-muted-foreground">{when}</span>
             )}
           </div>
           {reps.receivedInWriting ? (
-            <p className="-mt-1 text-sm text-muted-foreground">
+            <p className="-mt-1 text-[13px] text-muted-foreground">
               {reps.recordedBy ? `${m.enteredBy(reps.recordedBy)} · ${when}` : when}
             </p>
           ) : null}
@@ -411,7 +411,7 @@ export function RepresentationsCard({
             />
           ) : null}
           {reps.stance === 'consent' ? (
-            <p className="text-sm text-muted-foreground">{m.consentClosedEarly}</p>
+            <p className="text-[13px] text-muted-foreground">{m.consentClosedEarly}</p>
           ) : null}
         </>
       )}

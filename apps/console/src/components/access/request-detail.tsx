@@ -138,7 +138,8 @@ export function RequestDetailView({
             >
               <CardHeader className="border-b px-5 py-4 min-[1200px]:border-b-0 min-[1200px]:px-0 min-[1200px]:pt-6 min-[1200px]:pb-3">
                 <CardTitle id="register-title" className="text-sm">
-                  {m.registerTitle}
+                  <span className="min-[1200px]:hidden">{m.registerTitle}</span>
+                  <span className="hidden min-[1200px]:inline">{m.activityTitle}</span>
                 </CardTitle>
               </CardHeader>
               <div className="px-5 py-4.5 min-[1200px]:px-0 min-[1200px]:pt-0">
@@ -158,13 +159,13 @@ export function RequestDetailView({
           <div className="grid min-w-0 gap-4 min-[1200px]:p-4 min-[1200px]:pb-0">
             <StepCard view={view} step={step} readOnly={readOnly} now={now} />
           </div>
-          <FormKDesktopProperties view={view} />
+          <FormKDesktopProperties view={view} readOnly={readOnly} deadlineInHead={deadlineInHead} />
           {pkg ? (
             <div className="min-[1200px]:p-4">
               <PackageCard state={pkg} recipientName={form.partI.name} reference={view.reference} />
             </div>
           ) : null}
-          <div className="min-[1200px]:hidden">
+          <div className="min-[1200px]:p-4">
             <OfficerCard view={view} />
           </div>
         </aside>

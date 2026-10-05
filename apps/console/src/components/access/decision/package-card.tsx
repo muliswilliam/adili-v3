@@ -194,7 +194,7 @@ export function PackageCard({
             </span>{' '}
             <span className="whitespace-nowrap">{formatDate(pkg.issuedAt)}</span>
           </span>
-          <span className="mt-0.5 block text-sm font-normal text-muted-foreground">
+          <span className="mt-0.5 block text-[13px] font-normal text-muted-foreground">
             {m.watermarkHint}
           </span>
         </Item>
@@ -202,7 +202,7 @@ export function PackageCard({
           <span className="font-mono text-sm break-all">{pkg.verificationId}</span>
         </Item>
       </dl>
-      <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
         <Icon icon={SquareLock02Icon} className="size-3.5" />
         {m.onlyRecipient(recipientName)}
       </p>
