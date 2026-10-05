@@ -16,6 +16,7 @@
   "dependencies": {
     "@adili/api-kit": "workspace:*",
     "@adili/bff-auth": "workspace:*",
+    "@adili/demo-auth": "workspace:*",
     "@adili/forms": "workspace:*",
     "@adili/roles": "workspace:*",
     "@adili/ui": "workspace:*",

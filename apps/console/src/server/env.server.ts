@@ -2,6 +2,16 @@ import { bffEnvSchema, parseEnv } from '@adili/bff-auth';
 import { z } from 'zod';
 
 export const envSchema = bffEnvSchema.extend({
+  /**
+   * The hackathon demo (#616): a banner that says the data is synthetic and a role switcher that
+   * signs a demo account in with one click, no password or code (Keycloak's demo ticket). Off by
+   * default; never on outside the demo.
+   */
+  DEMO_MODE: z.stringbool().default(false),
+  /** With DEMO_MODE: Keycloak's `demo-ticket-secret`, which signs the switcher's tickets. */
+  DEMO_TICKET_SECRET: z.string().min(16).optional(),
+  /** With DEMO_MODE: the broker every switch is recorded on, for the audit trail. */
+  RABBITMQ_URL: z.url().default('amqp://adili:adili_dev@localhost:55672'),
   DIRECTORY_API_URL: z.url(),
   REVIEW_API_URL: z.url(),
   DOCUMENTS_API_URL: z.url(),

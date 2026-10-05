@@ -9,7 +9,7 @@ import type { ReviewTransaction } from '../cases/case-lookup.js';
 import { clarifications, reviewCases } from '../cases/schema.js';
 import { portal } from '../clarifications/links.js';
 import { Clock, nairobiDate } from '../clock.js';
-import { config } from '../config.js';
+import { demoWindows } from '../demo/demo-windows.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
@@ -78,11 +78,12 @@ export function portalNoticeUrl(actionId: string): string {
   return portal(`notices/${actionId}`);
 }
 
-const DEMO_LADDER_WINDOWS: DemoLadderWindows = {
-  notice: config.DEMO_LADDER_NOTICE_WINDOW,
-  warning: config.DEMO_LADDER_WARNING_WINDOW,
-  stoppage: config.DEMO_LADDER_STOPPAGE_WINDOW,
-};
+/** The demo stack's ladder windows as they stand when a step is issued. */
+const demoLadderWindows = (): DemoLadderWindows => ({
+  notice: demoWindows.get('DEMO_LADDER_NOTICE_WINDOW'),
+  warning: demoWindows.get('DEMO_LADDER_WARNING_WINDOW'),
+  stoppage: demoWindows.get('DEMO_LADDER_STOPPAGE_WINDOW'),
+});
 
 /** What the ladder is about and whom it addresses, as its subject stands now. */
 type Subject =
@@ -555,7 +556,7 @@ async function withWindow(
   if (action.issuedAt !== null) return action;
   const policy = await directory.getLadderPolicy(tenant);
   const issuedAt = clock.now();
-  const windowEndsAt = stepWindowEndsAt(issuedAt, policy, action.step, DEMO_LADDER_WINDOWS);
+  const windowEndsAt = stepWindowEndsAt(issuedAt, policy, action.step, demoLadderWindows());
   const [set] = await withTenant(db, systemContext(tenant), (tx) =>
     tx
       .update(administrativeActions)

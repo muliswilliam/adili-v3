@@ -13,6 +13,7 @@ import {
 } from '@adili/api-kit';
 import { createValkey, VALKEY } from '@adili/cache';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
+import { OutboxRelay } from '@adili/events';
 import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
 import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import { type Client as TemporalClient, ScheduleNotFoundError } from '@temporalio/client';
@@ -209,6 +210,10 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
     .useValue({ ...config.RATE_LIMITS, ...options.rateLimits })
     .overrideProvider(WorkflowBundler)
     .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
+    // Events stay in the outbox: a live relay would publish them to the shared broker, where
+    // other suites' queues receive directory events.
+    .overrideProvider(OutboxRelay)
+    .useValue({})
     .compile();
   // Quiet like LOG_LEVEL=fatal in the service; expected 5xx in tests would otherwise log errors.
   // Proxies trusted as `createService` trusts them, so the client address is the socket's

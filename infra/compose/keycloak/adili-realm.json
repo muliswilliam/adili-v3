@@ -146,6 +146,20 @@
           }
         },
         {
+          "name": "demo_key",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "demo_key",
+            "claim.name": "demo_key",
+            "jsonType.label": "String",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
           "name": "adili-api audience",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
@@ -204,6 +218,20 @@
             "id.token.claim": "true",
             "access.token.claim": "true",
             "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "demo_key",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "demo_key",
+            "claim.name": "demo_key",
+            "jsonType.label": "String",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false",
             "introspection.token.claim": "true"
           }
         },

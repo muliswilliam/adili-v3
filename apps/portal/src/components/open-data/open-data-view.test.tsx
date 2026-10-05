@@ -189,15 +189,22 @@ describe('the Open data page (spec 09b S11)', () => {
 
     fireEvent.mouseDown(within(tables).getByRole('tab', { name: 'By reporting entity type' }));
 
-    expect(within(tables).getByText(/not collected yet; they are empty, not zero/)).toBeTruthy();
+    expect(within(tables).getByText(/not collected yet are left empty, not zero/)).toBeTruthy();
     fireEvent.mouseDown(within(tables).getByRole('tab', { name: 'National totals' }));
     expect(within(tables).queryByText(/not collected/)).toBeNull();
-    expect(tables.querySelectorAll('[data-unshown="not-collected"]')).toHaveLength(0);
-    // The access-request measures come last, on the second page.
-    fireEvent.click(within(tables).getByRole('button', { name: 'Next' }));
-    const received = [...tables.querySelectorAll('tr')].find((each) =>
-      each.textContent.includes('Access requests received'),
-    );
+    // Page through to the access-request measures, wherever they fall, with no marker on the way.
+    const findReceived = () =>
+      [...tables.querySelectorAll('tr')].find((each) =>
+        each.textContent.includes('Access requests received'),
+      );
+    let received = findReceived();
+    for (;;) {
+      expect(tables.querySelectorAll('[data-unshown="not-collected"]')).toHaveLength(0);
+      const next = within(tables).queryByRole('button', { name: 'Next' });
+      if (received || !next || next.hasAttribute('disabled')) break;
+      fireEvent.click(next);
+      received = findReceived();
+    }
     expect(received?.textContent).toMatch(/\d/);
   });
 

@@ -168,6 +168,7 @@ export const LIST_COPY = {
   all: 'All clarifications',
   viewAll: 'View all',
   viewAllLabel: 'View all clarifications',
+  onDeclaration: 'Clarifications on this declaration',
 
   rowTitle: (points: number, declaration: string) =>
     `${plural(points, 'point')} on your ${declaration}`,

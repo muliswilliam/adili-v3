@@ -83,7 +83,13 @@ export function submitDeclaration(
 }
 
 export type SubmissionLoad =
-  | { status: 'ok'; declaration: Declaration; version: DeclarationVersion }
+  | {
+      status: 'ok';
+      declaration: Declaration;
+      version: DeclarationVersion;
+      /** Every submitted version's reference, newest first: its clarifications name one. */
+      references: string[];
+    }
   /** The declaration has no submitted version (still a draft, or discarded). */
   | { status: 'not-submitted' }
   | NotFound
@@ -109,7 +115,12 @@ export function loadSubmission(
     if (!versions.data) return unavailable;
     const [latest] = versions.data;
     if (!latest) return { status: 'not-submitted' };
-    return { status: 'ok', declaration: declaration.data, version: latest };
+    return {
+      status: 'ok',
+      declaration: declaration.data,
+      version: latest,
+      references: versions.data.map((each) => each.reference),
+    };
   });
 }
 
