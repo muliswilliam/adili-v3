@@ -49,4 +49,18 @@ describe('DemoBar', () => {
     expect(form?.getAttribute('method')).toBe('post');
     expect(new FormData(form ?? undefined).get('as')).toBe('eacc-analyst');
   });
+
+  it('opens its menu above the page and keeps it within the window, scrolling inside', async () => {
+    const { container } = render(<DemoBar variant="inline" accounts={ACCOUNTS} current={null} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /Act as/ }));
+
+    const menu = await screen.findByRole('menu');
+    // Portalled to the body, so no header or card stacks over it.
+    expect(container.contains(menu)).toBe(false);
+    expect(menu.className).toContain(
+      'max-h-[min(var(--radix-dropdown-menu-content-available-height),560px)]',
+    );
+    expect(menu.className).toContain('overflow-y-auto');
+  });
 });

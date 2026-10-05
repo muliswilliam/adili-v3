@@ -97,7 +97,10 @@ export function DemoBar({
           <MenuContent
             align={variant === 'floating' ? 'start' : 'end'}
             side={variant === 'floating' ? 'top' : 'bottom'}
-            className="max-h-[min(70dvh,560px)] w-[380px] max-w-[calc(100vw-2rem)] overflow-y-auto"
+            collisionPadding={8}
+            // The space Radix measured between the trigger and the window's edge: the menu scrolls
+            // inside it instead of running off the screen.
+            className="max-h-[min(var(--radix-dropdown-menu-content-available-height),560px)] w-[380px] max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain"
           >
             <p className="px-2.5 pt-1.5 pb-1 text-[11.5px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
               Demo: act as
