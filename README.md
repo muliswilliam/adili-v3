@@ -55,6 +55,8 @@ Government-system mocks run on the host via `pnpm dev` (or `pnpm --filter @adili
 | Mailpit SMTP / UI                | `localhost:1025` / http://localhost:8025                              | none |
 | OTel collector OTLP              | `localhost:4317` (gRPC), `localhost:4318` (HTTP)                      | none |
 
+OpenBao keeps its keys on the `openbao-data` volume and unseals itself with the committed demo seal key (`infra/compose/openbao/server/`, local and demo only), so transit keys and the demo CA survive restarts. `pnpm infra:reset` deletes the volume, and with it every key the sealed data in Postgres needs: re-seed afterwards.
+
 Per-service Postgres roles (password is `<role>_dev`): `adili_directory`, `adili_declarations`, `adili_review`, `adili_access`, `adili_reporting`, `adili_documents`, `adili_verification`, `adili_ai_gateway`, `adili_integration_gateway`, `adili_notifications`, `adili_audit`, plus `keycloak` / `keycloak_dev`, `mocks` / `mocks_dev`, `temporal` / `temporal_dev`, `adili_test` / `adili_test_dev`.
 
 Service ports: directory 4001, declarations 4002, review 4003, access 4004, reporting 4005, documents 4006, verification-api 4007, ai-gateway 4008, integration-gateway 4009, notifications 4010, audit 4011.

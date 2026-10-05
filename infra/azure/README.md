@@ -118,6 +118,16 @@ Repo secret (Actions -> Secrets):
 
 The committed `vault-dev` secrets are for local and this demo only (ADR-012). Do not use them for a real EACC deployment.
 
+## OpenBao state
+
+OpenBao holds the per-tenant transit keys that seal declaration fields, the document signing keys and the demo root CA. It runs as a persistent server: integrated storage on the `openbao-data` volume (`/openbao/file` in the container), unsealed on start by the static seal key committed in `infra/compose/openbao/server/demo-seal.key`. That key is demo-only (ADR-012); a real deployment uses an HSM or KMS seal.
+
+- Restarts, reboots and redeploys keep every key, so sealed data stays readable.
+- A demo checkpoint must capture `openbao-data` together with the Postgres databases: stop `openbao`, archive the volume, start it again. Restoring one without the other leaves ciphertext that no key opens.
+- Deleting the volume (`pnpm infra:reset`, `docker compose down -v`) deletes the keys: drop and re-seed the demo databases too.
+
+One-time switch on a stack that ran the old dev-mode OpenBao (in memory): its keys are already gone after any restart, so data sealed under them cannot be recovered. After the deploy recreates `openbao` and `openbao-init` initialises it, reset the demo data (drop and migrate the service databases, then seed again).
+
 ## Tear down
 
 ```sh
