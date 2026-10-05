@@ -100,7 +100,89 @@ describe('an idle connection the server drops', () => {
   });
 });
 
-async function backendPid(db: Database): Promise<number> {
+/**
+ * #636: a connection checked out for a transaction has no pool listener, so the server ending
+ * it (a restart, the demo checkpoint's `pg_terminate_backend`) raised an unhandled 'error' event
+ * and the process exited. Vitest fails the run on such an error, which is what these guard.
+ */
+describe('a connection the server drops while a transaction holds it', () => {
+  let db: Database;
+  let admin: Database;
+
+  beforeAll(() => {
+    db = createDatabase({ url: DATABASE_URL, schema: {}, applicationName: 'data-access-tx-test' });
+    admin = createDatabase({
+      url: DATABASE_URL,
+      schema: {},
+      applicationName: 'data-access-tx-test-admin',
+      maxConnections: 1,
+    });
+  });
+
+  afterAll(async () => {
+    await db.$client.end();
+    await admin.$client.end();
+  });
+
+  it('fails the transaction, between statements, and the next query gets a new connection', async () => {
+    let held = 0;
+    const error = await db
+      .transaction(async (tx) => {
+        held = await backendPid(tx);
+        await admin.execute(sql`select pg_terminate_backend(${held})`);
+        // Work outside the database inside the transaction (an HTTP call, a broker publish).
+        await waitForBackendGone(admin, held);
+        await tx.execute(sql`select 1`);
+      })
+      .catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(await backendPid(db)).not.toBe(held);
+  });
+
+  it('fails the transaction, mid-statement, and the next query gets a new connection', async () => {
+    let held = 0;
+    const error = await db
+      .transaction(async (tx) => {
+        held = await backendPid(tx);
+        // Drizzle queries run when awaited: `then` sends it now, settled into a value.
+        const sleeping = tx.execute(sql`select pg_sleep(5)`).then(
+          () => undefined,
+          (thrown: unknown) => thrown,
+        );
+        await vi.waitUntil(() => isActive(admin, held), { interval: 20, timeout: 2_000 });
+        await admin.execute(sql`select pg_terminate_backend(${held})`);
+        throw await sleeping;
+      })
+      .catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(await backendPid(db)).not.toBe(held);
+  });
+});
+
+async function waitForBackendGone(admin: Database, pid: number): Promise<void> {
+  await vi.waitUntil(
+    async () => {
+      const result = await admin.execute<{ n: number }>(
+        sql`select count(*)::int as n from pg_stat_activity where pid = ${pid}`,
+      );
+      return result.rows[0]?.n === 0;
+    },
+    { interval: 20, timeout: 5_000 },
+  );
+  // The socket's end reaches the client a moment after the backend is gone.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+}
+
+async function isActive(admin: Database, pid: number): Promise<boolean> {
+  const result = await admin.execute<{ state: string }>(
+    sql`select state from pg_stat_activity where pid = ${pid}`,
+  );
+  return result.rows[0]?.state === 'active';
+}
+
+async function backendPid(db: Pick<Database, 'execute'>): Promise<number> {
   const result = await db.execute<{ pid: number }>(sql`select pg_backend_pid() as pid`);
   const pid = result.rows[0]?.pid;
   if (pid === undefined) throw new Error('no backend pid');
