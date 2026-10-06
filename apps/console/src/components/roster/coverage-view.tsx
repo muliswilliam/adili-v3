@@ -58,7 +58,7 @@ import {
   progressPage,
   type ProgressSearch,
   progressTotals,
-  sharePercent,
+  shareLabel,
 } from './declaration-progress';
 import { messages as obligationsMessages } from '../obligations/messages';
 import { messages as m } from './messages';
@@ -336,7 +336,7 @@ function ProgressTiles({ counts }: { counts: ProgressCounts | null }) {
               <TileValue>
                 {formatNumber(value)}{' '}
                 <small className="text-sm font-medium tracking-normal text-muted-foreground">
-                  {m.coverageShare(sharePercent(value, whole))}
+                  {shareLabel(value, whole)}
                 </small>
               </TileValue>
             ) : (
@@ -393,9 +393,9 @@ function SharesBar({ counts }: { counts: ProgressCounts }) {
     <div
       role="img"
       aria-label={m.coverageBarLabel(
-        sharePercent(counts.submitted, whole),
-        sharePercent(counts.inProgress, whole),
-        sharePercent(counts.late, whole),
+        shareLabel(counts.submitted, whole),
+        shareLabel(counts.inProgress, whole),
+        shareLabel(counts.late, whole),
       )}
       className="flex h-2 min-w-[100px] overflow-hidden rounded-full bg-muted"
     >

@@ -129,8 +129,8 @@ describe('#301 roster coverage', () => {
     const tiles = screen.getByRole('region', { name: 'Declaration progress' });
     expect(tiles.textContent).toContain('Not started22 32%');
     expect(tiles.textContent).toContain('In progress11 16%');
-    expect(tiles.textContent).toContain('Submitted33 48%');
-    expect(tiles.textContent).toContain('Late2 2%');
+    expect(tiles.textContent).toContain('Submitted33 49%');
+    expect(tiles.textContent).toContain('Late2 3%');
   });
 
   it('draws each row as shares submitted, in progress and late', () => {
@@ -138,7 +138,7 @@ describe('#301 roster coverage', () => {
     const [health] = bodyRows();
     if (!health) throw new Error('No rows');
     expect(within(health).getByRole('img').getAttribute('aria-label')).toBe(
-      '50% submitted, 16% in progress, 8% late',
+      '50% submitted, 17% in progress, 8% late',
     );
   });
 

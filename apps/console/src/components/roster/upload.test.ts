@@ -208,6 +208,15 @@ describe('uploadRosterFile', () => {
     expect(d.createUpload).not.toHaveBeenCalled();
   });
 
+  it('makes no request for an empty file, and refuses it for good (#713)', async () => {
+    const d = deps();
+    await expect(uploadRosterFile(new File([], 'roster.csv'), d)).resolves.toEqual({
+      kind: 'rejected',
+      reason: 'empty',
+    });
+    expect(d.createUpload).not.toHaveBeenCalled();
+  });
+
   it('fails when the reservation is refused or unreachable', async () => {
     const refused = deps({
       createUpload: () =>

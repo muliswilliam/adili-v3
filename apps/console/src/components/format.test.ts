@@ -4,7 +4,7 @@ import { formatFileSize, formatNumber, formatRelativeDate, formatRelativeTime } 
 
 describe('formatFileSize', () => {
   it.each([
-    [0, '1 KB'],
+    [0, '0 KB'],
     [1, '1 KB'],
     [12_000, '12 KB'],
     [1024 * 1024 - 1, '1,024 KB'],
