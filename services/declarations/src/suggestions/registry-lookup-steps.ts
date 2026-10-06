@@ -27,7 +27,7 @@ import { savedHouseholdPerson } from './household.js';
 import { isOfficer, statementItems } from './persons.js';
 import { type MappedSuggestion, mapRegistryResult } from './registry-mapping.js';
 import type { RegistryResult } from './registry-results.js';
-import { type ExtractionFailure, suggestions, suggestionSets } from './schema.js';
+import { type SetFailure, suggestions, suggestionSets } from './schema.js';
 import { SuggestionCipher } from './suggestion-cipher.js';
 import type {
   LookupAttempt,
@@ -281,7 +281,7 @@ export class RegistryLookupSteps {
     outcome: {
       status: 'ready' | 'unavailable' | 'no-id' | 'failed';
       /** Why a `failed` set failed: only `not-a-draft` for a lookup. */
-      reason?: Extract<ExtractionFailure, 'not-a-draft'>;
+      reason?: Extract<SetFailure, 'not-a-draft'>;
       verificationResultId?: string | null;
       rows?: (typeof suggestions.$inferInsert)[];
     },

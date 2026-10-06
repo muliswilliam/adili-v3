@@ -33,7 +33,6 @@ import {
   uploadNotClean,
   readingConflict,
   validationProblem,
-  workflowUnavailable,
 } from '../drafts/problems.js';
 import { type DeclarationRow, liveDeclaration } from '../drafts/repository.js';
 import { declarationAttachments, declarationSections } from '../drafts/schema.js';
@@ -43,12 +42,8 @@ import { statementPersonKey } from '../drafts/sections.js';
 import { DocumentReadingSteps, outcomeOf } from './document-reading-steps.js';
 import { DocumentReadingWorkflows } from './document-reading-workflows.js';
 import { declarationExtractionRequested } from './events.js';
-import {
-  type DocumentReadingInput,
-  READING_TIMEOUT_MS,
-  type ReadingRef,
-} from './workflow/contract.js';
-import { currentTransactionId } from '../db/workflow-transactions.js';
+import { READING_TIMEOUT_MS, type ReadingRef } from './workflow/contract.js';
+import { currentTransactionId, startOrRefuse } from '../db/workflow-transactions.js';
 import {
   type ExtractAttachmentRequest,
   extractAttachmentRequestSchema,
@@ -56,7 +51,7 @@ import {
 } from './representation.js';
 import {
   type DocumentKind,
-  type ExtractionFailure,
+  type SetFailure,
   type StatementList,
   STATEMENT_LISTS,
   type SuggestionSetStatus,
@@ -438,17 +433,24 @@ export class ExtractionService {
     { declaration, attachment }: Reading,
     setId: string,
     aiJobId: string | null,
-    outcome: { status: SuggestionSetStatus; reason: ExtractionFailure | null } | null,
+    outcome: { status: SuggestionSetStatus; reason: SetFailure | null } | null,
     live = false,
   ): Promise<void> {
     await withPerson(this.db, person, async (tx) => {
       if (live && aiJobId) {
-        await this.startWorkflow({
-          ...refOf(person, declaration),
-          jobId: aiJobId,
-          transactionId: await currentTransactionId(tx),
-          timeoutMs: READING_TIMEOUT_MS,
-        });
+        const transactionId = await currentTransactionId(tx);
+        await startOrRefuse(
+          () =>
+            this.workflows.start({
+              ...refOf(person, declaration),
+              jobId: aiJobId,
+              transactionId,
+              timeoutMs: READING_TIMEOUT_MS,
+            }),
+          this.logger,
+          { declarationId: declaration.id, jobId: aiJobId },
+          'Document reading workflow not started',
+        );
       }
       await tx
         .update(suggestionSets)
@@ -464,18 +466,6 @@ export class ExtractionService {
         }),
       );
     });
-  }
-
-  private async startWorkflow(input: DocumentReadingInput): Promise<void> {
-    try {
-      await this.workflows.start(input);
-    } catch (error) {
-      this.logger.warn(
-        { declarationId: input.declarationId, jobId: input.jobId, err: errorType(error) },
-        'Document reading workflow not started',
-      );
-      throw workflowUnavailable();
-    }
   }
 
   /**

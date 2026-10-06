@@ -10,16 +10,11 @@ import { Clock } from '../clock.js';
 import { isEditable } from '../declaration/schema.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
-import { currentTransactionId } from '../db/workflow-transactions.js';
+import { currentTransactionId, startOrRefuse } from '../db/workflow-transactions.js';
 import { isRecord, isUuid } from '../guards.js';
 import { personOf } from '../drafts/access.js';
 import { DraftsService } from '../drafts/drafts.service.js';
-import {
-  declarationNotDraft,
-  fieldErrors,
-  validationProblem,
-  workflowUnavailable,
-} from '../drafts/problems.js';
+import { declarationNotDraft, fieldErrors, validationProblem } from '../drafts/problems.js';
 import { type DeclarationRow, liveDeclaration } from '../drafts/repository.js';
 import type { StoredEnvelope } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
@@ -47,7 +42,6 @@ import {
 import { SUGGESTION_SOURCES, suggestionConsents, suggestions, suggestionSets } from './schema.js';
 import { SuggestionCipher } from './suggestion-cipher.js';
 import { type SetRow, setView, type SuggestionRow, suggestionView } from './views.js';
-import type { RegistryLookupsInput } from './workflow/contract.js';
 
 export interface SuggestionsQuery {
   personKey?: string;
@@ -95,10 +89,36 @@ export class SuggestionsService {
     const planned = systems.map((system) => ({ setId: uuidv7(), system }));
 
     const recorded = await withPerson(this.db, person, async (tx) => {
+      // Checked unlocked first: the workflow is started before this transaction takes a lock
+      // others queue for (ADR-003 decision 7), with its id, so a request never commits without
+      // the workflow that answers its sets, and Temporal unreachable rolls it back (503
+      // `workflow-unavailable`; the declarant asks again).
+      const found = await liveDeclaration(tx, declarationId);
+      if (!found) return null;
+      if (!isEditable(found.status)) throw declarationNotDraft('edited');
+      const personKey = await this.checkPerson(tx, found, request.personKey);
+      const transactionId = await currentTransactionId(tx);
+      await startOrRefuse(
+        () =>
+          this.workflows.start({
+            tenant: found.tenant,
+            declarationId: found.id,
+            personId: person.personId,
+            subject: person.subject,
+            personKey,
+            consentId,
+            sets: planned,
+            transactionId,
+          }),
+        this.logger,
+        { declarationId: found.id, consentId },
+        'Registry lookups not started',
+      );
+      // Then locked, and checked again: a submission meanwhile refuses the request, and the
+      // workflow, finding nothing once this rolls back, looks nothing up.
       const declaration = await liveDeclaration(tx, declarationId, { lock: true });
       if (!declaration) return null;
       if (!isEditable(declaration.status)) throw declarationNotDraft('edited');
-      const personKey = await this.checkPerson(tx, declaration, request.personKey);
       await tx.insert(suggestionConsents).values({
         id: consentId,
         declarationId: declaration.id,
@@ -132,38 +152,9 @@ export class SuggestionsService {
           consentTextVersion: request.consent.textVersion,
         }),
       );
-      // Started before the commit, with this transaction's id (ADR-003 decision 7): a request
-      // never commits without the workflow that answers its sets, and Temporal unreachable rolls
-      // it back (503 `workflow-unavailable`; the declarant asks again).
-      await this.startLookups({
-        tenant: declaration.tenant,
-        declarationId: declaration.id,
-        personId: person.personId,
-        subject: person.subject,
-        personKey,
-        consentId,
-        sets: planned,
-        transactionId: await currentTransactionId(tx),
-      });
       return sets;
     });
     return notFoundIfInvisible(recorded).map((set) => setView(set, []));
-  }
-
-  private async startLookups(input: RegistryLookupsInput): Promise<void> {
-    try {
-      await this.workflows.start(input);
-    } catch (error) {
-      this.logger.warn(
-        {
-          declarationId: input.declarationId,
-          consentId: input.consentId,
-          err: error instanceof Error ? error.name : typeof error,
-        },
-        'Registry lookups not started',
-      );
-      throw workflowUnavailable();
-    }
   }
 
   /**
