@@ -90,6 +90,7 @@ describe('HttpIntegrationGatewayClient', () => {
 
   it.each([
     [400, 'e.g. no legal basis'],
+    [403, 'the token lacks the payroll scope'],
     [409, 'another instruction under the reference'],
   ])('a refused instruction (%i, %s) is rejected, not retried', async (status) => {
     const fetch = vi.fn<typeof globalThis.fetch>(() =>
