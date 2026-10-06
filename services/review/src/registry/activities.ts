@@ -306,16 +306,7 @@ async function recordsOf(
   try {
     stored = await gateway.getStoredResult(lookup.resultId, tenant, SYSTEM_SUBJECT);
   } catch (error) {
-    if (error instanceof InternalApiRejected) {
-      logger.error(
-        `The integration-gateway refused a ${system} result with ${String(error.status)}`,
-      );
-      return unavailable(GATEWAY_REJECTED, lookup.resultId);
-    }
-    if (error instanceof IntegrationGatewayUnavailable) {
-      return unavailable(GATEWAY_UNAVAILABLE, lookup.resultId);
-    }
-    throw error;
+    return unavailable(gatewayFailureReason(error, `${system} result`), lookup.resultId);
   }
   const records = stored && REGISTRY_RECORDS[system].safeParse(stored.payload);
   if (!records?.success) return unavailable(RESULT_MISSING, lookup.resultId);
@@ -438,13 +429,23 @@ function gatewayFailure(
   error: unknown,
   system: string,
 ): Pick<LookupOutcome, 'outcome' | 'reason' | 'resultId'> {
+  return {
+    outcome: 'unavailable',
+    reason: gatewayFailureReason(error, `${system} lookup`),
+    resultId: null,
+  };
+}
+
+/**
+ * Why the gateway gave no answer to a request (`what`, for the log): it refused it
+ * (`gateway-rejected`), or could not be reached (`gateway-unavailable`). Anything else propagates.
+ */
+function gatewayFailureReason(error: unknown, what: string): string {
   if (error instanceof InternalApiRejected) {
     // A request the gateway refuses (the token lacks the scope, say) needs fixing, not waiting.
-    logger.error(`The integration-gateway refused a ${system} lookup with ${String(error.status)}`);
-    return { outcome: 'unavailable', reason: GATEWAY_REJECTED, resultId: null };
+    logger.error(`The integration-gateway refused a ${what} with ${String(error.status)}`);
+    return GATEWAY_REJECTED;
   }
-  if (error instanceof IntegrationGatewayUnavailable) {
-    return { outcome: 'unavailable', reason: GATEWAY_UNAVAILABLE, resultId: null };
-  }
+  if (error instanceof IntegrationGatewayUnavailable) return GATEWAY_UNAVAILABLE;
   throw error;
 }

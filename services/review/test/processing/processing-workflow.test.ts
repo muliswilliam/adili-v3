@@ -230,7 +230,7 @@ describe('DeclarationProcessingWorkflow', () => {
     });
   }, 60_000);
 
-  it('asks for the copilot all the same when the registry check keeps failing (#478)', async () => {
+  it('asks for the copilot all the same when the registry check keeps failing', async () => {
     const unavailable = new DeclarationsUnavailable('declarations unreachable');
     const mocks = activities({ matchAndStoreRegistries: vi.fn(() => Promise.reject(unavailable)) });
 
