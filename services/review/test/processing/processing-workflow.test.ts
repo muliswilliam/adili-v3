@@ -231,6 +231,9 @@ describe('DeclarationProcessingWorkflow', () => {
   }, 60_000);
 
   it('asks for the copilot all the same when the registry check keeps failing', async () => {
+    // Any failure the check retries stands in here (a gateway outage is stored as unavailable
+    // instead, S9): the check's 30-minute limit, skipped through by the time-skipping test
+    // environment, is what lets the workflow go on.
     const unavailable = new DeclarationsUnavailable('declarations unreachable');
     const mocks = activities({ matchAndStoreRegistries: vi.fn(() => Promise.reject(unavailable)) });
 
