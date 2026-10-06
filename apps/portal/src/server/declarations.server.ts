@@ -1,4 +1,4 @@
-import type { SectionContentsByKind } from '../declaration/contents';
+import type { Draft, SectionContentsByKind, Statement } from '../declaration/contents';
 import type { DeclarationsClient } from './declarations/client.server';
 import type {
   Declaration,
@@ -239,6 +239,82 @@ export function loadSummary(
     });
     if (data) return { status: 'ok', summary: { ...data, document: data.document as JsonObject } };
     return response.status === 404 ? notFound : unavailable;
+  });
+}
+
+/**
+ * The declaration a draft follows, as its comparison reads it (ADR-006 point 10): the version in
+ * force, with only its statements, which is all the comparison needs.
+ */
+export interface PreviousDeclaration {
+  declarationId: string;
+  version: number;
+  reference: string | null;
+  type: DeclarationListItem['type'];
+  statementDate: string;
+  submittedAt: string | null;
+  /** The statements as filed, read as a draft's so the comparison takes both alike. */
+  statements: Draft<Statement>[];
+}
+
+/**
+ * The declaration this one follows: of the declarant's others with a version filed, the one with
+ * the latest statement date before this one's. None for a first declaration.
+ */
+export function previousDeclarationOf(
+  list: readonly DeclarationListItem[],
+  declarationId: string,
+): DeclarationListItem | null {
+  const self = list.find((item) => item.id === declarationId);
+  if (!self) return null;
+  const earlier = list.filter(
+    (item) =>
+      item.id !== declarationId &&
+      item.currentVersion !== null &&
+      item.statementDate < self.statementDate,
+  );
+  earlier.sort(
+    (a, b) =>
+      b.statementDate.localeCompare(a.statementDate) ||
+      (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''),
+  );
+  return earlier[0] ?? null;
+}
+
+export type PreviousDeclarationResult =
+  { status: 'ok'; previous: PreviousDeclaration | null } | Unavailable;
+
+/**
+ * The declarant's previous filed declaration (`GET /v1/me/declarations`, then the version in
+ * force of the one the draft follows): none for a first declaration.
+ */
+export function loadPreviousDeclaration(
+  client: DeclarationsClient,
+  declarationId: string,
+): Promise<PreviousDeclarationResult> {
+  return attempt(async () => {
+    const listed = await listDeclarations(client);
+    if (listed.status !== 'ok') return unavailable;
+    const found = previousDeclarationOf(listed.declarations, declarationId);
+    if (found?.currentVersion == null) return { status: 'ok', previous: null };
+    const { data } = await client.GET('/v1/declarations/{declarationId}/versions/{version}', {
+      params: { path: { declarationId: found.id, version: found.currentVersion } },
+    });
+    if (!data) return unavailable;
+    const { statements } = data.document;
+    return {
+      status: 'ok',
+      previous: {
+        declarationId: found.id,
+        version: found.currentVersion,
+        reference: found.reference,
+        type: found.type,
+        statementDate: found.statementDate,
+        submittedAt: found.submittedAt,
+        // A filed version's statements passed the schema, so they are whole statements.
+        statements: Array.isArray(statements) ? (statements as Draft<Statement>[]) : [],
+      },
+    };
   });
 }
 

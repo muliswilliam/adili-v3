@@ -16,7 +16,7 @@ import {
   placedItems,
   statementSectionKey,
   valueOf,
-} from '../rules/match.js';
+} from '@adili/forms/compare';
 
 /** A registry check's outcome for the summary (spec 07b): `kra`, or `kra · spouse` for a household member. */
 export interface RegistryStatus {

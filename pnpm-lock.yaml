@@ -224,6 +224,9 @@ importers:
       '@adili/demo-auth':
         specifier: workspace:*
         version: link:../../packages/demo-auth
+      '@adili/forms':
+        specifier: workspace:*
+        version: link:../../packages/forms
       '@adili/numbering':
         specifier: workspace:*
         version: link:../../packages/numbering
@@ -255,9 +258,6 @@ importers:
       '@adili/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
-      '@adili/forms':
-        specifier: workspace:*
-        version: link:../../packages/forms
       '@adili/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas

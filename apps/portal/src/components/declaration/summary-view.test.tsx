@@ -4,11 +4,12 @@ import { cloneElement, type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSummaryHints } from '../../server/assistant';
-import { discardMyDeclaration } from '../../server/declarations';
-import type { LoadedSummary } from '../../server/declarations.server';
+import { discardMyDeclaration, getPreviousDeclaration } from '../../server/declarations';
+import type { LoadedSummary, PreviousDeclaration } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
 import { SummaryView } from './summary-view';
 import { PENDING_RETRY_MS, resetHintsAvailability } from './use-hints';
+import { resetPreviousDeclarations } from './use-previous-declaration';
 import {
   DECLARATION_ID,
   region as card,
@@ -201,6 +202,7 @@ beforeEach(() => {
   hintsMock.mockReset();
   hintsMock.mockResolvedValue({ status: 'unavailable' });
   resetHintsAvailability();
+  resetPreviousDeclarations();
 });
 
 describe('SummaryView', () => {
@@ -749,5 +751,122 @@ describe('S5: completeness hints on the summary', () => {
   it('asks for nothing when nothing is left to complete', () => {
     renderSummary();
     expect(hintsMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('changes since the previous declaration (ADR-006 point 10)', () => {
+  const previousMock = vi.mocked(getPreviousDeclaration);
+  const previous: PreviousDeclaration = {
+    declarationId: '0199a8f0-0000-7000-8000-000000000999',
+    version: 1,
+    reference: 'DCB-TSC-2025-0000001-B',
+    type: 'biennial',
+    statementDate: '2025-11-01',
+    submittedAt: '2025-12-02T09:00:00Z',
+    statements: [
+      {
+        personKey: 'officer',
+        income: [
+          {
+            id: 'p1',
+            type: 'salary-emoluments',
+            description: 'Salary from TSC',
+            amount: { kesCents: 180_000_000 },
+            change: { changed: false },
+          },
+        ],
+        assets: [
+          {
+            id: 'p2',
+            type: 'vehicle',
+            description: 'Toyota Probox',
+            value: { kesCents: 60_000_000 },
+            change: { changed: false },
+          },
+        ],
+      },
+    ],
+  };
+
+  it('shows each change with the material ones marked, and what is not marked as changed', async () => {
+    previousMock.mockResolvedValueOnce({ status: 'ok', previous });
+    renderSummary();
+
+    const changes = await screen.findByRole('region', {
+      name: 'Changes since your last declaration',
+    });
+    expect(
+      within(changes).getByText(/Compared with your biennial declaration as at .*2025/),
+    ).toBeTruthy();
+    const table = within(changes).getByRole('table', {
+      name: 'Changes since your last declaration: You',
+    });
+    const rows = within(table)
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => row.textContent);
+    expect(rows).toEqual([
+      expect.stringMatching(/^Salary from TSC.*Up 33\.3%Material changeNot marked as changed$/),
+      expect.stringMatching(/^Plot in Kapsoya.*NewMaterial change$/),
+      expect.stringMatching(
+        /^Toyota Probox.*No longer declaredMaterial changeNot recorded in paragraph 9$/,
+      ),
+    ]);
+    expect(within(changes).getByText('3 material changes')).toBeTruthy();
+  });
+
+  it('does not warn of an item no longer declared that paragraph 9 records as gone', async () => {
+    previousMock.mockResolvedValueOnce({ status: 'ok', previous });
+    const document = {
+      ...COMPLETE_DOCUMENT,
+      otherInformation: {
+        ...COMPLETE_DOCUMENT.otherInformation,
+        materialChanges: [
+          ...COMPLETE_DOCUMENT.otherInformation.materialChanges,
+          {
+            personKey: 'officer',
+            itemDescription: 'Toyota Probox',
+            kind: 'disposal',
+            explanation: 'Sold in 2026.',
+          },
+        ],
+      },
+    };
+    renderSummary(summaryOf({ document: document as unknown as LoadedSummary['document'] }));
+
+    const table = await screen.findByRole('table', {
+      name: 'Changes since your last declaration: You',
+    });
+    expect(within(table).getByRole('row', { name: /Toyota Probox/ }).textContent).toMatch(
+      /No longer declaredMaterial change$/,
+    );
+  });
+
+  it('is not shown for a first declaration', async () => {
+    renderSummary();
+
+    await waitFor(() => {
+      expect(previousMock).toHaveBeenCalled();
+    });
+    expect(
+      screen.queryByRole('region', { name: 'Changes since your last declaration' }),
+    ).toBeNull();
+  });
+
+  it('says so when the previous declaration cannot be loaded', async () => {
+    previousMock.mockResolvedValueOnce({ status: 'unavailable' });
+    renderSummary();
+
+    expect(await screen.findByText(/Your previous declaration could not be loaded/)).toBeTruthy();
+  });
+
+  it('is not asked for on an initial declaration', () => {
+    previousMock.mockClear();
+    renderSummary(summaryOf({}, { type: 'initial' }));
+
+    expect(previousMock).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('region', { name: 'Changes since your last declaration' }),
+    ).toBeNull();
   });
 });

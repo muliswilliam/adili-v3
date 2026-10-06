@@ -115,7 +115,7 @@ Sample files: `payslip-kemsa-june-2026.pdf`, `logbook-fielder-kcx-214j.jpg`, `ti
 
 ### D. Submit and QR slip (portal, Wanjiku)
 
-1. **Summary** (`/declarations/<id>/summary`): "3 things to complete before you can submit". Use each **Fix** link to type the figure: the salary's amount for the period (e.g. KES 6,240,000), the Fielder's value (e.g. 1,000,000) and the Ruiru parcel's value (e.g. 4,000,000). Back on **Summary**, **Submit declaration**.
+1. **Summary** (`/declarations/<id>/summary`): "3 things to complete before you can submit". Use each **Fix** link to type the figure: the salary's amount for the period (e.g. KES 6,240,000), the Fielder's value (e.g. 1,000,000) and the Ruiru parcel's value (e.g. 4,000,000). Back on **Summary**, **Changes since your last declaration** shows each figure against her previous declaration (the salary up, the Fielder down, the Ruiru parcel up, none by much); a figure 25% or more off is marked as a material change, as each statement shows while she types. **Submit declaration**.
 2. The submitted page (`/declarations/<id>/submitted`) offers **Download slip**. Judges scan its QR code with a phone: it opens the verify app (`/v/<verification id>`) and says Valid.
 
 ### E. Cross-checks and copilot (console, Achieng Njeri)

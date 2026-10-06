@@ -6,8 +6,10 @@ import {
   linkAttachment,
   listDeclarations,
   loadDeclaration,
+  loadPreviousDeclaration,
   loadSection,
   loadSummary,
+  previousDeclarationOf,
   saveSection,
   type SaveOutcome,
   startDeclaration,
@@ -21,7 +23,7 @@ import {
   resetDeclarationsMock,
 } from './declarations/mock.server';
 import type { paths } from './declarations/schema.gen';
-import type { Declaration } from './declarations/types';
+import type { Declaration, DeclarationListItem } from './declarations/types';
 import { mockDocumentsFetch, resetDocumentsMock } from './documents/mock.server';
 import type { paths as documentPaths } from './documents/schema.gen';
 import type { CreateUpload } from './documents/types';
@@ -443,5 +445,110 @@ describe('summary, list and discard (S12, S15, S16)', () => {
 
     const fresh = await startDeclaration(client(), MOCK_OBLIGATIONS.biennial);
     expect(fresh).toMatchObject({ status: 'started', created: true });
+  });
+});
+
+describe('the previous declaration, to compare with (ADR-006 point 10)', () => {
+  const listed = (id: string, statementDate: string, currentVersion: number | null) => ({
+    id,
+    statementDate,
+    currentVersion,
+    reference: currentVersion === null ? null : `DCB-TSC-${statementDate.slice(0, 4)}-0000001-B`,
+    type: 'biennial',
+    submittedAt: currentVersion === null ? null : `${statementDate}T09:00:00Z`,
+  });
+  const statements = [{ personKey: 'officer', assets: [{ id: 'a', type: 'land' }] }];
+
+  /** The service with the given list; versions answer with the statements above. */
+  function service(list: unknown[], versionStatus = 200) {
+    const asked: string[] = [];
+    const send = (request: Request) => {
+      const path = new URL(request.url).pathname;
+      asked.push(path);
+      if (path === '/v1/me/declarations') return Promise.resolve(Response.json(list));
+      return Promise.resolve(
+        versionStatus === 200
+          ? Response.json({ version: 2, document: { statements } })
+          : new Response(null, { status: versionStatus }),
+      );
+    };
+    return { client: client(send), asked };
+  }
+
+  it('reads the version in force of the declaration this one follows, and keeps its statements', async () => {
+    const { client: declarations, asked } = service([
+      listed('this', '2027-11-01', null),
+      listed('previous', '2025-11-01', 2),
+    ]);
+
+    const result = await loadPreviousDeclaration(declarations, 'this');
+
+    expect(asked).toEqual(['/v1/me/declarations', '/v1/declarations/previous/versions/2']);
+    expect(result).toEqual({
+      status: 'ok',
+      previous: {
+        declarationId: 'previous',
+        version: 2,
+        reference: 'DCB-TSC-2025-0000001-B',
+        type: 'biennial',
+        statementDate: '2025-11-01',
+        submittedAt: '2025-11-01T09:00:00Z',
+        statements,
+      },
+    });
+  });
+
+  it('is none for a first declaration, without reading any version', async () => {
+    const { client: declarations, asked } = service([listed('this', '2027-11-01', null)]);
+
+    expect(await loadPreviousDeclaration(declarations, 'this')).toEqual({
+      status: 'ok',
+      previous: null,
+    });
+    expect(asked).toEqual(['/v1/me/declarations']);
+  });
+
+  it('is unavailable when the version cannot be read', async () => {
+    const { client: declarations } = service(
+      [listed('this', '2027-11-01', null), listed('previous', '2025-11-01', 1)],
+      503,
+    );
+
+    expect(await loadPreviousDeclaration(declarations, 'this')).toEqual({
+      status: 'unavailable',
+    });
+  });
+});
+
+describe('previousDeclarationOf', () => {
+  function listed(
+    id: string,
+    statementDate: string,
+    currentVersion: number | null,
+    submittedAt: string | null = currentVersion === null ? null : `${statementDate}T09:00:00Z`,
+  ): DeclarationListItem {
+    return { id, statementDate, currentVersion, submittedAt } as DeclarationListItem;
+  }
+
+  it('is the filed declaration with the latest statement date before this one', () => {
+    const list = [
+      listed('this', '2027-11-01', null),
+      listed('older', '2023-11-01', 1),
+      listed('previous', '2025-11-01', 2),
+      listed('never-filed', '2026-06-01', null),
+    ];
+
+    expect(previousDeclarationOf(list, 'this')).toMatchObject({ id: 'previous' });
+  });
+
+  it('is none for the first declaration, or one not in the list', () => {
+    expect(previousDeclarationOf([listed('this', '2027-11-01', null)], 'this')).toBeNull();
+    expect(previousDeclarationOf([listed('older', '2025-11-01', 1)], 'this')).toBeNull();
+  });
+
+  it('is not the declaration itself while amending it', () => {
+    const list = [listed('this', '2027-11-01', 1), listed('previous', '2025-11-01', 1)];
+
+    expect(previousDeclarationOf(list, 'this')).toMatchObject({ id: 'previous' });
   });
 });
