@@ -24,6 +24,12 @@ export interface LadderSubject {
 }
 
 /**
+ * What a start does with the subject's run if one is still open: `keep` it (a repeated overdue
+ * event joins the ladder's run), or `replace` it (a restart, see `restart`).
+ */
+type OnRunning = 'keep' | 'replace';
+
+/**
  * Starts `EnforcementWorkflow` on Temporal (ADR-003), one per subject, and signals it when an
  * officer decides its step or the ladder closes. A start is idempotent: a running workflow for the
  * subject is left as it is. A restart replaces whatever run is still open (`restart`).
@@ -36,33 +42,30 @@ export class EnforcementWorkflows {
 
   async start(input: EnforcementInput): Promise<void> {
     try {
-      await this.run(input, 'USE_EXISTING');
+      await this.run(input, 'keep');
     } catch (error) {
       if (!(error instanceof WorkflowExecutionAlreadyStartedError)) throw error;
     }
   }
 
   /**
-   * A supervisor's restart of a declined ladder: a new run, terminating the subject's run if one
-   * is still open. That can only be the declined run on its way out (it has read, or is about to
-   * read, the decline, and records nothing more), which a start that joined it would leave the
-   * restarted ladder with no workflow behind it (#509). Called with the declined ladder locked,
-   * so no other restart's run can be the one terminated.
+   * A supervisor's restart of a declined ladder: a new run, replacing the subject's run if one is
+   * still open. That can only be the declined run on its way out, which records nothing more;
+   * joined, it would end and leave the restarted ladder with no workflow behind it. Called with
+   * the declined ladder locked, so the run replaced is never another restart's (ADR-003
+   * decisions 7 and 8).
    */
   async restart(input: EnforcementInput): Promise<void> {
-    await this.run(input, 'TERMINATE_EXISTING');
+    await this.run(input, 'replace');
   }
 
-  private async run(
-    input: EnforcementInput,
-    workflowIdConflictPolicy: 'USE_EXISTING' | 'TERMINATE_EXISTING',
-  ): Promise<void> {
+  private async run(input: EnforcementInput, onRunning: OnRunning): Promise<void> {
     // By name: workflow code is loaded by the worker's bundler, not by this process.
     await this.temporal.workflow.start<typeof enforcement>(ENFORCEMENT_WORKFLOW, {
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowId: enforcementWorkflowId(input.subjectKind, input.subjectId),
       args: [input],
-      workflowIdConflictPolicy,
+      workflowIdConflictPolicy: onRunning === 'keep' ? 'USE_EXISTING' : 'TERMINATE_EXISTING',
       workflowIdReusePolicy: 'ALLOW_DUPLICATE',
     });
   }
