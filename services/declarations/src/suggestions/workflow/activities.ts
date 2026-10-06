@@ -5,10 +5,10 @@ import { RegistryLookupSteps } from '../registry-lookup-steps.js';
 import type {
   LookupAttempt,
   LookupAttemptOutcome,
+  LookupFailure,
   ReadingOutcome,
   ReadingRef,
   ReadingSettle,
-  SetRef,
 } from './contract.js';
 
 /**
@@ -29,7 +29,7 @@ export class SuggestionActivities {
   }
 
   /** Records the set `failed`: the check could not run, whatever the registry. */
-  markLookupFailed(ref: SetRef): Promise<void> {
+  markLookupFailed(ref: LookupFailure): Promise<void> {
     return this.steps.fail(ref);
   }
 }

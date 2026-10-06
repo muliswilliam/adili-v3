@@ -1,11 +1,13 @@
 import { fileURLToPath } from 'node:url';
 
 import { WorkflowTestEnvironment } from '@adili/temporal/testing';
+import { ApplicationFailure } from '@temporalio/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type {
   LookupAttempt,
   LookupAttemptOutcome,
+  LookupFailure,
   RegistryLookupsInput,
 } from '../../src/suggestions/workflow/contract.js';
 import { registryLookups } from '../../src/suggestions/workflow/workflows.js';
@@ -67,6 +69,29 @@ describe('registryLookups', () => {
       attempts.filter((attempt) => attempt.system === system).map((a) => a.transactionId);
     expect(bySystem('kra')).toEqual(['987654']);
     expect(bySystem('ntsa')).toEqual(['987654', null]);
+  }, 60_000);
+
+  it('marks a set failed with the starting transaction, so the marking waits for it too', async () => {
+    const marked: LookupFailure[] = [];
+    await env.execute(registryLookups, {
+      workflowsPath,
+      activities: {
+        lookupRegistry: () => Promise.reject(ApplicationFailure.nonRetryable('down', 'Test')),
+        markLookupFailed: (ref: LookupFailure) => {
+          marked.push(ref);
+          return Promise.resolve();
+        },
+      },
+      args: [input],
+    });
+    // The sets run in parallel: in either order.
+    expect(marked.map((ref) => [ref.setId, ref.transactionId])).toEqual(
+      expect.arrayContaining([
+        [input.sets[0]?.setId, '987654'],
+        [input.sets[1]?.setId, '987654'],
+      ]),
+    );
+    expect(marked).toHaveLength(2);
   }, 60_000);
 
   it('a run started before #530, without a transaction, waits on none', async () => {

@@ -11,7 +11,7 @@ import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import { requireTransactionEnded } from '../db/workflow-transactions.js';
 import { DirectoryClient } from '../directory/directory-client.js';
-import { sectionsAre } from '../drafts/repository.js';
+import { liveDeclaration, sectionsAre } from '../drafts/repository.js';
 import { declarationSections } from '../drafts/schema.js';
 import type { SectionContents } from '../drafts/sections.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
@@ -27,11 +27,12 @@ import { savedHouseholdPerson } from './household.js';
 import { isOfficer, statementItems } from './persons.js';
 import { type MappedSuggestion, mapRegistryResult } from './registry-mapping.js';
 import type { RegistryResult } from './registry-results.js';
-import { suggestions, suggestionSets } from './schema.js';
+import { type ExtractionFailure, suggestions, suggestionSets } from './schema.js';
 import { SuggestionCipher } from './suggestion-cipher.js';
 import type {
   LookupAttempt,
   LookupAttemptOutcome,
+  LookupFailure,
   LookupRef,
   SetRef,
 } from './workflow/contract.js';
@@ -62,7 +63,7 @@ export class RegistryLookupSteps {
 
   async lookup(attempt: LookupAttempt): Promise<LookupAttemptOutcome> {
     // Never read the request's records while the transaction that wrote them is open; one that
-    // rolled back left no set, so nothing is looked up (ADR-003 decision 7, #530).
+    // rolled back left no set, so nothing is looked up (ADR-003 decision 7).
     if (attempt.transactionId) await requireTransactionEnded(this.db, attempt.transactionId);
     const person = personContext(attempt);
     const state = await withPerson(this.db, person, (tx) => setState(tx, attempt));
@@ -122,8 +123,12 @@ export class RegistryLookupSteps {
     return 'recorded';
   }
 
-  /** The set could not be checked at all (a failure that is not the registry's). */
-  async fail(ref: SetRef): Promise<void> {
+  /**
+   * The set could not be checked at all (a failure that is not the registry's), once the
+   * transaction that recorded it has ended: before, there is no set to mark.
+   */
+  async fail(ref: LookupFailure): Promise<void> {
+    if (ref.transactionId) await requireTransactionEnded(this.db, ref.transactionId);
     await this.settle(ref, { status: 'failed' });
   }
 
@@ -265,7 +270,8 @@ export class RegistryLookupSteps {
   }
 
   /**
-   * Records the set's outcome, if it is still pending: its status, its suggestions and, when
+   * Records the set's outcome, if it is still pending on a draft (one submitted meanwhile fails
+   * it `not-a-draft`, ADR-018 decision 5): its status, its suggestions and, when
    * `ready`, `declaration.suggestions-ready.v1` counting the ones stored `new`. A ready set
    * supersedes the `new` suggestions of the person's earlier sets from the same registry; if a
    * later set of theirs is ready already, this one's arrive superseded.
@@ -275,22 +281,28 @@ export class RegistryLookupSteps {
     outcome: {
       status: 'ready' | 'unavailable' | 'no-id' | 'failed';
       /** Why a `failed` set failed: only `not-a-draft` for a lookup. */
-      reason?: 'not-a-draft';
+      reason?: Extract<ExtractionFailure, 'not-a-draft'>;
       verificationResultId?: string | null;
       rows?: (typeof suggestions.$inferInsert)[];
     },
   ): Promise<void> {
     await withPerson(this.db, personContext(ref), async (tx) => {
+      // The declaration first, as submission locks it: a submission waits for this record, or
+      // this one sees it submitted.
+      const declaration = await liveDeclaration(tx, ref.declarationId, { lock: true });
       const [set] = await tx
         .select()
         .from(suggestionSets)
         .where(eq(suggestionSets.id, ref.setId))
         .for('update');
       // Gone with its draft, or recorded already: nothing to record.
-      if (set?.status !== 'pending') return;
+      if (!declaration || set?.status !== 'pending') return;
+      const recorded: typeof outcome = isEditable(declaration.status)
+        ? outcome
+        : { status: 'failed', reason: 'not-a-draft' };
       const now = this.clock.now();
-      let rows = outcome.rows ?? [];
-      if (outcome.status === 'ready') {
+      let rows = recorded.rows ?? [];
+      if (recorded.status === 'ready') {
         const sameRegistry = and(
           eq(suggestionSets.declarationId, set.declarationId),
           eq(suggestionSets.personKey, set.personKey),
@@ -322,13 +334,13 @@ export class RegistryLookupSteps {
       await tx
         .update(suggestionSets)
         .set({
-          status: outcome.status,
-          reason: outcome.reason ?? null,
-          verificationResultId: outcome.verificationResultId ?? null,
-          readyAt: outcome.status === 'ready' ? now : null,
+          status: recorded.status,
+          reason: recorded.reason ?? null,
+          verificationResultId: recorded.verificationResultId ?? null,
+          readyAt: recorded.status === 'ready' ? now : null,
         })
         .where(eq(suggestionSets.id, set.id));
-      if (outcome.status === 'ready') {
+      if (recorded.status === 'ready') {
         await this.events.record(
           tx,
           declarationSuggestionsReady(ref.tenant, {

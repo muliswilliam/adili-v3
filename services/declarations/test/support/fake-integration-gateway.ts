@@ -18,6 +18,7 @@ export type FakeAnswer = RegistryResult | 'down';
 export class FakeIntegrationGateway extends IntegrationGatewayClient {
   readonly calls: RegistryLookup[] = [];
   private readonly answers = new Map<string, FakeAnswer[]>();
+  private lookupHook: (() => Promise<void>) | undefined;
 
   /** Answers `answers` in turn to lookups of `nationalId` in `system`. */
   given(system: RegistrySystem, nationalId: string, ...answers: FakeAnswer[]): void {
@@ -28,19 +29,24 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
     return this.calls.filter((call) => call.system === system);
   }
 
+  /** Runs `hook` on each lookup, before the gateway answers: what happens while it is out. */
+  onLookup(hook: () => Promise<void>): void {
+    this.lookupHook = hook;
+  }
+
   reset(): void {
     this.calls.length = 0;
     this.answers.clear();
+    this.lookupHook = undefined;
   }
 
-  lookup(request: RegistryLookup): Promise<RegistryResult> {
+  async lookup(request: RegistryLookup): Promise<RegistryResult> {
     this.calls.push({ ...request });
+    await this.lookupHook?.();
     const queue = this.answers.get(key(request.system, request.nationalId));
     const answer = queue && queue.length > 1 ? queue.shift() : queue?.[0];
-    if (answer === 'down') {
-      return Promise.reject(new IntegrationGatewayUnavailable('The gateway is unreachable'));
-    }
-    return Promise.resolve(answer ?? notFound(request.system));
+    if (answer === 'down') throw new IntegrationGatewayUnavailable('The gateway is unreachable');
+    return answer ?? notFound(request.system);
   }
 }
 

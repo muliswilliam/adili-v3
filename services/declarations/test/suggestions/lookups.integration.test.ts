@@ -784,24 +784,71 @@ describe('#530: lookups wait for the request to commit, and record nothing past 
     api.clock.setToday(DUE_DAY);
     const draft = await filing.completeDraft(ACHIENG);
     await givenOfficerNationalId(ACHIENG, draft.id, OFFICER_ID);
+    givenOfficerRegistries();
     const steps = api.app.get(RegistryLookupSteps);
+    const consentId = randomUUID();
+    const setId = randomUUID();
     const client = await api.db.$client.connect();
     try {
+      // The request's records, written by a transaction still open.
       await client.query('begin');
+      await client.query(
+        "select set_config('app.person', $1, true), set_config('app.subject', $1, true)",
+        [ACHIENG],
+      );
+      await client.query(
+        `insert into suggestion_consents (id, declaration_id, person_key, consented_by, consented_at, text_version, systems)
+         values ($1, $2, 'officer', $3, now(), $4, array['ntsa'])`,
+        [consentId, draft.id, ACHIENG, CONSENT.textVersion],
+      );
+      await client.query(
+        `insert into suggestion_sets (id, declaration_id, person_key, source, consent_id, requested_at)
+         values ($1, $2, 'officer', 'ntsa', $3, now())`,
+        [setId, draft.id, consentId],
+      );
       const open = await client.query<{ id: string }>('select pg_current_xact_id()::text as id');
-      const ref = attempt(draft.id, randomUUID(), open.rows[0]?.id ?? '');
+      const ref = attempt(draft.id, setId, open.rows[0]?.id ?? '');
 
       const failure = await steps.lookup(ref).catch((error: unknown) => error);
       expect(failure).toBeInstanceOf(ApplicationFailure);
       expect(failure).toMatchObject({ type: TRANSACTION_OPEN, nonRetryable: false });
+      // Marking the set failed waits too: it would otherwise match no row and leave it pending.
+      const marking = await steps.fail(ref).catch((error: unknown) => error);
+      expect(marking).toMatchObject({ type: TRANSACTION_OPEN, nonRetryable: false });
 
       await client.query('rollback');
       await expect(steps.lookup(ref)).resolves.toBe('recorded');
+      await expect(steps.fail(ref)).resolves.toBeUndefined();
     } finally {
+      await client.query('rollback');
       client.release();
     }
-    // The rolled-back request had no set: no registry was asked.
+    // The rolled-back request left no set: no registry was asked.
     expect(api.gateway.calls).toEqual([]);
+  });
+
+  it('records nothing when the declaration is submitted while the registry is looked up', async () => {
+    api.clock.setToday(DUE_DAY);
+    const draft = await filing.completeDraft(ACHIENG);
+    await givenOfficerNationalId(ACHIENG, draft.id, OFFICER_ID);
+    givenOfficerRegistries();
+    const setId = await pendingSet(draft.id);
+    api.gateway.onLookup(async () => {
+      await api.asPerson(ACHIENG, (tx) =>
+        tx.update(declarations).set({ status: 'submitted' }).where(eq(declarations.id, draft.id)),
+      );
+    });
+
+    await expect(
+      api.app.get(RegistryLookupSteps).lookup(attempt(draft.id, setId, null)),
+    ).resolves.toBe('recorded');
+
+    expect(api.gateway.calls).toHaveLength(1);
+    await api.asPerson(ACHIENG, async (tx) => {
+      expect(await tx.select().from(suggestions)).toEqual([]);
+      const [set] = await tx.select().from(suggestionSets).where(eq(suggestionSets.id, setId));
+      expect(set).toMatchObject({ status: 'failed', reason: 'not-a-draft' });
+    });
   });
 
   it('writes no suggestion into a declaration that is no longer a draft, and fails its set', async () => {

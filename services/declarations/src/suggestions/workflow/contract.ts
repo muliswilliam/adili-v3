@@ -32,6 +32,11 @@ export interface SetRef extends LookupRef {
   setId: string;
 }
 
+/** A set to mark failed, with the transaction that started its workflow, waited on first. */
+export interface LookupFailure extends SetRef {
+  transactionId?: string | null;
+}
+
 /** One request's lookups: one set per registry, each answered on its own. */
 export interface RegistryLookupsInput extends LookupRef {
   /** The consent the request recorded; also the workflow id's suffix. */
@@ -39,7 +44,7 @@ export interface RegistryLookupsInput extends LookupRef {
   sets: { setId: string; system: RegistrySystem }[];
   /**
    * `pg_current_xact_id()` of the transaction that recorded the request and started the workflow
-   * (ADR-003 decision 7, #530); absent for runs started before.
+   * (ADR-003 decision 7); absent for runs started before.
    */
   transactionId?: string;
 }

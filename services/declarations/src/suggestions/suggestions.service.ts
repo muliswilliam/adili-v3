@@ -132,7 +132,7 @@ export class SuggestionsService {
           consentTextVersion: request.consent.textVersion,
         }),
       );
-      // Started before the commit, with this transaction's id (ADR-003 decision 7, #530): a request
+      // Started before the commit, with this transaction's id (ADR-003 decision 7): a request
       // never commits without the workflow that answers its sets, and Temporal unreachable rolls
       // it back (503 `workflow-unavailable`; the declarant asks again).
       await this.startLookups({
