@@ -2,8 +2,8 @@ import { env } from '../env.server';
 import { createDocumentsClient, type DocumentsClient } from './client';
 
 /**
- * The documents client for decision letter downloads, as the signed-in officer. Under REVIEW_MOCK
- * the review mock answers, as it knows the letters it issued.
+ * The documents client for referral evidence package downloads, as the signed-in officer. Under
+ * REVIEW_MOCK the review mock answers, as it knows the packages it issued.
  */
 export function letterDocumentsClient(accessToken: string): DocumentsClient {
   const config = env();

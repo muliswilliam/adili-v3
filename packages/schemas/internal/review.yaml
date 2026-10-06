@@ -1599,7 +1599,7 @@ paths:
       tags:
         - determinations
       summary: Decision letter download; issued on first request for bulk closures
-      description: The Commission's reviewers and supervisors, and the declarant for their own approved determinations. A bulk closure's letter is issued the first time it is asked for, then served.
+      description: The Commission's reviewers and supervisors, and the declarant for their own approved determinations. A bulk closure's letter is issued the first time it is asked for, then served. Staff get a link valid for five minutes, which the documents service hands out for the Commission (internalGetDocumentDownload); their read is audited naming the declarant. The declarant gets the portal's download of their own letter, not audited.
       operationId: getDeterminationLetter
       parameters:
         - name: determinationId
@@ -5400,11 +5400,9 @@ components:
         verificationId:
           type: string
         downloadUrl:
-          anyOf:
-            - type: string
-              format: uri
-            - type: 'null'
-          description: The declarant's portal download of their own letter (the documents owner rule); null for staff, who download the document by id from the documents service
+          type: string
+          format: uri
+          description: For staff, a link to the signed PDF valid for five minutes, handed out by the documents service for the Commission; for the declarant, the portal's download of their own letter (the documents owner rule)
       required:
         - documentId
         - verificationId

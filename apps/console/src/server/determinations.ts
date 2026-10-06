@@ -17,7 +17,6 @@ import {
 } from './determinations.server';
 import type { ServiceResult } from './service-call';
 import type { Determination } from './review/types';
-import { letterDocumentsClient } from './documents/letter-client.server';
 
 /**
  * Server functions for compliance determinations (spec 08, S1 and S2), called as the signed-in
@@ -95,14 +94,12 @@ export const withdrawCaseDetermination = createServerFn({ method: 'POST' })
   );
 
 /**
- * A short-lived link to an approved determination's decision letter: review names the letter
- * (issuing it on first request for a bulk closure), and the documents service hands out the link
- * as the signed-in officer, audited there.
+ * A short-lived link to an approved determination's decision letter, through review's audited
+ * letter read (which issues it on first request for a bulk closure and asks the documents service
+ * for the link for the Commission).
  */
 export const getDecisionLetterLink = createServerFn({ method: 'GET' })
   .validator(z.object({ determinationId: id }))
   .handler(({ data }): Promise<ServiceResult<{ downloadUrl: string }>> =>
-    asReviewer((client, { accessToken }) =>
-      decisionLetterLink(client, letterDocumentsClient(accessToken), data.determinationId),
-    ),
+    asReviewer((client) => decisionLetterLink(client, data.determinationId)),
   );
