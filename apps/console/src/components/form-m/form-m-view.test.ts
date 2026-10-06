@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ComplianceReport, ReportPeriod } from '../../server/reporting/types';
-import {
-  dueLine,
-  isPreview,
-  manualMissing,
-  partIMissing,
-  periodLine,
-  signOffSteps,
-} from './form-m-view';
+import { dueLine, manualMissing, partIMissing, periodLine, signOffSteps } from './form-m-view';
 
 const period = (over: Partial<ReportPeriod>): ReportPeriod => ({
   fy: 2025,
@@ -18,6 +11,7 @@ const period = (over: Partial<ReportPeriod>): ReportPeriod => ({
   submittedAt: null,
   late: null,
   previewAvailable: false,
+  preview: false,
   ...over,
 });
 
@@ -95,15 +89,6 @@ const report = (over: Partial<ComplianceReport>): ComplianceReport =>
     ...over,
   }) as ComplianceReport;
 
-describe('a preview', () => {
-  it('is a report compiled before its financial year ended (Nairobi time)', () => {
-    expect(isPreview(report({ fy: 2026, compiledAt: '2027-04-10T06:00:00Z' }))).toBe(true);
-    expect(isPreview(report({ fy: 2026, compiledAt: '2027-06-30T20:59:00Z' }))).toBe(true);
-    expect(isPreview(report({ fy: 2026, compiledAt: '2027-06-30T21:00:00Z' }))).toBe(false);
-    expect(isPreview(report({ fy: 2025 }))).toBe(false);
-  });
-});
-
 const partI = (contactDetails: string, physicalAddress: string, emailAddress: string) =>
   ({ partI: { contactDetails, physicalAddress, emailAddress } }) as ComplianceReport['document'] &
     object;
@@ -154,7 +139,10 @@ describe('the sign-off steps', () => {
   });
 
   it('names a preview as such', () => {
-    const steps = signOffSteps(report({ fy: 2026, compiledAt: '2027-04-10T06:00:00Z' }), []);
+    const steps = signOffSteps(
+      report({ fy: 2026, compiledAt: '2027-04-10T06:00:00Z', preview: true }),
+      [],
+    );
     expect(steps[0]?.label).toBe('Preview compiled');
   });
 

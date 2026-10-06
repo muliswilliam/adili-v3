@@ -67,6 +67,7 @@ describe('confirming Form M with a step-up (S6)', () => {
     [{ status: 'step-up-required' }, { step: 'step-up-failed' }],
     [{ status: 'unauthenticated' }, { step: 'signed-out' }],
     [{ status: 'not-reviewed' }, { step: 'refused', reason: 'not-reviewed' }],
+    [{ status: 'preview' }, { step: 'refused', reason: 'preview' }],
     [{ status: 'compiling' }, { step: 'refused', reason: 'compiling' }],
     [{ status: 'already-submitted' }, { step: 'refused', reason: 'already-submitted' }],
     [

@@ -558,6 +558,8 @@ function submittedReport(index: number, fy: number): SubmittedReport | null {
     id: reportIdOf(index, fy),
     commission: { slug: commission.slug, issuerCode: commission.issuerCode, name: commission.name },
     fy,
+    // A filed report was compiled from 1 July: never a preview.
+    preview: false,
     status: 'submitted',
     source: filing.stored?.source ?? commission.source,
     ...(filing.stored

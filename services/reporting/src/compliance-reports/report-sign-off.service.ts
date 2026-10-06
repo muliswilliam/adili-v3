@@ -33,6 +33,7 @@ import { ACTION_LABELS } from './form-m.js';
 import {
   REVIEWED,
   requireEditable,
+  requireFinal,
   requireNotSubmitted,
   requireReviewed,
   SUBMITTED,
@@ -165,6 +166,7 @@ export class ReportSignOffService {
     requireSupervisor(principal, 'mark its Form M reviewed');
     const now = this.clock.now();
     return this.editDraft(principal, tenant, fy, async (tx, report, document) => {
+      requireFinal(report);
       document.partIII.compiledBy = {
         name: principal.name,
         designation: body.designation,
@@ -211,6 +213,7 @@ export class ReportSignOffService {
       { tenant, subject: principal.subject },
       async (tx) => {
         const report = await lockedReport(tx, tenant, fy);
+        requireFinal(report);
         requireReviewed(report);
         const document = await this.draftOf(tenant, report);
         document.partIII.confirmedBy = {

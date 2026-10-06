@@ -52,6 +52,9 @@ const ApiFinancialYearParam = () =>
 
 const NOT_EDITABLE = 'Problem code `report-compiling` while a compile runs, or `report-submitted`';
 
+/** The sign-offs (mark reviewed, confirm) also refuse a preview. */
+const NOT_SIGNABLE = `${NOT_EDITABLE}, or \`report-preview\` while the report is a preview (compiled before the final compile on 1 July after the year)`;
+
 const REPORT = schemaRef('ComplianceReport');
 
 /**
@@ -204,7 +207,7 @@ export class ComplianceReportsController {
   @ApiProblemResponse(400, 'Validation failed')
   @ApiProblemResponse(403, 'Only a supervisor marks the draft reviewed')
   @ApiProblemResponse(404, NOT_VISIBLE)
-  @ApiProblemResponse(409, NOT_EDITABLE)
+  @ApiProblemResponse(409, NOT_SIGNABLE)
   markReviewed(
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
@@ -236,7 +239,7 @@ export class ComplianceReportsController {
   )
   @ApiProblemResponse(403, 'Role, or problem code `step-up-required`')
   @ApiProblemResponse(404, NOT_VISIBLE)
-  @ApiProblemResponse(409, NOT_EDITABLE)
+  @ApiProblemResponse(409, NOT_SIGNABLE)
   @ApiProblemResponse(
     503,
     'The Commission directory or the workflow engine could not be reached; nothing submitted',

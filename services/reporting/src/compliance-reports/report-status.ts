@@ -1,5 +1,6 @@
 import { ne, type SQL, sql } from 'drizzle-orm';
 
+import { finalCompileOf, fyLabel, isPreview } from '../financial-year.js';
 import { problem } from '../problems.js';
 import { complianceReports, type ReportStatus } from './schema.js';
 
@@ -58,6 +59,18 @@ export function requireEditable(report: { status: ReportStatus }): void {
       'The report is being compiled. Try again once the draft is ready.',
     );
   }
+}
+
+/**
+ * A report is signed off (marked reviewed, confirmed) only once it is the year's final draft:
+ * 409 `report-preview` while it is a preview, which would file part-year data.
+ */
+export function requireFinal(report: { fy: number; compiledAt: Date | null }): void {
+  if (!isPreview(report.fy, report.compiledAt)) return;
+  throw problem(
+    'report-preview',
+    `This is a preview of Form M for ${fyLabel(report.fy)}: it can be marked reviewed and confirmed once compiled from ${finalCompileOf(report.fy)}.`,
+  );
 }
 
 /** A report is confirmed once reviewed: 400 `not-reviewed` before. */

@@ -80,6 +80,8 @@ describe('Form M workspace: periods and access', () => {
         submittedAt: null,
         late: null,
         previewAvailable: true,
+        // Compiled on 2 April, before the final compile on 1 July: a preview.
+        preview: true,
       },
       {
         fy: 2026,
@@ -89,6 +91,7 @@ describe('Form M workspace: periods and access', () => {
         submittedAt: null,
         late: null,
         previewAvailable: true,
+        preview: false,
       },
       {
         fy: 2025,
@@ -98,6 +101,7 @@ describe('Form M workspace: periods and access', () => {
         submittedAt: null,
         late: null,
         previewAvailable: true,
+        preview: false,
       },
     ]);
   });
@@ -128,6 +132,7 @@ describe('Form M workspace: periods and access', () => {
         submittedAt: '2027-08-05T09:00:00.000Z',
         late: true,
         previewAvailable: false,
+        preview: false,
       },
     ]);
   });

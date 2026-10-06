@@ -642,6 +642,8 @@ export interface components {
             late: boolean | null;
             /** @description A supervisor may compile the year now (from 1 April of its last half) */
             previewAvailable: boolean;
+            /** @description The report is a preview: compiled before the final compile on 1 July after its financial year (Nairobi time), from part-year data. It can be neither marked reviewed nor confirmed (409 `report-preview`); the final compile, or a recompile from 1 July, makes the draft to sign off */
+            preview: boolean;
         };
         ComplianceReport: {
             /** Format: uuid */
@@ -656,6 +658,8 @@ export interface components {
             status: components["schemas"]["ReportStatus"];
             source: components["schemas"]["ReportSource"];
             compiledAt: string | null;
+            /** @description The report is a preview: compiled before the final compile on 1 July after its financial year (Nairobi time), from part-year data. It can be neither marked reviewed nor confirmed (409 `report-preview`); the final compile, or a recompile from 1 July, makes the draft to sign off */
+            preview: boolean;
             reviewedBy: components["schemas"]["Officer"] | null;
             confirmedBy: components["schemas"]["Officer"] | null;
             submittedAt: string | null;
@@ -688,6 +692,8 @@ export interface components {
             status: components["schemas"]["ReportStatus"];
             source: components["schemas"]["ReportSource"];
             compiledAt: string | null;
+            /** @description The report is a preview: compiled before the final compile on 1 July after its financial year (Nairobi time), from part-year data. It can be neither marked reviewed nor confirmed (409 `report-preview`); the final compile, or a recompile from 1 July, makes the draft to sign off */
+            preview: boolean;
             reviewedBy: components["schemas"]["Officer"] | null;
             confirmedBy: components["schemas"]["Officer"] | null;
             submittedAt: string | null;
@@ -1281,7 +1287,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required" | "separation-of-duties" | "report-submitted" | "report-compiling" | "preview-not-available" | "not-reviewed" | "invalid-remarks" | "invalid-document" | "inconsistent-document" | "tenant-mismatch" | "ncr-approved" | "no-submitted-reports" | "icms-push-failed" | "ai-not-enabled" | "narrative-validation" | "no-pattern-candidates" | "aggregates-rebuilt" | "narrative-draft-failed" | "ncr-not-built" | "ncr-not-approved" | "fy-not-started" | "release-building" | "reconciliation-failed" | "release-not-preview" | "release-not-published" | "annual-release-published" | "manifest-refused" | "manifest-revocation-refused";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required" | "separation-of-duties" | "report-submitted" | "report-compiling" | "preview-not-available" | "report-preview" | "not-reviewed" | "invalid-remarks" | "invalid-document" | "inconsistent-document" | "tenant-mismatch" | "ncr-approved" | "no-submitted-reports" | "icms-push-failed" | "ai-not-enabled" | "narrative-validation" | "no-pattern-candidates" | "aggregates-rebuilt" | "narrative-draft-failed" | "ncr-not-built" | "ncr-not-approved" | "fy-not-started" | "release-building" | "reconciliation-failed" | "release-not-preview" | "release-not-published" | "annual-release-published" | "manifest-refused" | "manifest-revocation-refused";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1669,7 +1675,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem code `report-compiling` while a compile runs, or `report-submitted` */
+            /** @description Problem code `report-compiling` while a compile runs, or `report-submitted`, or `report-preview` while the report is a preview (compiled before the final compile on 1 July after the year) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1736,7 +1742,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem code `report-compiling` while a compile runs, or `report-submitted` */
+            /** @description Problem code `report-compiling` while a compile runs, or `report-submitted`, or `report-preview` while the report is a preview (compiled before the final compile on 1 July after the year) */
             409: {
                 headers: {
                     [name: string]: unknown;

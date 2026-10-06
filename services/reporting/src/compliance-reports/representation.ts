@@ -2,7 +2,7 @@ import { FormMSchema, type FormMV1 } from '@adili/forms';
 import { z } from 'zod';
 
 import type { CommissionFacts } from '../directory/directory-client.js';
-import { dueDateOf } from '../financial-year.js';
+import { dueDateOf, isPreview } from '../financial-year.js';
 import { officerSchema, storedOfficer } from '../officer.js';
 import type { ReportRow } from './reports.js';
 import { REPORT_SOURCES, REPORT_STATUSES } from './schema.js';
@@ -58,6 +58,12 @@ export const formMDocumentSchema = z
       'A form-m.v1 document (packages/schemas/forms/form-m.v1.json, also published for federated Commissions)',
   });
 
+/** `preview` on a report and its summary. */
+const PREVIEW = z.boolean().meta({
+  description:
+    'The report is a preview: compiled before the final compile on 1 July after its financial year (Nairobi time), from part-year data. It can be neither marked reviewed nor confirmed (409 `report-preview`); the final compile, or a recompile from 1 July, makes the draft to sign off',
+});
+
 /** reporting.yaml `ComplianceReportSummary`. */
 export const complianceReportSummarySchema = z.object({
   fy: z.number().int().meta({ description: 'Financial year start year' }),
@@ -69,6 +75,7 @@ export const complianceReportSummarySchema = z.object({
   previewAvailable: z.boolean().meta({
     description: 'A supervisor may compile the year now (from 1 April of its last half)',
   }),
+  preview: PREVIEW,
 });
 export type ComplianceReportSummary = z.infer<typeof complianceReportSummarySchema>;
 
@@ -80,6 +87,7 @@ export const complianceReportSchema = z.object({
   status: reportStatusSchema,
   source: reportSourceSchema,
   compiledAt: z.iso.datetime().nullable(),
+  preview: PREVIEW,
   reviewedBy: officerSchema.nullable(),
   confirmedBy: officerSchema.nullable(),
   submittedAt: z.iso.datetime().nullable(),
@@ -136,6 +144,7 @@ export function reportSummary(
     submittedAt: report?.submittedAt?.toISOString() ?? null,
     late: report?.late ?? null,
     previewAvailable: previewAvailable && report?.status !== 'submitted',
+    preview: report !== undefined && isPreview(fy, report.compiledAt),
   };
 }
 
@@ -151,6 +160,7 @@ export function reportView(
     status: report.status,
     source: report.source,
     compiledAt: report.compiledAt?.toISOString() ?? null,
+    preview: isPreview(report.fy, report.compiledAt),
     reviewedBy: storedOfficer(report.reviewedBy, report.reviewedByName),
     confirmedBy: storedOfficer(report.confirmedBy, report.confirmedByName),
     submittedAt: report.submittedAt?.toISOString() ?? null,
