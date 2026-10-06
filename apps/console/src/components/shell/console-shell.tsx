@@ -43,8 +43,8 @@ export interface ConsoleShellProps {
 /**
  * Signed-in console layout (the kit's `consoleShell`): a 248px sidebar from 1024px, and below
  * that a menu button in the top bar that opens the same sidebar as a drawer. The site footer
- * closes the main column, so the sidebar keeps the full height of the window however far the
- * page scrolls.
+ * closes the main column; the sidebar's background runs the page's full height, and its contents
+ * keep to the window however far the page scrolls.
  */
 export function ConsoleShell({
   userName,
@@ -72,9 +72,14 @@ export function ConsoleShell({
   );
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r bg-muted/60 px-3 py-4 lg:flex">
-        {sidebar}
-      </aside>
+      {/* The grid cell runs the page's full height and carries the sidebar's background, so it
+          never stops short of a page longer than the window (a full-page screenshot); the aside
+          inside keeps to the window as the page scrolls. */}
+      <div data-sidebar-column className="hidden border-r bg-muted/60 lg:block">
+        <aside className="sticky top-0 flex h-dvh flex-col overflow-y-auto px-3 py-4">
+          {sidebar}
+        </aside>
+      </div>
       {/* A modal dialog traps focus, closes on Escape and hands focus back to the menu button. */}
       <dialog
         ref={drawer}
