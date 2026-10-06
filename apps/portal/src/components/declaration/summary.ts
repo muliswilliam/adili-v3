@@ -151,7 +151,7 @@ function humanize(field: string): string {
  * this does not know reads "is not valid" rather than the validator's wording.
  */
 function plainFragment(code: string, message: string): string {
-  const limit = /\d+/.exec(message)?.[0];
+  const limit = /-?\d+(?:\.\d+)?/.exec(message)?.[0];
   switch (code) {
     // The validator's own wording for these is already plain (`forms` validate.ts).
     case 'required':
@@ -183,7 +183,7 @@ function plainFragment(code: string, message: string): string {
     case 'minItems':
       return limit === undefined || limit === '1'
         ? 'is required'
-        : `needs at least ${limit} entries`;
+        : `must have at least ${limit} entries`;
     default:
       return 'is not valid';
   }

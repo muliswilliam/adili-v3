@@ -311,6 +311,13 @@ describe('issueText', () => {
     expect(issueText(item('/assets/0/value/kesCents', 'must be >= 0', 'minimum'), document)).toBe(
       'One-bedroom apartment, Dubai Marina: Value must be at least 0',
     );
+    // A signed or decimal limit keeps its sign and fraction.
+    expect(issueText(item('/assets/0/value/kesCents', 'must be >= -1', 'minimum'), document)).toBe(
+      'One-bedroom apartment, Dubai Marina: Value must be at least -1',
+    );
+    expect(
+      issueText(item('/assets/0/joint/sharePercent', 'must be >= 0.5', 'minimum'), document),
+    ).toBe('One-bedroom apartment, Dubai Marina: Share must be at least 0.5');
     expect(
       issueText(item('/assets/0/joint/sharePercent', 'must be <= 100', 'maximum'), document),
     ).toBe('One-bedroom apartment, Dubai Marina: Share must be at most 100');
@@ -328,7 +335,7 @@ describe('issueText', () => {
     ).toBe('Income is required');
     expect(
       issueText(item('/assets', 'must NOT have fewer than 2 items', 'minItems'), document),
-    ).toBe('Assets needs at least 2 entries');
+    ).toBe('Assets must have at least 2 entries');
     expect(issueText(at('/foo', 'must be a number', 'minimum'), document)).toBe('Foo is not valid');
     expect(issueText(at('/foo', 'must be string', 'type'), document)).toBe('Foo is not valid');
     expect(issueText(at('/foo', 'is not allowed', 'additionalProperties'), document)).toBe(
