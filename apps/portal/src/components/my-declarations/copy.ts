@@ -3,6 +3,7 @@ import { formatDate, formatDateTime, plural } from '@adili/ui';
 /** Copy of "My declarations" (spec 06 FE comment "Portal: My declarations and amendments"). */
 export const MY_DECLARATIONS_COPY = {
   title: 'My declarations',
+  home: 'Home',
   unavailable: 'We could not load your declarations',
   unavailableHint: 'Reload the page, or try again in a few minutes.',
   emptyTitle: 'No declarations yet',

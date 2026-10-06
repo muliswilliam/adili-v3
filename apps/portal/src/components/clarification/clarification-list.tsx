@@ -38,6 +38,7 @@ import {
 } from '../../clarification/list';
 import type { MyClarificationsResult } from '../../server/clarifications.server';
 import type { ClarificationStatus, DeclarantClarification } from '../../server/review/types';
+import { HomeLink } from '../home-link';
 import { Pager } from '../my-declarations/pager';
 
 /**
@@ -210,11 +211,14 @@ function Group({
   );
 }
 
-function PageTitle() {
+function PageHeader() {
   return (
-    <h1 className="text-2xl leading-tight font-semibold tracking-[-0.02em] sm:text-[28px]">
-      {COPY.title}
-    </h1>
+    <>
+      <HomeLink label={COPY.home} />
+      <h1 className="text-2xl leading-tight font-semibold tracking-[-0.02em] sm:text-[28px]">
+        {COPY.title}
+      </h1>
+    </>
   );
 }
 
@@ -222,7 +226,7 @@ function PageTitle() {
 export function ClarificationsSkeleton() {
   return (
     <div>
-      <PageTitle />
+      <PageHeader />
       <Card
         role="status"
         aria-busy="true"
@@ -264,7 +268,7 @@ export function ClarificationsView({
 }: ClarificationsViewProps) {
   return (
     <div>
-      <PageTitle />
+      <PageHeader />
       {result.status === 'unavailable' ? (
         <Card className="mt-6 p-0 sm:p-0">
           <EmptyState

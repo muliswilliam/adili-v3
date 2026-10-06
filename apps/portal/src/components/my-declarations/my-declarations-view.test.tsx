@@ -147,6 +147,11 @@ beforeEach(() => {
 });
 
 describe('my declarations (spec 06 FE-4)', () => {
+  it('links back to Home (#742)', () => {
+    renderView(page([]));
+    expect(screen.getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/');
+  });
+
   it('shows a submitted declaration with its reference, Commission, dates, version and checks', () => {
     const row = renderFiled(filed());
 

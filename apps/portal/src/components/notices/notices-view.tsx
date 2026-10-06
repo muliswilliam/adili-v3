@@ -51,6 +51,7 @@ import {
 import { noticeClosed, salaryOnTop } from '../../notices/salary';
 import type { MyNoticesResult } from '../../server/notices.server';
 import type { ActionStatus, DeclarantNotice } from '../../server/review/types';
+import { HomeLink } from '../home-link';
 import { Pager } from '../my-declarations/pager';
 import { ComplyLink } from './comply-link';
 import { SalaryBanner } from './salary-parts';
@@ -278,11 +279,14 @@ export function LadderStrip({
   );
 }
 
-function PageTitle() {
+function PageHeader() {
   return (
-    <h1 className="text-2xl leading-tight font-semibold tracking-[-0.02em] sm:text-[28px]">
-      {COPY.title}
-    </h1>
+    <>
+      <HomeLink label={COPY.home} />
+      <h1 className="text-2xl leading-tight font-semibold tracking-[-0.02em] sm:text-[28px]">
+        {COPY.title}
+      </h1>
+    </>
   );
 }
 
@@ -290,7 +294,7 @@ function PageTitle() {
 export function NoticesSkeleton() {
   return (
     <div>
-      <PageTitle />
+      <PageHeader />
       <Card
         role="status"
         aria-busy="true"
@@ -324,7 +328,7 @@ export interface NoticesViewProps {
 export function NoticesView({ result, now, page, onPage, onRetry }: NoticesViewProps) {
   return (
     <div>
-      <PageTitle />
+      <PageHeader />
       {result.status === 'unavailable' ? (
         <Card className="mt-6 p-0 sm:p-0">
           <EmptyState

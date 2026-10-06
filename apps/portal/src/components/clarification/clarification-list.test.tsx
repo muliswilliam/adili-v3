@@ -150,6 +150,11 @@ describe('ClarificationsView', () => {
     ).toBeTruthy();
   });
 
+  it('links back to Home (#742)', () => {
+    renderView({ result: { status: 'ok', clarifications: [] } });
+    expect(screen.getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/');
+  });
+
   it('offers to try again when the list could not load', () => {
     const { onRetry } = renderView({ result: { status: 'unavailable' } });
     expect(
@@ -166,6 +171,7 @@ describe('ClarificationsSkeleton', () => {
     render(<ClarificationsSkeleton />);
     const status = screen.getByRole('status', { name: 'Loading your clarifications' });
     expect(status.getAttribute('aria-busy')).toBe('true');
+    expect(screen.getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/');
   });
 });
 

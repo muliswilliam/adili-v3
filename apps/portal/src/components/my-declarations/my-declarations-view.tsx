@@ -5,6 +5,7 @@ import { Link } from '@tanstack/react-router';
 import { PAGE_SIZES, type PageSize } from '../../declaration/my-declarations';
 import type { MyDeclarationsPage } from '../../server/my-declarations.server';
 import type { Unavailable } from '../../server/results';
+import { HomeLink } from '../home-link';
 import { MY_DECLARATIONS_COPY as COPY } from './copy';
 import { DraftRow, FiledRow } from './declaration-row';
 import { Pager } from './pager';
@@ -23,6 +24,7 @@ export interface MyDeclarationsViewProps {
 export function MyDeclarationsView({ result, onPage, onPageSize }: MyDeclarationsViewProps) {
   return (
     <div>
+      <HomeLink label={COPY.home} />
       <h1 className="text-2xl leading-tight font-semibold tracking-[-0.02em] sm:text-[28px]">
         {COPY.title}
       </h1>
