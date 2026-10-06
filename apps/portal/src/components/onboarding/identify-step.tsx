@@ -106,6 +106,7 @@ export function IdentifyStep({ commission }: { commission: OnboardingCommission 
           <Input
             ref={fileNumberRef}
             name="personnelFileNumber"
+            placeholder="Personnel file number"
             autoCapitalize="off"
             autoComplete="off"
             spellCheck={false}
@@ -121,6 +122,7 @@ export function IdentifyStep({ commission }: { commission: OnboardingCommission 
           <Input
             ref={nationalIdRef}
             name="nationalId"
+            placeholder="National ID number"
             inputMode="numeric"
             autoComplete="off"
             maxLength={12}

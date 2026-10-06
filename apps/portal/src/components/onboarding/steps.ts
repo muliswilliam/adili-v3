@@ -21,7 +21,7 @@ export const STEP_NAMES = [
   'Verify your email',
   'Verify your phone',
   'Confirm your details',
-  'Set your password',
+  'Check your email',
 ] as const;
 
 export const STEP_COUNT = STEP_NAMES.length;

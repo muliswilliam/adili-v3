@@ -288,6 +288,7 @@ export {
   REGULATION_24_GROUNDS,
   groundMeta,
 } from './components/grounds-select';
+export { CheckmarkCircleIcon } from './components/huge-icons';
 export { Icon, type IconProps } from './components/icon';
 export { IconTile, type IconTileProps, iconTileVariants } from './components/icon-tile';
 export { InfoTip, type InfoTipProps } from './components/info-tip';
