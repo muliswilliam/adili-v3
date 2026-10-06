@@ -15,7 +15,7 @@ export interface InfoTipProps {
 }
 
 /**
- * A 20px (i) button beside a heading or label that shows `content` in a tooltip, e.g. the
+ * A 20px (i) button beside a heading, label or value that shows `content` in a tooltip, e.g. the
  * provision a Form M section reports on. Muted until hovered. Never put what the user needs to
  * finish a task in it.
  */

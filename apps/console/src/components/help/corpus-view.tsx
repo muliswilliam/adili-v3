@@ -147,7 +147,7 @@ export function CorpusView({
                 : m.corpusMeta('-', formatNumber(inForce.length))}
             </span>
           )}
-          <InfoTip content={m.corpusTip} label={m.corpusTip} />
+          <InfoTip content={m.corpusTip} label={m.corpusTipLabel} />
         </div>
         <div role="search" className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
           <SearchBox
