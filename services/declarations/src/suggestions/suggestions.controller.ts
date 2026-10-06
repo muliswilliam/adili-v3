@@ -85,6 +85,10 @@ export class SuggestionsController {
     409,
     'Not a draft (`declaration-not-draft`), or a request with the same Idempotency-Key still running',
   )
+  @ApiProblemResponse(
+    503,
+    'The workflow engine could not start the lookups (`workflow-unavailable`): nothing was recorded, no consent and no set; ask again',
+  )
   requestLookups(
     @CurrentPrincipal() principal: Principal,
     @Param('declarationId') declarationId: string,

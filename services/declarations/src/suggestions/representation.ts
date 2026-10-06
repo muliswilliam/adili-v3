@@ -68,7 +68,7 @@ export const suggestionSetSchema = z.object({
     .meta({ description: "A document's set: what the declarant said the document is" }),
   reason: z.enum(EXTRACTION_FAILURES).nullable().meta({
     description:
-      "Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back), `unavailable` (the reading service could not do it now: try again) or `not-a-draft` (the declaration was submitted while it was read). Null otherwise",
+      "Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back), `unavailable` (the reading service could not do it now: try again) or `not-a-draft` (the declaration was submitted while it was read, or while a registry was looked up). Null otherwise",
   }),
   suggestions: z.array(suggestionSchema),
 });

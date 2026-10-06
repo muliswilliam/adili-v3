@@ -10,10 +10,16 @@ import { Clock } from '../clock.js';
 import { isEditable } from '../declaration/schema.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
+import { currentTransactionId } from '../db/workflow-transactions.js';
 import { isRecord, isUuid } from '../guards.js';
 import { personOf } from '../drafts/access.js';
 import { DraftsService } from '../drafts/drafts.service.js';
-import { declarationNotDraft, fieldErrors, validationProblem } from '../drafts/problems.js';
+import {
+  declarationNotDraft,
+  fieldErrors,
+  validationProblem,
+  workflowUnavailable,
+} from '../drafts/problems.js';
 import { type DeclarationRow, liveDeclaration } from '../drafts/repository.js';
 import type { StoredEnvelope } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
@@ -41,6 +47,7 @@ import {
 import { SUGGESTION_SOURCES, suggestionConsents, suggestions, suggestionSets } from './schema.js';
 import { SuggestionCipher } from './suggestion-cipher.js';
 import { type SetRow, setView, type SuggestionRow, suggestionView } from './views.js';
+import type { RegistryLookupsInput } from './workflow/contract.js';
 
 export interface SuggestionsQuery {
   personKey?: string;
@@ -125,12 +132,10 @@ export class SuggestionsService {
           consentTextVersion: request.consent.textVersion,
         }),
       );
-      return { declaration, personKey, sets };
-    });
-    const { declaration, personKey, sets } = notFoundIfInvisible(recorded);
-
-    try {
-      await this.workflows.start({
+      // Started before the commit, with this transaction's id (ADR-003 decision 7, #530): a request
+      // never commits without the workflow that answers its sets, and Temporal unreachable rolls
+      // it back (503 `workflow-unavailable`; the declarant asks again).
+      await this.startLookups({
         tenant: declaration.tenant,
         declarationId: declaration.id,
         personId: person.personId,
@@ -138,24 +143,27 @@ export class SuggestionsService {
         personKey,
         consentId,
         sets: planned,
+        transactionId: await currentTransactionId(tx),
       });
+      return sets;
+    });
+    return notFoundIfInvisible(recorded).map((set) => setView(set, []));
+  }
+
+  private async startLookups(input: RegistryLookupsInput): Promise<void> {
+    try {
+      await this.workflows.start(input);
     } catch (error) {
-      // Nothing will answer these sets: say so now rather than leave them pending.
       this.logger.warn(
         {
-          declarationId: declaration.id,
-          consentId,
+          declarationId: input.declarationId,
+          consentId: input.consentId,
           err: error instanceof Error ? error.name : typeof error,
         },
         'Registry lookups not started',
       );
-      await this.markFailed(
-        person,
-        sets.map((set) => set.id),
-      );
-      return sets.map((set) => setView({ ...set, status: 'failed' }, []));
+      throw workflowUnavailable();
     }
-    return sets.map((set) => setView(set, []));
   }
 
   /**
@@ -431,22 +439,6 @@ export class SuggestionsService {
       });
     }
     return personKey;
-  }
-
-  private async markFailed(person: PersonContext, setIds: string[]): Promise<void> {
-    try {
-      await withPerson(this.db, person, (tx) =>
-        tx
-          .update(suggestionSets)
-          .set({ status: 'failed' })
-          .where(and(inArray(suggestionSets.id, setIds), eq(suggestionSets.status, 'pending'))),
-      );
-    } catch (error) {
-      this.logger.warn(
-        { err: error instanceof Error ? error.name : typeof error },
-        'Unstarted registry lookups not marked failed',
-      );
-    }
   }
 }
 

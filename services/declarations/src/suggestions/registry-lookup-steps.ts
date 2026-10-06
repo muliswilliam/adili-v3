@@ -6,9 +6,10 @@ import { and, eq, gt, inArray, lt, ne } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { Clock } from '../clock.js';
-import { declarations } from '../declaration/schema.js';
+import { declarations, isEditable } from '../declaration/schema.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
+import { requireTransactionEnded } from '../db/workflow-transactions.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { sectionsAre } from '../drafts/repository.js';
 import { declarationSections } from '../drafts/schema.js';
@@ -60,9 +61,17 @@ export class RegistryLookupSteps {
   ) {}
 
   async lookup(attempt: LookupAttempt): Promise<LookupAttemptOutcome> {
+    // Never read the request's records while the transaction that wrote them is open; one that
+    // rolled back left no set, so nothing is looked up (ADR-003 decision 7, #530).
+    if (attempt.transactionId) await requireTransactionEnded(this.db, attempt.transactionId);
     const person = personContext(attempt);
-    const pending = await withPerson(this.db, person, (tx) => isPending(tx, attempt));
-    if (!pending) return 'recorded';
+    const state = await withPerson(this.db, person, (tx) => setState(tx, attempt));
+    if (state === 'past-the-draft') {
+      // Nothing is recorded into a declaration past the draft (ADR-018 decision 5).
+      await this.settle(attempt, { status: 'failed', reason: 'not-a-draft' });
+      return 'recorded';
+    }
+    if (state !== 'pending') return 'recorded';
 
     const nationalId = await this.nationalId(attempt);
     if (nationalId === null) {
@@ -265,6 +274,8 @@ export class RegistryLookupSteps {
     ref: SetRef,
     outcome: {
       status: 'ready' | 'unavailable' | 'no-id' | 'failed';
+      /** Why a `failed` set failed: only `not-a-draft` for a lookup. */
+      reason?: 'not-a-draft';
       verificationResultId?: string | null;
       rows?: (typeof suggestions.$inferInsert)[];
     },
@@ -312,6 +323,7 @@ export class RegistryLookupSteps {
         .update(suggestionSets)
         .set({
           status: outcome.status,
+          reason: outcome.reason ?? null,
           verificationResultId: outcome.verificationResultId ?? null,
           readyAt: outcome.status === 'ready' ? now : null,
         })
@@ -336,10 +348,17 @@ function personContext(ref: Pick<LookupRef, 'personId' | 'subject'>): PersonCont
   return { personId: ref.personId, subject: ref.subject };
 }
 
-/** Whether the set is still pending on a live draft. */
-async function isPending(tx: Transaction, attempt: LookupAttempt): Promise<boolean> {
+/**
+ * The set's state for a lookup: `pending` on a draft (or an amendment in progress), `past-the-draft`
+ * when still pending on a declaration no longer editable, `settled` when recorded already, `gone`
+ * when there is no such set any more (taken with its draft, or never committed).
+ */
+async function setState(
+  tx: Transaction,
+  attempt: LookupAttempt,
+): Promise<'pending' | 'past-the-draft' | 'settled' | 'gone'> {
   const [row] = await tx
-    .select({ status: suggestionSets.status })
+    .select({ status: suggestionSets.status, declarationStatus: declarations.status })
     .from(suggestionSets)
     .innerJoin(declarations, eq(declarations.id, suggestionSets.declarationId))
     .where(
@@ -349,5 +368,7 @@ async function isPending(tx: Transaction, attempt: LookupAttempt): Promise<boole
         ne(declarations.status, 'discarded'),
       ),
     );
-  return row?.status === 'pending';
+  if (!row) return 'gone';
+  if (row.status !== 'pending') return 'settled';
+  return isEditable(row.declarationStatus) ? 'pending' : 'past-the-draft';
 }

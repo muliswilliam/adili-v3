@@ -2,20 +2,20 @@ import { randomUUID } from 'node:crypto';
 
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { commissionRefs, outbox } from '../../src/db/schema.js';
+import { commissionRefs, outbox, suggestionConsents } from '../../src/db/schema.js';
 import type { SuggestionSet } from '../../src/suggestions/representation.js';
-import { contractErrors, okResponse, responseBody } from '../support/contract.js';
+import { contractErrors, okResponse } from '../support/contract.js';
 import { type DeclarationsApi, startDeclarationsApi } from '../support/declarations-api.js';
 import { CONSENT } from '../support/registry-checks.js';
 import { submissionFixtures } from '../support/submission.js';
 
 /**
- * Spec 05b S2 over HTTP, with Temporal faked (`FakeTemporal`): when the lookup workflow cannot be
- * started, nothing would ever answer the request's sets, so they are answered `failed` at once
- * rather than left pending. The consent and the request stay recorded.
+ * Spec 05b S2 over HTTP, with Temporal faked (`FakeTemporal`): the lookup workflow is started
+ * inside the transaction that records the request (ADR-003 decision 7, #530), so when it cannot
+ * be started the request is refused (503 `workflow-unavailable`) and nothing is recorded: no
+ * consent, no set, no event. The declarant asks again.
  */
 
-const LOOKUPS = '/v1/declarations/{declarationId}/suggestions/lookups';
 const LIST = '/v1/declarations/{declarationId}/suggestions';
 const ACHIENG = randomUUID();
 
@@ -37,7 +37,7 @@ beforeEach(async () => {
 });
 
 describe('a lookup workflow that cannot be started (S2)', () => {
-  it('answers and lists the sets failed, asking no registry', async () => {
+  it('answers 503 and records nothing: no consent, no set, no event', async () => {
     const draft = await started(ACHIENG, await givenObligation(ACHIENG));
     api.temporal.down = true;
 
@@ -51,13 +51,8 @@ describe('a lookup workflow that cannot be started (S2)', () => {
       },
     );
 
-    expect(response.statusCode).toBe(202);
-    const answered = response.json<SuggestionSet[]>();
-    expect(contractErrors(responseBody(LOOKUPS, 'post', 202), answered)).toEqual([]);
-    expect(answered.map((set) => [set.source, set.status])).toEqual([
-      ['kra', 'failed'],
-      ['ntsa', 'failed'],
-    ]);
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ type: 'workflow-unavailable', status: 503 });
     const listed = await api.request(
       'GET',
       `/v1/declarations/${draft.id}/suggestions`,
@@ -65,11 +60,10 @@ describe('a lookup workflow that cannot be started (S2)', () => {
     );
     const sets = listed.json<SuggestionSet[]>();
     expect(contractErrors(okResponse(LIST, 'get'), sets)).toEqual([]);
-    expect(sets.map((set) => [set.id, set.status])).toEqual(
-      answered.map((set) => [set.id, 'failed']),
-    );
+    expect(sets).toEqual([]);
+    expect(await api.db.select().from(suggestionConsents)).toEqual([]);
     expect(api.gateway.calls).toEqual([]);
     const requested = await api.db.select({ type: outbox.eventType }).from(outbox);
-    expect(requested.map((row) => row.type)).toContain('declaration.lookup-requested.v1');
+    expect(requested.map((row) => row.type)).not.toContain('declaration.lookup-requested.v1');
   });
 });

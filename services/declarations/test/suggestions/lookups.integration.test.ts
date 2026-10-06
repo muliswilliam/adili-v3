@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
 
+import { ApplicationFailure } from '@temporalio/common';
 import { eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   commissionRefs,
+  declarations,
   filingObligations,
   outbox,
   rosterSnapshots,
@@ -12,6 +14,7 @@ import {
   suggestions,
   suggestionSets,
 } from '../../src/db/schema.js';
+import { TRANSACTION_OPEN } from '../../src/db/workflow-transactions.js';
 import type { Declaration } from '../../src/drafts/representation.js';
 import { RegistryLookupSteps } from '../../src/suggestions/registry-lookup-steps.js';
 import type { Suggestion, SuggestionSet } from '../../src/suggestions/representation.js';
@@ -737,3 +740,90 @@ function bySetId(a: unknown, b: unknown): number {
   const id = (value: unknown) => String((value as { setId?: string }).setId);
   return id(a).localeCompare(id(b));
 }
+
+describe('#530: lookups wait for the request to commit, and record nothing past the draft', () => {
+  /** A pending set of a lookup request, as `requestLookups` records it, without its workflow. */
+  async function pendingSet(declarationId: string): Promise<string> {
+    const consentId = randomUUID();
+    const setId = randomUUID();
+    await api.asPerson(ACHIENG, async (tx) => {
+      await tx.insert(suggestionConsents).values({
+        id: consentId,
+        declarationId,
+        personKey: 'officer',
+        consentedBy: ACHIENG,
+        consentedAt: new Date(),
+        textVersion: CONSENT.textVersion,
+        systems: ['ntsa'],
+      });
+      await tx.insert(suggestionSets).values({
+        id: setId,
+        declarationId,
+        personKey: 'officer',
+        source: 'ntsa',
+        consentId,
+        requestedAt: new Date(),
+      });
+    });
+    return setId;
+  }
+
+  const attempt = (declarationId: string, setId: string, transactionId: string | null) => ({
+    tenant: 'psc',
+    declarationId,
+    personId: ACHIENG,
+    subject: ACHIENG,
+    personKey: 'officer' as const,
+    setId,
+    system: 'ntsa' as const,
+    final: true,
+    transactionId,
+  });
+
+  it('waits for the transaction that recorded the request, and records nothing once it rolled back', async () => {
+    api.clock.setToday(DUE_DAY);
+    const draft = await filing.completeDraft(ACHIENG);
+    await givenOfficerNationalId(ACHIENG, draft.id, OFFICER_ID);
+    const steps = api.app.get(RegistryLookupSteps);
+    const client = await api.db.$client.connect();
+    try {
+      await client.query('begin');
+      const open = await client.query<{ id: string }>('select pg_current_xact_id()::text as id');
+      const ref = attempt(draft.id, randomUUID(), open.rows[0]?.id ?? '');
+
+      const failure = await steps.lookup(ref).catch((error: unknown) => error);
+      expect(failure).toBeInstanceOf(ApplicationFailure);
+      expect(failure).toMatchObject({ type: TRANSACTION_OPEN, nonRetryable: false });
+
+      await client.query('rollback');
+      await expect(steps.lookup(ref)).resolves.toBe('recorded');
+    } finally {
+      client.release();
+    }
+    // The rolled-back request had no set: no registry was asked.
+    expect(api.gateway.calls).toEqual([]);
+  });
+
+  it('writes no suggestion into a declaration that is no longer a draft, and fails its set', async () => {
+    api.clock.setToday(DUE_DAY);
+    const draft = await filing.completeDraft(ACHIENG);
+    await givenOfficerNationalId(ACHIENG, draft.id, OFFICER_ID);
+    givenOfficerRegistries();
+    const setId = await pendingSet(draft.id);
+    // Past the draft while the lookup is out (submission deletes the sets today: latent).
+    await api.asPerson(ACHIENG, (tx) =>
+      tx.update(declarations).set({ status: 'submitted' }).where(eq(declarations.id, draft.id)),
+    );
+
+    await expect(
+      api.app.get(RegistryLookupSteps).lookup(attempt(draft.id, setId, null)),
+    ).resolves.toBe('recorded');
+
+    await api.asPerson(ACHIENG, async (tx) => {
+      expect(await tx.select().from(suggestions)).toEqual([]);
+      const [set] = await tx.select().from(suggestionSets).where(eq(suggestionSets.id, setId));
+      expect(set).toMatchObject({ status: 'failed', reason: 'not-a-draft' });
+    });
+    expect(api.gateway.calls).toEqual([]);
+  });
+});

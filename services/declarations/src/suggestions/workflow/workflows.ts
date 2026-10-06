@@ -55,7 +55,9 @@ export async function registryLookups(input: RegistryLookupsInput): Promise<void
       try {
         for (let attempt = 1; ; attempt += 1) {
           const final = attempt >= LOOKUP_ATTEMPTS;
-          const outcome = await lookupRegistry({ ...ref, setId, system, final });
+          // The first attempt waits for the request's transaction to end (#530).
+          const transactionId = attempt === 1 ? (input.transactionId ?? null) : null;
+          const outcome = await lookupRegistry({ ...ref, setId, system, final, transactionId });
           if (outcome === 'recorded' || final) return;
           await sleep(LOOKUP_RETRY_DELAYS_MS[attempt - 1] ?? LOOKUP_RETRY_DELAYS_MS.at(-1) ?? 0);
         }

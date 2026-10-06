@@ -37,12 +37,19 @@ export interface RegistryLookupsInput extends LookupRef {
   /** The consent the request recorded; also the workflow id's suffix. */
   consentId: string;
   sets: { setId: string; system: RegistrySystem }[];
+  /**
+   * `pg_current_xact_id()` of the transaction that recorded the request and started the workflow
+   * (ADR-003 decision 7, #530); absent for runs started before.
+   */
+  transactionId?: string;
 }
 
 /** One attempt at one registry. On the `final` one an unavailable registry is recorded as such. */
 export interface LookupAttempt extends SetRef {
   system: RegistrySystem;
   final: boolean;
+  /** The starting transaction, waited on by a set's first attempt; null on later attempts. */
+  transactionId?: string | null;
 }
 
 /** `recorded`: the set is settled (or gone); `retry`: the registry did not answer, ask again. */
