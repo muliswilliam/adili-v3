@@ -33,11 +33,14 @@ interface Crumb {
   to: string;
 }
 
+/** Home (`/`) is a leaf, not a parent of the other pages, so the trail adds it in front (#743). */
+const HOME: Crumb = { id: 'home', label: 'Home', to: '/' };
+
 function useCrumbs(): Crumb[] {
   const matches = useMatches();
   // The leaf is the deepest route that names itself (index routes usually don't).
   const named = matches.filter((match) => match.staticData.crumb !== undefined);
-  return named.flatMap((match, index) => {
+  const crumbs = named.flatMap((match, index) => {
     const { crumb } = match.staticData;
     const label =
       typeof crumb === 'function'
@@ -55,6 +58,8 @@ function useCrumbs(): Crumb[] {
       { id: match.id, label: label.label, to: match.pathname },
     ];
   });
+  if (crumbs.length === 0 || crumbs[0]?.to === HOME.to) return crumbs;
+  return [HOME, ...crumbs];
 }
 
 /** The trail for the current page, from each matched route's `staticData.crumb`. */
