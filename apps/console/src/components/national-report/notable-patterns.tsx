@@ -40,13 +40,12 @@ import {
   citationText,
   fyLabel,
   citedCandidateIds,
-  earlierYearsCited,
   figureFormatter,
   figureTarget,
 } from './patterns';
+import { useEarlierAggregates } from './use-earlier-aggregates';
 
 const NO_CANDIDATES: PatternCandidate[] = [];
-const NO_YEARS: number[] = [];
 
 /** Candidates per page of the panel, as the prototype pages them. */
 export const PATTERNS_PER_PAGE = 6;
@@ -155,67 +154,6 @@ export function useNcrPatterns(options: NcrPatternsOptions): NcrExtensions {
         />
       ),
   };
-}
-
-/**
- * The aggregates of the earlier years the report's paragraphs cite, each year's report read once
- * it answers. A year whose report the service will not give (not built, refused) is left out for
- * good; one whose read failed (network, 5xx) is left out until the hook next looks (the report
- * or its paragraphs change, or another year's report arrives), then read again. Meanwhile its figures resolve from the candidates or not at all. A
- * session found ended sends the viewer to sign in, whenever the answer lands.
- */
-export function useEarlierAggregates({
-  fy,
-  report,
-  loadReport,
-  onUnauthenticated,
-}: Pick<
-  NcrPatternsOptions,
-  'fy' | 'report' | 'loadReport' | 'onUnauthenticated'
->): NationalAggregates[] {
-  const cited = useMemo(
-    () => (report ? earlierYearsCited(report.narrativeParagraphs, fy) : NO_YEARS),
-    [report, fy],
-  );
-  const [read, setRead] = useState<ReadonlyMap<number, NationalAggregates>>(() => new Map());
-  // Years being read, and those the service answered with a problem: neither is asked again.
-  const reading = useRef(new Set<number>());
-  const refused = useRef(new Set<number>());
-  // Whether the page still shows these figures, so an answer landing after it left writes nothing.
-  const mounted = useRef(false);
-  const signIn = useEffectEvent(() => {
-    onUnauthenticated();
-  });
-
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    for (const year of cited) {
-      if (read.has(year) || reading.current.has(year) || refused.current.has(year)) continue;
-      reading.current.add(year);
-      const settle = (result: Awaited<ReturnType<NationalReportLoad>> | null) => {
-        reading.current.delete(year);
-        if (result?.ok === false && result.error.kind === 'unauthenticated') {
-          signIn();
-          return;
-        }
-        if (result?.ok === false && result.error.kind === 'problem') refused.current.add(year);
-        if (!mounted.current || !result?.ok) return;
-        const { aggregates } = result.data;
-        setRead((years) => new Map(years).set(year, aggregates));
-      };
-      void loadReport(year).then(settle, () => {
-        settle(null);
-      });
-    }
-  }, [cited, read, loadReport]);
-
-  return useMemo(() => cited.flatMap((year) => read.get(year) ?? []), [cited, read]);
 }
 
 /** Shows a cited figure's row: its Commission's (turning the table's page) or a national total. */
