@@ -19,6 +19,13 @@ export const envSchema = bffEnvSchema.extend({
   DEMO_MOCKS_URL: z.url().default('http://localhost:8000'),
   /** With DEMO_MODE: Mailpit, whose latest emails (sign-in and onboarding codes) the demo panel shows. */
   DEMO_MAILPIT_URL: z.url().default('http://localhost:8025'),
+  /**
+   * With DEMO_MODE: where `pnpm demo:seed` writes what the presenter needs from a seeded stack,
+   * the repository's `.demo/` (`verify.json` and the tampered slip), which the demo panel's
+   * verify codes read. Unset: `../../.demo` from the console's directory, as `pnpm dev` and the
+   * Azure host run it.
+   */
+  DEMO_OUTPUT_DIR: z.string().min(1).optional(),
   /** With DEMO_MODE: the broker every switch is recorded on, for the audit trail. */
   RABBITMQ_URL: z.url().default('amqp://adili:adili_dev@localhost:55672'),
   DIRECTORY_API_URL: z.url(),

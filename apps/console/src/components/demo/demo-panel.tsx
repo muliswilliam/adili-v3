@@ -1,8 +1,13 @@
-import { Download01Icon, SlidersHorizontalIcon } from '@hugeicons/core-free-icons';
+import {
+  Download01Icon,
+  SecurityCheckIcon,
+  SlidersHorizontalIcon,
+} from '@hugeicons/core-free-icons';
 import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Badge,
   Button,
   CopyButton,
   Drawer,
@@ -22,12 +27,19 @@ import { useContext, useEffect, useState } from 'react';
 import {
   type DemoInbox,
   type DemoPanelState,
+  type DemoVerifyCodes,
   getDemoInbox,
   getDemoPanel,
+  getDemoVerifyCodes,
   resetDemo,
   setDemoRegistryPaused,
 } from '../../server/demo/panel';
 import { DEMO_FILES, demoFileHref } from '../../server/demo/files';
+import {
+  demoVerifyFileHref,
+  VERIFY_STATUS_LABELS,
+  type VerifyStatus,
+} from '../../server/demo/verify';
 import { DemoContext } from './demo-context';
 
 /** How long the panel waits for the console to go down after asking for a reset. */
@@ -38,8 +50,8 @@ const INBOX_POLL_MS = 4000;
 
 /**
  * The demo panel (#621) beside the role switcher in the console's top bar: reset the stack to a
- * checkpoint, download the files the beats upload, pause and resume each registry mock, read the
- * demo inboxes. Demo mode and a signed-in demo account only; nothing renders otherwise.
+ * checkpoint, download the files the beats upload, open a document in every verify status, pause
+ * and resume each registry mock, read the demo inboxes. Demo mode and a signed-in demo account only; nothing renders otherwise.
  */
 export function DemoPanel() {
   const demo = useContext(DemoContext);
@@ -105,9 +117,9 @@ function DemoPanelContent() {
       <DrawerHeader>
         <DrawerTitle>Demo panel</DrawerTitle>
         <DrawerDescription>
-          Put the demo back to a checkpoint, download the files the beats upload, take a registry
-          offline to show how filing and review carry on without it, or read the codes the platform
-          just sent.
+          Put the demo back to a checkpoint, download the files the beats upload, open a document in
+          every verify status, take a registry offline to show how filing and review carry on
+          without it, or read the codes the platform just sent.
         </DrawerDescription>
       </DrawerHeader>
       <DrawerBody>
@@ -201,6 +213,7 @@ function DemoPanelContent() {
               </ul>
             </section>
             <DemoFilesSection />
+            <DemoVerifySection />
             <section aria-labelledby="demo-registries" className="flex flex-col gap-2.5">
               <h3 id="demo-registries" className="text-sm font-semibold">
                 Registries
@@ -277,6 +290,112 @@ function DemoFilesSection() {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+const VERIFY_TONES: Record<VerifyStatus, 'success' | 'warning' | 'destructive' | 'default'> = {
+  valid: 'success',
+  superseded: 'warning',
+  revoked: 'destructive',
+  expired: 'default',
+  'hash-mismatch': 'destructive',
+};
+
+/**
+ * A document in every verify status (beat I), as `pnpm demo:seed --only verify` wrote them on this
+ * stack: the codes change with every seed from empty, and the hosted presenter cannot read the
+ * host's `.demo/verify.md`.
+ */
+function DemoVerifySection() {
+  const [codes, setCodes] = useState<DemoVerifyCodes | null | 'loading'>('loading');
+
+  useEffect(() => {
+    let live = true;
+    void getDemoVerifyCodes().then((state) => {
+      if (live) setCodes(state);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return (
+    <section aria-labelledby="demo-verify" className="flex flex-col gap-2.5">
+      <h3 id="demo-verify" className="text-sm font-semibold">
+        Verify codes
+      </h3>
+      <p className="text-sm text-muted-foreground">
+        A document in every status the verify app shows, as this stack was seeded. Open one, or
+        paste its code on the verify page.
+      </p>
+      {codes === 'loading' ? (
+        <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner /> Loading
+        </p>
+      ) : codes === null ? null : codes.state === 'not-seeded' ? (
+        <p className="text-sm text-muted-foreground">
+          No codes on this stack yet: run <code>pnpm demo:seed --only verify</code>.
+        </p>
+      ) : codes.state === 'unreadable' ? (
+        <p className="text-sm text-muted-foreground">
+          The seed&apos;s verify codes could not be read: run{' '}
+          <code>pnpm demo:seed --only verify</code> again.
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y rounded-lg border" aria-label="Verify codes">
+          {codes.documents.map((document) => {
+            const label = VERIFY_STATUS_LABELS[document.status];
+            return (
+              <li
+                key={`${document.status}-${document.verificationId}`}
+                className="flex flex-col gap-2 px-3.5 py-2.5"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <Badge variant={VERIFY_TONES[document.status]}>{label}</Badge>
+                    <p className="mt-1 text-sm">{document.what}</p>
+                    <p className="font-mono text-xs break-all text-muted-foreground">
+                      {document.verificationId}
+                    </p>
+                  </div>
+                  <CopyButton
+                    value={document.verificationId}
+                    label={`Copy the ${label.toLowerCase()} code`}
+                    size="sm"
+                    className="shrink-0"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild size="xs" variant="secondary">
+                    <a
+                      href={document.verifyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Open the ${label.toLowerCase()} document's verify page`}
+                    >
+                      <Icon icon={SecurityCheckIcon} />
+                      Open verify page
+                    </a>
+                  </Button>
+                  {document.file ? (
+                    <Button asChild size="xs" variant="secondary">
+                      <a
+                        href={demoVerifyFileHref(document.file)}
+                        download={document.file}
+                        aria-label={`Download ${document.file}`}
+                      >
+                        <Icon icon={Download01Icon} />
+                        Download tampered PDF
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

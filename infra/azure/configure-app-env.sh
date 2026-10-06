@@ -93,6 +93,8 @@ for app in portal console; do
 done
 # The console's demo panel resets to a checkpoint through the systemd restart (#621).
 set_env "$ROOT/apps/console/.env" DEMO_RESET_SCRIPT "$ROOT/infra/azure/demo-reset.sh"
+# Its verify codes read what `pnpm demo:seed --only verify` writes to the host's .demo/.
+set_env "$ROOT/apps/console/.env" DEMO_OUTPUT_DIR "$ROOT/.demo"
 
 set_env "$ROOT/apps/verify/.env" APP_URL "${ADILI_VERIFY_URL}"
 set_env "$ROOT/apps/verify/.env" PORT "$verify_port"

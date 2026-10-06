@@ -129,8 +129,8 @@ Sample files: `payslip-kemsa-june-2026.pdf`, `logbook-fielder-kcx-214j.jpg`, `ti
 
 ### I. Public open data and verify (portal and verify, no sign-in)
 
-1. Portal **Open data** (`/open-data`): FY 2025/2026, version 2. Small cells are suppressed.
-2. Verify app: scan or paste the codes from the [verify table](#verify-statuses).
+1. Portal **Open data** (`/open-data`): FY 2025/2026, version 2. Point at the note above **Tables**: figures based on fewer than 10 officers, and figures that could reveal them, are not shown. Every table reads "0 hidden", and that is correct: the release counts only JSC, NPSC and TSC (about 500 officers each), and its smallest figure, NPSC's initial declarations (**Declarations by Commission**, cycle **Initial**), still counts 15 officers. Say that a Commission or cycle under 10 officers would show as "‹10", with a second figure hidden so the first cannot be worked out from a total; do not promise a hidden cell on screen.
+2. Verify: in the console's **Demo panel**, **Verify codes** lists a document in each status (Valid, Superseded, Revoked, Expired, Does not match) with its code. **Open verify page** opens it on the verify app; for Does not match, **Download tampered PDF** and drop it on that page. Or scan the printed [QR card](#verify-statuses).
 
 ### J. Audit trail (console, Kariuki Muriithi)
 
@@ -157,7 +157,7 @@ These are open product decisions (#614) or demo artefacts; route around them:
 
 ## Verify statuses
 
-The codes change with every seed from an empty stack and stay with a checkpoint. `pnpm demo:seed --only verify` writes the current ones to `.demo/verify.md` (and `.demo/verify.json`), with their verify links.
+The codes change with every seed from an empty stack and stay with a checkpoint. `pnpm demo:seed --only verify` writes the current ones to `.demo/verify.md` (and `.demo/verify.json`), with their verify links. The console's **Demo panel** (demo mode, signed in as a demo account) reads the same `.demo/verify.json` on the stack it runs on and lists them under **Verify codes**, with the tampered PDF to download, so the hosted presenter needs no shell on the host.
 
 | Status | Document |
 | --- | --- |

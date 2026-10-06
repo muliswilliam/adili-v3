@@ -4,6 +4,7 @@ import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
 import { type DemoInbox, loadDemoInbox } from './inbox.server';
+import { type DemoVerifyCodes, loadDemoVerifyCodes } from './verify.server';
 import {
   DEMO_REGISTRIES,
   type DemoPanelState,
@@ -15,6 +16,7 @@ import {
 
 export type { DemoEmail, DemoInbox, DemoSms } from './inbox.server';
 export type { DemoPanelState, DemoRegistryState, DemoResetResult } from './panel.server';
+export type { DemoVerifyCodes, DemoVerifyDocument } from './verify.server';
 
 /** The demo panel's checkpoints and registries (#621); null outside demo mode. */
 export const getDemoPanel = createServerFn({ method: 'GET' }).handler(
@@ -47,4 +49,9 @@ export const resetDemo = createServerFn({ method: 'POST' })
 /** The latest SMS and email codes the stack sent, for onboarding live (#371); null when not allowed. */
 export const getDemoInbox = createServerFn({ method: 'GET' }).handler(
   (): Promise<DemoInbox | null> => loadDemoInbox(getRequest()),
+);
+
+/** The verify codes the seed wrote on this stack (`.demo/verify.json`); null when not allowed. */
+export const getDemoVerifyCodes = createServerFn({ method: 'GET' }).handler(
+  (): Promise<DemoVerifyCodes | null> => loadDemoVerifyCodes(getRequest()),
 );
