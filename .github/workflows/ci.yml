@@ -221,12 +221,28 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Temporal's single-binary dev server (service containers cannot pass it arguments).
+      # Temporal as in infra/compose: the server on PostgreSQL, the schema and namespace set up by
+      # the compose scripts. Not the single-binary dev server: its in-memory SQLite is one
+      # connection for the whole server, and once a query on it was interrupted under load every
+      # later one failed ("GetNamespace operation failed. Error interrupted (9)"), so no worker
+      # could start for the rest of the run.
       - name: Start Temporal
+        env:
+          NETWORK: ${{ job.services.postgres.network }}
         run: |
-          docker run -d --name temporal -p 7233:7233 temporalio/temporal:1.6.1 \
-            server start-dev --ip 0.0.0.0 --namespace adili
-          timeout 60 sh -c 'until docker exec temporal temporal operator namespace describe --namespace adili >/dev/null 2>&1; do sleep 1; done'
+          docker run --rm --network "$NETWORK" -e POSTGRES_SEEDS=postgres -e POSTGRES_USER=temporal \
+            -e SQL_PASSWORD=temporal_dev -v "$PWD/infra/compose/temporal/setup-schema.sh:/scripts/setup-schema.sh:ro" \
+            --entrypoint /bin/sh temporalio/admin-tools:1.32.0 /scripts/setup-schema.sh
+          docker run -d --name temporal --network "$NETWORK" -p 7233:7233 \
+            -e DB=postgres12 -e DB_PORT=5432 -e POSTGRES_SEEDS=postgres -e POSTGRES_USER=temporal \
+            -e POSTGRES_PWD=temporal_dev -e BIND_ON_IP=0.0.0.0 \
+            -e DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml \
+            -v "$PWD/infra/compose/temporal/dynamicconfig:/etc/temporal/config/dynamicconfig:ro" \
+            temporalio/server:1.32.0
+          timeout 120 docker run --rm --network "$NETWORK" -e TEMPORAL_ADDRESS=temporal:7233 -e DEFAULT_NAMESPACE=adili \
+            -v "$PWD/infra/compose/temporal/create-namespace.sh:/scripts/create-namespace.sh:ro" \
+            --entrypoint /bin/sh temporalio/admin-tools:1.32.0 /scripts/create-namespace.sh \
+            || { docker logs temporal 2>&1 | tail -200; exit 1; }
       # Object storage as in infra/compose (service containers cannot take a command): the S3
       # identity, SSE-S3 for the clean bucket, the volume slots and the ADR-002 buckets.
       - name: Start SeaweedFS
@@ -305,6 +321,7 @@ jobs:
         if: failure()
         run: |
           docker logs keycloak 2>&1 | tail -200
+          docker logs temporal 2>&1 | tail -200
           tail -200 "$RUNNER_TEMP/notifications.log" "$RUNNER_TEMP/mocks.log" || true
       - name: Stop the mocks and notifications
         if: always()
