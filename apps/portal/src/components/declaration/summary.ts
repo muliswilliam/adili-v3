@@ -171,6 +171,19 @@ function plainFragment(code: string, message: string): string {
       return 'is not in the expected format';
     case 'enum':
       return 'is not one of the options';
+    // ajv writes the bound as a comparison ("must be >= 0"); the summary says it in words.
+    case 'minimum':
+      return limit === undefined ? 'is not valid' : `must be at least ${limit}`;
+    case 'maximum':
+      return limit === undefined ? 'is not valid' : `must be at most ${limit}`;
+    case 'exclusiveMinimum':
+      return limit === undefined ? 'is not valid' : `must be more than ${limit}`;
+    case 'exclusiveMaximum':
+      return limit === undefined ? 'is not valid' : `must be less than ${limit}`;
+    case 'minItems':
+      return limit === undefined || limit === '1'
+        ? 'is required'
+        : `needs at least ${limit} entries`;
     default:
       return 'is not valid';
   }

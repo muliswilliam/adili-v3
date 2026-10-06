@@ -305,6 +305,31 @@ describe('issueText', () => {
         document,
       ),
     ).toBe('Marital status is not one of the options');
+    // Number and list checks keep their limit.
+    const item = (path: string, message: string, code: string) =>
+      check('statement:officer', path, message, code);
+    expect(issueText(item('/assets/0/value/kesCents', 'must be >= 0', 'minimum'), document)).toBe(
+      'One-bedroom apartment, Dubai Marina: Value must be at least 0',
+    );
+    expect(
+      issueText(item('/assets/0/joint/sharePercent', 'must be <= 100', 'maximum'), document),
+    ).toBe('One-bedroom apartment, Dubai Marina: Share must be at most 100');
+    expect(
+      issueText(item('/assets/0/joint/sharePercent', 'must be > 0', 'exclusiveMinimum'), document),
+    ).toBe('One-bedroom apartment, Dubai Marina: Share must be more than 0');
+    expect(
+      issueText(
+        item('/assets/0/joint/sharePercent', 'must be < 100', 'exclusiveMaximum'),
+        document,
+      ),
+    ).toBe('One-bedroom apartment, Dubai Marina: Share must be less than 100');
+    expect(
+      issueText(item('/income', 'must NOT have fewer than 1 items', 'minItems'), document),
+    ).toBe('Income is required');
+    expect(
+      issueText(item('/assets', 'must NOT have fewer than 2 items', 'minItems'), document),
+    ).toBe('Assets needs at least 2 entries');
+    expect(issueText(at('/foo', 'must be a number', 'minimum'), document)).toBe('Foo is not valid');
     expect(issueText(at('/foo', 'must be string', 'type'), document)).toBe('Foo is not valid');
     expect(issueText(at('/foo', 'is not allowed', 'additionalProperties'), document)).toBe(
       'Foo is not allowed',
