@@ -264,7 +264,7 @@ export function earlierYearsCited(paragraphs: readonly NarrativeParagraph[], fy:
 /**
  * Resolves the aggregate keys a narrative paragraph cites to "{label}: {value}", e.g. "Nairobi
  * City County Public Service Board non-filer rate 2024/2025: 4.1%": this year's from the report,
- * an earlier year's from that year's report (`earlier`, the aggregates the service sent the
+ * an earlier year's from that year's report (`earlierAggregates`, the aggregates the service sent the
  * narrative task as its prior years) or else the candidates citing it; null for a figure none of
  * them has. A figure the year's report holds as null (a Commission yet to report, a count its
  * report did not give, a rate of nobody expected) is in the task input all the same, so it reads
@@ -273,13 +273,14 @@ export function earlierYearsCited(paragraphs: readonly NarrativeParagraph[], fy:
 export function figureFormatter(
   aggregates: NationalAggregates,
   candidates: readonly PatternCandidate[],
-  earlier: readonly NationalAggregates[] = [],
+  earlierAggregates: readonly NationalAggregates[] = [],
 ): FigureFormatter {
   const fromCandidates = candidateFigures(candidates);
   return (aggregateKey) => {
     const key = parseAggregateKey(aggregateKey, aggregates.fy);
     if (!key) return null;
-    const year = key.fy === aggregates.fy ? aggregates : earlier.find(({ fy }) => fy === key.fy);
+    const year =
+      key.fy === aggregates.fy ? aggregates : earlierAggregates.find(({ fy }) => fy === key.fy);
     let value: number | null;
     if (year) {
       if (key.scope === 'commission' && !year.byCommission[key.slug]) return null;

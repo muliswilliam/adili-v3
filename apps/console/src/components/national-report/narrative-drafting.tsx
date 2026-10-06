@@ -34,6 +34,7 @@ import { useEffect, useEffectEvent, useState } from 'react';
 
 import type {
   NarrativeDraftRequest,
+  NationalReportLoad,
   NationalReportResult,
 } from '../../server/national-report.server';
 import {
@@ -53,8 +54,6 @@ export type NarrativeDraftAsk = (
   request: NarrativeDraftRequest,
   idempotencyKey: string,
 ) => Promise<NationalReportResult<NationalReport>>;
-
-export type NationalReportLoad = (fy: number) => Promise<NationalReportResult<NationalReport>>;
 
 export interface NcrDraftingOptions {
   fy: number;
