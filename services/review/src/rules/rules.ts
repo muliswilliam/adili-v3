@@ -1,4 +1,4 @@
-import type { ChangeFlag, DeclarationV1, MaterialChangeEntry } from '@adili/forms';
+import type { DeclarationV1, MaterialChangeEntry } from '@adili/forms';
 
 import {
   CATEGORIES,
@@ -8,6 +8,7 @@ import {
   match,
   MATERIAL_CHANGE_RATIO,
   type MatchedPair,
+  NEW_KIND,
   normalise,
   type PlacedItem,
   placedItems,
@@ -45,15 +46,6 @@ export interface Flag {
   evidence: Evidence;
   itemRefs: ItemRef[];
 }
-
-type ChangeKind = NonNullable<ChangeFlag['kind']>;
-
-/** The change kind that marks an item as new in its category. */
-const NEW_KIND: Record<Category, ChangeKind> = {
-  income: 'new-source',
-  assets: 'acquisition',
-  liabilities: 'acquisition',
-};
 
 /** The paragraph 9 kind that accounts for an item of each category no longer declared. */
 const GONE_KIND: Record<Category, MaterialChangeEntry['kind']> = {

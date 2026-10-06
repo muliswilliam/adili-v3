@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@adili/ui';
 import { Alert02Icon } from '@hugeicons/core-free-icons';
-import { useId } from 'react';
+import { useId, useMemo } from 'react';
 
 import {
   type ChangeRow,
@@ -57,12 +57,28 @@ export function comparedWith(previous: PreviousDeclaration): string {
   return `Compared with your ${type} declaration as at ${formatDate(previous.statementDate)}${reference}.`;
 }
 
-/** "Up 30%", "Down 25%", "Up from nothing", "New" or "No longer declared". */
+/**
+ * A value change as a percentage to one decimal, cut toward zero rather than rounded: the
+ * material change badge goes by the exact ratio, so a rise of 24.96% must read "24.9%", not
+ * "25.0%" beside no badge. A change too small for one decimal reads "<0.1%", never "0.0%", which
+ * would say nothing changed (as `DiffTable` shows it). Computed from the cents, as the row's whole
+ * percent is rounded.
+ */
+function percentText(previousCents: number, currentCents: number): string {
+  const delta = Math.abs(currentCents - previousCents);
+  const tenths = Math.floor((delta * 1000) / previousCents);
+  if (tenths === 0) return '<0.1%';
+  return `${(tenths / 10).toFixed(1)}%`;
+}
+
+/** "Up 30.0%", "Down 24.9%", "Up <0.1%", "Up from nothing", "New" or "No longer declared". */
 export function changeText(row: ChangeRow): string {
   if (row.kind === 'new') return 'New';
   if (row.kind === 'gone') return 'No longer declared';
-  if (row.changePercent === null) return 'Up from nothing';
-  return `${row.changePercent > 0 ? 'Up' : 'Down'} ${String(Math.abs(row.changePercent))}%`;
+  // A value change has both sides, and a value that did not move is not a row.
+  const { previousCents, currentCents } = row;
+  if (!previousCents || currentCents === null) return 'Up from nothing';
+  return `${currentCents > previousCents ? 'Up' : 'Down'} ${percentText(previousCents, currentCents)}`;
 }
 
 function typeWords(row: ChangeRow) {
@@ -161,11 +177,16 @@ export function StatementChanges({
   personKey: string;
 }) {
   const headingId = useId();
+  // The section re-renders on every keystroke; compare again only when the statement or the
+  // previous declaration changes.
+  const changes = useMemo(
+    () =>
+      load.status === 'ready'
+        ? statementChanges(load.previous.statements, [statement], personKey)
+        : null,
+    [load, statement, personKey],
+  );
   if (load.status === 'loading' || load.status === 'none') return null;
-  const changes =
-    load.status === 'ready'
-      ? statementChanges(load.previous.statements, [statement], personKey)
-      : null;
   const material = changes ? materialCount(changes) : 0;
   return (
     <section aria-labelledby={headingId} className="grid gap-3 rounded-lg bg-muted p-4">
@@ -200,25 +221,26 @@ export function DeclarationChanges({
   statements: readonly Draft<Statement>[];
 }) {
   const headingId = useId();
-  if (load.status === 'none') return null;
   const previous = load.status === 'ready' ? load.previous : null;
-  const earlier = (previous?.statements ?? []) as Draft<Statement>[];
-  const persons = previous
-    ? compareStatements(earlier, statements).map((comparison) => {
-        const { personKey } = comparison;
-        const statement =
-          statements.find((each) => each.personKey === personKey) ??
-          earlier.find((each) => each.personKey === personKey);
-        return {
-          personKey,
-          name:
-            personKey === OFFICER_KEY
-              ? OFFICER_LABEL
-              : fullName(statement?.personName) || 'Unnamed person',
-          changes: changeRows(comparison),
-        };
-      })
-    : [];
+  const persons = useMemo(() => {
+    if (!previous) return [];
+    const earlier = previous.statements;
+    return compareStatements(earlier, statements).map((comparison) => {
+      const { personKey } = comparison;
+      const statement =
+        statements.find((each) => each.personKey === personKey) ??
+        earlier.find((each) => each.personKey === personKey);
+      return {
+        personKey,
+        name:
+          personKey === OFFICER_KEY
+            ? OFFICER_LABEL
+            : fullName(statement?.personName) || 'Unnamed person',
+        changes: changeRows(comparison),
+      };
+    });
+  }, [previous, statements]);
+  if (load.status === 'none') return null;
   const material = persons.reduce((sum, person) => sum + materialCount(person.changes), 0);
 
   return (

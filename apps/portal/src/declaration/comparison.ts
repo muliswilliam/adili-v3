@@ -3,6 +3,8 @@ import {
   compareDeclarations,
   type Compared,
   type Item,
+  MONEY_FIELD,
+  NEW_KIND,
   normalise,
   personKind,
   type PlacedItem,
@@ -10,9 +12,9 @@ import {
   valueOf,
 } from '@adili/forms/compare';
 
-import type { DeclarationListItem } from '../server/declarations/types';
 import type { AssetItem, Draft, IncomeItem, LiabilityItem, Statement } from './contents';
 import { fullName } from './format';
+import { OFFICER_KEY } from './section-key';
 
 type AnyItem = Draft<IncomeItem> | Draft<AssetItem> | Draft<LiabilityItem>;
 
@@ -23,11 +25,11 @@ type AnyItem = Draft<IncomeItem> | Draft<AssetItem> | Draft<LiabilityItem>;
  * declarant edits it.
  */
 
-/** Where each category keeps an item's money. */
-const MONEY = { income: 'amount', assets: 'value', liabilities: 'outstanding' } as const;
-
 /** Marks an item compared before its value was given: it pairs, but shows no change yet. */
 const UNVALUED = 'unvalued';
+
+/** Whose a draft statement is: one saved before its person was set is the officer's. */
+const personOf = (statement: Draft<Statement>): string => statement.personKey ?? OFFICER_KEY;
 
 /**
  * A draft's statements as the matcher reads them. An item without a type yet is left out: there
@@ -41,18 +43,23 @@ function comparable(statements: readonly Draft<Statement>[]): Compared {
     (list ?? [])
       .filter((item) => typeof item.type === 'string')
       .map((item) => {
-        const money = (item as Record<string, { kesCents?: number } | undefined>)[MONEY[category]];
+        const field = MONEY_FIELD[category];
+        const money = (item as Record<string, { kesCents?: number } | undefined>)[field];
         const valued = typeof money?.kesCents === 'number';
         return {
           ...item,
           description: item.description ?? '',
-          change: { changed: item.change?.changed === true },
-          ...(!valued && { [MONEY[category]]: { kesCents: 0 }, [UNVALUED]: true }),
+          // The kind is kept: whether an item counts as marked depends on it, as for the reviewer.
+          change: {
+            changed: item.change?.changed === true,
+            ...(item.change?.kind && { kind: item.change.kind }),
+          },
+          ...(!valued && { [field]: { kesCents: 0 }, [UNVALUED]: true }),
         };
       }) as unknown as T[];
   return {
     statements: statements.map((statement) => ({
-      personKey: statement.personKey ?? 'officer',
+      personKey: personOf(statement),
       income: items('income', statement.income),
       assets: items('assets', statement.assets),
       liabilities: items('liabilities', statement.liabilities),
@@ -72,17 +79,16 @@ function alignPersons(
   previous: readonly Draft<Statement>[],
   current: readonly Draft<Statement>[],
 ): Draft<Statement>[] {
-  const keyOf = (statement: Draft<Statement>) => statement.personKey ?? 'officer';
-  const previousKeys = new Set(previous.map(keyOf));
-  const currentKeys = new Set(current.map(keyOf));
-  const unclaimed = current.filter((statement) => !previousKeys.has(keyOf(statement)));
+  const previousKeys = new Set(previous.map(personOf));
+  const currentKeys = new Set(current.map(personOf));
+  const unclaimed = current.filter((statement) => !previousKeys.has(personOf(statement)));
   const nameOf = (statement: Draft<Statement>) => normalise(fullName(statement.personName));
   return previous.map((statement) => {
-    const key = keyOf(statement);
+    const key = personOf(statement);
     if (currentKeys.has(key) || nameOf(statement) === '') return statement;
     const index = unclaimed.findIndex(
       (other) =>
-        personKind(keyOf(other)) === personKind(key) && nameOf(other) === nameOf(statement),
+        personKind(personOf(other)) === personKind(key) && nameOf(other) === nameOf(statement),
     );
     if (index === -1) return statement;
     const [same] = unclaimed.splice(index, 1);
@@ -114,7 +120,11 @@ export interface ChangeRow {
   changePercent: number | null;
   /** Act s.31(4): 25% or more either way, an acquisition or a disposal. */
   material: boolean;
-  /** The current item is marked as changed since the last declaration. */
+  /**
+   * The current item is marked as the change it is, as the reviewer's rules read the marking: a
+   * new item as changed with its category's new kind (an acquisition, a new source), a value
+   * change as changed with any other kind.
+   */
   markedAsChanged: boolean;
 }
 
@@ -138,7 +148,7 @@ export function changeRows(statement: StatementComparison): Changes {
         currentCents: pair.currentCents,
         changePercent: pair.changePercent,
         material: pair.material,
-        markedAsChanged: pair.current.change.changed,
+        markedAsChanged: marked(pair.category, pair.current, false),
       })),
       ...statement.onlyCurrent
         .filter((placed) => !isUnvalued(placed.item))
@@ -148,7 +158,7 @@ export function changeRows(statement: StatementComparison): Changes {
           itemId: placed.item.id,
           previousCents: null,
           currentCents: valueOf(placed.item),
-          markedAsChanged: placed.item.change.changed,
+          markedAsChanged: marked(placed.category, placed.item, true),
         })),
       ...statement.onlyPrevious.map((placed): ChangeRow => ({
         kind: 'gone',
@@ -161,6 +171,12 @@ export function changeRows(statement: StatementComparison): Changes {
     ],
     unchanged: valued.length - moved.length,
   };
+}
+
+/** Whether an item is marked as changed, and with the kind for a new item exactly when it is one. */
+function marked(category: Category, item: Item, isNew: boolean): boolean {
+  const { changed, kind } = item.change;
+  return changed && (kind === NEW_KIND[category]) === isNew;
 }
 
 function described(category: Category, item: Item) {
@@ -182,28 +198,4 @@ export function statementChanges(
     (each) => each.personKey === personKey,
   );
   return statement ? changeRows(statement) : { rows: [], unchanged: 0 };
-}
-
-/**
- * The declaration this one follows: of the declarant's others with a version filed, the one with
- * the latest statement date before this one's. None for a first declaration.
- */
-export function previousDeclarationOf(
-  list: readonly DeclarationListItem[],
-  declarationId: string,
-): DeclarationListItem | null {
-  const self = list.find((item) => item.id === declarationId);
-  if (!self) return null;
-  const earlier = list.filter(
-    (item) =>
-      item.id !== declarationId &&
-      item.currentVersion !== null &&
-      item.statementDate < self.statementDate,
-  );
-  earlier.sort(
-    (a, b) =>
-      b.statementDate.localeCompare(a.statementDate) ||
-      (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''),
-  );
-  return earlier[0] ?? null;
 }

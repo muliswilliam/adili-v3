@@ -1,5 +1,4 @@
-import { previousDeclarationOf } from '../declaration/comparison';
-import type { SectionContentsByKind } from '../declaration/contents';
+import type { Draft, SectionContentsByKind, Statement } from '../declaration/contents';
 import type { DeclarationsClient } from './declarations/client.server';
 import type {
   Declaration,
@@ -254,7 +253,32 @@ export interface PreviousDeclaration {
   type: DeclarationListItem['type'];
   statementDate: string;
   submittedAt: string | null;
-  statements: JsonObject[];
+  /** The statements as filed, read as a draft's so the comparison takes both alike. */
+  statements: Draft<Statement>[];
+}
+
+/**
+ * The declaration this one follows: of the declarant's others with a version filed, the one with
+ * the latest statement date before this one's. None for a first declaration.
+ */
+export function previousDeclarationOf(
+  list: readonly DeclarationListItem[],
+  declarationId: string,
+): DeclarationListItem | null {
+  const self = list.find((item) => item.id === declarationId);
+  if (!self) return null;
+  const earlier = list.filter(
+    (item) =>
+      item.id !== declarationId &&
+      item.currentVersion !== null &&
+      item.statementDate < self.statementDate,
+  );
+  earlier.sort(
+    (a, b) =>
+      b.statementDate.localeCompare(a.statementDate) ||
+      (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''),
+  );
+  return earlier[0] ?? null;
 }
 
 export type PreviousDeclarationResult =
@@ -287,7 +311,8 @@ export function loadPreviousDeclaration(
         type: found.type,
         statementDate: found.statementDate,
         submittedAt: found.submittedAt,
-        statements: Array.isArray(statements) ? (statements as JsonObject[]) : [],
+        // A filed version's statements passed the schema, so they are whole statements.
+        statements: Array.isArray(statements) ? (statements as Draft<Statement>[]) : [],
       },
     };
   });

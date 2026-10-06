@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DeclarationListItem } from '../server/declarations/types';
-import {
-  changeRows,
-  compareStatements,
-  previousDeclarationOf,
-  statementChanges,
-} from './comparison';
+import { changeRows, compareStatements, statementChanges } from './comparison';
 import type { AssetItem, Draft, IncomeItem, Statement } from './contents';
 
 function land(id: string, description: string, kesCents?: number): Draft<AssetItem> {
@@ -102,6 +96,42 @@ describe('changeRows', () => {
   });
 });
 
+describe('changeRows: whether an item is marked as the reviewer reads it', () => {
+  const plot = (id: string, kesCents: number, change: Draft<AssetItem>['change']) => ({
+    ...land(id, 'Plot in Voi', kesCents),
+    change,
+  });
+  const marking = (previous: Draft<Statement>[], current: Draft<Statement>[]) =>
+    statementChanges(previous, current, 'officer').rows.map((row) => [
+      row.kind,
+      row.markedAsChanged,
+    ]);
+
+  it("takes a new item as marked only when it is marked with its category's kind", () => {
+    const current = (change: Draft<AssetItem>['change']) => [
+      officer({ assets: [plot('v', 300_000, change)] }),
+    ];
+
+    expect(marking([], current({ changed: true, kind: 'acquisition' }))).toEqual([['new', true]]);
+    expect(marking([], current({ changed: true, kind: 'value-change' }))).toEqual([['new', false]]);
+    expect(marking([], current({ changed: true }))).toEqual([['new', false]]);
+  });
+
+  it('does not take a value change marked as an acquisition as marked', () => {
+    const previous = [officer({ assets: [land('a', 'Plot in Voi', 100_000)] })];
+    const current = (change: Draft<AssetItem>['change']) => [
+      officer({ assets: [plot('a2', 300_000, change)] }),
+    ];
+
+    expect(marking(previous, current({ changed: true, kind: 'acquisition' }))).toEqual([
+      ['value', false],
+    ]);
+    expect(marking(previous, current({ changed: true, kind: 'value-change' }))).toEqual([
+      ['value', true],
+    ]);
+  });
+});
+
 describe('compareStatements: people and items in progress', () => {
   it('pairs a spouse declared again under a new id by their name', () => {
     const mary = { surname: 'Kennedy', firstName: 'Mary' };
@@ -157,38 +187,5 @@ describe('statementChanges', () => {
 
     expect(statementChanges(previous, current, 'officer').rows).toHaveLength(1);
     expect(statementChanges(previous, current, 'spouse:x')).toEqual({ rows: [], unchanged: 0 });
-  });
-});
-
-describe('previousDeclarationOf', () => {
-  function listed(
-    id: string,
-    statementDate: string,
-    currentVersion: number | null,
-    submittedAt: string | null = currentVersion === null ? null : `${statementDate}T09:00:00Z`,
-  ): DeclarationListItem {
-    return { id, statementDate, currentVersion, submittedAt } as DeclarationListItem;
-  }
-
-  it('is the filed declaration with the latest statement date before this one', () => {
-    const list = [
-      listed('this', '2027-11-01', null),
-      listed('older', '2023-11-01', 1),
-      listed('previous', '2025-11-01', 2),
-      listed('never-filed', '2026-06-01', null),
-    ];
-
-    expect(previousDeclarationOf(list, 'this')).toMatchObject({ id: 'previous' });
-  });
-
-  it('is none for the first declaration, or one not in the list', () => {
-    expect(previousDeclarationOf([listed('this', '2027-11-01', null)], 'this')).toBeNull();
-    expect(previousDeclarationOf([listed('older', '2025-11-01', 1)], 'this')).toBeNull();
-  });
-
-  it('is not the declaration itself while amending it', () => {
-    const list = [listed('this', '2027-11-01', 1), listed('previous', '2025-11-01', 1)];
-
-    expect(previousDeclarationOf(list, 'this')).toMatchObject({ id: 'previous' });
   });
 });

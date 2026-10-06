@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { compareDeclarations, valueChange } from './compare.js';
+import { compareDeclarations, MONEY_FIELD, NEW_KIND, valueChange, valueOf } from './compare.js';
 import type { AssetItem } from './declaration.v1.gen.js';
 
 const KENYA = { inKenya: true, county: '047' } as const;
@@ -130,5 +130,20 @@ describe('compareDeclarations', () => {
     expect(officer.onlyCurrent.map((placed) => placed.item)).toEqual([bought]);
     expect(officer.onlyPrevious.map((placed) => placed.item)).toEqual([sold]);
     expect(gone.onlyPrevious).toHaveLength(1);
+  });
+});
+
+describe('the categories', () => {
+  it("keep an item's money in their own field, which is the value compared", () => {
+    expect(MONEY_FIELD).toEqual({ income: 'amount', assets: 'value', liabilities: 'outstanding' });
+    expect(valueOf(land('Plot in Kisumu', 700))).toBe(700);
+  });
+
+  it('each mark a new item with their own change kind', () => {
+    expect(NEW_KIND).toEqual({
+      income: 'new-source',
+      assets: 'acquisition',
+      liabilities: 'acquisition',
+    });
   });
 });

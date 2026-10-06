@@ -1,5 +1,11 @@
 import type { DeclarationSectionKey, PersonKey } from './declaration.js';
-import type { AssetItem, IncomeItem, LiabilityItem, Statement } from './declaration.v1.gen.js';
+import type {
+  AssetItem,
+  ChangeFlag,
+  IncomeItem,
+  LiabilityItem,
+  Statement,
+} from './declaration.v1.gen.js';
 
 /**
  * Comparing a declaration with the person's previous one (Act s.31(3)-(4)): the item matcher the
@@ -16,6 +22,26 @@ export interface Compared {
 export type Item = IncomeItem | AssetItem | LiabilityItem;
 
 export const CATEGORIES: readonly Category[] = ['income', 'assets', 'liabilities'];
+
+/** Where each category keeps an item's money: its amount, value or outstanding balance. */
+export const MONEY_FIELD = {
+  income: 'amount',
+  assets: 'value',
+  liabilities: 'outstanding',
+} as const satisfies Record<Category, string>;
+
+export type ChangeKind = NonNullable<ChangeFlag['kind']>;
+
+/**
+ * The change kind that marks an item as new in its category. An item the previous declaration
+ * lacked is marked as changed only with it, and one it had is not marked with it: the reviewer's
+ * rules and the declarant's comparison read the marking alike.
+ */
+export const NEW_KIND: Record<Category, ChangeKind> = {
+  income: 'new-source',
+  assets: 'acquisition',
+  liabilities: 'acquisition',
+};
 
 /** An item where it sits in a declaration: whose statement and which category. */
 export interface PlacedItem {
@@ -77,8 +103,8 @@ export function placedItems(document: Compared): PlacedItem[] {
 
 /** An item's declared value in KES cents: its amount, value or outstanding balance. */
 export function valueOf(item: Item): number {
-  if ('amount' in item) return item.amount.kesCents;
-  if ('value' in item) return item.value.kesCents;
+  if (MONEY_FIELD.income in item) return item.amount.kesCents;
+  if (MONEY_FIELD.assets in item) return item.value.kesCents;
   return item.outstanding.kesCents;
 }
 

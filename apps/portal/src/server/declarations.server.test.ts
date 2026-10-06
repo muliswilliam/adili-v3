@@ -9,6 +9,7 @@ import {
   loadPreviousDeclaration,
   loadSection,
   loadSummary,
+  previousDeclarationOf,
   saveSection,
   type SaveOutcome,
   startDeclaration,
@@ -22,7 +23,7 @@ import {
   resetDeclarationsMock,
 } from './declarations/mock.server';
 import type { paths } from './declarations/schema.gen';
-import type { Declaration } from './declarations/types';
+import type { Declaration, DeclarationListItem } from './declarations/types';
 import { mockDocumentsFetch, resetDocumentsMock } from './documents/mock.server';
 import type { paths as documentPaths } from './documents/schema.gen';
 import type { CreateUpload } from './documents/types';
@@ -516,5 +517,38 @@ describe('the previous declaration, to compare with (ADR-006 point 10)', () => {
     expect(await loadPreviousDeclaration(declarations, 'this')).toEqual({
       status: 'unavailable',
     });
+  });
+});
+
+describe('previousDeclarationOf', () => {
+  function listed(
+    id: string,
+    statementDate: string,
+    currentVersion: number | null,
+    submittedAt: string | null = currentVersion === null ? null : `${statementDate}T09:00:00Z`,
+  ): DeclarationListItem {
+    return { id, statementDate, currentVersion, submittedAt } as DeclarationListItem;
+  }
+
+  it('is the filed declaration with the latest statement date before this one', () => {
+    const list = [
+      listed('this', '2027-11-01', null),
+      listed('older', '2023-11-01', 1),
+      listed('previous', '2025-11-01', 2),
+      listed('never-filed', '2026-06-01', null),
+    ];
+
+    expect(previousDeclarationOf(list, 'this')).toMatchObject({ id: 'previous' });
+  });
+
+  it('is none for the first declaration, or one not in the list', () => {
+    expect(previousDeclarationOf([listed('this', '2027-11-01', null)], 'this')).toBeNull();
+    expect(previousDeclarationOf([listed('older', '2025-11-01', 1)], 'this')).toBeNull();
+  });
+
+  it('is not the declaration itself while amending it', () => {
+    const list = [listed('this', '2027-11-01', 1), listed('previous', '2025-11-01', 1)];
+
+    expect(previousDeclarationOf(list, 'this')).toMatchObject({ id: 'previous' });
   });
 });

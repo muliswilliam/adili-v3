@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSummaryHints } from '../../server/assistant';
 import { discardMyDeclaration, getPreviousDeclaration } from '../../server/declarations';
-import type { LoadedSummary } from '../../server/declarations.server';
+import type { LoadedSummary, PreviousDeclaration } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
 import { SummaryView } from './summary-view';
 import { PENDING_RETRY_MS, resetHintsAvailability } from './use-hints';
@@ -756,11 +756,11 @@ describe('S5: completeness hints on the summary', () => {
 
 describe('changes since the previous declaration (ADR-006 point 10)', () => {
   const previousMock = vi.mocked(getPreviousDeclaration);
-  const previous = {
+  const previous: PreviousDeclaration = {
     declarationId: '0199a8f0-0000-7000-8000-000000000999',
     version: 1,
     reference: 'DCB-TSC-2025-0000001-B',
-    type: 'biennial' as const,
+    type: 'biennial',
     statementDate: '2025-11-01',
     submittedAt: '2025-12-02T09:00:00Z',
     statements: [
@@ -806,7 +806,7 @@ describe('changes since the previous declaration (ADR-006 point 10)', () => {
       .slice(1)
       .map((row) => row.textContent);
     expect(rows).toEqual([
-      expect.stringMatching(/^Salary from TSC.*Up 33%Material changeNot marked as changed$/),
+      expect.stringMatching(/^Salary from TSC.*Up 33\.3%Material changeNot marked as changed$/),
       expect.stringMatching(/^Plot in Kapsoya.*NewMaterial change$/),
       expect.stringMatching(/^Toyota Probox.*No longer declaredMaterial change$/),
     ]);

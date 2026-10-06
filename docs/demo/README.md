@@ -14,25 +14,25 @@ How to run the hackathon demo (#371): the 5-minute quick start, accounts, the st
 
 Every demo account, its login and purpose: [demo accounts](../demo-accounts.md). The ones the story uses:
 
-| Beat | App | Act as | Role |
-| --- | --- | --- | --- |
-| A | Console | Grace Mutiso | PSC reporting officer |
-| B | Portal | (no account yet: Get started) | Lydia Kwamboka Nyaboke, PSC roster, `PSC/2012/0311`, ID 28836510 |
-| C, D | Portal | Wanjiku Kamau | Declarant, KEMSA |
-| E | Console | Achieng Njeri | PSC reviewer |
-| F | Console, portal | David Ochieng; Kiprono Chebet | PSC supervisor; declarant |
-| G | Console | Mwangi Wairimu | PSC commission admin |
-| H | Console | Baraka Mutua | EACC analyst |
-| I | Portal, verify | (public) | Anyone |
+| Beat | App             | Act as                        | Role                                                             |
+| ---- | --------------- | ----------------------------- | ---------------------------------------------------------------- |
+| A    | Console         | Grace Mutiso                  | PSC reporting officer                                            |
+| B    | Portal          | (no account yet: Get started) | Lydia Kwamboka Nyaboke, PSC roster, `PSC/2012/0311`, ID 28836510 |
+| C, D | Portal          | Wanjiku Kamau                 | Declarant, KEMSA                                                 |
+| E    | Console         | Achieng Njeri                 | PSC reviewer                                                     |
+| F    | Console, portal | David Ochieng; Kiprono Chebet | PSC supervisor; declarant                                        |
+| G    | Console         | Mwangi Wairimu                | PSC commission admin                                             |
+| H    | Console         | Baraka Mutua                  | EACC analyst                                                     |
+| I    | Portal, verify  | (public)                      | Anyone                                                           |
 
 ## Hosted URLs
 
-| App | URL |
-|---|---|
-| Portal (declarants, applicants, public open data) | https://adili-demo.southafricanorth.cloudapp.azure.com |
-| Console (Commission and EACC staff) | https://adili-demo.southafricanorth.cloudapp.azure.com:3020 |
-| Verify (QR codes on issued documents) | https://adili-demo.southafricanorth.cloudapp.azure.com:3030 |
-| Keycloak (sign-in only; admin is not public) | https://adili-demo.southafricanorth.cloudapp.azure.com:8080 |
+| App                                                     | URL                                                                                                                                          |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Portal (declarants, applicants, public open data)       | https://adili-demo.southafricanorth.cloudapp.azure.com                                                                                       |
+| Console (Commission and EACC staff)                     | https://adili-demo.southafricanorth.cloudapp.azure.com:3020                                                                                  |
+| Verify (QR codes on issued documents)                   | https://adili-demo.southafricanorth.cloudapp.azure.com:3030                                                                                  |
+| Keycloak (sign-in only; admin is not public)            | https://adili-demo.southafricanorth.cloudapp.azure.com:8080                                                                                  |
 | API reference (every service's OpenAPI contract, Redoc) | https://adili-demo.southafricanorth.cloudapp.azure.com/api-docs/ · also on [GitHub Pages](https://muliswilliam.github.io/adili-v3/api-docs/) |
 
 The host and its deploys: [infra/azure](../../infra/azure/README.md). Rebuild the API reference locally with `pnpm api:docs` (writes `dist/api-docs/`).
@@ -56,18 +56,18 @@ flowchart LR
 
 Live: A to E, Wanjiku's case end to end, in the 5-minute demo. Seeded: F to I, shown during the pitch or Q&A; each starts cold from its checkpoint.
 
-| Beat | Starts from | Time | Live or seeded |
-| --- | --- | --- | --- |
-| A. Roster import | `0-start` | 0:30 | Live |
-| B. Onboarding with SMS OTP | `0-start` | 1:00 | Live |
-| C. Filing with AI pre-fill and Ask Adili | `0-start` | 2:00 | Live |
-| D. Submit and QR slip | `0-start` (after C) | 0:45 | Live |
-| E. Cross-checks and copilot | `1-after-filing` (or straight after D) | 1:00 | Live |
-| F. Clarification and determination | `2-after-review` | 1:00 | Seeded |
-| G. Form M | `3-form-m-ready` | 0:45 | Seeded (confirm is live) |
-| H. EACC intake, NCR, open data | `3-form-m-ready` | 1:00 | Seeded |
-| I. Public open data and verify | any | 0:45 | Seeded |
-| J. Audit trail | any (after E shows the reviewer's reads) | 0:30 | Seeded |
+| Beat                                     | Starts from                              | Time | Live or seeded           |
+| ---------------------------------------- | ---------------------------------------- | ---- | ------------------------ |
+| A. Roster import                         | `0-start`                                | 0:30 | Live                     |
+| B. Onboarding with SMS OTP               | `0-start`                                | 1:00 | Live                     |
+| C. Filing with AI pre-fill and Ask Adili | `0-start`                                | 2:00 | Live                     |
+| D. Submit and QR slip                    | `0-start` (after C)                      | 0:45 | Live                     |
+| E. Cross-checks and copilot              | `1-after-filing` (or straight after D)   | 1:00 | Live                     |
+| F. Clarification and determination       | `2-after-review`                         | 1:00 | Seeded                   |
+| G. Form M                                | `3-form-m-ready`                         | 0:45 | Seeded (confirm is live) |
+| H. EACC intake, NCR, open data           | `3-form-m-ready`                         | 1:00 | Seeded                   |
+| I. Public open data and verify           | any                                      | 0:45 | Seeded                   |
+| J. Audit trail                           | any (after E shows the reviewer's reads) | 0:30 | Seeded                   |
 
 ### A. Roster import (console, Grace Mutiso)
 
@@ -94,13 +94,14 @@ Sample files: `payslip-kemsa-june-2026.pdf`, `logbook-fielder-kcx-214j.jpg`, `ti
    - the title deed on the Ruiru parcel.
 
    The AI suggests values for review (indicators, never findings).
+
 4. **Ask Adili** (panel, bottom right). Scripted questions, from the suggested list (the chips depend on the tab):
    - Income tab: "What counts as a material change?" and "Do I declare my spouse's salary?"
    - Assets tab: "How do I value my car?" (answered from the platform help article "Valuing your assets", with the First Schedule)
 
 ### D. Submit and QR slip (portal, Wanjiku)
 
-1. **Summary** (`/declarations/<id>/summary`): "3 things to complete before you can submit". Use each **Fix** link to type the figure: the salary's amount for the period (e.g. KES 6,240,000), the Fielder's value (e.g. 1,000,000) and the Ruiru parcel's value (e.g. 4,000,000). Back on **Summary**, **Changes since your last declaration** shows each figure against her previous declaration (the salary up 6%, the Fielder down 13%, the Ruiru parcel up 5%); a figure 25% or more off is marked as a material change, as each statement shows while she types. **Submit declaration**.
+1. **Summary** (`/declarations/<id>/summary`): "3 things to complete before you can submit". Use each **Fix** link to type the figure: the salary's amount for the period (e.g. KES 6,240,000), the Fielder's value (e.g. 1,000,000) and the Ruiru parcel's value (e.g. 4,000,000). Back on **Summary**, **Changes since your last declaration** shows each figure against her previous declaration (the salary up, the Fielder down, the Ruiru parcel up, none by much); a figure 25% or more off is marked as a material change, as each statement shows while she types. **Submit declaration**.
 2. The submitted page (`/declarations/<id>/submitted`) offers **Download slip**. Judges scan its QR code with a phone: it opens the verify app (`/v/<verification id>`) and says Valid.
 
 ### E. Cross-checks and copilot (console, Achieng Njeri)
@@ -159,24 +160,24 @@ These are open product decisions (#614) or demo artefacts; route around them:
 
 The codes change with every seed from an empty stack and stay with a checkpoint. `pnpm demo:seed --only verify` writes the current ones to `.demo/verify.md` (and `.demo/verify.json`), with their verify links. The console's **Demo panel** (demo mode, signed in as a demo account) reads the same `.demo/verify.json` on the stack it runs on and lists them under **Verify codes**, with the tampered PDF to download, so the hosted presenter needs no shell on the host.
 
-| Status | Document |
-| --- | --- |
-| Valid | Otieno's acknowledgement slip; his access package |
-| Superseded | Amina's version 1 slip (she amended to version 2) |
-| Revoked | A JSC clarification letter issued in error and withdrawn |
-| Expired | A JSC access package (two-minute demo validity) |
+| Status         | Document                                                                           |
+| -------------- | ---------------------------------------------------------------------------------- |
+| Valid          | Otieno's acknowledgement slip; his access package                                  |
+| Superseded     | Amina's version 1 slip (she amended to version 2)                                  |
+| Revoked        | A JSC clarification letter issued in error and withdrawn                           |
+| Expired        | A JSC access package (two-minute demo validity)                                    |
 | Does not match | `.demo/tampered-acknowledgement-slip.pdf`: drop it on the valid slip's verify page |
 
 Printed QR card: after the final reset, print the verify links from `.demo/verify.md` as QR codes on one card, labelled by status, so judges can scan each from a phone.
 
 ## Checkpoints
 
-| Checkpoint | State | Starts beats |
-| --- | --- | --- |
-| `0-start` | Seeded; Wanjiku's current declaration is a draft holding what she carried over from 2024 (details, household, other information, her salary without an amount, her loan) | A, B, C, D |
-| `1-after-filing` | Wanjiku submitted; her case has its registry flags and copilot | E |
-| `2-after-review` | Wanjiku's clarification issued | F |
-| `3-form-m-ready` | PSC's Form M compiled and reviewed | G, H |
+| Checkpoint       | State                                                                                                                                                                    | Starts beats |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
+| `0-start`        | Seeded; Wanjiku's current declaration is a draft holding what she carried over from 2024 (details, household, other information, her salary without an amount, her loan) | A, B, C, D   |
+| `1-after-filing` | Wanjiku submitted; her case has its registry flags and copilot                                                                                                           | E            |
+| `2-after-review` | Wanjiku's clarification issued                                                                                                                                           | F            |
+| `3-form-m-ready` | PSC's Form M compiled and reviewed                                                                                                                                       | G, H         |
 
 ```sh
 pnpm demo:reset 0-start      # locally: stop pnpm dev first, start it again after
@@ -214,14 +215,14 @@ Credentials never go in the repo, in a `.env.example` or in a log. On the VM the
 1. `/etc/adili/secrets.env`, owned by root, readable by `adili` (`root:adili`, mode 0640)
 2. `/home/adili/.config/adili/secrets.env` (mode 0600), written by every deploy from the repo secrets and variables below
 
-| Setting | Anthropic API | Self-hosted LLM Gateway |
-|---|---|---|
-| `ANTHROPIC_API_KEY` (secret) | the key | not set |
-| `ANTHROPIC_AUTH_TOKEN` (secret) | not set | the gateway's API key, sent as `Authorization: Bearer` |
-| `ANTHROPIC_BASE_URL` (variable) | not set | the gateway's URL without `/v1`, e.g. `https://<your-gateway-host>` |
-| `ANTHROPIC_STRUCTURED_OUTPUT` (variable) | not set (`native`) | `prompted`: the gateway drops `output_config.format`, so the schema goes in the system prompt |
-| `ANTHROPIC_ATTACHMENTS` (variable) | not set (`image,pdf,text`) | `image,text`: the gateway drops PDF `document` blocks, so each PDF (a scanned title deed) goes as one image per page, at most 20 pages |
-| `AI_MODEL` (variable) | not set (`claude-opus-5-5`) | optional; `anthropic/claude-opus-5-5` pins the gateway to the Anthropic provider |
+| Setting                                  | Anthropic API               | Self-hosted LLM Gateway                                                                                                                |
+| ---------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY` (secret)             | the key                     | not set                                                                                                                                |
+| `ANTHROPIC_AUTH_TOKEN` (secret)          | not set                     | the gateway's API key, sent as `Authorization: Bearer`                                                                                 |
+| `ANTHROPIC_BASE_URL` (variable)          | not set                     | the gateway's URL without `/v1`, e.g. `https://<your-gateway-host>`                                                                    |
+| `ANTHROPIC_STRUCTURED_OUTPUT` (variable) | not set (`native`)          | `prompted`: the gateway drops `output_config.format`, so the schema goes in the system prompt                                          |
+| `ANTHROPIC_ATTACHMENTS` (variable)       | not set (`image,pdf,text`)  | `image,text`: the gateway drops PDF `document` blocks, so each PDF (a scanned title deed) goes as one image per page, at most 20 pages |
+| `AI_MODEL` (variable)                    | not set (`claude-opus-5-5`) | optional; `anthropic/claude-opus-5-5` pins the gateway to the Anthropic provider                                                       |
 
 For the gateway, from a checkout with `gh` signed in:
 
@@ -252,13 +253,13 @@ Replay answers from `services/ai-gateway/fixtures/demo/` ([how they are recorded
 
 ## Fallbacks
 
-| Problem | Fallback |
-| --- | --- |
+| Problem                  | Fallback                                                                                                    |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | AI provider down or slow | `pnpm demo:ai replay` (hosted: **Azure demo command**, `ai`, `replay`). Back with `pnpm demo:ai anthropic`. |
-| Hosted demo down | The local laptop stack, below. |
-| Everything down | The recorded backup run of the full story (#622). |
-| A beat went wrong | Reset to the checkpoint that beat starts from. |
-| Unsure what is up | **Azure demo command**, `diagnose` (or `check`, `health`). |
+| Hosted demo down         | The local laptop stack, below.                                                                              |
+| Everything down          | The recorded backup run of the full story (#622).                                                           |
+| A beat went wrong        | Reset to the checkpoint that beat starts from.                                                              |
+| Unsure what is up        | **Azure demo command**, `diagnose` (or `check`, `health`).                                                  |
 
 ### Local laptop stack, from zero
 
