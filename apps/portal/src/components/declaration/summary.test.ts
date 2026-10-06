@@ -264,7 +264,13 @@ describe('issueText', () => {
       statements: [
         {
           personKey: 'officer',
-          assets: [{ type: 'land', description: 'Plot' }, { type: 'vehicle' }, { type: 'vehicle' }],
+          income: [{ type: 'other' }],
+          assets: [
+            { type: 'land', description: 'Plot' },
+            { type: 'vehicle' },
+            { type: 'vehicle' },
+            { type: 'other' },
+          ],
         },
       ],
     } as unknown as SummaryDocument;
@@ -279,6 +285,13 @@ describe('issueText', () => {
     // Numbered among the items of its type, not by its place in the list.
     expect(issueText(at('/assets/2/value', 'is required'), vehicles)).toBe(
       'Vehicle 2: Value is required',
+    );
+    // "Other" alone says nothing, so an untitled Other item is named by its category.
+    expect(issueText(at('/assets/3/value', 'is required'), vehicles)).toBe(
+      'Other asset 1: Value is required',
+    );
+    expect(issueText(at('/income/0/value', 'is required'), vehicles)).toBe(
+      'Other income 1: Value is required',
     );
   });
 

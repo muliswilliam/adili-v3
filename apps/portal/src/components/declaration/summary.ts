@@ -191,13 +191,15 @@ function plainFragment(code: string, message: string): string {
 
 /**
  * An item with no description as the statement heads it, by its type ("Vehicle"), numbered among
- * the items of that type: "Vehicle 2" is the second vehicle. Untyped, by its place: "Asset 2".
+ * the items of that type: "Vehicle 2" is the second vehicle. "Other" alone says nothing, so that
+ * type takes its category: "Other asset 1". Untyped, by its place: "Asset 2".
  */
 function itemName(category: Category, items: { type?: string }[], position: number): string {
   const type = items[position]?.type;
   const label = type === undefined ? undefined : TYPE_LABELS[category][type];
   if (label === undefined) return `${ITEM_NOUNS[category]} ${String(position + 1)}`;
   const nth = items.slice(0, position + 1).filter((item) => item.type === type).length;
+  if (type === 'other') return `Other ${ITEM_NOUNS[category].toLowerCase()} ${String(nth)}`;
   return `${label} ${String(nth)}`;
 }
 
