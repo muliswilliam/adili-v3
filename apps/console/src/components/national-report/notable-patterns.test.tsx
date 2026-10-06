@@ -1,12 +1,21 @@
 // @vitest-environment jsdom
 import { ToastProvider, TooltipProvider } from '@adili/ui';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import type { ComponentProps } from 'react';
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
+import { type ComponentProps, StrictMode } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   loadNationalReport,
   loadNationalReportPage,
+  type NationalReportLoad,
   saveNationalReportNarrative,
 } from '../../server/national-report.server';
 import { loadPatternCandidates } from '../../server/pattern-candidates.server';
@@ -22,9 +31,12 @@ import {
 } from '../../server/reporting/mock.server';
 import { type NcrMockSeed, resetNcrMock } from '../../server/reporting/ncr-mock.server';
 import type { NationalReport } from '../../server/reporting/types';
-import type { NationalReportLoad } from './narrative-drafting';
 import { NationalReportView } from './national-report-view';
-import { type PatternCandidatesLoad, useNcrPatterns } from './notable-patterns';
+import {
+  type PatternCandidatesLoad,
+  useEarlierAggregates,
+  useNcrPatterns,
+} from './notable-patterns';
 
 type Props = ComponentProps<typeof NationalReportView>;
 
@@ -492,5 +504,100 @@ describe('Cite in findings', () => {
       expect(cards()).toHaveLength(6);
     });
     expect(within(panel()).queryByRole('button', { name: /Cite in findings/ })).toBeNull();
+  });
+});
+
+describe("Earlier years' reports", () => {
+  /** FY 2025/2026's report citing FY 2024/2025's filing rate, as `version` of it. */
+  async function citingEarlier(version: number): Promise<NationalReport> {
+    const page = await pageOf('draft');
+    const report = page.data.report;
+    if (!report) throw new Error('the mock has no report');
+    return {
+      ...report,
+      version,
+      narrativeParagraphs: [
+        {
+          id: '0199c000-0000-7000-8000-000000000003',
+          section: 'overview',
+          position: 0,
+          text: 'Filing rose on the year before.',
+          aiDraft: true,
+          aggregateRefs: ['fy2025.national.filingRate'],
+          candidateIds: [],
+        },
+      ],
+    };
+  }
+
+  const earlierOf = (report: NationalReport): NationalReport => ({
+    ...report,
+    aggregates: { ...report.aggregates, fy: 2024 },
+  });
+
+  it('reads a year whose read failed again when the report next changes, not before', async () => {
+    const first = await citingEarlier(1);
+    const loadReport = vi.fn<NationalReportLoad>();
+    loadReport.mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } });
+    loadReport.mockResolvedValue({ ok: true, data: earlierOf(first) });
+    const { result, rerender } = renderHook(
+      ({ report }: { report: NationalReport }) =>
+        useEarlierAggregates({ fy: 2025, report, loadReport, onUnauthenticated: vi.fn() }),
+      { initialProps: { report: first } },
+    );
+
+    await waitFor(() => {
+      expect(loadReport).toHaveBeenCalledTimes(1);
+    });
+    await act(() => Promise.resolve());
+    expect(result.current).toEqual([]);
+    expect(loadReport).toHaveBeenCalledTimes(1);
+
+    rerender({ report: await citingEarlier(2) });
+    await waitFor(() => {
+      expect(result.current.map(({ fy }) => fy)).toEqual([2024]);
+    });
+    expect(loadReport.mock.calls).toEqual([[2024], [2024]]);
+  });
+
+  it('does not ask again for a year the service will not give', async () => {
+    const first = await citingEarlier(1);
+    const loadReport = vi.fn<NationalReportLoad>().mockResolvedValue({
+      ok: false,
+      error: {
+        kind: 'problem',
+        problem: { type: 'about:blank', title: 'Not built yet', status: 404 },
+      },
+    });
+    const { result, rerender } = renderHook(
+      ({ report }: { report: NationalReport }) =>
+        useEarlierAggregates({ fy: 2025, report, loadReport, onUnauthenticated: vi.fn() }),
+      { initialProps: { report: first } },
+    );
+    await waitFor(() => {
+      expect(loadReport).toHaveBeenCalledTimes(1);
+    });
+    await act(() => Promise.resolve());
+
+    rerender({ report: await citingEarlier(2) });
+    await act(() => Promise.resolve());
+    expect(loadReport).toHaveBeenCalledTimes(1);
+    expect(result.current).toEqual([]);
+  });
+
+  it('reads each year once and sends a viewer whose session ended to sign in, in strict mode', async () => {
+    const report = await citingEarlier(1);
+    const onUnauthenticated = vi.fn();
+    const loadReport = vi
+      .fn<NationalReportLoad>()
+      .mockResolvedValue({ ok: false, error: { kind: 'unauthenticated' } });
+    renderHook(() => useEarlierAggregates({ fy: 2025, report, loadReport, onUnauthenticated }), {
+      wrapper: StrictMode,
+    });
+
+    await waitFor(() => {
+      expect(onUnauthenticated).toHaveBeenCalledTimes(1);
+    });
+    expect(loadReport).toHaveBeenCalledTimes(1);
   });
 });

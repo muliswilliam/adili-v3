@@ -16,7 +16,7 @@ import {
 import { AlertCircleIcon, ChartLineData01Icon, RefreshIcon } from '@hugeicons/core-free-icons';
 import { useCallback, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from 'react';
 
-import type { NationalReportResult } from '../../server/national-report.server';
+import type { NationalReportLoad, NationalReportResult } from '../../server/national-report.server';
 import type {
   NarrativeParagraph,
   NationalAggregates,
@@ -34,7 +34,6 @@ import {
 } from './aggregate-tables';
 import { messages as m } from './messages';
 import { appendParagraph } from './model';
-import type { NationalReportLoad } from './narrative-drafting';
 import type { NcrExtensionContext, NcrExtensions } from './national-report-view';
 import {
   candidateCard,
@@ -131,7 +130,7 @@ export function useNcrPatterns(options: NcrPatternsOptions): NcrExtensions {
   }, []);
   const showFigure = useShowFigure(options);
   const candidates = state.status === 'loaded' ? state.candidates : NO_CANDIDATES;
-  const earlier = useEarlierYears(options);
+  const earlierAggregates = useEarlierAggregates(options);
 
   // The panel and the paragraphs' figures read the same candidates.
   return {
@@ -151,7 +150,7 @@ export function useNcrPatterns(options: NcrPatternsOptions): NcrExtensions {
           paragraph={paragraph}
           context={context}
           candidates={candidates}
-          earlier={earlier}
+          earlierAggregates={earlierAggregates}
           onShow={showFigure}
         />
       ),
@@ -159,49 +158,62 @@ export function useNcrPatterns(options: NcrPatternsOptions): NcrExtensions {
 }
 
 /**
- * The aggregates of the earlier years the report's paragraphs cite, each year's report read once.
- * A year whose report cannot be read (not built, or the call failed) is left out, so its figures
- * resolve from the candidates or not at all.
+ * The aggregates of the earlier years the report's paragraphs cite, each year's report read once
+ * it answers. A year whose report the service will not give (not built, refused) is left out for
+ * good; one whose read failed (network, 5xx) is left out until the hook next looks (the report
+ * or its paragraphs change, or another year's report arrives), then read again. Meanwhile its figures resolve from the candidates or not at all. A
+ * session found ended sends the viewer to sign in, whenever the answer lands.
  */
-function useEarlierYears({
+export function useEarlierAggregates({
   fy,
   report,
   loadReport,
   onUnauthenticated,
-}: NcrPatternsOptions): NationalAggregates[] {
+}: Pick<
+  NcrPatternsOptions,
+  'fy' | 'report' | 'loadReport' | 'onUnauthenticated'
+>): NationalAggregates[] {
   const cited = useMemo(
     () => (report ? earlierYearsCited(report.narrativeParagraphs, fy) : NO_YEARS),
     [report, fy],
   );
   const [read, setRead] = useState<ReadonlyMap<number, NationalAggregates>>(() => new Map());
-  const asked = useRef(new Set<number>());
+  // Years being read, and those the service answered with a problem: neither is asked again.
+  const reading = useRef(new Set<number>());
+  const refused = useRef(new Set<number>());
+  // Whether the page still shows these figures, so an answer landing after it left writes nothing.
+  const mounted = useRef(false);
   const signIn = useEffectEvent(() => {
     onUnauthenticated();
   });
 
   useEffect(() => {
-    let current = true;
-    for (const year of cited) {
-      if (asked.current.has(year)) continue;
-      asked.current.add(year);
-      void loadReport(year).then(
-        (result) => {
-          if (result.ok) {
-            const { aggregates } = result.data;
-            setRead((years) => new Map(years).set(year, aggregates));
-          } else if (result.error.kind === 'unauthenticated') {
-            if (current) signIn();
-          }
-        },
-        () => {
-          // Left out: its figures resolve from the candidates, if any carry them.
-        },
-      );
-    }
+    mounted.current = true;
     return () => {
-      current = false;
+      mounted.current = false;
     };
-  }, [cited, loadReport]);
+  }, []);
+
+  useEffect(() => {
+    for (const year of cited) {
+      if (read.has(year) || reading.current.has(year) || refused.current.has(year)) continue;
+      reading.current.add(year);
+      const settle = (result: Awaited<ReturnType<NationalReportLoad>> | null) => {
+        reading.current.delete(year);
+        if (result?.ok === false && result.error.kind === 'unauthenticated') {
+          signIn();
+          return;
+        }
+        if (result?.ok === false && result.error.kind === 'problem') refused.current.add(year);
+        if (!mounted.current || !result?.ok) return;
+        const { aggregates } = result.data;
+        setRead((years) => new Map(years).set(year, aggregates));
+      };
+      void loadReport(year).then(settle, () => {
+        settle(null);
+      });
+    }
+  }, [cited, read, loadReport]);
 
   return useMemo(() => cited.flatMap((year) => read.get(year) ?? []), [cited, read]);
 }
@@ -245,18 +257,18 @@ function ParagraphMeta({
   paragraph,
   context,
   candidates,
-  earlier,
+  earlierAggregates,
   onShow,
 }: {
   paragraph: NarrativeParagraph;
   context: NcrExtensionContext;
   candidates: readonly PatternCandidate[];
-  earlier: readonly NationalAggregates[];
+  earlierAggregates: readonly NationalAggregates[];
   onShow: (aggregateKey: string) => void;
 }) {
   const format = useMemo(
-    () => figureFormatter(context.report.aggregates, candidates, earlier),
-    [context.report.aggregates, candidates, earlier],
+    () => figureFormatter(context.report.aggregates, candidates, earlierAggregates),
+    [context.report.aggregates, candidates, earlierAggregates],
   );
   return (
     <>

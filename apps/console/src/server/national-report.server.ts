@@ -17,6 +17,9 @@ import { callService, type ServiceResult } from './service-call';
 
 export type NationalReportResult<T> = ServiceResult<T, ReportingProblem>;
 
+/** Reads a year's report (`getNationalReport`), as the page's server function does. */
+export type NationalReportLoad = (fy: number) => Promise<NationalReportResult<NationalReport>>;
+
 /** The national report page's data for a financial year. */
 export interface NationalReportPage {
   fy: number;

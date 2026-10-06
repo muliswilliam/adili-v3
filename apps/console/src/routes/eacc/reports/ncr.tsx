@@ -9,7 +9,6 @@ import {
 } from '../../../components/national-report/national-report-view';
 import {
   type NarrativeDraftAsk,
-  type NationalReportLoad,
   useNcrNarrativeDrafting,
 } from '../../../components/national-report/narrative-drafting';
 import {
@@ -29,6 +28,7 @@ import {
   saveNationalReportNarrativeFn,
 } from '../../../server/national-report';
 import { financialYear } from '../../../server/form-m';
+import type { NationalReportLoad } from '../../../server/national-report.server';
 
 /** `?fy=` the year on show (else the last that ended); `page` the per-Commission table's page. */
 const ncrSearchSchema = z.object({
