@@ -189,7 +189,7 @@ export function WrittenRequestCard({ request }: { request: LeaRequest }) {
         <CardTitle id="written-request-title">{m.writtenRequest}</CardTitle>
         <span className="ml-auto inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
           {m.noFormK}
-          <InfoTip label={m.noFormKTip} content={m.noFormKTip} />
+          <InfoTip label={m.noFormKTipLabel} content={m.noFormKTip} />
         </span>
       </CardHeader>
       <div>

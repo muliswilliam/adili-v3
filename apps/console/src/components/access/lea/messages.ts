@@ -35,6 +35,7 @@ export const en = {
   noFormK: 'No Form K',
   noFormKTip:
     'Regulation 23(1): a law enforcement agency writes to the Commission with its reason and does not fill Form K.',
+  noFormKTipLabel: 'About No Form K',
   requestedBy: 'Requested by',
   agency: 'Agency',
   requestingOfficer: 'Requesting officer',
