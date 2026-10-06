@@ -2,6 +2,13 @@ import { formatDateTime, plural } from '@adili/ui';
 
 import type { AuditKind } from '../../server/audit/types';
 
+/** The apps people act through, by their OAuth client (`azp`). */
+const CHANNELS: Record<string, string> = {
+  console: 'Console',
+  portal: 'Portal',
+  verify: 'Verify',
+};
+
 /** Copy of the auditor's audit trail pages (ADR-008). */
 export const messages = {
   title: 'Audit trail',
@@ -86,6 +93,8 @@ export const messages = {
     actor: 'Actor',
     roles: 'Roles',
     client: 'Through',
+    /** The app a user acted through, by its OAuth client; a service's client as it is named. */
+    channel: (clientId: string) => CHANNELS[clientId] ?? clientId,
     resource: 'Resource',
     person: 'Person the data is about',
     basis: 'Legal basis',

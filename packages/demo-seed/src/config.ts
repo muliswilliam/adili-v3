@@ -31,10 +31,17 @@ const schema = z.object({
   KEYCLOAK_REALM: z.string().default('adili'),
   KEYCLOAK_ADMIN_USER: z.string().default('admin'),
   KEYCLOAK_ADMIN_PASSWORD: z.string().default('admin_dev'),
-  /** The confidential client the seed signs demo accounts in through (the portal's). */
+  /** The confidential client the seed signs declarants and the applicant in through (the portal's). */
   DEMO_SIGN_IN_CLIENT_ID: z.string().default('portal'),
   DEMO_SIGN_IN_CLIENT_SECRET: z.string().default('portal-dev-secret'),
   DEMO_SIGN_IN_REDIRECT_URI: z.url().default('http://localhost:3010/auth/callback'),
+  /**
+   * The confidential client the seed signs staff in through (the console's), so the audit trail
+   * says staff acted through the console, as they do on stage.
+   */
+  DEMO_CONSOLE_SIGN_IN_CLIENT_ID: z.string().default('console'),
+  DEMO_CONSOLE_SIGN_IN_CLIENT_SECRET: z.string().default('console-dev-secret'),
+  DEMO_CONSOLE_SIGN_IN_REDIRECT_URI: z.url().default('http://localhost:3020/auth/callback'),
   /**
    * The federated Commission's reports client secret (`tsc-reports`, ADR-009): its own system
    * files Form M with it. The realm file holds the development value.

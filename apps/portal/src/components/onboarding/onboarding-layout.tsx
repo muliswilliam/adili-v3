@@ -38,7 +38,8 @@ export function OnboardingFrame({ children }: { children: ReactNode }) {
 
 /**
  * One segment per step (the declarant's six unless `names` says otherwise): done steps ink, the
- * current one half ink (the kit's `.stepper`).
+ * current one half ink (the kit's `.stepper`). The last step is the page the flow ends on (Check
+ * your email, Done): nothing is left to do on screen, so every segment reads done there.
  */
 export function OnboardingStepper({
   step,
@@ -47,13 +48,16 @@ export function OnboardingStepper({
   step: number;
   names?: readonly string[];
 }) {
+  const finished = step >= names.length;
   return (
     <div className="mb-[26px]">
       <div aria-hidden="true" className="mb-2 flex gap-1.5">
         {names.map((name, index) => (
           <span
             key={name}
-            data-state={index + 1 < step ? 'done' : index + 1 === step ? 'current' : undefined}
+            data-state={
+              finished || index + 1 < step ? 'done' : index + 1 === step ? 'current' : undefined
+            }
             className={cn(
               'h-1 flex-1 rounded-full bg-border data-[state=done]:bg-foreground',
               'data-[state=current]:bg-[linear-gradient(90deg,var(--foreground)_50%,var(--border)_50%)]',

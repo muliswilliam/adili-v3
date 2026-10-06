@@ -48,9 +48,12 @@ export type IntakeFilter = (typeof INTAKE_FILTERS)[number];
 const PUSHED_POLL_MS = 5_000;
 const PUSHED_POLL_TIMES = 12;
 
-/** The table where the list is wide enough, else one card per referral (the prototype's 800px). */
-const TABLE_ONLY = 'hidden @[800px]:block';
-const CARDS_ONLY = '@[800px]:hidden';
+/**
+ * The table where all seven columns fit (960px, the console's main column at 1280px wide), else
+ * one card per referral: below it the table cut its Actions column off.
+ */
+const TABLE_ONLY = 'hidden @[960px]:block';
+const CARDS_ONLY = '@[960px]:hidden';
 
 export interface ReferralIntakeViewProps {
   /** The page for `filter`; null while it loads. */
@@ -251,8 +254,8 @@ export function ReferralIntakeView({
                           {referral.reference}
                         </button>
                       </TableCell>
-                      <TableCell className="min-w-[160px]">{referral.commission.name}</TableCell>
-                      <TableCell className="min-w-[150px]">{t.grounds[referral.grounds]}</TableCell>
+                      <TableCell className="min-w-[120px]">{referral.commission.name}</TableCell>
+                      <TableCell className="min-w-[120px]">{t.grounds[referral.grounds]}</TableCell>
                       <TableCell className="whitespace-nowrap">
                         {formatDate(referral.sentAt)}
                       </TableCell>

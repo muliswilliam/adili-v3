@@ -336,12 +336,12 @@ describe('ReferralIntakeView (spec 09 FE-5, S12, S15)', () => {
   });
 
   describe('on a phone (#542)', () => {
-    it('swaps the table for cards under the same breakpoint', async () => {
+    it('swaps the table for cards where its seven columns do not fit (#622)', async () => {
       await open();
       const table = screen.getByRole('table', { name: 'Referrals received from Commissions' });
       const cards = screen.getByRole('list', { name: 'Referrals received from Commissions' });
-      expect(breakpoint(table)).toBe('@[800px]:block');
-      expect(breakpoint(cards)).toBe('@[800px]:hidden');
+      expect(breakpoint(table)).toBe('@[960px]:block');
+      expect(breakpoint(cards)).toBe('@[960px]:hidden');
     });
 
     it('shows each referral as a card with its Commission, sent date, grounds and ICMS status', async () => {
