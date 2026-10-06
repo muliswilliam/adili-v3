@@ -124,6 +124,22 @@ describe('NoticesView (S17)', () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
+  it('links back to Home, loaded or not (#742)', () => {
+    render(
+      <NoticesView
+        result={{ status: 'unavailable' }}
+        now={NOW}
+        page={1}
+        onPage={vi.fn()}
+        onRetry={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/');
+    cleanup();
+    render(<NoticesSkeleton />);
+    expect(screen.getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/');
+  });
+
   it('shows placeholder rows while loading', () => {
     render(<NoticesSkeleton />);
     expect(screen.getByRole('status').getAttribute('aria-busy')).toBe('true');

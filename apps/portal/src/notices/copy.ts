@@ -82,6 +82,7 @@ type WhatToDo = DeclarantNotice['whatToDo'];
 export const COPY = {
   title: 'Notices',
   back: 'Notices',
+  home: 'Home',
   viewAll: 'View all',
   viewAllLabel: 'View all notices',
   emptyTitle: 'No notices',

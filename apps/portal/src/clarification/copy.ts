@@ -163,6 +163,7 @@ export const COPY = {
 /** Words for the declarant's clarification list and the dashboard's Clarifications card. */
 export const LIST_COPY = {
   title: 'Clarifications',
+  home: 'Home',
   needsResponse: 'Needs your response',
   earlier: 'Earlier',
   all: 'All clarifications',

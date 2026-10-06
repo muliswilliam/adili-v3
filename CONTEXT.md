@@ -69,6 +69,10 @@ _Avoid_: registration, sign-up, onboarding (alone)
 A submitted set of financial statements as at a statement date; initial, biennial or final.
 _Avoid_: return, filing, form
 
+**Home**:
+The declarant's landing page in the portal, showing their obligations, declarations, clarifications and notices at a glance.
+_Avoid_: dashboard, overview
+
 **Filing obligation**:
 A declarant's duty to make a specific declaration by a due date.
 _Avoid_: deadline, task
