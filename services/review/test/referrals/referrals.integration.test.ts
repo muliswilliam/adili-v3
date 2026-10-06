@@ -207,6 +207,23 @@ describe('referrals: propose, approve with evidence package, decline (S13)', () 
       { kind: 'letter', reference: 'CLR-PSC-2027-0000007-3' },
       { kind: 'letter', reference: 'ADM-PSC-2027-0000003-5' },
     ]);
+    // A Confidential read, audited like a case view (ADR-008): the actor and the referral, and
+    // nothing of the declarant.
+    const audited = (await eventsOf('audit.read.v1')).filter(
+      (audit) => (audit.data as { action: string }).action === 'review.referral.viewed',
+    );
+    expect(audited.map((audit) => audit.data)).toEqual([
+      expect.objectContaining({
+        action: 'review.referral.viewed',
+        resource: expect.objectContaining({
+          type: 'referral',
+          params: { referralId: referral.id },
+          tenant: 'psc',
+        }) as unknown,
+        actor: expect.objectContaining({ subject: supervisorS.sub }) as unknown,
+      }),
+    ]);
+    expect(JSON.stringify(audited)).not.toContain('James Otieno');
 
     const [event] = await eventsOf(REFERRAL_PROPOSED);
     expect(event?.data).toEqual({
