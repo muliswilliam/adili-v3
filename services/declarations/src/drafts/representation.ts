@@ -10,17 +10,15 @@ import {
   SCHEMA_VERSION,
 } from '../declaration/schema.js';
 import { SECTION_COMPLETENESS_VALUES } from './schema.js';
-import { SECTION_KEY } from './sections.js';
+import { reopenedSuggestionSchema } from '../suggestions/representation.js';
+import { sectionKeySchema } from './section-key-schema.js';
 
 /**
  * Bodies of the declaration drafts API (spec 05). They are the contract: the OpenAPI document,
  * packages/schemas/internal/declarations.yaml, is generated from them (`pnpm contracts`).
  */
 
-export const sectionKeySchema = z
-  .string()
-  .regex(SECTION_KEY)
-  .meta({ description: 'bio, household, other, or statement:<personKey>' });
+export { sectionKeySchema };
 
 export const completenessSchema = z.enum(SECTION_COMPLETENESS_VALUES);
 
@@ -148,6 +146,10 @@ export const sectionSaveResultSchema = z.object({
       description:
         'Statement sections created, archived or restored by a household save; an archived statement is kept until the draft is discarded',
     }),
+  reopenedSuggestions: z.array(reopenedSuggestionSchema).meta({
+    description:
+      "Registry suggestions (KRA, NTSA, BRS, ArdhiSasa) the declarant had accepted that this save offers again: it deleted the item one went into, or changed or cleared the item's identifier (a registration, parcel, company or spouse's KRA PIN). Each is `new` again, with no `acceptedItemId`; `declaration.suggestion-reopened.v1` is recorded for each. A document's reading, and a dismissed suggestion, is never reopened. Usually empty",
+  }),
 });
 export type SectionSaveResult = z.infer<typeof sectionSaveResultSchema>;
 

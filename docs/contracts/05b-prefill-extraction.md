@@ -25,7 +25,7 @@ flowchart LR
   D -->|getUploadDownload<br/>X-Acting-Subject| Doc[documents]
   D -->|runTask extract-document<br/>getJob| AI[ai-gateway]
   AI -.->|ai.job.completed / failed / blocked| D
-  D -.->|declaration.lookup-requested.v1<br/>suggestions-ready, suggestion-accepted,<br/>suggestion-dismissed, extraction-requested| Bus[(events)]
+  D -.->|declaration.lookup-requested.v1<br/>suggestions-ready, suggestion-accepted,<br/>suggestion-dismissed, suggestion-reopened,<br/>extraction-requested| Bus[(events)]
 ```
 
 ## Declarations (`internal/declarations.yaml`)
@@ -106,6 +106,7 @@ Built as the spec lists them, identifiers only, in `services/declarations/src/su
 | `declaration.suggestions-ready.v1` | declaration, set, source, count | none; also sent when a document reading is ready (#315) |
 | `declaration.suggestion-accepted.v1` | ids | `setId`, `source`, `sectionKey`, `itemId`, `applied` |
 | `declaration.suggestion-dismissed.v1` | ids | `setId`, `source` (the reason stays with the suggestion) |
+| `declaration.suggestion-reopened.v1` | not drafted (#738) | `suggestionId`, `setId`, `source`, `sectionKey`, `itemId` (the item it had gone into), `reason` (`item-removed` or `identifier-changed`): a section save no longer bears out an accepted registry suggestion, so it is `new` again; recorded in the save's transaction, which lists it in `reopenedSuggestions` |
 | `declaration.extraction-requested.v1` | declaration, attachment, job | `setId`; `aiJobId` null when the file was not one a reading takes |
 
 Declarations consumes the ai-gateway's `ai.job.completed|failed|blocked.v1` for `extract-document` jobs whose subject is a declaration (#315). The consumer only signals the reading's `DocumentReadingWorkflow`, which pulls the job and settles the set.

@@ -53,6 +53,7 @@ export const PREFILL_COPY = {
     startFailed: en('The registries could not be asked just now. Try again.'),
     acceptFailed: en('That could not be added just now. Try again.'),
     dismissFailed: en('That could not be dismissed just now. Try again.'),
+    itemGone: en('That item is no longer in the statement.'),
     editTitle: en('Edit and add'),
     editSource: en((registry: string, date: string) => `From ${registry}, ${date}`),
     cancel: en('Cancel'),

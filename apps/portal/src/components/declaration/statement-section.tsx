@@ -99,6 +99,7 @@ import { StatementChanges } from './changes-since-last';
 import { usePreviousDeclaration } from './use-previous-declaration';
 import { liveSections, relationLabel, stepLink } from './steps';
 import { categoryOfItem, withAcceptedItem } from '../../declaration/suggestions';
+import { REGISTRY_COPY } from '../../declaration/copy';
 import {
   focusControl,
   useFocusFirstError,
@@ -220,7 +221,7 @@ export function StatementSection({
   renderAttachments,
   registries,
 }: StatementSectionProps) {
-  const { declaration } = useWorkspace();
+  const { declaration, autosave, flush } = useWorkspace();
   const navigate = useNavigate();
   const { toast } = useToast();
   const previous = usePreviousDeclaration(declaration.id, declaration.type);
@@ -331,13 +332,21 @@ export function StatementSection({
     setEditing(item.id ?? null);
   }
 
-  /** Opens the item an accepted suggestion added, or Household for a spouse's KRA PIN. */
+  /**
+   * Opens the item an accepted suggestion added, or Household for a spouse's KRA PIN. An item
+   * removed here is gone from the statement before its save returns and reopens the suggestion
+   * (#738): View sends that save now, so the card offers the suggestion again.
+   */
   function viewSuggestion(suggestion: LoadedSuggestion) {
     const itemId = suggestion.acceptedItemId;
     const category = itemId ? categoryOfItem(statement, itemId) : null;
     if (!itemId || !category) {
       if (suggestion.sectionKey === 'household' || suggestion.sectionKey === 'bio') {
         void navigate(stepLink(declaration.id, suggestion.sectionKey));
+      } else if (itemId) {
+        const saving = key in autosave.pending || autosave.inFlight?.key === key;
+        flush(key);
+        if (!saving) toast({ title: REGISTRY_COPY.itemGone });
       }
       return;
     }

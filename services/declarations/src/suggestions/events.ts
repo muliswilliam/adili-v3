@@ -97,6 +97,33 @@ export function declarationSuggestionDismissed(
   return { type: DECLARATION_SUGGESTION_DISMISSED, subject: data.declarationId, tenant, data };
 }
 
+export const DECLARATION_SUGGESTION_REOPENED = 'declaration.suggestion-reopened.v1';
+
+/**
+ * A registry's suggestion the declarant accepted is offered again: a section save deleted the item
+ * it went into (`item-removed`), or changed or cleared the item's identifier
+ * (`identifier-changed`), so the acceptance no longer stands (`decisionStands`). Recorded in the
+ * save's transaction, beside its `declaration.section-saved.v1`; with the acceptance's own event,
+ * the audit trail keeps accept, then reopen.
+ */
+export interface DeclarationSuggestionReopenedData extends Record<string, unknown> {
+  declarationId: string;
+  suggestionId: string;
+  setId: string;
+  source: SuggestionSource;
+  sectionKey: string;
+  /** The item the suggestion had been accepted into. */
+  itemId: string;
+  reason: 'item-removed' | 'identifier-changed';
+}
+
+export function declarationSuggestionReopened(
+  tenant: string,
+  data: DeclarationSuggestionReopenedData,
+): NewEvent<DeclarationSuggestionReopenedData> {
+  return { type: DECLARATION_SUGGESTION_REOPENED, subject: data.declarationId, tenant, data };
+}
+
 export const DECLARATION_EXTRACTION_REQUESTED = 'declaration.extraction-requested.v1';
 
 /**

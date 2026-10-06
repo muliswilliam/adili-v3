@@ -10,9 +10,10 @@ import {
 } from './match-keys.js';
 
 /**
- * Which of the declarant's decisions on a registry's suggestions still stand when the registry is
- * checked again (spec 05b, S5; pure): a repeat of a standing decision arrives `superseded`
- * (`repeatsDecided`), anything else `new`.
+ * Which of the declarant's decisions on a registry's suggestions still stand (spec 05b, S5; pure):
+ * when the registry is checked again, a repeat of a standing decision arrives `superseded`
+ * (`repeatsDecided`), anything else `new`; when a section is saved, an acceptance that no longer
+ * stands is reopened (`reopening.ts`).
  */
 
 /** An accepted or dismissed suggestion, as the re-check weighs it. */
@@ -32,7 +33,7 @@ export interface Decision extends Comparable {
 export function decisionStands(decision: Decision, section: SectionContents | undefined): boolean {
   if (decision.status === 'dismissed') return true;
   if (decision.acceptedItemId === null || section === undefined) return false;
-  const held = itemKeys(decision.sectionKey, section, decision.acceptedItemId);
+  const held = heldKeys(decision.sectionKey, section, decision.acceptedItemId);
   if (held === null) return false;
   if (decision.matchKeys.length === 0) return true;
   return decision.matchKeys.some((key) => held.includes(key));
@@ -42,7 +43,11 @@ export function decisionStands(decision: Decision, section: SectionContents | un
  * The identifiers of item `itemId` as the section holds it (`sectionItems`): a statement item's
  * own, a directorship's company, a spouse's KRA PIN. Null when the section holds no such item.
  */
-function itemKeys(sectionKey: string, section: SectionContents, itemId: string): MatchKey[] | null {
+export function heldKeys(
+  sectionKey: string,
+  section: SectionContents,
+  itemId: string,
+): MatchKey[] | null {
   const item = sectionItems(sectionKey, section).find((each) => each.id === itemId);
   if (!item) return null;
   if (sectionKey === 'other') return companyKeys(text(item.company));

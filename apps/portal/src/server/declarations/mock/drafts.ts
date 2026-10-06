@@ -39,7 +39,7 @@ import {
   type Stored,
   view,
 } from './store';
-import { newSuggestionState } from './suggestions';
+import { newSuggestionState, reopenSuggestions } from './suggestions';
 import { amendRefusal } from './versions';
 
 let failingSaves = 0;
@@ -354,6 +354,7 @@ export async function saveSection(request: Request, id: string, key: string) {
   stored.contents.set(key, contents);
   stored.savedAt.set(key, now);
   if (key === 'household') sectionsChanged.push(...syncStatements(stored, contents));
+  const reopenedSuggestions = reopenSuggestions(stored, key, contents);
   stored.draftVersion += 1;
   stored.updatedAt = now;
   stored.lastSection = key;
@@ -364,6 +365,7 @@ export async function saveSection(request: Request, id: string, key: string) {
     draftVersion: stored.draftVersion,
     issues: issuesFor(stored, key),
     sectionsChanged,
+    reopenedSuggestions,
   };
   return json(200, result, { ETag: etag(stored) });
 }

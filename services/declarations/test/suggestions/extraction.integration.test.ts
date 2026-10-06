@@ -449,6 +449,46 @@ describe('reading a document (S6)', () => {
     });
   });
 
+  it('leaves an accepted reading accepted when its item is deleted: there is nothing to offer it into', async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    await extract(draft.id, attachment.id);
+    const job = api.aiGateway.finishReading(api.aiGateway.onlyReadingJob().id, {
+      output: logbookReading(),
+    });
+    await deliver(draft.id, jobEvent('ai.job.completed.v1', job));
+    const suggestion = (await documentSets(draft.id))[0]?.suggestions[0];
+    if (!suggestion) throw new Error('no suggestion');
+    const accepted = await api.request(
+      'POST',
+      `/v1/declarations/${draft.id}/suggestions/${suggestion.id}/accept`,
+      achieng,
+      {
+        headers: { 'if-match': await etagOf(draft.id) },
+        body: { fields: suggestion.fields, applyToItemId: null },
+      },
+    );
+    expect(accepted.statusCode).toBe(200);
+    const { itemId } = accepted.json<{ itemId: string }>();
+    const contents = (await statement(draft.id)).contents;
+    const assets = contents.assets as Record<string, unknown>[];
+
+    const saved = await api.request(
+      'PUT',
+      `/v1/declarations/${draft.id}/sections/${STATEMENT}`,
+      achieng,
+      {
+        headers: { 'if-match': await etagOf(draft.id) },
+        body: { ...contents, assets: assets.filter((item) => item.id !== itemId) },
+      },
+    );
+
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect(saved.json()).toMatchObject({ reopenedSuggestions: [] });
+    const [after] = (await documentSets(draft.id))[0]?.suggestions ?? [];
+    expect(after).toMatchObject({ id: suggestion.id, status: 'accepted', acceptedItemId: itemId });
+    expect(await eventsOf('declaration.suggestion-reopened.v1')).toEqual([]);
+  });
+
   it('reads a loan letter into the loan it is attached to, in liabilities', async () => {
     const { draft } = await draftWithLogbook();
     const letter = upload('psc', ACHIENG, { fileName: 'loan-letter.pdf' });

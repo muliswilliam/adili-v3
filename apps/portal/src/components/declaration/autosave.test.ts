@@ -27,6 +27,7 @@ function savedOutcome(etag: string, key = 'bio'): SaveOutcome {
       draftVersion: Number(etag.replaceAll('"', '')),
       issues: [],
       sectionsChanged: [],
+      reopenedSuggestions: [],
     },
   };
 }

@@ -19,6 +19,7 @@ import type { LoadedSection, SaveOutcome } from '../../server/declarations.serve
 import type {
   CompletenessIssue,
   Declaration,
+  ReopenedSuggestion,
   SectionKey,
   SectionSaveResult,
 } from '../../server/declarations/types';
@@ -67,7 +68,14 @@ export interface WorkspaceValue {
   reload: () => Promise<void>;
   /** Changes on every reload, so section screens remount with the reloaded contents. */
   generation: number;
+  /**
+   * Calls `listener` with the registry suggestions each save reopens (it deleted the item one
+   * went into, or changed its identifier, #738), once the save returns; returns the unsubscribe.
+   */
+  onReopened: (listener: ReopenedListener) => () => void;
 }
+
+export type ReopenedListener = (reopened: readonly ReopenedSuggestion[]) => void;
 
 const WorkspaceContext = createContext<WorkspaceValue | null>(null);
 
@@ -123,6 +131,7 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
   const [issues, setIssueMap] = useState<WorkspaceValue['issues']>({});
   const [issueBasis, setIssueBasis] = useState<WorkspaceValue['issueBasis']>({});
   const [generation, setGeneration] = useState(0);
+  const [reopenedListeners] = useState(() => new Set<ReopenedListener>());
   const declarationId = loaded.id;
 
   // A loader re-ran (navigation or reload): take its header, and its ETag when newer.
@@ -169,8 +178,11 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
           declaration.statementDate,
         );
       if (result.sectionsChanged.length > 0 || renamed) void refresh();
+      if (result.reopenedSuggestions.length > 0) {
+        for (const listener of reopenedListeners) listener(result.reopenedSuggestions);
+      }
     });
-  }, [queue, refresh, declaration]);
+  }, [queue, refresh, declaration, reopenedListeners]);
 
   useEffect(() => {
     queue.adoptEtag(etag, loaded.draftVersion);
@@ -231,6 +243,15 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
     <T,>(write: HeldWrite<T>, key?: SectionKey) => queue.whileHeld(write, key),
     [queue],
   );
+  const onReopened = useCallback(
+    (listener: ReopenedListener) => {
+      reopenedListeners.add(listener);
+      return () => {
+        reopenedListeners.delete(listener);
+      };
+    },
+    [reopenedListeners],
+  );
   const setIssues = useCallback((key: SectionKey, next: CompletenessIssue[], basis: unknown) => {
     setIssueMap((current) => ({ ...current, [key]: next }));
     setIssueBasis((current) => ({ ...current, [key]: basis }));
@@ -250,6 +271,7 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
     refresh,
     reload,
     generation,
+    onReopened,
   };
 
   return <WorkspaceContext value={value}>{children}</WorkspaceContext>;

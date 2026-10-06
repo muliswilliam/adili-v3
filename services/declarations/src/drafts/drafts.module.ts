@@ -8,16 +8,26 @@ import { AttachmentsService } from './attachments.service.js';
 import { DraftsController } from './drafts.controller.js';
 import { DraftsService } from './drafts.service.js';
 import { SectionCipher } from './section-cipher.js';
+import { SuggestionCipher } from '../suggestions/suggestion-cipher.js';
+import { SuggestionReopening } from '../suggestions/reopening.js';
 
 /**
  * Declaration drafts (spec 05): started from a filing obligation, captured section by section,
  * each section encrypted with the Commission's key (`FieldCipher`, provided by the app), with
- * attachments on statement items held by the documents service.
+ * attachments on statement items held by the documents service. A save reopens the accepted
+ * registry suggestions it no longer bears out (`SuggestionReopening`), so the suggestions'
+ * encryption is provided here.
  */
 @Module({
   imports: [ClockModule, DirectoryModule, DocumentsModule],
   controllers: [DraftsController, AttachmentsController],
-  providers: [DraftsService, AttachmentsService, SectionCipher],
-  exports: [DraftsService, SectionCipher],
+  providers: [
+    DraftsService,
+    AttachmentsService,
+    SectionCipher,
+    SuggestionCipher,
+    SuggestionReopening,
+  ],
+  exports: [DraftsService, SectionCipher, SuggestionCipher],
 })
 export class DraftsModule {}

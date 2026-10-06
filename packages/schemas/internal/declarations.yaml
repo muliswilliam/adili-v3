@@ -3490,12 +3490,18 @@ components:
               - key
               - action
           description: Statement sections created, archived or restored by a household save; an archived statement is kept until the draft is discarded
+        reopenedSuggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReopenedSuggestion'
+          description: "Registry suggestions (KRA, NTSA, BRS, ArdhiSasa) the declarant had accepted that this save offers again: it deleted the item one went into, or changed or cleared the item's identifier (a registration, parcel, company or spouse's KRA PIN). Each is `new` again, with no `acceptedItemId`; `declaration.suggestion-reopened.v1` is recorded for each. A document's reading, and a dismissed suggestion, is never reopened. Usually empty"
       required:
         - key
         - completeness
         - draftVersion
         - issues
         - sectionsChanged
+        - reopenedSuggestions
     AttachmentLink:
       type: object
       properties:
@@ -5299,6 +5305,36 @@ components:
         - documentKind
         - reason
         - suggestions
+    ReopenedSuggestion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        setId:
+          type: string
+          format: uuid
+        personKey:
+          type: string
+        sectionKey:
+          $ref: '#/components/schemas/SectionKey'
+        status:
+          type: string
+          const: new
+        matchItemId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: 'The item of the section whose identifier the suggestion now matches, if any: offer "Apply to this item"'
+      required:
+        - id
+        - setId
+        - personKey
+        - sectionKey
+        - status
+        - matchItemId
+      description: "An accepted registry suggestion a section save offered again, by its identifiers: `new` again, with no item (`acceptedItemId` null in `listSuggestions`); what it proposes is unchanged (`listSuggestions`). Identifiers only, so a save is not a read of the registry's record"
     RegistryLookupRequest:
       type: object
       properties:

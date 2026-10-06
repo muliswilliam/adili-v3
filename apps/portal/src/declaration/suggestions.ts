@@ -6,7 +6,11 @@ import type {
   LoadedSuggestion,
   LoadedSuggestionSet,
 } from '../server/declarations.server';
-import type { DocumentKind, RegistrySystem } from '../server/declarations/types';
+import type {
+  DocumentKind,
+  RegistrySystem,
+  ReopenedSuggestion,
+} from '../server/declarations/types';
 import {
   allOf,
   ASSET_TYPES,
@@ -465,15 +469,19 @@ export function registryStatus(
 }
 
 /**
- * The status strip: one entry per registry, counting the still-actionable (`new`) suggestions of
- * the registry's latest set. Accepted and dismissed ones, and earlier checks, do not count, so a
- * re-check that finds nothing new reads "Nothing found".
+ * The status strip: one entry per registry, counting its still-actionable (`new`) suggestions.
+ * Accepted and dismissed ones do not count, so a re-check that finds nothing new reads "Nothing
+ * found". A re-check supersedes the `new` ones of earlier checks, so those counted are the latest
+ * set's and any acceptance a save reopened since (#738), whichever check it came from.
  */
 export function registryEntries(sets: LoadedSuggestionSet[]): RegistryStatusEntry[] {
   const latest = latestSets(sets);
   return REGISTRIES.map((source) => {
     const set = latest[source];
-    const count = set?.suggestions.filter((each) => each.status === 'new').length ?? 0;
+    const count = sets
+      .filter((each) => each.source === source)
+      .flatMap((each) => each.suggestions)
+      .filter((each) => each.status === 'new').length;
     return {
       id: source,
       name: SOURCE_NAMES[source],
@@ -533,6 +541,27 @@ export function withSuggestion(
         }
       : set,
   );
+}
+
+/**
+ * Puts the suggestions a save reopened (#738) back as the service now has them: `new`, with no
+ * item, matched to the item it names now, if any.
+ */
+export function withReopened(
+  sets: LoadedSuggestionSet[],
+  reopened: readonly ReopenedSuggestion[],
+): LoadedSuggestionSet[] {
+  const byId = new Map(reopened.map((each) => [each.id, each]));
+  if (!sets.some((set) => set.suggestions.some((each) => byId.has(each.id)))) return sets;
+  return sets.map((set) => ({
+    ...set,
+    suggestions: set.suggestions.map((each) => {
+      const now = byId.get(each.id);
+      return now
+        ? { ...each, status: now.status, acceptedItemId: null, matchItemId: now.matchItemId }
+        : each;
+    }),
+  }));
 }
 
 /** The category and item with this id in a statement-shaped object, or null. */

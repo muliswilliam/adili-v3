@@ -26,6 +26,7 @@ export type Reminder = Schemas['Reminder'];
 export type ReminderOutcome = Schemas['ReminderOutcome'];
 export type SectionEnvelope = Schemas['SectionEnvelope'];
 export type SectionKey = Schemas['SectionKey'];
+export type ReopenedSuggestion = Schemas['ReopenedSuggestion'];
 export type SectionSaveResult = Schemas['SectionSaveResult'];
 export type SubmissionResult = Schemas['SubmissionResult'];
 export type SubmitProblem = Schemas['SubmitProblem'];
