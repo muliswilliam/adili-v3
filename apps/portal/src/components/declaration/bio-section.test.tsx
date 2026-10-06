@@ -2,9 +2,17 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { saveDeclarationSection } from '../../server/declarations';
+import {
+  acceptDeclarationSuggestion,
+  getDeclarationSection,
+  listDeclarationSuggestions,
+  requestRegistryLookups,
+  saveDeclarationSection,
+} from '../../server/declarations';
+import type { LoadedSuggestion, LoadedSuggestionSet } from '../../server/declarations.server';
 import { BIO_MESSAGES } from '../../declaration/bio';
 import { BioSection, ROSTER_NOTE } from './bio-section';
+import { IPRS_BIRTH_COPY } from './iprs-birth-check';
 import { ROSTER_HINT } from '../../declaration/copy';
 import { DECLARATION_ID, renderWorkspace, sampleBio, sampleDeclaration } from './testing';
 
@@ -273,5 +281,139 @@ describe('opening a field from Ask Adili', () => {
     await waitFor(() => {
       expect(document.activeElement?.id).toBe('bio-nature');
     });
+  });
+});
+
+describe('date and place of birth from IPRS (#612, story 2)', () => {
+  const listMock = vi.mocked(listDeclarationSuggestions);
+  const lookupsMock = vi.mocked(requestRegistryLookups);
+  const acceptMock = vi.mocked(acceptDeclarationSuggestion);
+  const getSectionMock = vi.mocked(getDeclarationSection);
+
+  const birth: LoadedSuggestion = {
+    id: '5a000000-0000-4000-8000-0000000000b1',
+    setId: '5a000000-0000-4000-8000-0000000000b0',
+    personKey: 'officer',
+    sectionKey: 'bio',
+    itemType: 'bio-birth',
+    fields: { dateOfBirth: '1984-03-12', placeOfBirth: 'Eldoret' },
+    sourceRef: {},
+    confidence: null,
+    matchItemId: null,
+    status: 'new',
+    acceptedItemId: null,
+  };
+  const ready: LoadedSuggestionSet = {
+    id: birth.setId,
+    personKey: 'officer',
+    source: 'iprs',
+    status: 'ready',
+    requestedAt: '2027-10-01T08:00:00.000Z',
+    readyAt: '2027-10-01T08:00:02.000Z',
+    verificationResultId: null,
+    aiJobId: null,
+    attachmentId: null,
+    documentKind: null,
+    reason: null,
+    suggestions: [birth],
+  };
+
+  beforeEach(() => {
+    listMock.mockReset();
+    lookupsMock.mockReset();
+    acceptMock.mockReset();
+    getSectionMock.mockReset();
+  });
+
+  it("asks IPRS only with the declarant's consent, for them alone", async () => {
+    listMock.mockResolvedValue({ status: 'ok', sets: [] });
+    lookupsMock.mockResolvedValue({
+      status: 'started',
+      sets: [{ ...ready, status: 'pending', suggestions: [] }],
+    });
+    renderBio();
+
+    fireEvent.click(screen.getByRole('button', { name: IPRS_BIRTH_COPY.check }));
+    const dialog = await screen.findByRole('dialog', { name: IPRS_BIRTH_COPY.consentTitle });
+    expect(dialog.textContent).toContain(IPRS_BIRTH_COPY.consentBody('Mwangi Njoroge Kamau'));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'I request this check' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
+
+    await waitFor(() => {
+      expect(lookupsMock).toHaveBeenCalledWith({
+        data: {
+          declarationId: DECLARATION_ID,
+          personKey: 'officer',
+          systems: ['iprs'],
+          textVersion: 'iprs-birth-consent.v1',
+          idempotencyKey: expect.any(String) as string,
+        },
+      });
+    });
+    expect(await screen.findByText(IPRS_BIRTH_COPY.checking)).toBeTruthy();
+  });
+
+  it('fills the bio from what IPRS holds when the declarant uses it', async () => {
+    listMock.mockResolvedValue({ status: 'ok', sets: [ready] });
+    acceptMock.mockResolvedValue({
+      status: 'accepted',
+      suggestion: { ...birth, status: 'accepted' },
+      itemId: null,
+      etag: '"2"',
+    });
+    getSectionMock.mockResolvedValue({
+      status: 'ok',
+      etag: '"2"',
+      section: {
+        ...sampleBio({ birth: { date: '1984-03-12', place: 'Eldoret' } }),
+        draftVersion: 2,
+      },
+    });
+    renderBio();
+
+    const card = await screen.findByRole('article', { name: /Born 12 Mar 1984 in Eldoret/ });
+    fireEvent.click(within(card).getByRole('button', { name: /Use these/ }));
+
+    await waitFor(() => {
+      expect(textbox('Place of birth').value).toBe('Eldoret');
+    });
+    expect(acceptMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        declarationId: DECLARATION_ID,
+        suggestionId: birth.id,
+        fields: birth.fields,
+        applyToItemId: null,
+        overwrite: true,
+      }) as unknown,
+    });
+  });
+
+  it.each([
+    [
+      'still checking',
+      { ...ready, status: 'pending' as const, suggestions: [] },
+      IPRS_BIRTH_COPY.checking,
+    ],
+    [
+      'IPRS did not answer',
+      { ...ready, status: 'unavailable' as const, suggestions: [] },
+      IPRS_BIRTH_COPY.unavailable,
+    ],
+    ['IPRS has no record', { ...ready, suggestions: [] }, IPRS_BIRTH_COPY.notFound],
+  ])('says so when %s', async (_, set, text) => {
+    listMock.mockResolvedValue({ status: 'ok', sets: [set] });
+    renderBio();
+
+    expect(await screen.findByText(text)).toBeTruthy();
+    expect(screen.getByRole('button', { name: IPRS_BIRTH_COPY.checkAgain })).toBeTruthy();
+  });
+
+  it('offers nothing to use when the bio already says what IPRS does', async () => {
+    listMock.mockResolvedValue({ status: 'ok', sets: [ready] });
+    renderBio({ birth: { date: '1984-03-12', place: 'Eldoret' } });
+
+    const card = await screen.findByRole('article', { name: /Born 12 Mar 1984 in Eldoret/ });
+    expect(within(card).getByText(IPRS_BIRTH_COPY.matches)).toBeTruthy();
+    expect(within(card).queryByRole('button', { name: /Use these/ })).toBeNull();
   });
 });

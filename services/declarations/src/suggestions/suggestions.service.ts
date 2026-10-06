@@ -2,7 +2,7 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import type { PersonKey } from '@adili/forms';
+import { ITEM_SOURCE_KINDS, type ItemSource, type PersonKey } from '@adili/forms';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -251,15 +251,19 @@ export class SuggestionsService {
     const accepted = { ...parsed.data, overwrite: parsed.data.overwrite === true };
     const offered = await this.cipher.open(declaration.tenant, declaration.id, row.id, row);
     const verificationResultId = row.verificationResultId ?? set.verificationResultId;
-    const source = {
-      kind: set.source,
-      suggestionId: row.id,
-      ...(verificationResultId ? { verificationResultId } : {}),
-      ...(set.aiJobId ? { aiJobId: set.aiJobId } : {}),
-      at: this.clock.now().toISOString(),
-    };
+    const { source: kind } = set;
+    // What an item's `source` can name; IPRS's go into the bio, which has none.
+    const source = isItemSourceKind(kind)
+      ? {
+          kind,
+          suggestionId: row.id,
+          ...(verificationResultId ? { verificationResultId } : {}),
+          ...(set.aiJobId ? { aiJobId: set.aiJobId } : {}),
+          at: this.clock.now().toISOString(),
+        }
+      : null;
     const placement =
-      set.source === 'document' && set.targetSection && isStatementKey(row.sectionKey)
+      source && kind === 'document' && set.targetSection && isStatementKey(row.sectionKey)
         ? readingPlacementOf(
             {
               sectionKey: row.sectionKey,
@@ -277,7 +281,7 @@ export class SuggestionsService {
             source,
             uuidv7(),
           );
-    let itemId = '';
+    let itemId: string | null = null;
     let decided: SuggestionRow | undefined;
     let saved: { draftVersion: number };
     try {
@@ -453,6 +457,12 @@ function parseRequest(body: unknown): RegistryLookupRequest {
   if (!parsed.success) {
     throw validationProblem(fieldErrors(parsed.error.issues));
   }
+  // IPRS gives what the bio declares; a household member's birth is not declared, so not looked up.
+  if (!isOfficer(parsed.data.personKey) && parsed.data.systems.includes('iprs')) {
+    throw validationProblem([
+      { path: 'systems', message: 'IPRS is checked only for the declarant' },
+    ]);
+  }
   return parsed.data;
 }
 
@@ -466,7 +476,7 @@ async function decide(
   tx: Transaction,
   suggestionId: string,
   decision:
-    | { status: 'accepted'; acceptedItemId: string }
+    | { status: 'accepted'; acceptedItemId: string | null }
     | {
         status: 'dismissed';
         reasonCiphertext: Buffer | null;
@@ -495,4 +505,8 @@ function notNew(): ProblemException {
   return ProblemException.fromCode('not-new', {
     detail: 'This suggestion was accepted, dismissed or replaced by a later check already.',
   });
+}
+
+function isItemSourceKind(kind: string): kind is ItemSource['kind'] {
+  return (ITEM_SOURCE_KINDS as readonly string[]).includes(kind);
 }

@@ -68,7 +68,8 @@ export interface DeclarationSuggestionAcceptedData extends Record<string, unknow
   setId: string;
   source: SuggestionSource;
   sectionKey: string;
-  itemId: string;
+  /** Null for a bio field (IPRS's birth), which is no item. */
+  itemId: string | null;
   /** Applied to an item already declared, rather than added as a new one. */
   applied: boolean;
 }

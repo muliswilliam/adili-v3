@@ -110,6 +110,12 @@ Built as the spec lists them, identifiers only, in `services/declarations/src/su
 
 Declarations consumes the ai-gateway's `ai.job.completed|failed|blocked.v1` for `extract-document` jobs whose subject is a declaration (#315). The consumer only signals the reading's `DocumentReadingWorkflow`, which pulls the job and settles the set.
 
+## After convergence: IPRS and the previous household (#612)
+
+- integration-gateway: `lookupIprsPersonRecord` (`POST /internal/v1/iprs/person-record-lookups`), scope `registry`, the same purpose headers, recording and `IprsResult` envelope (`person`, null unless found) as the other registry lookups. Onboarding's `lookupIprsPerson` is unchanged but for `IprsPerson.placeOfBirth`, which both now carry; the 24-hour cache is shared.
+- declarations: `iprs` joins `RegistryLookupRequest.systems` and `SuggestionSource`, for `officer` only (400 for a household member: their birth is not declared). Its one suggestion is `bio-birth` (`dateOfBirth`, `placeOfBirth`) in `bio`; accepting fills `birth.date` and `birth.place` (only empty ones unless `overwrite`), so `SuggestionAcceptance.itemId` and the event's `itemId` are null for it.
+- declarations: a new draft's household is the spouses and children of the declarant's last submitted declaration (its version in force), shown with `SectionEnvelope.carriedOverFrom.statementDate`. It starts `not-started`: the declarant confirms it by saving, which sets up the statements.
+
 ## Open after convergence
 
 None of these is a contract left in a draft; each needs a contract change when it is built:

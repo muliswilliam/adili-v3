@@ -248,6 +248,7 @@ export function startDeclaration(
       ...hr,
     },
   };
+  const carried = carriedHousehold(owner, obligation.commission.slug, obligation.statementDate);
   const officerStatement = emptyStatement('officer', roster.name, header);
   const sourced = obligation.commission.slug === 'psc';
   if (sourced) officerStatement.assets = sourcedAssets(now);
@@ -260,7 +261,7 @@ export function startDeclaration(
     lastSection: null,
     contents: new Map([
       ['bio', officer],
-      ['household', {}],
+      ['household', carried ? deriveHousehold(carried.household, header.statementDate) : {}],
       ['statement:officer', officerStatement],
       ['other', {}],
     ]),
@@ -276,6 +277,7 @@ export function startDeclaration(
     },
     versions: [],
     filed: new Map(),
+    ...(carried ? { carriedOverFrom: { statementDate: carried.statementDate } } : {}),
   };
   store.set(header.id, stored);
   return json(201, view(stored), { ETag: etag(stored) });
@@ -307,10 +309,65 @@ export function getSection(id: string, key: string) {
       completeness: completeness(stored, key),
       contents: sectionContents(stored, key),
       issues: issuesFor(stored, key),
+      ...(key === 'household' && stored.carriedOverFrom
+        ? { carriedOverFrom: stored.carriedOverFrom }
+        : {}),
       draftVersion: stored.draftVersion,
     },
     { ETag: etag(stored) },
   );
+}
+
+/**
+ * The spouses and children of the declarant's last submitted declaration to the same Commission
+ * before this statement date, as its version in force filed them (story 4), or null when there is
+ * none or it listed nobody. As the service does, the latest statement date wins, and on a tie the
+ * highest declaration id. "None" answers are not carried, and each person's id is carried in
+ * lower case like the statement keys made of it.
+ */
+function carriedHousehold(
+  owner: string | null,
+  commission: string,
+  statementDate: string,
+): { household: Draft<Household>; statementDate: string } | null {
+  const last = [...store.values()]
+    .filter(
+      (each) =>
+        each.owner === owner &&
+        (each.status === 'submitted' || each.status === 'amending') &&
+        each.header.commission.slug === commission &&
+        each.header.statementDate < statementDate &&
+        each.versions.length > 0,
+    )
+    .sort(
+      (a, b) =>
+        b.header.statementDate.localeCompare(a.header.statementDate) ||
+        b.header.id.localeCompare(a.header.id),
+    )[0];
+  const version = last?.versions.at(-1)?.version;
+  const document = version === undefined ? undefined : last?.filed.get(version)?.document;
+  if (!last || !document) return null;
+  const items = (list: unknown): Record<string, unknown>[] =>
+    isRecord(list) && Array.isArray(list.items)
+      ? list.items.map((item) => withLowerCaseId(item))
+      : [];
+  const spouses = items(document.spouses);
+  const children = items(document.children);
+  if (spouses.length === 0 && children.length === 0) return null;
+  return {
+    household: {
+      spouses: { none: false, items: spouses },
+      children: { none: false, items: children },
+    },
+    statementDate: last.header.statementDate,
+  };
+}
+
+/** A copy of the listed person, its id in lower case like the statement keys made of it. */
+function withLowerCaseId(item: unknown): Record<string, unknown> {
+  const person = isRecord(item) ? { ...item } : {};
+  if (typeof person.id === 'string') person.id = person.id.toLowerCase();
+  return person;
 }
 
 export function sameVersion(ifMatch: string, stored: Stored) {

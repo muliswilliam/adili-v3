@@ -47,7 +47,6 @@ import type {
   LoadedSuggestion,
   LoadedSuggestionSet,
 } from '../../server/declarations.server';
-import type { RegistrySystem } from '../../server/declarations/types';
 import type { Draft, PersonKey, Statement } from '../../declaration/contents';
 import { relationOfPerson } from '../../declaration/section-key';
 import type { AnyItem, Item } from '../../declaration/statement';
@@ -60,7 +59,9 @@ import {
   incomeHintText,
   isChecking,
   lastChecked,
-  REGISTRIES,
+  isStatementSet,
+  STATEMENT_REGISTRIES,
+  type StatementRegistry,
   registryEntries,
   type ShownSuggestion,
   shownSuggestions,
@@ -159,9 +160,10 @@ export function RegistriesPanel({
   const declarationId = declaration.id;
   const isOfficer = relationOfPerson(personKey) === 'officer';
 
-  const [sets, setSets] = useState(initialSets);
+  // IPRS's sets are the bio's (#612), not this panel's.
+  const [sets, setSets] = useState(() => initialSets.filter(isStatementSet));
   // The registries the consent dialog is open for: every one, or one to retry. Null when closed.
-  const [consentFor, setConsentFor] = useState<readonly RegistrySystem[] | null>(null);
+  const [consentFor, setConsentFor] = useState<readonly StatementRegistry[] | null>(null);
   const [starting, setStarting] = useState(false);
   const [refusedNoId, setRefusedNoId] = useState(false);
   const [busy, setBusy] = useState<Busy>({});
@@ -192,8 +194,9 @@ export function RegistriesPanel({
     read: () => listDeclarationSuggestions({ data: { declarationId, personKey } }),
     onRead: (result) => {
       if (result?.status !== 'ok') return false;
-      setSets(result.sets);
-      return !isChecking(result.sets);
+      const own = result.sets.filter(isStatementSet);
+      setSets(own);
+      return !isChecking(own);
     },
     onGiveUp: () => {
       stopped.current = true;
@@ -217,7 +220,7 @@ export function RegistriesPanel({
     wasChecking.current = checking;
   }, [checking, person.name]);
 
-  async function start(systems: readonly RegistrySystem[]) {
+  async function start(systems: readonly StatementRegistry[]) {
     setStarting(true);
     try {
       const result = await requestRegistryLookups({
@@ -250,7 +253,7 @@ export function RegistriesPanel({
   async function reread() {
     try {
       const result = await listDeclarationSuggestions({ data: { declarationId, personKey } });
-      if (result.status === 'ok') setSets(result.sets);
+      if (result.status === 'ok') setSets(result.sets.filter(isStatementSet));
     } catch {
       // Keep what is shown; the next check reads them again.
     }
@@ -272,7 +275,8 @@ export function RegistriesPanel({
     if (result.status === 'accepted') {
       setSets((current) => withSuggestion(current, result.suggestion));
       if (words.applied) setApplied((current) => new Set([...current, suggestion.id]));
-      onAccepted({ itemId: result.itemId, section: result.section });
+      // Statement registries always fill an item; only IPRS's birth (the bio's) names none.
+      if (result.itemId !== null) onAccepted({ itemId: result.itemId, section: result.section });
       toast({ title: result.retried ? words.refreshed : words.done });
     } else {
       toast({ title: REGISTRY_COPY.acceptFailed });
@@ -471,7 +475,7 @@ export function RegistriesPanel({
       size="sm"
       disabled={disabled || checking || starting}
       onClick={() => {
-        setConsentFor(REGISTRIES);
+        setConsentFor(STATEMENT_REGISTRIES);
       }}
     >
       <Icon icon={checkIcon} />
@@ -480,13 +484,13 @@ export function RegistriesPanel({
   );
 
   // What the consent dialog names is exactly what is asked (and what its text version says).
-  const asked = consentFor ?? REGISTRIES;
+  const asked = consentFor ?? STATEMENT_REGISTRIES;
 
   const sub = checking
     ? REGISTRY_COPY.checking
     : checkedAt
       ? REGISTRY_COPY.checked(checkedAt)
-      : listNames(REGISTRIES.map((source) => SOURCE_NAMES[source]));
+      : listNames(STATEMENT_REGISTRIES.map((source) => SOURCE_NAMES[source]));
 
   return (
     <section aria-labelledby={headingId}>
@@ -531,11 +535,11 @@ export function RegistriesPanel({
               disabled={disabled || starting}
               onRetry={(id) => {
                 // A retry asks the registry again, so it needs the declarant's request again.
-                const source = REGISTRIES.find((registry) => registry === id);
+                const source = STATEMENT_REGISTRIES.find((registry) => registry === id);
                 if (source) setConsentFor([source]);
               }}
             />
-            {REGISTRIES.map((source) => {
+            {STATEMENT_REGISTRIES.map((source) => {
               const group = live.filter((each) => each.source === source);
               if (group.length === 0) return null;
               return (

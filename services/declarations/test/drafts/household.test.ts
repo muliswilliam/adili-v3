@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { duplicatePeople, householdPeople, planStatements } from '../../src/drafts/household.js';
+import {
+  carriedHousehold,
+  duplicatePeople,
+  householdPeople,
+  planStatements,
+} from '../../src/drafts/household.js';
 
 const SPOUSE = '0192f1a0-5a11-7000-8000-000000000101';
 const CHILD = '0192f1a0-5a11-7000-8000-000000000201';
@@ -92,5 +97,38 @@ describe('planStatements', () => {
     expect(plan.keep.map((p) => p.personKey)).toEqual([`child:${CHILD}`]);
     expect(plan.restore.map((p) => p.personKey)).toEqual([`child:${ADULT}`]);
     expect(plan.archive).toEqual(['spouse:0192f1a0-5a11-7000-8000-000000000999']);
+  });
+});
+
+describe('carriedHousehold', () => {
+  it('offers the people last declared under their ids, without the none answers', () => {
+    const spouse = { id: SPOUSE.toUpperCase(), name, separated: false, kraPin: 'A123456789B' };
+    const child = { id: CHILD, name, dateOfBirth: '2009-11-02', includedAtStatementDate: true };
+
+    expect(
+      carriedHousehold({
+        spouses: { none: false, items: [spouse] },
+        children: { none: false, items: [child] },
+      }),
+    ).toEqual({
+      spouses: { none: false, items: [{ ...spouse, id: SPOUSE }] },
+      children: { none: false, items: [child] },
+    });
+  });
+
+  it('carries one list without the other, the other left unanswered', () => {
+    expect(
+      carriedHousehold({
+        spouses: { none: true, items: [] },
+        children: { none: false, items: [{ id: CHILD, name, dateOfBirth: '2009-11-02' }] },
+      }),
+    ).toMatchObject({ spouses: { none: false, items: [] } });
+  });
+
+  it('carries nothing from a household that listed nobody', () => {
+    expect(
+      carriedHousehold({ spouses: { none: true, items: [] }, children: { none: true, items: [] } }),
+    ).toBeNull();
+    expect(carriedHousehold({})).toBeNull();
   });
 });

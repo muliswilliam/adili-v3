@@ -1,6 +1,7 @@
 import type {
   ArdhisasaResult,
   BrsResult,
+  IprsResult,
   KraResult,
   NtsaResult,
   RegistrySystem,
@@ -261,3 +262,36 @@ export const kra = {
     taxpayers: [],
   },
 } satisfies Record<string, KraResult>;
+
+export const iprs = {
+  found: {
+    ...envelope('iprs', '6f1d2a8e-0b1c-4c55-9c1e-2f0a3b4c5d41'),
+    person: {
+      nationalId: '23456789',
+      firstName: 'Achieng',
+      middleName: 'Wambui',
+      lastName: 'Otieno',
+      dateOfBirth: '1980-04-02',
+      placeOfBirth: 'Kisumu',
+      sex: 'F',
+    },
+  },
+  /** IPRS holds no place of birth for the person. */
+  partial: {
+    ...envelope('iprs', '6f1d2a8e-0b1c-4c55-9c1e-2f0a3b4c5d42'),
+    person: {
+      nationalId: '23456789',
+      firstName: 'Achieng',
+      middleName: null,
+      lastName: 'Otieno',
+      dateOfBirth: '1980-04-02',
+      placeOfBirth: null,
+      sex: 'F',
+    },
+  },
+  notFound: {
+    ...envelope('iprs', '6f1d2a8e-0b1c-4c55-9c1e-2f0a3b4c5d43'),
+    outcome: 'not-found',
+    person: null,
+  },
+} satisfies Record<string, IprsResult>;

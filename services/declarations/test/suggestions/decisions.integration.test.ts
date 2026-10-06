@@ -20,8 +20,8 @@ import {
   startDeclarationsApi,
 } from '../support/declarations-api.js';
 import { rosterRecord } from '../support/fake-directory.js';
-import { registryCheckFixtures } from '../support/registry-checks.js';
-import { ardhisasa, brs, kra, ntsa } from '../fixtures/registry-results.js';
+import { CONSENT, registryCheckFixtures } from '../support/registry-checks.js';
+import { ardhisasa, brs, iprs, kra, ntsa } from '../fixtures/registry-results.js';
 import { household, SPOUSE_ID, spouse } from '../fixtures/sections.js';
 
 /**
@@ -47,12 +47,14 @@ const DISMISS = '/v1/declarations/{declarationId}/suggestions/{suggestionId}/dis
 
 interface Acceptance {
   suggestion: Suggestion;
-  itemId: string;
+  itemId: string | null;
   etag: string;
 }
 
 let api: DeclarationsApi;
-const { givenOfficerNationalId, checked, eventsOf } = registryCheckFixtures(() => api);
+const { givenOfficerNationalId, checked, eventsOf, requestLookups } = registryCheckFixtures(
+  () => api,
+);
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
@@ -498,6 +500,47 @@ describe('accepting a suggestion (S4)', () => {
       tx.select().from(suggestions).where(eq(suggestions.id, pin.id)),
     );
     expect(row?.status).toBe('new');
+  });
+
+  it("fills the officer's date and place of birth from IPRS into the bio, as no item (#612)", async () => {
+    const draft = await givenDraft();
+    api.gateway.given('iprs', OFFICER_ID, iprs.found);
+    const [set] = await checked(draft.id, achieng, 'officer', ['iprs']);
+    const birth = suggestionOf(set, 'bio-birth');
+    expect(birth).toMatchObject({
+      sectionKey: 'bio',
+      fields: { dateOfBirth: '1980-04-02', placeOfBirth: 'Kisumu' },
+    });
+
+    const result = await accepted(draft.id, birth);
+
+    expect(result.itemId).toBeNull();
+    expect(result.suggestion.status).toBe('accepted');
+    expect((await section(draft.id, 'bio')).contents.birth).toEqual({
+      date: '1980-04-02',
+      place: 'Kisumu',
+    });
+    expect(api.gateway.calls.at(-1)).toMatchObject({
+      system: 'iprs',
+      legalBasis: 'declarant-request',
+      caseRef: draft.id,
+    });
+  });
+
+  it('checks IPRS only for the declarant (400 for a household member)', async () => {
+    const draft = await givenDraft();
+    const contents = household();
+    contents.spouses.items = [spouse({ nationalId: SPOUSE_NATIONAL_ID })];
+    await save(draft.id, 'household', contents);
+
+    const response = await requestLookups(
+      draft.id,
+      { personKey: `spouse:${SPOUSE_ID}`, systems: ['iprs'], consent: CONSENT },
+      achieng,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(api.gateway.calls).toEqual([]);
   });
 
   it("puts a spouse's KRA PIN on the spouse in Household", async () => {

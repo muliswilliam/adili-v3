@@ -119,6 +119,15 @@ const prefilledFieldsSchema = z.array(z.string()).meta({
   examples: [['/employment/jobGroup', '/maritalStatus']],
 });
 
+const carriedOverFromSchema = z
+  .object({
+    statementDate: z.iso.date().meta({ description: "The earlier declaration's statement date" }),
+  })
+  .meta({
+    description:
+      "Household only, when the draft was started with the spouses and children of the declarant's last submitted declaration (its version in force). The household is offered, not confirmed: it is `not-started` until the declarant saves it, and that save sets up the statements. Absent when the household started empty.",
+  });
+
 export const sectionEnvelopeSchema = z.object({
   key: sectionKeySchema,
   completeness: completenessSchema,
@@ -126,6 +135,7 @@ export const sectionEnvelopeSchema = z.object({
   issues: z.array(completenessIssueSchema),
   notIncluded: notIncludedSchema.optional(),
   prefilledFields: prefilledFieldsSchema.optional(),
+  carriedOverFrom: carriedOverFromSchema.optional(),
   draftVersion: z.int(),
 });
 export type SectionEnvelope = z.infer<typeof sectionEnvelopeSchema>;

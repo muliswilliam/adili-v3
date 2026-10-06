@@ -403,7 +403,8 @@ function Review({
     );
     onBusy(false);
     setWorking('idle');
-    if (result.status === 'accepted') {
+    // A reading always fills an item; only IPRS's birth, never read here, names none.
+    if (result.status === 'accepted' && result.itemId !== null) {
       onApplied({ itemId: result.itemId, contents: result.section?.contents ?? null, mode });
       onClose();
     } else {

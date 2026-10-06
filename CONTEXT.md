@@ -98,7 +98,7 @@ A change meeting Act s.31(4): 25% or more in value, acquisition or disposal, mar
 _Avoid_: significant change, delta
 
 **Suggestion**:
-An item (or a person's tax fields) proposed for the declarant to accept, edit and accept, or dismiss, from a registry they asked to be checked or a document they attached; nothing enters the declaration until they accept it, and the item then carries its source.
+An item (or a person's tax fields, or the declarant's date and place of birth from IPRS) proposed for the declarant to accept, edit and accept, or dismiss, from a registry they asked to be checked or a document they attached; nothing enters the declaration until they accept it, and an item then carries its source.
 _Avoid_: pre-fill (for the item), insertion, recommendation
 
 **Reading (Read into the form)**:

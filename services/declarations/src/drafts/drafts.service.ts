@@ -1,10 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
-import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
+import {
+  type Database,
+  FieldCipher,
+  InjectDatabase,
+  type PersonContext,
+  withPerson,
+} from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { ATTESTATION_TEXT, type DeclarationSectionKey, type PersonKey } from '@adili/forms';
 
-import { and, count, desc, eq, inArray, max, ne, notInArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, lt, max, ne, notInArray, type SQL, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { deleteWhatGoesWithTheDraft } from './draft-ended.js';
@@ -18,6 +24,7 @@ import { commissionRef } from '../obligations/access.js';
 import { nairobiDate } from '../obligations/dates.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
 import { acknowledgementOf } from '../declaration/acknowledgement.js';
+import { openSnapshot, versionRow, type VersionRow } from '../declaration/versions.js';
 import { declarations, declarationVersions, isEditable } from '../declaration/schema.js';
 import { amendRefusal, isLate, submitRefusal } from '../declaration/window.js';
 import { keptSources } from '../suggestions/item-sources.js';
@@ -30,7 +37,12 @@ import {
   declarationDraftStarted,
   declarationSectionSaved,
 } from './events.js';
-import { duplicatePeople, householdPeople, type NotIncluded } from './household.js';
+import {
+  carriedHousehold,
+  duplicatePeople,
+  householdPeople,
+  type NotIncluded,
+} from './household.js';
 import { composeMaterialChanges } from './material-changes.js';
 import {
   declarationNotDraft,
@@ -115,13 +127,15 @@ export class DraftsService {
     private readonly directory: DirectoryClient,
     private readonly documents: DocumentsClient,
     private readonly sections: SectionCipher,
+    private readonly cipher: FieldCipher,
     private readonly events: EventPublisher,
     private readonly clock: Clock,
   ) {}
 
   /**
    * The declarant's draft for the obligation: the existing live one (`created: false`), or a new
-   * one derived from the obligation with bio pre-filled from the roster record. 409 when the
+   * one derived from the obligation with bio pre-filled from the roster record and household
+   * offered from their last declaration. 409 when the
    * obligation is filed or cancelled, even while a draft of it is live.
    */
   async start(
@@ -150,19 +164,25 @@ export class DraftsService {
         .limit(1);
       if (!obligation) return null;
       const existing = await liveDeclarationOf(tx, obligationId);
+      // A declaration being amended was submitted all the same.
+      const submitted = and(
+        eq(declarations.personId, person.personId),
+        inArray(declarations.status, ['submitted', 'amending']),
+      );
       const [previous] = await tx
         .select({ statementDate: max(declarations.statementDate) })
         .from(declarations)
-        .where(
-          and(
-            eq(declarations.personId, person.personId),
-            // A declaration being amended was submitted all the same.
-            inArray(declarations.status, ['submitted', 'amending']),
-          ),
-        );
-      return { obligation, existing, previousStatementDate: previous?.statementDate ?? null };
+        .where(submitted);
+      const previousVersion = existing ? null : await lastDeclaredBefore(tx, obligation, submitted);
+      return {
+        obligation,
+        existing,
+        previousStatementDate: previous?.statementDate ?? null,
+        previousVersion,
+      };
     });
-    const { obligation, existing, previousStatementDate } = notFoundIfInvisible(found);
+    const { obligation, existing, previousStatementDate, previousVersion } =
+      notFoundIfInvisible(found);
     // A filed or cancelled obligation is closed, whatever draft of it is still live.
     if (CLOSED_OBLIGATION_STATUSES.has(obligation.status)) {
       throw obligationClosed(obligation.status);
@@ -189,13 +209,14 @@ export class DraftsService {
       workStation: record.workStation,
       maritalStatus: record.maritalStatus,
     });
+    const household = await this.startingHousehold(previousVersion, header.statementDate);
     const initial: [DeclarationSectionKey, SectionContents, SectionMetadata][] = [
       [
         'bio',
         bio.contents,
         { lockedFields: bio.lockedFields, prefilledFields: bio.prefilledFields },
       ],
-      ['household', emptyHousehold(), {}],
+      household,
       [
         statementKey('officer'),
         emptyStatement({
@@ -268,6 +289,30 @@ export class DraftsService {
       ),
     );
     return { created: true, declaration: await this.read(person, id) };
+  }
+
+  /**
+   * Household as a new draft starts it: the spouses and children of the declarant's last submitted
+   * declaration before it with the Commission, as its version in force declared them (story 4), or empty when there is none or
+   * it listed nobody. Carried people are only offered: the section stays `not-started` until the
+   * declarant saves it, and that save sets up their statements.
+   */
+  private async startingHousehold(
+    previous: VersionRow | null,
+    statementDate: string,
+  ): Promise<[DeclarationSectionKey, SectionContents, SectionMetadata]> {
+    const declared = previous && (await openSnapshot(this.cipher, previous));
+    const carried = declared && carriedHousehold(declared);
+    if (!carried) return ['household', emptyHousehold(), {}];
+    const people = householdPeople(carried, statementDate);
+    return [
+      'household',
+      people.contents,
+      {
+        notIncluded: people.notIncluded,
+        carriedOverFrom: { statementDate: declared.statementDate },
+      },
+    ];
   }
 
   /** The draft's header and its sections' completeness, without contents. */
@@ -507,6 +552,10 @@ export class DraftsService {
       issues,
       ...(key === 'household' && { notIncluded: notIncludedOf(state.section.metadata) }),
       ...(key === 'bio' && { prefilledFields: state.section.metadata.prefilledFields ?? [] }),
+      ...(key === 'household' &&
+        state.section.metadata.carriedOverFrom && {
+          carriedOverFrom: state.section.metadata.carriedOverFrom,
+        }),
       draftVersion: state.declaration.draftVersion,
     };
   }
@@ -905,4 +954,30 @@ function expectedVersion(ifMatch: string | undefined): number {
 /** The household's children who get no statement, as stored in its clear metadata. */
 function notIncludedOf(metadata: SectionMetadata): NotIncluded[] {
   return (metadata.notIncluded ?? []) as NotIncluded[];
+}
+
+/**
+ * The version in force of the declarant's last declaration the new one follows (story 4): the
+ * latest submitted before its statement date, with the same Commission, whose key holds it (a
+ * household is not carried from one Commission's records into another's). Null when there is none.
+ */
+async function lastDeclaredBefore(
+  tx: Transaction,
+  obligation: { tenant: string; statementDate: string },
+  submitted: SQL | undefined,
+): Promise<VersionRow | null> {
+  const [last] = await tx
+    .select({ id: declarations.id, currentVersion: declarations.currentVersion })
+    .from(declarations)
+    .where(
+      and(
+        submitted,
+        eq(declarations.tenant, obligation.tenant),
+        lt(declarations.statementDate, obligation.statementDate),
+      ),
+    )
+    .orderBy(desc(declarations.statementDate), desc(declarations.id))
+    .limit(1);
+  if (last?.currentVersion == null) return null;
+  return versionRow(tx, last.id, last.currentVersion);
 }

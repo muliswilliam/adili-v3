@@ -32,6 +32,11 @@ export const REGISTRY_KINDS: readonly RegistryKind[] = SOURCE_KINDS.filter(
   (kind): kind is RegistryKind => kind !== 'document',
 );
 
+/** What a check of a person's assets and interests asks: every registry but IPRS. */
+const PROPERTY_REGISTRIES: readonly RegistryKind[] = REGISTRY_KINDS.filter(
+  (kind) => kind !== 'iprs',
+);
+
 /** The version of the default consent text (`ConsentMessages.body`): bump it on any change. */
 const CONSENT_TEMPLATE_VERSION = 'registry-consent.v1';
 
@@ -82,8 +87,8 @@ export interface ConsentDialogProps {
   maskedId?: string;
   /**
    * The registries this check asks, e.g. `['ardhisasa']` to retry one; the text names them in
-   * the fixed order. Defaults to every registry. Send `consentTextVersion` of the same list with
-   * the lookup.
+   * the fixed order. Defaults to KRA, NTSA, BRS and ArdhiSasa (a statement's check). Send
+   * `consentTextVersion` of the same list with the lookup.
    */
   registries?: readonly RegistryKind[];
   /**
@@ -107,7 +112,7 @@ export function ConsentDialog({
   onOpenChange,
   name,
   maskedId,
-  registries = REGISTRY_KINDS,
+  registries = PROPERTY_REGISTRIES,
   onContinue,
   busy = false,
   messages: overrides,

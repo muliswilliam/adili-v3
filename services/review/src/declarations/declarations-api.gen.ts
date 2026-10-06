@@ -933,7 +933,7 @@ export interface paths {
         put?: never;
         /**
          * Add the suggestion as an item, or apply it to an existing item (declarant); through the section save
-         * @description A read-modify-write of the suggestion's section on the declarant's behalf, as a section save with `If-Match`: a new item carries the suggestion as its `source` (declaration.v1 `ItemSource`), naming the registry's `verificationResultId` only when the item ends up holding what the registry gave (the description aside), so not for one the declarant edited or whose own differing values were kept; applied to an item (`applyToItemId`), only the fields the item leaves empty are filled unless `overwrite`, and the item takes the `source` if it has none, or with `overwrite`. A registry's suggestion never fills values. Where each type lands: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household` (the declarant's own has no field, 400). A document's reading (source `document`) is different: as new it adds an item of the reading's type in its statement list; its fields are written at their declaration.v1 paths, typed as read, amounts included (`value.kesCents`, `outstanding.kesCents`: the document's figure the declarant checked); a field it did not read is refused (400); applied to an item of another type, 400; it is not refused for an item holding another identifier. The suggestion becomes `accepted` with the item; the save records `declaration.section-saved.v1` and `declaration.suggestion-accepted.v1`.
+         * @description A read-modify-write of the suggestion's section on the declarant's behalf, as a section save with `If-Match`: a new item carries the suggestion as its `source` (declaration.v1 `ItemSource`), naming the registry's `verificationResultId` only when the item ends up holding what the registry gave (the description aside), so not for one the declarant edited or whose own differing values were kept; applied to an item (`applyToItemId`), only the fields the item leaves empty are filled unless `overwrite`, and the item takes the `source` if it has none, or with `overwrite`. A registry's suggestion never fills values. Where each type lands: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household` (the declarant's own has no field, 400); `bio-birth` (IPRS) the declarant's date and place of birth in `bio` (`birth.date`, `birth.place`), only where empty unless `overwrite`, with no item, so `itemId` is null. A document's reading (source `document`) is different: as new it adds an item of the reading's type in its statement list; its fields are written at their declaration.v1 paths, typed as read, amounts included (`value.kesCents`, `outstanding.kesCents`: the document's figure the declarant checked); a field it did not read is refused (400); applied to an item of another type, 400; it is not refused for an item holding another identifier. The suggestion becomes `accepted` with the item; the save records `declaration.section-saved.v1` and `declaration.suggestion-accepted.v1`.
          */
         post: operations["acceptSuggestion"];
         delete?: never;
@@ -1369,6 +1369,14 @@ export interface components {
              *     ]
              */
             prefilledFields?: string[];
+            /** @description Household only, when the draft was started with the spouses and children of the declarant's last submitted declaration (its version in force). The household is offered, not confirmed: it is `not-started` until the declarant saves it, and that save sets up the statements. Absent when the household started empty. */
+            carriedOverFrom?: {
+                /**
+                 * Format: date
+                 * @description The earlier declaration's statement date
+                 */
+                statementDate: string;
+            };
             draftVersion: number;
         };
         SectionSaveResult: {
@@ -2041,7 +2049,7 @@ export interface components {
             }[];
         };
         /** @enum {string} */
-        SuggestionSource: "kra" | "ntsa" | "brs" | "ardhisasa" | "document";
+        SuggestionSource: "kra" | "ntsa" | "brs" | "ardhisasa" | "iprs" | "document";
         Suggestion: {
             /** Format: uuid */
             id: string;
@@ -2049,9 +2057,9 @@ export interface components {
             setId: string;
             personKey: string;
             sectionKey: components["schemas"]["SectionKey"];
-            /** @description What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS, the type a document was read into), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value) */
+            /** @description What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS, the type a document was read into), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse), `income-hint` (KRA, a hint to check the salary item, never a value) or `bio-birth` (IPRS, the declarant's date and place of birth, in `bio`) */
             itemType: string;
-            /** @description Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call. A document's reading (source `document`) names its fields by their declaration.v1 path within the item instead (`details.registration`, `outstanding.kesCents`, `location.county`), typed as the item types them, amounts included: what the document says */
+            /** @description Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType; `bio-birth` dateOfBirth, placeOfBirth. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call. A document's reading (source `document`) names its fields by their declaration.v1 path within the item instead (`details.registration`, `outstanding.kesCents`, `location.county`), typed as the item types them, amounts included: what the document says */
             fields: {
                 [key: string]: unknown;
             };
@@ -2093,7 +2101,8 @@ export interface components {
         RegistryLookupRequest: {
             /** @description `officer`, or a spouse or child of the household (`spouse:<id>`, `child:<id>`) */
             personKey: string;
-            systems: ("kra" | "ntsa" | "brs" | "ardhisasa")[];
+            /** @description The registries to check. `iprs` (the person's date and place of birth, for the bio) only for `officer`: a household member's are not declared, so they are not looked up (400) */
+            systems: ("kra" | "ntsa" | "brs" | "ardhisasa" | "iprs")[];
             consent: {
                 /**
                  * @description The declarant ticked "I request this check"
@@ -2116,11 +2125,8 @@ export interface components {
         };
         SuggestionAcceptance: {
             suggestion: components["schemas"]["Suggestion"];
-            /**
-             * Format: uuid
-             * @description The item added or filled: an asset or income of the person's statement, a directorship in `other`, or the spouse in `household` (for a spouse's KRA PIN)
-             */
-            itemId: string;
+            /** @description The item added or filled: an asset or income of the person's statement, a directorship in `other`, or the spouse in `household` (for a spouse's KRA PIN). Null for the declarant's date and place of birth (IPRS `bio-birth`), filled into the bio, which is no item */
+            itemId: string | null;
             /** @description The new draft version, as in the `ETag` header */
             etag: string;
         };

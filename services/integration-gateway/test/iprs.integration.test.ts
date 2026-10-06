@@ -83,6 +83,7 @@ describe('POST /internal/v1/iprs/person-lookups', () => {
       middleName: 'Njeri',
       lastName: 'Kamau',
       dateOfBirth: '1984-03-12',
+      placeOfBirth: 'Nyeri',
       sex: 'F',
     });
     expect(iprs.calls).toBe(1);
@@ -296,5 +297,118 @@ describe('POST /internal/v1/iprs/person-lookups', () => {
         );
       }
     });
+  });
+});
+
+/**
+ * #612: IPRS as a registry the declarant checks for their own bio (legal basis
+ * `declarant-request`), recorded and answered as the other registries' lookups are.
+ */
+describe('POST /internal/v1/iprs/person-record-lookups', () => {
+  let iprs: StubIprs;
+  let t: TestApp;
+  let declarations: Record<string, string>;
+  const DECLARANT = '0192f1a0-5a11-7000-8000-00000000d001';
+
+  beforeAll(async () => {
+    iprs = await StubIprs.start();
+    t = await createTestApp({ baseUrl: iprs.baseUrl });
+    t.app.useLogger(false);
+    declarations = {
+      authorization: `Bearer ${await t.token({ clientId: 'declarations', scope: 'registry' })}`,
+      'x-acting-tenant': 'psc',
+      'x-legal-basis': 'declarant-request',
+      'x-case-ref': '0192f1a0-5a11-7000-8000-00000000c001',
+      'x-subject-person': DECLARANT,
+    };
+    await (await fetch(`${iprs.baseUrl}/v1/persons/warm-up`)).body?.cancel();
+    return async () => {
+      await t.close();
+      await iprs.close();
+    };
+  });
+
+  beforeEach(async () => {
+    iprs.reset();
+    iprs.people.set(WANJIKU.id_number, WANJIKU);
+    await t.clearCache();
+    await t.db.delete(verificationResults);
+  });
+
+  const lookup = (nationalId: string, headers: Record<string, string> = declarations) =>
+    t.app.inject({
+      method: 'POST',
+      url: '/internal/v1/iprs/person-record-lookups',
+      headers,
+      payload: { nationalId },
+    });
+
+  it('answers the person in the uniform envelope and records it for the declaration', async () => {
+    const response = await lookup('23456789');
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      resultId: expect.stringMatching(/^[0-9a-f-]{36}$/) as unknown,
+      system: 'iprs',
+      outcome: 'found',
+      reason: null,
+      cached: false,
+      checkedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) as unknown,
+      person: {
+        nationalId: '23456789',
+        firstName: 'Wanjiku',
+        middleName: 'Njeri',
+        lastName: 'Kamau',
+        dateOfBirth: '1984-03-12',
+        placeOfBirth: 'Nyeri',
+        sex: 'F',
+      },
+    });
+    const [row] = await t.db.select().from(verificationResults);
+    expect(row).toMatchObject({
+      system: 'iprs',
+      caller: 'declarations',
+      tenant: 'psc',
+      legalBasis: 'declarant-request',
+      caseRef: '0192f1a0-5a11-7000-8000-00000000c001',
+      subjectPersonId: DECLARANT,
+      outcome: 'found',
+    });
+  });
+
+  it('answers not-found with no person', async () => {
+    const response = await lookup('99999999');
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ system: 'iprs', outcome: 'not-found', person: null });
+  });
+
+  it('answers unavailable, never an error, when IPRS fails', async () => {
+    iprs.behaviour = { kind: 'status', status: 500 };
+
+    const response = await lookup('23456789');
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      outcome: 'unavailable',
+      reason: 'upstream-error',
+      person: null,
+    });
+  });
+
+  it('requires a legal basis', async () => {
+    const headers = Object.fromEntries(
+      Object.entries(declarations).filter(([name]) => name !== 'x-legal-basis'),
+    );
+
+    expect((await lookup('23456789', headers)).statusCode).toBe(400);
+    expect(iprs.calls).toBe(0);
+  });
+
+  it("refuses onboarding's iprs scope", async () => {
+    const onboarding = { ...declarations, authorization: `Bearer ${await t.token()}` };
+
+    expect((await lookup('23456789', onboarding)).statusCode).toBe(403);
+    expect(iprs.calls).toBe(0);
   });
 });

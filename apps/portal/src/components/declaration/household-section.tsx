@@ -88,6 +88,11 @@ export const HOUSEHOLD_COPY = {
   removeBody: 'Their financial statement will be kept until you discard the declaration.',
   removedToast: (name: string) => `${name} removed. Statement kept until you discard.`,
   removedHeading: 'Removed',
+  carriedTitle: 'From your last declaration',
+  carriedBody: (date: string) =>
+    `These are the spouses and children you declared as at ${date}. Check each person, change what is no longer right, then confirm.`,
+  carriedConfirm: 'Confirm household',
+  carriedConfirmed: 'Household confirmed',
   archived: (name: string) => `${name}: statement kept until you discard.`,
 } as const;
 
@@ -165,6 +170,7 @@ export function HouseholdSection({
   const [visited, setVisited] = useState<ReadonlySet<string>>(new Set());
   const [badDates, setBadDates] = useState<ReadonlySet<string>>(new Set());
   const [removal, setRemoval] = useState<PendingRemoval | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
 
   const spouses = household.spouses?.items ?? [];
   const children = household.children?.items ?? [];
@@ -297,8 +303,37 @@ export function HouseholdSection({
     (found) => found.code === 'spouse-conflicts-with-marital-status',
   );
 
+  // Offered from the last declaration (story 4) and not yet looked at: ask for a confirmation,
+  // whose save sets up the statements. Any edit is a save too, so it ends the question.
+  const carried =
+    section.carriedOverFrom !== undefined &&
+    section.completeness === 'not-started' &&
+    !confirmed &&
+    household === section.contents;
+
+  function confirmCarried() {
+    // Confirming changes nothing: an edit of the household as it is queues its save, sent now.
+    update((current) => ({ ...current }));
+    flush('household');
+    setConfirmed(true);
+    toast({ title: HOUSEHOLD_COPY.carriedConfirmed });
+  }
+
   return (
     <div className="grid gap-6">
+      {carried && section.carriedOverFrom ? (
+        <Alert variant="neutral" role="note">
+          <Icon icon={InformationCircleIcon} />
+          <AlertTitle>{HOUSEHOLD_COPY.carriedTitle}</AlertTitle>
+          <AlertDescription className="grid gap-3">
+            <p>{HOUSEHOLD_COPY.carriedBody(formatDate(section.carriedOverFrom.statementDate))}</p>
+            <Button type="button" size="sm" className="w-fit" onClick={confirmCarried}>
+              <Icon icon={Tick02Icon} />
+              {HOUSEHOLD_COPY.carriedConfirm}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <section aria-labelledby="spouses-heading">
         <Card>
           <CardHeader>

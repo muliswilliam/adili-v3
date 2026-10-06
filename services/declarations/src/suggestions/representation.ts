@@ -15,7 +15,7 @@ import {
  */
 
 /** The registries a declarant can ask to check. */
-export const REGISTRY_SYSTEMS = ['kra', 'ntsa', 'brs', 'ardhisasa'] as const;
+export const REGISTRY_SYSTEMS = ['kra', 'ntsa', 'brs', 'ardhisasa', 'iprs'] as const;
 
 export const suggestionSourceSchema = z.enum(SUGGESTION_SOURCES);
 
@@ -26,11 +26,11 @@ export const suggestionSchema = z.object({
   sectionKey: sectionKeySchema,
   itemType: z.string().meta({
     description:
-      'What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS, the type a document was read into), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value)',
+      "What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS, the type a document was read into), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse), `income-hint` (KRA, a hint to check the salary item, never a value) or `bio-birth` (IPRS, the declarant's date and place of birth, in `bio`)",
   }),
   fields: z.record(z.string(), z.unknown()).meta({
     description:
-      "Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call. A document's reading (source `document`) names its fields by their declaration.v1 path within the item instead (`details.registration`, `outstanding.kesCents`, `location.county`), typed as the item types them, amounts included: what the document says",
+      "Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType; `bio-birth` dateOfBirth, placeOfBirth. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call. A document's reading (source `document`) names its fields by their declaration.v1 path within the item instead (`details.registration`, `outstanding.kesCents`, `location.county`), typed as the item types them, amounts included: what the document says",
   }),
   sourceRef: z.record(z.string(), z.unknown()).meta({
     description:
@@ -78,7 +78,10 @@ export const registryLookupRequestSchema = z.object({
   personKey: z.string().meta({
     description: '`officer`, or a spouse or child of the household (`spouse:<id>`, `child:<id>`)',
   }),
-  systems: z.array(z.enum(REGISTRY_SYSTEMS)).min(1),
+  systems: z.array(z.enum(REGISTRY_SYSTEMS)).min(1).meta({
+    description:
+      "The registries to check. `iprs` (the person's date and place of birth, for the bio) only for `officer`: a household member's are not declared, so they are not looked up (400)",
+  }),
   consent: z.object({
     requested: z.literal(true).meta({ description: 'The declarant ticked "I request this check"' }),
     textVersion: z.string().min(1).meta({ description: 'The version of the consent text shown' }),
@@ -104,9 +107,9 @@ export type AcceptSuggestionRequest = z.infer<typeof acceptSuggestionRequestSche
 
 export const suggestionAcceptanceSchema = z.object({
   suggestion: suggestionSchema,
-  itemId: z.uuid().meta({
+  itemId: z.uuid().nullable().meta({
     description:
-      "The item added or filled: an asset or income of the person's statement, a directorship in `other`, or the spouse in `household` (for a spouse's KRA PIN)",
+      "The item added or filled: an asset or income of the person's statement, a directorship in `other`, or the spouse in `household` (for a spouse's KRA PIN). Null for the declarant's date and place of birth (IPRS `bio-birth`), filled into the bio, which is no item",
   }),
   etag: z.string().meta({ description: 'The new draft version, as in the `ETag` header' }),
 });

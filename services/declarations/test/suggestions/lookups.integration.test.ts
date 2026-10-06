@@ -527,7 +527,7 @@ describe('consent and who may check (S9)', () => {
 
   it.each([
     ['no systems', { personKey: 'officer', systems: [], consent: CONSENT }],
-    ['an unknown registry', { personKey: 'officer', systems: ['iprs'], consent: CONSENT }],
+    ['an unknown registry', { personKey: 'officer', systems: ['icms'], consent: CONSENT }],
     [
       'a person not in the household',
       { personKey: `spouse:${randomUUID()}`, systems: ['kra'], consent: CONSENT },

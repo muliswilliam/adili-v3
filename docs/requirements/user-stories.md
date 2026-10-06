@@ -9,9 +9,9 @@ Maps every user story in EACC's *User Stories and Workflows* document (Declarati
 | # | User story | User | Our design | Service(s) | Ref | Priority |
 |---|---|---|---|---|---|---|
 | 1 | Register / login | Declarant | Self-onboarding: pick Responsible Commission, personnel file number + national ID matched against the imported roster, email + phone OTP to roster contacts, IPRS check, then passkey or password + MFA on Keycloakify-branded pages | Keycloak, directory, notifications | ADR-004, ADR-014 | Must |
-| 2 | Confirm bio data | Declarant | Pre-filled from the Commission roster, IPRS and HR where available; declarant confirms or corrects | directory, integration-gateway | ADR-006, ADR-014 | Must |
+| 2 | Confirm bio data | Declarant | Pre-filled from the Commission roster, which HR's push or upload keeps (job group, appointment date, work station, marital status); date and place of birth suggested from IPRS when the declarant asks, with their consent (#612); declarant confirms or corrects | directory, declarations, integration-gateway | ADR-006, ADR-014 | Must |
 | 3 | Select declaration type | Declarant | **Derived automatically** (initial / biennial / final) from appointment and exit events and the cycle calendar; declarant confirms | declarations | ADR-003 | Must |
-| 4 | Capture spouse(s) | Declarant | Multiple spouses; pre-fill from previous declaration and HR; separated-spouse handling | declarations | - | Must |
+| 4 | Capture spouse(s) | Declarant | Multiple spouses; spouses and children carried over from the previous declaration for the declarant to confirm (#612; HR sends no spouses); separated-spouse handling | declarations | - | Must |
 | 5 | Capture dependent children | Declarant | Under 18 on the statement date; drop-off calculated automatically | declarations | - | Must |
 | 6 | Declare income | Declarant | One financial statement per person; material-change explanation where required | declarations | ADR-001 | Must |
 | 7 | Declare assets | Declarant | Typed assets (land, buildings, vehicles, investments, receivables; in Kenya or abroad; joint share); document upload with **AI pre-fill**; material-change comparison with previous declaration | declarations, documents, ai-gateway | ADR-002, ADR-007 | Must |

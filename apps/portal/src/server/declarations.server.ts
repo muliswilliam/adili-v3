@@ -444,7 +444,8 @@ export interface AcceptSuggestionInput {
 }
 
 export type AcceptOutcome =
-  | { status: 'accepted'; suggestion: LoadedSuggestion; itemId: string; etag: string }
+  /** `itemId` is null for the declarant's birth from IPRS, which fills the bio rather than an item. */
+  | { status: 'accepted'; suggestion: LoadedSuggestion; itemId: string | null; etag: string }
   /**
    * 412, or 409: the draft changed since `ifMatch`, or the suggestion is no longer `new` (the
    * contract uses 409 for both). Re-read the section and try once more.

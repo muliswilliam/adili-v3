@@ -41,13 +41,28 @@ import { CATEGORIES, type Category, type Item, NIL_KEY } from './statement';
  * the mock writes on accept), and each registry's status in a person's check.
  */
 
-/** Every registry the contract names, in the order the panel shows them. */
+/** Every registry the contract names. */
 export const REGISTRIES: readonly RegistrySystem[] = allOf<RegistrySystem>()([
   'kra',
   'ntsa',
   'brs',
   'ardhisasa',
+  'iprs',
 ]);
+
+/** A statement's registries: what a person holds, in the order the panel shows them. */
+export type StatementRegistry = Exclude<RegistrySystem, 'iprs'>;
+export const STATEMENT_REGISTRIES: readonly StatementRegistry[] = [
+  'kra',
+  'ntsa',
+  'brs',
+  'ardhisasa',
+];
+
+/** Whether the set is a statement registry's: IPRS's are the bio's (#612). */
+export function isStatementSet(set: LoadedSuggestionSet): boolean {
+  return set.source !== 'iprs' && set.source !== 'document';
+}
 
 /** A suggestion as the rules need it; the mock passes its stored ones. */
 export interface SuggestionLike {
@@ -428,7 +443,7 @@ export function latestSets(
 
 export interface ShownSuggestion {
   suggestion: LoadedSuggestion;
-  source: RegistrySystem;
+  source: StatementRegistry;
   /** When the registry answered (or was asked, while it has not), for "From NTSA, {date}". */
   at: string;
 }
@@ -440,7 +455,7 @@ export interface ShownSuggestion {
 export function shownSuggestions(sets: LoadedSuggestionSet[]): ShownSuggestion[] {
   const seen = new Set<string>();
   const shown: ShownSuggestion[] = [];
-  for (const source of REGISTRIES) {
+  for (const source of STATEMENT_REGISTRIES) {
     for (const set of sets) {
       if (set.source !== source) continue;
       for (const suggestion of set.suggestions) {
@@ -471,7 +486,7 @@ export function registryStatus(
  */
 export function registryEntries(sets: LoadedSuggestionSet[]): RegistryStatusEntry[] {
   const latest = latestSets(sets);
-  return REGISTRIES.map((source) => {
+  return STATEMENT_REGISTRIES.map((source) => {
     const set = latest[source];
     const count = set?.suggestions.filter((each) => each.status === 'new').length ?? 0;
     return {

@@ -150,6 +150,13 @@ interface Fixture {
 }
 
 const OFFICER: Record<RegistrySystem, Fixture[]> = {
+  iprs: [
+    {
+      itemType: 'bio-birth',
+      fields: { dateOfBirth: '1984-03-12', placeOfBirth: 'Eldoret' },
+      sourceRef: {},
+    },
+  ],
   kra: [
     {
       itemType: 'bio-tax',
@@ -256,6 +263,7 @@ function statementItems(stored: SuggestionDraft, sectionKey: string, itemType: s
 }
 
 function suggestionSection(personKey: PersonKey, itemType: string) {
+  if (itemType === 'bio-birth') return 'bio';
   if (suggestionKind(itemType).target !== 'tax') return statementSectionKey(personKey);
   return relationOfPerson(personKey) === 'officer' ? 'bio' : 'household';
 }
@@ -415,6 +423,9 @@ export async function requestLookups(request: Request, stored: SuggestionDraft) 
   if (!stored.contents.has(statementKey) || stored.archived.has(statementKey)) {
     return problem(404, 'Not found');
   }
+  if (relationOfPerson(personKey) !== 'officer' && systems.includes('iprs')) {
+    return problem(400, 'IPRS is checked only for the declarant');
+  }
   if (
     relationOfPerson(personKey) !== 'officer' &&
     !householdMember(household(stored), personKey)?.person.nationalId?.trim()
@@ -514,6 +525,18 @@ export async function acceptSuggestion(
   if (!isRecord(body) || !isRecord(body.fields)) return problem(400, 'fields are required');
   const applyTo = typeof body.applyToItemId === 'string' ? body.applyToItemId : null;
   const overwrite = body.overwrite === true;
+  if (suggestion.itemType === 'bio-birth') {
+    const birth = birthOf(body.fields);
+    if (!birth) return problem(400, 'Not a date of birth');
+    const bio = stored.contents.get('bio') ?? {};
+    const current = isRecord(bio.birth) ? bio.birth : {};
+    const filled = overwrite ? { ...current, ...birth } : { ...birth, ...nonEmpty(current) };
+    stored.contents.set('bio', { ...bio, birth: filled });
+    suggestion.status = 'accepted';
+    const etag = commit('bio');
+    return json(200, { suggestion: { ...suggestion }, itemId: null, etag }, { ETag: etag });
+  }
+  if (set.source === 'iprs') return problem(400, 'IPRS fills no item');
   const reading = set.extraction;
   const patch = reading
     ? readingPatch(suggestion.fields, body.fields)
@@ -705,4 +728,18 @@ function readingPatch(
     patch.push({ path, value: typed });
   }
   return patch;
+}
+
+/** The bio's birth from an IPRS suggestion's accepted fields, or null when the date is not one. */
+function birthOf(fields: Record<string, unknown>): { date?: string; place?: string } | null {
+  const date = typeof fields.dateOfBirth === 'string' ? fields.dateOfBirth.trim() : '';
+  const place = typeof fields.placeOfBirth === 'string' ? fields.placeOfBirth.trim() : '';
+  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  return { ...(date ? { date } : {}), ...(place ? { place } : {}) };
+}
+
+function nonEmpty(record: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(record).filter(([, value]) => typeof value !== 'string' || value.trim() !== ''),
+  );
 }

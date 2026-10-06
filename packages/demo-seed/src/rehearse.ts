@@ -146,7 +146,10 @@ for (const [key, suggestion] of [
   ['land', offered('KIAMBU/RUIRU')],
 ] as const) {
   if (!suggestion) continue;
-  items[key] = (await accept(suggestion.id, suggestion.fields, null)).itemId;
+  // A vehicle or land suggestion always adds an item; only IPRS's birth (the bio's) names none.
+  const { itemId } = await accept(suggestion.id, suggestion.fields, null);
+  expect(`the ${key} is added as an item`, itemId !== null);
+  if (itemId) items[key] = itemId;
 }
 
 // Read each sample file into its item.

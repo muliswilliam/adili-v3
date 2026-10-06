@@ -7,7 +7,7 @@ import {
   mapRegistryResult,
 } from '../../src/suggestions/registry-mapping.js';
 import type { RegistryResult } from '../../src/suggestions/registry-results.js';
-import { ardhisasa, brs, kra, ntsa } from '../fixtures/registry-results.js';
+import { ardhisasa, brs, iprs, kra, ntsa } from '../fixtures/registry-results.js';
 
 const SPOUSE = 'spouse:3f0c1b2a-4d5e-4f60-8a7b-9c0d1e2f3a4b' as const;
 const CHILD = 'child:5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d' as const;
@@ -302,6 +302,31 @@ describe('KRA → bio tax fields and income hint', () => {
   });
 });
 
+describe('IPRS → bio birth', () => {
+  it("offers the officer's date and place of birth for the bio", () => {
+    expect(suggest(iprs.found, 'officer')).toEqual([
+      {
+        sectionKey: 'bio',
+        itemType: 'bio-birth',
+        fields: { dateOfBirth: '1980-04-02', placeOfBirth: 'Kisumu' },
+        sourceRef: {},
+        matchKeys: [],
+      },
+    ]);
+  });
+
+  it('leaves out a place of birth IPRS does not hold', () => {
+    expect(suggest(iprs.partial, 'officer').map((each) => each.fields)).toEqual([
+      { dateOfBirth: '1980-04-02' },
+    ]);
+  });
+
+  it('suggests nothing for a household member, whose birth the bio does not hold, or a person IPRS does not know', () => {
+    expect(suggest(iprs.found, SPOUSE)).toEqual([]);
+    expect(suggest(iprs.notFound, 'officer')).toEqual([]);
+  });
+});
+
 describe('mapRegistryResult', () => {
   it('keeps the verification result the suggestions came from', () => {
     const set = mapRegistryResult(kra.found, 'officer');
@@ -349,11 +374,12 @@ describe('field vocabulary', () => {
     directorship: ['companyName', 'role'],
     'bio-tax': ['kraPin', 'complianceStatus'],
     'income-hint': ['incomeType'],
+    'bio-birth': ['dateOfBirth', 'placeOfBirth'],
   };
 
   it('uses exactly the portal’s field keys for each item type', () => {
     const seen = new Map<string, Set<string>>();
-    const results = [ntsa, ardhisasa, brs, kra].flatMap((fixtures) => [
+    const results = [ntsa, ardhisasa, brs, kra, iprs].flatMap((fixtures) => [
       fixtures.found,
       fixtures.partial,
     ]);

@@ -488,3 +488,53 @@ describe('opening a list from Ask Adili', () => {
     });
   });
 });
+
+describe('a household carried over from the last declaration (story 4)', () => {
+  const carried = {
+    spouses: { none: false, items: [mary] },
+    children: { none: false, items: [tom] },
+  };
+
+  function renderCarried(completeness: LoadedSection['completeness'] = 'not-started') {
+    return renderWorkspace(
+      <HouseholdSection
+        section={{
+          ...household(carried),
+          completeness,
+          carriedOverFrom: { statementDate: '2025-11-01' },
+        }}
+        etag={'"1"'}
+        maritalStatus="married"
+      />,
+      { step: 'household', declaration: sampleDeclaration() },
+    );
+  }
+
+  it('asks the declarant to check the people and confirm, which saves them as they are', async () => {
+    renderCarried();
+
+    expect(screen.getByText(HOUSEHOLD_COPY.carriedTitle)).toBeTruthy();
+    expect(screen.getByText(HOUSEHOLD_COPY.carriedBody('1 Nov 2025'))).toBeTruthy();
+    expect(card('Mary Wanjiru Kennedy')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: HOUSEHOLD_COPY.carriedConfirm }));
+
+    await waitFor(() => {
+      expect(saveMock).toHaveBeenCalledWith({
+        data: {
+          declarationId: DECLARATION_ID,
+          sectionKey: 'household',
+          ifMatch: '"1"',
+          contents: carried,
+        },
+      });
+    });
+    expect(screen.queryByText(HOUSEHOLD_COPY.carriedTitle)).toBeNull();
+  });
+
+  it('asks nothing once the household has been saved', () => {
+    renderCarried('complete');
+
+    expect(screen.queryByText(HOUSEHOLD_COPY.carriedTitle)).toBeNull();
+  });
+});
