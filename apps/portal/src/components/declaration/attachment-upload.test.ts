@@ -59,7 +59,7 @@ describe('uploadAttachment', () => {
       `/api/mock-uploads/${UPLOAD_ID}`,
       file,
       'application/pdf',
-      expect.anything(),
+      expect.objectContaining({ onProgress: expect.any(Function) }),
     );
     expect(given.link).toHaveBeenCalledWith(UPLOAD_ID);
   });

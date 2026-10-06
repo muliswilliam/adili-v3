@@ -105,4 +105,3 @@ export async function uploadAttachment(
   }
   emit({ type: 'linked', id: rowId, uploadId, size: linked.size });
 }
-
