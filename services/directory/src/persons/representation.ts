@@ -10,7 +10,7 @@ import { IDENTITY_DOCUMENT_KINDS, IDENTITY_STATUSES, PREFERRED_LANGUAGES } from 
 
 export const preferredLanguageSchema = z.enum(PREFERRED_LANGUAGES).meta({
   description:
-    "A declarant's preferred language, English or Kiswahili: a clarification letter to them starts in it",
+    "A declarant's preferred language, English or Swahili: a clarification letter to them starts in it",
 });
 
 export const declarantProfileSchema = z.object({

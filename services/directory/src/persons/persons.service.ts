@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, PLATFORM_TENANT } from '@adili/api-kit';
 import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
+import { EventPublisher } from '@adili/events';
 import { and, asc, eq, exists, inArray, or } from 'drizzle-orm';
 
 import type { Transaction } from '../commissions/commissions.service.js';
@@ -12,6 +13,7 @@ import type {
   PersonPreferredLanguage,
   PersonSummary,
 } from './representation.js';
+import { personPreferredLanguageSet } from './events.js';
 import type { PreferredLanguage } from './schema.js';
 
 /**
@@ -22,7 +24,10 @@ import type { PreferredLanguage } from './schema.js';
  */
 @Injectable()
 export class PersonsService {
-  constructor(@InjectDatabase() private readonly db: Database<DirectorySchema>) {}
+  constructor(
+    @InjectDatabase() private readonly db: Database<DirectorySchema>,
+    private readonly events: EventPublisher,
+  ) {}
 
   /**
    * The declarant whose Keycloak account is `subject`, with their roster records; 404 if none
@@ -63,21 +68,31 @@ export class PersonsService {
   }
 
   /**
-   * Stores the language the declarant whose account is `subject` prefers (spec 07c FE-3) and
-   * answers with their profile; 404 if they are not an onboarded declarant.
+   * Stores the language the declarant whose account is `subject` prefers (spec 07c FE-3), with
+   * `person.preferred-language-set.v1` as its audit record, and answers with their profile; 404
+   * if they are not an onboarded declarant. The language they already have changes nothing.
    */
   async setPreferredLanguage(
     subject: string,
     language: PreferredLanguage,
   ): Promise<DeclarantProfile> {
-    const updated = await withTenant(this.db, { tenant: PLATFORM_TENANT, subject }, (tx) =>
-      tx
+    await withTenant(this.db, { tenant: PLATFORM_TENANT, subject }, async (tx) => {
+      const [found] = await tx
+        .select({ id: persons.id, preferredLanguage: persons.preferredLanguage })
+        .from(persons)
+        .where(and(eq(persons.keycloakUserId, subject), eq(persons.kind, 'declarant')))
+        .for('update');
+      const person = notFoundIfInvisible(found);
+      if (person.preferredLanguage === language) return;
+      await tx
         .update(persons)
         .set({ preferredLanguage: language })
-        .where(and(eq(persons.keycloakUserId, subject), eq(persons.kind, 'declarant')))
-        .returning({ id: persons.id }),
-    );
-    notFoundIfInvisible(updated[0]);
+        .where(eq(persons.id, person.id));
+      await this.events.record(
+        tx,
+        personPreferredLanguageSet({ personId: person.id, preferredLanguage: language }),
+      );
+    });
     return this.declarantProfile(subject);
   }
 

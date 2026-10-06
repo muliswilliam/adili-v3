@@ -32,9 +32,10 @@ import {
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 
-import type { Language } from '../../language';
+import { type Language, languageSchema } from '../../language';
 import type { DeclarantAccount } from '../../server/declarant.server';
 import { setMyPreferredLanguage } from '../../server/preferences';
+import { signInAgain } from '../sign-in';
 
 const LANGUAGE_NAMES: Record<Language, string> = { en: 'English', sw: 'Kiswahili' };
 
@@ -158,6 +159,10 @@ function LetterLanguage({ saved }: { saved: Language | null }) {
       return;
     }
     setLanguage(before);
+    if (result?.status === 'unauthenticated') {
+      signInAgain();
+      return;
+    }
     toast({ title: 'Your language could not be saved. Try again.', urgency: 'assertive' });
   }
 
@@ -168,10 +173,11 @@ function LetterLanguage({ saved }: { saved: Language | null }) {
       value={language}
       disabled={saving}
       onValueChange={(value) => {
-        if (value === 'en' || value === 'sw') void choose(value);
+        const chosen = languageSchema.safeParse(value);
+        if (chosen.success) void choose(chosen.data);
       }}
     >
-      {(['en', 'sw'] as const).map((each) => (
+      {languageSchema.options.map((each) => (
         <SelectItem key={each} value={each}>
           {LANGUAGE_NAMES[each]}
         </SelectItem>

@@ -32,7 +32,7 @@ export type IdentityStatus = (typeof IDENTITY_STATUSES)[number];
 
 /**
  * The languages a declarant may prefer: those clarification letters are issued in (English and
- * Kiswahili, the letter language). Spec 07c FE-3: the composer and Draft with AI start in it.
+ * Swahili, the letter language). Spec 07c FE-3: the composer and Draft with AI start in it.
  */
 export const PREFERRED_LANGUAGES = ['en', 'sw'] as const;
 export type PreferredLanguage = (typeof PREFERRED_LANGUAGES)[number];

@@ -12,8 +12,8 @@ export const VIEW_DECLARATIONS_BUDGET_MS = 5_000;
 
 /**
  * The declarant's preferred language, for the case view (spec 07c FE-3). Read while the
- * declaration is pulled and within its budget, so it never makes the view slower; past it the
- * view answers with no language.
+ * declaration is pulled; shorter than the declarations budget, so the view never waits longer
+ * for it than it already may for the declaration. Past it the view answers with no language.
  */
 export const VIEW_PREFERRED_LANGUAGE_BUDGET_MS = 2_000;
 

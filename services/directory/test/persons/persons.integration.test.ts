@@ -277,6 +277,20 @@ describe('PUT /v1/me/declarant/preferred-language (spec 07c FE-3)', () => {
 
     const back = await api.put(PREFERRED_LANGUAGE, { preferredLanguage: 'en' }, declarant(wanjiru));
     expect(back.json<DeclarantProfile>().preferredLanguage).toBe('en');
+    // The same language again changes nothing.
+    const same = await api.put(PREFERRED_LANGUAGE, { preferredLanguage: 'en' }, declarant(wanjiru));
+    expect(same.statusCode, same.body).toBe(200);
+
+    // Each change is a write with its audit record (ADR-008), naming the person only.
+    const recorded = await api.db
+      .select({ envelope: outbox.envelope })
+      .from(outbox)
+      .where(eq(outbox.eventType, 'person.preferred-language-set.v1'))
+      .orderBy(asc(outbox.id));
+    expect(recorded.map(({ envelope }) => envelope.data)).toEqual([
+      { personId: wanjiru.personId, preferredLanguage: 'sw' },
+      { personId: wanjiru.personId, preferredLanguage: 'en' },
+    ]);
   });
 
   it('is 400 for a language the letters are not issued in, or none', async () => {

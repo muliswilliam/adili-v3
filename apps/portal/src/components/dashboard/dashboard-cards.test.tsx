@@ -24,6 +24,8 @@ vi.mock('../../server/declarations', async () =>
 );
 const setMyPreferredLanguage = vi.hoisted(() => vi.fn());
 vi.mock('../../server/preferences', () => ({ setMyPreferredLanguage }));
+const signInAgain = vi.hoisted(() => vi.fn());
+vi.mock('../sign-in', () => ({ signInAgain }));
 // jsdom does not lay out, so it has no scrollIntoView, which the language list calls.
 Element.prototype.scrollIntoView = vi.fn();
 
@@ -169,6 +171,20 @@ describe('DashboardCards', () => {
 
     expect(language.textContent).toContain('Kiswahili');
     expect(screen.getByRole('alert').textContent).toContain('could not be saved');
+  });
+
+  it('signs the declarant in again when their session ended before the language was saved', async () => {
+    setMyPreferredLanguage.mockResolvedValueOnce({ status: 'unauthenticated' });
+    renderCards({ status: 'onboarded', account });
+
+    const language = within(valueOf('Letter language')).getByRole('combobox');
+    fireEvent.keyDown(language, { key: 'Enter' });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('option', { name: 'Kiswahili' }));
+    });
+
+    expect(signInAgain).toHaveBeenCalledOnce();
+    expect(language.textContent).toContain('English');
   });
 
   it('shows the sign-in identity for someone not onboarded', () => {

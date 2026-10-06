@@ -97,7 +97,7 @@ export class DeclarantProfileController {
     operationId: 'setMyPreferredLanguage',
     summary: "Set the signed-in declarant's preferred language",
     description:
-      "Declarants only, their own. English or Kiswahili: a clarification letter to them starts in it, and so does the reviewer's Draft with AI (spec 07c FE-3). Setting the same language again changes nothing.",
+      "Declarants only, their own. English or Swahili: a clarification letter to them starts in it, and so does the reviewer's Draft with AI (spec 07c FE-3). Records `person.preferred-language-set.v1`; setting the same language again changes nothing.",
   })
   @ApiBody({ required: true, schema: schemaRef('SetPreferredLanguage') })
   @ApiOkResponse({
@@ -123,7 +123,7 @@ export class DeclarantProfileController {
 @ApiTags('internal')
 @Controller('internal/v1/persons')
 @InternalApi(DIRECTORY_INTERNAL_SCOPE)
-export class InternalPersonPreferencesController {
+export class InternalPersonPreferredLanguageController {
   constructor(private readonly persons: PersonsService) {}
 
   @Get(':personId/preferred-language')

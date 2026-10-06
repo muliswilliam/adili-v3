@@ -65,7 +65,10 @@ export class FakeDirectory extends DirectoryClient {
   }
 
   getPreferredLanguage(slug: string, personId: string): Promise<PreferredLanguage | null> {
-    if (this.languagesUnavailable || !this.policies.has(slug)) {
+    if (this.languagesUnavailable) {
+      return Promise.reject(new DirectoryUnavailable('The directory is down'));
+    }
+    if (!this.policies.has(slug)) {
       return Promise.reject(new DirectoryUnavailable(`No Commission ${slug}`));
     }
     return Promise.resolve(this.languages.get(personId) ?? null);

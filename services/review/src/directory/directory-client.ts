@@ -1,3 +1,5 @@
+import type { LetterLanguage } from '../cases/schema.js';
+
 /**
  * The clarification periods of a Commission's policy in force (directory.yaml
  * `TenantPolicyVersion.clarification`, Act s.35).
@@ -61,7 +63,7 @@ export interface StaffMember {
 }
 
 /** A declarant's preferred language (directory.yaml `PreferredLanguage`): a letter language. */
-export type PreferredLanguage = 'en' | 'sw';
+export type PreferredLanguage = LetterLanguage;
 
 /** The directory is unreachable or answered outside its contract; activities retry. */
 export class DirectoryUnavailable extends Error {

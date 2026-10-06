@@ -1,6 +1,7 @@
 import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
+import { LETTER_LANGUAGES } from '../cases/schema.js';
 import type { paths } from './directory-api.gen.js';
 import {
   type ClarificationPolicy,
@@ -74,7 +75,9 @@ const staffSchema = z.object({
 });
 
 /** A declarant's preferred language: null until they choose one. */
-const preferredLanguageSchema = z.object({ preferredLanguage: z.enum(['en', 'sw']).nullable() });
+const preferredLanguageSchema = z.object({
+  preferredLanguage: z.enum(LETTER_LANGUAGES).nullable(),
+});
 
 /** The record's national ID, which the directory serves on its own route and scope. */
 const nationalIdSchema = z.object({ nationalId: z.string().min(1) });

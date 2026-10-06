@@ -9,7 +9,7 @@ import { ApplicantsService } from './applicants.service.js';
 import {
   DeclarantProfileController,
   InternalPersonNationalIdController,
-  InternalPersonPreferencesController,
+  InternalPersonPreferredLanguageController,
   InternalPersonsController,
   PersonsController,
 } from './persons.controller.js';
@@ -31,7 +31,7 @@ import { PersonsService } from './persons.service.js';
     PersonsController,
     InternalPersonsController,
     InternalPersonNationalIdController,
-    InternalPersonPreferencesController,
+    InternalPersonPreferredLanguageController,
     ApplicantProfileController,
     InternalApplicantsController,
   ],

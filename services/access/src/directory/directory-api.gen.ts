@@ -950,7 +950,7 @@ export interface paths {
         get?: never;
         /**
          * Set the signed-in declarant's preferred language
-         * @description Declarants only, their own. English or Kiswahili: a clarification letter to them starts in it, and so does the reviewer's Draft with AI (spec 07c FE-3). Setting the same language again changes nothing.
+         * @description Declarants only, their own. English or Swahili: a clarification letter to them starts in it, and so does the reviewer's Draft with AI (spec 07c FE-3). Records `person.preferred-language-set.v1`; setting the same language again changes nothing.
          */
         put: operations["setMyPreferredLanguage"];
         post?: never;
@@ -2144,7 +2144,7 @@ export interface components {
             }[];
         };
         /**
-         * @description A declarant's preferred language, English or Kiswahili: a clarification letter to them starts in it
+         * @description A declarant's preferred language, English or Swahili: a clarification letter to them starts in it
          * @enum {string}
          */
         PreferredLanguage: "en" | "sw";
