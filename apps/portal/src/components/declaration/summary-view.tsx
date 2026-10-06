@@ -38,7 +38,7 @@ import type { LoadedSummary } from '../../server/declarations.server';
 import type { CompletenessIssue, DeclarationSection } from '../../server/declarations/types';
 import { isSaving } from './autosave';
 import { CompletenessBadge } from './completeness-badge';
-import type { Draft, Statement } from '../../declaration/contents';
+import type { Draft, MaterialChangeEntry, Statement } from '../../declaration/contents';
 import { HR_LABELS, SUMMARY_COPY } from '../../declaration/copy';
 import { amendingFrom, useAmendmentDiscarded } from './amendment-banner';
 import { DiscardAmendmentButton } from './discard-amendment-dialog';
@@ -139,6 +139,8 @@ function ErrorsLink({
  */
 const HINTS_LABEL = 'Hints: AI-assisted';
 const HINTS_TASK_NAMES = { ...AI_TASK_NAMES, 'answer-declarant-question': 'Hints' };
+/** One empty list, so the comparison is not redone on each render of a document without any. */
+const NO_MATERIAL_CHANGES: readonly Draft<MaterialChangeEntry>[] = [];
 
 function FixLink({
   declarationId,
@@ -895,7 +897,11 @@ export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryVie
       <SpousesCard summary={summary} document={document} />
       <ChildrenCard summary={summary} document={document} />
       <StatementsCard summary={summary} document={document} />
-      <DeclarationChanges load={previous} statements={document.statements ?? []} />
+      <DeclarationChanges
+        load={previous}
+        statements={document.statements ?? []}
+        materialChanges={document.otherInformation?.materialChanges ?? NO_MATERIAL_CHANGES}
+      />
       <OtherCard summary={summary} document={document} />
 
       <section aria-labelledby={solemnId} className="grid gap-2 rounded-lg bg-muted p-5">

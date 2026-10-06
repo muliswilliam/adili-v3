@@ -4,6 +4,7 @@ import type {
   ChangeFlag,
   IncomeItem,
   LiabilityItem,
+  MaterialChangeEntry,
   Statement,
 } from './declaration.v1.gen.js';
 
@@ -41,6 +42,17 @@ export const NEW_KIND: Record<Category, ChangeKind> = {
   income: 'new-source',
   assets: 'acquisition',
   liabilities: 'acquisition',
+};
+
+/**
+ * The paragraph 9 kind that records an item of each category as no longer declared: disposed
+ * of, a source ended, or a debt settled. The reviewer's rules take a gone item as accounted for
+ * only by an entry of its category's kind, and the declarant's comparison reads it alike.
+ */
+export const GONE_KIND: Record<Category, MaterialChangeEntry['kind']> = {
+  income: 'source-ended',
+  assets: 'disposal',
+  liabilities: 'settled',
 };
 
 /** An item where it sits in a declaration: whose statement and which category. */

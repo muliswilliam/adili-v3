@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { changeRows, compareStatements, statementChanges } from './comparison';
-import type { AssetItem, Draft, IncomeItem, Statement } from './contents';
+import type { AssetItem, Draft, IncomeItem, MaterialChangeEntry, Statement } from './contents';
 
 function land(id: string, description: string, kesCents?: number): Draft<AssetItem> {
   return {
@@ -57,19 +57,18 @@ describe('changeRows', () => {
 
     expect(unchanged).toBe(1);
     expect(
-      rows.map(({ kind, description, changePercent, material, markedAsChanged }) => [
+      rows.map(({ kind, description, material, markedAsChanged }) => [
         kind,
         description,
-        changePercent,
         material,
         markedAsChanged,
       ]),
     ).toEqual([
-      ['value', 'Salary', 30, true, true],
-      ['value', 'Plot in Nakuru', 10, false, false],
-      ['value', 'Plot in Eldoret', 80, true, false],
-      ['new', 'Plot in Voi', null, true, false],
-      ['gone', 'Plot in Kitale', null, true, false],
+      ['value', 'Salary', true, true],
+      ['value', 'Plot in Nakuru', false, false],
+      ['value', 'Plot in Eldoret', true, false],
+      ['new', 'Plot in Voi', true, false],
+      ['gone', 'Plot in Kitale', true, false],
     ]);
     expect(rows[2]).toMatchObject({
       category: 'assets',
@@ -128,6 +127,85 @@ describe('changeRows: whether an item is marked as the reviewer reads it', () =>
     ]);
     expect(marking(previous, current({ changed: true, kind: 'value-change' }))).toEqual([
       ['value', true],
+    ]);
+  });
+});
+
+describe('changeRows: whether paragraph 9 records a gone item, as the reviewer reads it', () => {
+  const previous = [
+    officer({
+      income: [salary(1_000_000)],
+      assets: [land('k', 'Plot in Kitale', 900_000)],
+    }),
+  ];
+  const current = [officer({})];
+  const recorded = (materialChanges?: MaterialChangeEntry[]) => {
+    const [statement] = compareStatements(previous, current);
+    if (!statement) throw new Error('no statement');
+    return changeRows(statement, materialChanges).rows.map((row) => [
+      row.description,
+      row.recordedInParagraph9,
+    ]);
+  };
+  const entry = (fields: Omit<MaterialChangeEntry, 'explanation'>): MaterialChangeEntry => ({
+    explanation: 'Sold in 2026.',
+    ...fields,
+  });
+
+  it('says nothing either way when paragraph 9 is not known', () => {
+    expect(recorded()).toEqual([
+      ['Salary', undefined],
+      ['Plot in Kitale', undefined],
+    ]);
+  });
+
+  it("takes an entry of the category's kind for the item's id as recording it", () => {
+    expect(
+      recorded([
+        entry({ itemId: 'k', kind: 'disposal' }),
+        entry({ itemId: 'salary', kind: 'source-ended' }),
+      ]),
+    ).toEqual([
+      ['Salary', true],
+      ['Plot in Kitale', true],
+    ]);
+  });
+
+  it('takes an entry for the same person and description, however worded, as recording it', () => {
+    expect(
+      recorded([
+        entry({ personKey: 'officer', itemDescription: 'plot in  KITALE.', kind: 'disposal' }),
+      ]),
+    ).toEqual([
+      ['Salary', false],
+      ['Plot in Kitale', true],
+    ]);
+  });
+
+  it('does not take an entry of another kind, or for another person, as recording it', () => {
+    expect(
+      recorded([
+        entry({ itemId: 'k', kind: 'settled' }),
+        entry({ itemId: 'salary', kind: 'disposal' }),
+        entry({ personKey: 'spouse:x', itemDescription: 'Plot in Kitale', kind: 'disposal' }),
+        entry({ itemDescription: 'Plot in Kitale', kind: 'disposal' }),
+      ]),
+    ).toEqual([
+      ['Salary', false],
+      ['Plot in Kitale', false],
+    ]);
+  });
+
+  it('is not set on a value change or a new item', () => {
+    const [statement] = compareStatements(
+      [officer({ income: [salary(1_000_000)] })],
+      [officer({ income: [salary(2_000_000)], assets: [land('v', 'Plot in Voi', 300_000)] })],
+    );
+    if (!statement) throw new Error('no statement');
+
+    expect(changeRows(statement, []).rows.map((row) => row.recordedInParagraph9)).toEqual([
+      undefined,
+      undefined,
     ]);
   });
 });

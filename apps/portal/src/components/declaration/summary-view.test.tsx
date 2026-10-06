@@ -808,9 +808,38 @@ describe('changes since the previous declaration (ADR-006 point 10)', () => {
     expect(rows).toEqual([
       expect.stringMatching(/^Salary from TSC.*Up 33\.3%Material changeNot marked as changed$/),
       expect.stringMatching(/^Plot in Kapsoya.*NewMaterial change$/),
-      expect.stringMatching(/^Toyota Probox.*No longer declaredMaterial change$/),
+      expect.stringMatching(
+        /^Toyota Probox.*No longer declaredMaterial changeNot recorded in paragraph 9$/,
+      ),
     ]);
     expect(within(changes).getByText('3 material changes')).toBeTruthy();
+  });
+
+  it('does not warn of an item no longer declared that paragraph 9 records as gone', async () => {
+    previousMock.mockResolvedValueOnce({ status: 'ok', previous });
+    const document = {
+      ...COMPLETE_DOCUMENT,
+      otherInformation: {
+        ...COMPLETE_DOCUMENT.otherInformation,
+        materialChanges: [
+          ...COMPLETE_DOCUMENT.otherInformation.materialChanges,
+          {
+            personKey: 'officer',
+            itemDescription: 'Toyota Probox',
+            kind: 'disposal',
+            explanation: 'Sold in 2026.',
+          },
+        ],
+      },
+    };
+    renderSummary(summaryOf({ document: document as unknown as LoadedSummary['document'] }));
+
+    const table = await screen.findByRole('table', {
+      name: 'Changes since your last declaration: You',
+    });
+    expect(within(table).getByRole('row', { name: /Toyota Probox/ }).textContent).toMatch(
+      /No longer declaredMaterial change$/,
+    );
   });
 
   it('is not shown for a first declaration', async () => {

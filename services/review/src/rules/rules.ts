@@ -4,6 +4,7 @@ import {
   CATEGORIES,
   compositeKey,
   type Category,
+  GONE_KIND,
   type Item,
   match,
   MATERIAL_CHANGE_RATIO,
@@ -46,13 +47,6 @@ export interface Flag {
   evidence: Evidence;
   itemRefs: ItemRef[];
 }
-
-/** The paragraph 9 kind that accounts for an item of each category no longer declared. */
-const GONE_KIND: Record<Category, MaterialChangeEntry['kind']> = {
-  income: 'source-ended',
-  assets: 'disposal',
-  liabilities: 'settled',
-};
 
 /**
  * The deterministic checks run on each submitted version (spec 07a, BE-1). Flags are indicators

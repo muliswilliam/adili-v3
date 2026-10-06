@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { compareDeclarations, MONEY_FIELD, NEW_KIND, valueChange, valueOf } from './compare.js';
+import {
+  compareDeclarations,
+  GONE_KIND,
+  MONEY_FIELD,
+  NEW_KIND,
+  valueChange,
+  valueOf,
+} from './compare.js';
 import type { AssetItem } from './declaration.v1.gen.js';
 
 const KENYA = { inKenya: true, county: '047' } as const;
@@ -144,6 +151,14 @@ describe('the categories', () => {
       income: 'new-source',
       assets: 'acquisition',
       liabilities: 'acquisition',
+    });
+  });
+
+  it('each record an item no longer declared with their own paragraph 9 kind', () => {
+    expect(GONE_KIND).toEqual({
+      income: 'source-ended',
+      assets: 'disposal',
+      liabilities: 'settled',
     });
   });
 });

@@ -2,6 +2,7 @@ import {
   type Category,
   compareDeclarations,
   type Compared,
+  GONE_KIND,
   type Item,
   MONEY_FIELD,
   NEW_KIND,
@@ -12,7 +13,14 @@ import {
   valueOf,
 } from '@adili/forms/compare';
 
-import type { AssetItem, Draft, IncomeItem, LiabilityItem, Statement } from './contents';
+import type {
+  AssetItem,
+  Draft,
+  IncomeItem,
+  LiabilityItem,
+  MaterialChangeEntry,
+  Statement,
+} from './contents';
 import { fullName } from './format';
 import { OFFICER_KEY } from './section-key';
 
@@ -116,8 +124,6 @@ export interface ChangeRow {
   previousCents: number | null;
   /** Null for an item that is gone. */
   currentCents: number | null;
-  /** Signed whole percent for a value change; null otherwise, or up from nothing. */
-  changePercent: number | null;
   /** Act s.31(4): 25% or more either way, an acquisition or a disposal. */
   material: boolean;
   /**
@@ -126,6 +132,11 @@ export interface ChangeRow {
    * change as changed with any other kind.
    */
   markedAsChanged: boolean;
+  /**
+   * For an item that is gone: paragraph 9 records it as gone, as the reviewer's rules read it.
+   * Unset on other rows, and where paragraph 9 is not known (a statement on its own).
+   */
+  recordedInParagraph9?: boolean;
 }
 
 export interface Changes {
@@ -134,8 +145,14 @@ export interface Changes {
   unchanged: number;
 }
 
-/** A statement's changes: value changes in the draft's order, then new items, then gone ones. */
-export function changeRows(statement: StatementComparison): Changes {
+/**
+ * A statement's changes: value changes in the draft's order, then new items, then gone ones.
+ * Given paragraph 9's material changes, each gone item says whether they record it.
+ */
+export function changeRows(
+  statement: StatementComparison,
+  materialChanges?: readonly Draft<MaterialChangeEntry>[],
+): Changes {
   const valued = statement.matched.filter((pair) => !isUnvalued(pair.current));
   const moved = valued.filter((pair) => pair.deltaCents !== 0);
   return {
@@ -146,7 +163,6 @@ export function changeRows(statement: StatementComparison): Changes {
         itemId: pair.current.id,
         previousCents: pair.previousCents,
         currentCents: pair.currentCents,
-        changePercent: pair.changePercent,
         material: pair.material,
         markedAsChanged: marked(pair.category, pair.current, false),
       })),
@@ -167,6 +183,9 @@ export function changeRows(statement: StatementComparison): Changes {
         previousCents: valueOf(placed.item),
         currentCents: null,
         markedAsChanged: false,
+        ...(materialChanges && {
+          recordedInParagraph9: recordedAsGone(placed, materialChanges),
+        }),
       })),
     ],
     unchanged: valued.length - moved.length,
@@ -185,7 +204,28 @@ function described(category: Category, item: Item) {
 
 /** Acquired or disposed of: material whatever the value (Act s.31(4)(b)). */
 function unmatched({ category, item }: PlacedItem) {
-  return { ...described(category, item), changePercent: null, material: true };
+  return { ...described(category, item), material: true };
+}
+
+/**
+ * Whether paragraph 9 records an item as gone, as the reviewer's `disposal-unflagged` rule reads
+ * it: an entry of its category's gone kind (a disposal, a source ended, a debt settled) for the
+ * item's id, or for the same person and the same description however worded. The person is the
+ * one the draft declares them as, the key paragraph 9's entries carry.
+ */
+function recordedAsGone(
+  placed: PlacedItem,
+  materialChanges: readonly Draft<MaterialChangeEntry>[],
+): boolean {
+  return materialChanges.some(
+    (entry) =>
+      entry.kind === GONE_KIND[placed.category] &&
+      // A draft's item may lack an id the reviewer's always has: it never pairs on a missing one.
+      ((entry.itemId !== undefined && entry.itemId === placed.item.id) ||
+        (entry.personKey === placed.personKey &&
+          entry.itemDescription !== undefined &&
+          normalise(entry.itemDescription) === normalise(placed.item.description))),
+  );
 }
 
 /** One person's changes; none when neither declaration has a statement for them. */

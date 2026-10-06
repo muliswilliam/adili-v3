@@ -23,7 +23,7 @@ import {
   compareStatements,
   statementChanges,
 } from '../../declaration/comparison';
-import type { Draft, Statement } from '../../declaration/contents';
+import type { Draft, MaterialChangeEntry, Statement } from '../../declaration/contents';
 import { fullName } from '../../declaration/format';
 import { OBLIGATION_TYPE_LABELS, TYPE_LABELS } from '../../declaration/labels';
 import { OFFICER_KEY } from '../../declaration/section-key';
@@ -42,8 +42,15 @@ export const CHANGES_COPY = {
   title: 'Changes since your last declaration',
   material: 'Material change',
   notMarked: 'Not marked as changed',
+  /** The reviewer queries a marking that does not match the change, under 25% included. */
+  markedUnderThreshold: 'Marked as changed, under 25%',
+  notRecorded: 'Not recorded in paragraph 9',
+  /**
+   * A gone item has nothing left to mark: the reviewer takes it as accounted for only when
+   * paragraph 9 records it as disposed of, ended or settled.
+   */
   threshold:
-    'A change of 25% or more in value, or anything acquired or disposed of, is a material change (Act s.31(4)). Mark each one as changed and explain it.',
+    'A change of 25% or more in value, or anything acquired or disposed of, is a material change (Act s.31(4)). Mark a changed or new item as changed and explain it; record anything disposed of or paid off in paragraph 9.',
   none: 'No changes in value since then.',
   unavailable:
     'Your previous declaration could not be loaded, so changes since it are not shown. Try again later.',
@@ -130,12 +137,7 @@ export function ChangesTable({ changes, caption }: { changes: Changes; caption: 
                   <span>{changeText(row)}</span>
                   {row.material ? <Badge variant="warning">{CHANGES_COPY.material}</Badge> : null}
                 </div>
-                {row.material && row.kind !== 'gone' && !row.markedAsChanged ? (
-                  <p className="mt-1 flex items-center gap-1 text-[13px] font-medium text-warning">
-                    <Icon icon={Alert02Icon} className="size-3.5 shrink-0" />
-                    {CHANGES_COPY.notMarked}
-                  </p>
-                ) : null}
+                <RowNote row={row} />
               </TableCell>
             </TableRow>
           ))}
@@ -147,6 +149,32 @@ export function ChangesTable({ changes, caption }: { changes: Changes; caption: 
       </p>
     </div>
   );
+}
+
+/**
+ * What the reviewer would query about a row: a material change not marked as changed, or an
+ * item gone that paragraph 9 does not record, as a warning; a value change under 25% marked as
+ * changed as a note, since the marking may be meant but will be asked about.
+ */
+function RowNote({ row }: { row: ChangeRow }) {
+  const warning =
+    row.kind === 'gone'
+      ? row.recordedInParagraph9 === false && CHANGES_COPY.notRecorded
+      : row.material && !row.markedAsChanged && CHANGES_COPY.notMarked;
+  if (warning) {
+    return (
+      <p className="mt-1 flex items-center gap-1 text-[13px] font-medium text-warning">
+        <Icon icon={Alert02Icon} className="size-3.5 shrink-0" />
+        {warning}
+      </p>
+    );
+  }
+  if (row.kind === 'value' && !row.material && row.markedAsChanged) {
+    return (
+      <p className="mt-1 text-[13px] text-muted-foreground">{CHANGES_COPY.markedUnderThreshold}</p>
+    );
+  }
+  return null;
 }
 
 /** "2 material changes"; nothing when there are none. */
@@ -178,11 +206,16 @@ export function StatementChanges({
 }) {
   const headingId = useId();
   // The section re-renders on every keystroke; compare again only when the statement or the
-  // previous declaration changes.
+  // previous declaration changes. The statement is compared as the person it is shown for, so
+  // one saved before its person was set is not taken for the officer's.
   const changes = useMemo(
     () =>
       load.status === 'ready'
-        ? statementChanges(load.previous.statements, [statement], personKey)
+        ? statementChanges(
+            load.previous.statements,
+            [{ ...statement, personKey: personKey as Statement['personKey'] }],
+            personKey,
+          )
         : null,
     [load, statement, personKey],
   );
@@ -216,9 +249,12 @@ export function StatementChanges({
 export function DeclarationChanges({
   load,
   statements,
+  materialChanges,
 }: {
   load: PreviousLoad;
   statements: readonly Draft<Statement>[];
+  /** Paragraph 9's, to say of each item gone whether they record it. */
+  materialChanges: readonly Draft<MaterialChangeEntry>[];
 }) {
   const headingId = useId();
   const previous = load.status === 'ready' ? load.previous : null;
@@ -236,10 +272,10 @@ export function DeclarationChanges({
           personKey === OFFICER_KEY
             ? OFFICER_LABEL
             : fullName(statement?.personName) || 'Unnamed person',
-        changes: changeRows(comparison),
+        changes: changeRows(comparison, materialChanges),
       };
     });
-  }, [previous, statements]);
+  }, [previous, statements, materialChanges]);
   if (load.status === 'none') return null;
   const material = persons.reduce((sum, person) => sum + materialCount(person.changes), 0);
 
