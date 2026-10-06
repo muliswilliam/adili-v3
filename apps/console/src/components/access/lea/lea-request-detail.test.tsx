@@ -111,6 +111,8 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     expect(written.textContent).toContain('DCI/ECU/142/2026');
     expect(written.textContent).toContain('Grace Nyambura Kamau');
     expect(written.textContent).not.toContain('Clarifications');
+    // A short name for the tip; the regulation is its content.
+    expect(within(written).getByRole('button', { name: 'About No Form K' })).toBeTruthy();
     const chip = document.querySelector('time[data-state]');
     expect(chip?.textContent).toMatch(/1\d days left/);
   });

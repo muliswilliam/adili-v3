@@ -21,6 +21,7 @@ import {
   EmptyState,
   formatNumber,
   Icon,
+  InfoTip,
   Select,
   SelectItem,
   Skeleton,
@@ -50,7 +51,6 @@ import type {
 } from '../../server/declarations/client';
 import type { HelpResult } from '../../server/help.server';
 import { CursorPager } from '../cursor-pager';
-import { InfoTip } from '../info-tip';
 import { LoadError } from '../load-error';
 import { Page } from '../page';
 import { clientPage } from '../paging';
@@ -147,7 +147,7 @@ export function CorpusView({
                 : m.corpusMeta('-', formatNumber(inForce.length))}
             </span>
           )}
-          <InfoTip content={m.corpusTip} label={m.corpusTip} />
+          <InfoTip content={m.corpusTip} label={m.corpusTipLabel} />
         </div>
         <div role="search" className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
           <SearchBox

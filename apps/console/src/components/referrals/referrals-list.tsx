@@ -6,6 +6,7 @@ import {
   FilterChip,
   formatDate,
   Icon,
+  InfoTip,
   ReferenceChip,
   Skeleton,
   Table,
@@ -22,7 +23,6 @@ import { REFERRAL_STATUSES } from '../../referral/view';
 import type { ReferralsPage } from '../../server/referrals.server';
 import type { Referral } from '../../server/review/types';
 import type { ServiceResult } from '../../server/service-call';
-import { InfoTip } from '../info-tip';
 import { LoadError } from '../load-error';
 import { ConfidentialBadge, GroundsBadge, ReferralStatusBadge } from './badges';
 import { messages as t } from './messages';

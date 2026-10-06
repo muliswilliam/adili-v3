@@ -205,6 +205,7 @@ export const messages = {
   inEffectLabel: 'In effect',
   tags: 'Tags',
   tagsTip: 'Search ranks this article higher for declarants on these sections and items.',
+  tagsTipLabel: 'About tags',
   tagGroupSections: 'Sections',
   tagGroupItems: 'Item types',
   tagGroupTopics: 'Topics',
@@ -265,6 +266,7 @@ export const messages = {
   corpusMeta: (version: string, count: string) => `Version ${version} · ${count} passages in force`,
   corpusTip:
     'Statutory text is imported from the repository at deploy time. It cannot be edited here.',
+  corpusTipLabel: 'About the corpus',
   corpusSearchLabel: 'Search passages',
   corpusSearchPlaceholder: 'Citation or title',
   sourceLabel: 'Source',

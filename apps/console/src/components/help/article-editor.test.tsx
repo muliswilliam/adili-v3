@@ -106,6 +106,7 @@ describe('article editor (spec 11 FE-4, S9)', () => {
     );
     expect(screen.getByText('Optional. Without it, Kiswahili users see the English.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Bio data', pressed: true })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'About tags' })).toBeTruthy();
     expect(screen.getByRole('checkbox', { name: 'Published' })).toHaveProperty('checked', true);
   });
 

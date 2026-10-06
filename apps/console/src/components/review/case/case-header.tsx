@@ -7,6 +7,7 @@ import {
   cn,
   formatDate,
   Icon,
+  InfoTip,
   PriorityBadge,
   ReferenceChip,
   Tooltip,
@@ -29,7 +30,6 @@ import { CASE_STATUSES, DECLARATION_TYPES } from '../../../review-case/labels';
 import type { CaseViewDetail } from '../../../server/review-case.server';
 import type { Assignee } from '../../../server/review/types';
 import { TONES } from '../status-badge';
-import { InfoTip } from './info-tip';
 import { messages as t } from './messages';
 
 export function CaseStatusBadge({ status }: { status: CaseViewDetail['case']['status'] }) {

@@ -93,6 +93,7 @@ describe('legal corpus (spec 11 FE-4, S9)', () => {
   it('lists the wordings in force with citation, source, period and version, read only', () => {
     renderView();
     expect(screen.getByText('Version c3f91a2e · 12 passages in force')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'About the corpus' })).toBeTruthy();
     const table = screen.getByRole('table', { name: 'Legal corpus passages' });
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(10);

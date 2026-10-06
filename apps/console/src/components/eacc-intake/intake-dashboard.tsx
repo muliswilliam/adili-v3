@@ -15,6 +15,7 @@ import {
   formatDateTime,
   formatPercent,
   Icon,
+  InfoTip,
   INTAKE_STATUSES,
   IntakeStatusBadge,
   RateBar,
@@ -45,7 +46,6 @@ import type { Intake, IntakeRow } from '../../server/reporting/types';
 import { problemStatus } from '../../server/service-call';
 import { CursorPager } from '../cursor-pager';
 import { dueDateOf } from '../form-m/financial-year';
-import { InfoTip } from '../info-tip';
 import { LoadError, NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
 import { YearSelect } from './year-select';

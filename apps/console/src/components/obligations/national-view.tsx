@@ -7,6 +7,7 @@ import {
   formatDate,
   formatDateTime,
   Icon,
+  InfoTip,
   Select,
   SelectItem,
   Skeleton,
@@ -35,7 +36,6 @@ import type {
 } from '../../server/declarations/client';
 import { CursorPager } from '../cursor-pager';
 import { formatNumber } from '../format';
-import { InfoTip } from '../info-tip';
 import { LoadError, NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
 import { problemStatus } from '../../server/service-call';

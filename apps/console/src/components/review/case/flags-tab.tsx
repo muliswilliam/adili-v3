@@ -6,6 +6,7 @@ import {
   FieldError,
   formatDate,
   Icon,
+  InfoTip,
   Label,
   SeverityBadge,
   Spinner,
@@ -36,7 +37,6 @@ import {
   groupFlags,
 } from '../../../review-case/flags';
 import { RULE_SYSTEMS, SYSTEM_NAMES } from '../../../review-case/registry';
-import { InfoTip } from './info-tip';
 import { messages as t } from './messages';
 
 /**

@@ -171,6 +171,12 @@ describe('QueueView', () => {
     expect(first.getByText('None')).toBeTruthy();
   });
 
+  it('explains the Priority column in a tip named by a short label', () => {
+    render(view());
+    const table = screen.getByRole('table', { name: /highest priority first/ });
+    expect(within(table).getByRole('button', { name: 'About priority' })).toBeTruthy();
+  });
+
   it('marks a case whose registries could not all be checked (spec 07b)', () => {
     render(view());
     expect(
