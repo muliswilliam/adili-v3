@@ -1,6 +1,7 @@
+import { type putFile, wholePercents } from '@adili/ui';
+
 import type { Upload, UploadReservation } from '../../../server/documents/client';
 import type { SelfAccessResult } from '../../../server/self-access.server';
-import type { putFile } from '../../roster/upload';
 
 /** The file types a representative's proof may be (documents' `access-representation`). */
 export const PROOF_CONTENT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'] as const;
@@ -87,9 +88,7 @@ export async function uploadProof(
   if (!reserved.ok) return refused(reserved);
 
   const put = await deps.putFile(reserved.data.uploadUrl, file, contentType, {
-    onProgress: (loaded, total) => {
-      events.onProgress?.(total > 0 ? Math.round((loaded / total) * 100) : 0);
-    },
+    onProgress: wholePercents((percent) => events.onProgress?.(percent)),
   });
   if (put !== 'ok') return { kind: 'failed' };
 

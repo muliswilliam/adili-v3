@@ -3,11 +3,11 @@ import {
   type AttachmentListItem,
   type AttachmentStatus,
   FieldError,
+  putFile,
 } from '@adili/ui';
 import { useId, useRef } from 'react';
 
 import { completeProof, createProofUpload } from '../../../server/self-access';
-import { putFile } from '../../roster/upload';
 import { goToSignIn } from '../../sign-in-redirect';
 import { messages as m } from './messages';
 import { PROOF_ACCEPT, PROOF_MAX_BYTES, type ProofOutcome, uploadProof } from './proof-upload';

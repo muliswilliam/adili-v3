@@ -36,7 +36,10 @@ vi.mock('../../../server/self-access', () => ({
   createProofUpload: vi.fn(),
   completeProof: vi.fn(),
 }));
-vi.mock('../../roster/upload', () => ({ putFile: vi.fn(() => Promise.resolve('ok')) }));
+vi.mock(import('@adili/ui'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  putFile: vi.fn(() => Promise.resolve('ok' as const)),
+}));
 
 const officer = () => mockAccessClient([ACCESS_OFFICER]);
 const documents = () => mockSelfAccessDocumentsClient([ACCESS_OFFICER]);

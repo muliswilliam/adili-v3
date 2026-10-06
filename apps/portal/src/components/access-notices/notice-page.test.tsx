@@ -24,9 +24,9 @@ vi.mock('../../server/documents/uploads', () => ({
   getAttachmentUpload: vi.fn(),
 }));
 // The PUT to storage is XHR; everything else in the upload flow runs for real.
-vi.mock(import('../declaration/attachment-upload'), async (importOriginal) => ({
+vi.mock(import('@adili/ui'), async (importOriginal) => ({
   ...(await importOriginal()),
-  putToPresignedUrl: vi.fn(() => Promise.resolve()),
+  putFile: vi.fn(() => Promise.resolve('ok' as const)),
 }));
 
 const submitMock = vi.mocked(submitMyRepresentations);

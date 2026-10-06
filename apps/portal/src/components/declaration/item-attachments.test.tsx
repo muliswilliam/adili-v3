@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { putFile } from '@adili/ui';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,7 +19,6 @@ import {
   getAttachmentUpload,
 } from '../../server/documents/uploads';
 import type { UploadCheck } from '../../server/documents/uploads.server';
-import { putToPresignedUrl } from './attachment-upload';
 import type { Attachment } from '../../declaration/contents';
 import { markExtractionOff, resetExtractionAvailability } from './extraction-availability';
 import type { ItemAttachmentSlot } from './statement-item-editor';
@@ -32,15 +32,15 @@ vi.mock('../../server/documents/uploads', () => ({
   completeAttachmentUpload: vi.fn(),
   getAttachmentUpload: vi.fn(),
 }));
-vi.mock(import('./attachment-upload'), async (importOriginal) => ({
+vi.mock(import('@adili/ui'), async (importOriginal) => ({
   ...(await importOriginal()),
-  putToPresignedUrl: vi.fn(),
+  putFile: vi.fn(),
 }));
 
 const reserveMock = vi.mocked(createAttachmentUpload);
 const completeMock = vi.mocked(completeAttachmentUpload);
 const checkMock = vi.mocked(getAttachmentUpload);
-const putMock = vi.mocked(putToPresignedUrl);
+const putMock = vi.mocked(putFile);
 const linkMock = vi.mocked(linkDeclarationAttachment);
 const unlinkMock = vi.mocked(unlinkDeclarationAttachment);
 const getSectionMock = vi.mocked(getDeclarationSection);
@@ -124,7 +124,7 @@ beforeEach(() => {
       maxSize: 20 * 1024 * 1024,
     },
   });
-  putMock.mockResolvedValue(undefined);
+  putMock.mockResolvedValue('ok');
   completeMock.mockResolvedValue({ status: 'clean', sha256: SHA, size: 8 * 1024 });
   checkMock.mockResolvedValue({ status: 'scanning' } satisfies UploadCheck);
   linkMock.mockResolvedValue({
@@ -175,8 +175,8 @@ describe('ItemAttachments (S10)', () => {
   });
 
   it('shows upload progress', async () => {
-    putMock.mockImplementation((_url, _file, _type, onProgress) => {
-      onProgress(40);
+    putMock.mockImplementation((_url, _file, _type, options) => {
+      options?.onProgress?.(40, 100);
       return never();
     });
     renderAttachments();
@@ -252,7 +252,7 @@ describe('ItemAttachments (S10)', () => {
   });
 
   it('shows a failed upload and tries it again', async () => {
-    putMock.mockRejectedValueOnce(new Error('network'));
+    putMock.mockResolvedValueOnce('failed');
     renderAttachments();
     pick(pdf('logbook.pdf'));
     expect(

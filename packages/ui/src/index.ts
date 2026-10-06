@@ -740,6 +740,7 @@ export {
   sha256Hex,
   Sha256UnavailableError,
 } from './lib/sha256';
+export { putFile, type PutFileOptions, type PutResult, wholePercents } from './lib/put-file';
 export { formatNumber, formatPercent } from './lib/format-number';
 export {
   formatMoney,

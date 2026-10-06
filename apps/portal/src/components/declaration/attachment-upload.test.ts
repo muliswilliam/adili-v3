@@ -20,10 +20,10 @@ function steps(overrides: Partial<UploadSteps> = {}): UploadSteps {
         },
       }),
     ),
-    put: vi.fn((_url: string, _file: File, _type: string, onProgress: (p: number) => void) => {
-      onProgress(50);
-      onProgress(100);
-      return Promise.resolve();
+    put: vi.fn<UploadSteps['put']>((_url, _file, _type, options) => {
+      options?.onProgress?.(4, 8);
+      options?.onProgress?.(8, 8);
+      return Promise.resolve('ok' as const);
     }),
     complete: vi.fn(() =>
       Promise.resolve<UploadCheck>({ status: 'clean', sha256: 'a'.repeat(64), size: 8 }),
@@ -55,12 +55,9 @@ describe('uploadAttachment', () => {
       size: file.size,
       fileName: 'deed.pdf',
     });
-    expect(given.put).toHaveBeenCalledWith(
-      `/api/mock-uploads/${UPLOAD_ID}`,
-      file,
-      'application/pdf',
-      expect.any(Function),
-    );
+    const [url, body, type, options] = vi.mocked(given.put).mock.calls[0] ?? [];
+    expect([url, body, type]).toEqual([`/api/mock-uploads/${UPLOAD_ID}`, file, 'application/pdf']);
+    expect(options?.onProgress).toBeTypeOf('function');
     expect(given.link).toHaveBeenCalledWith(UPLOAD_ID);
   });
 
@@ -93,7 +90,8 @@ describe('uploadAttachment', () => {
   it.each([
     ['reserving is unavailable', { reserve: () => Promise.resolve({ status: 'unavailable' }) }],
     ['the session expired', { reserve: () => Promise.resolve({ status: 'unauthenticated' }) }],
-    ['the PUT drops', { put: () => Promise.reject(new Error('network')) }],
+    ['the PUT is refused or drops', { put: () => Promise.resolve('failed') }],
+    ['the PUT is aborted', { put: () => Promise.resolve('aborted') }],
     ['the upload expired', { complete: () => Promise.resolve({ status: 'expired' }) }],
     [
       'the bytes never arrived',
@@ -106,6 +104,21 @@ describe('uploadAttachment', () => {
       id: 'row-1',
       outcome: 'failed',
     });
+  });
+
+  it('reports each whole percent once', async () => {
+    const given = steps({
+      put: (_url, _file, _type, options) => {
+        options?.onProgress?.(1, 3);
+        options?.onProgress?.(1, 3);
+        options?.onProgress?.(2, 3);
+        return Promise.resolve('ok');
+      },
+    });
+    expect((await run(given)).filter((event) => event.type === 'progress')).toEqual([
+      { type: 'progress', id: 'row-1', percent: 33 },
+      { type: 'progress', id: 'row-1', percent: 66 },
+    ]);
   });
 
   it('polls while the scan has not finished', async () => {

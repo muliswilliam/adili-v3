@@ -1,64 +1,8 @@
+import { type putFile, wholePercents } from '@adili/ui';
+
 import type { DocumentsResult, Upload, UploadReservation } from '../../server/documents/client';
 import type { CreateRosterUploadInput } from '../../server/uploads';
 import { rosterContentType } from './roster-file';
-
-/** How a presigned PUT ended. */
-export type PutResult = 'ok' | 'failed' | 'aborted';
-
-export interface PutFileOptions {
-  signal?: AbortSignal;
-  /** Bytes sent so far and in total, as the browser reports them. */
-  onProgress?: (loaded: number, total: number) => void;
-  /** For tests. */
-  createXhr?: () => XMLHttpRequest;
-}
-
-/**
- * PUTs `body` straight to a presigned object storage URL, reporting upload progress (which
- * `fetch` cannot) and stopping when `signal` aborts. Sends `contentType`, which the URL is
- * signed for. Resolves to how it ended; never rejects. Any non-2xx answer, including an
- * expired signature (403), is a failure.
- */
-export function putFile(
-  url: string,
-  body: Blob,
-  contentType: string,
-  { signal, onProgress, createXhr = () => new XMLHttpRequest() }: PutFileOptions = {},
-): Promise<PutResult> {
-  return new Promise((resolve) => {
-    if (signal?.aborted) {
-      resolve('aborted');
-      return;
-    }
-    const xhr = createXhr();
-    const abort = () => {
-      xhr.abort();
-    };
-    const settle = (result: PutResult) => {
-      signal?.removeEventListener('abort', abort);
-      resolve(result);
-    };
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) onProgress?.(event.loaded, event.total);
-    };
-    xhr.onload = () => {
-      settle(xhr.status >= 200 && xhr.status < 300 ? 'ok' : 'failed');
-    };
-    xhr.onerror = () => {
-      settle('failed');
-    };
-    xhr.ontimeout = () => {
-      settle('failed');
-    };
-    xhr.onabort = () => {
-      settle('aborted');
-    };
-    signal?.addEventListener('abort', abort);
-    xhr.open('PUT', url);
-    xhr.setRequestHeader('Content-Type', contentType);
-    xhr.send(body);
-  });
-}
 
 /** A roster file that passed the scan and sits in the clean bucket, ready to import. */
 export interface CleanUpload {
@@ -157,15 +101,9 @@ export async function uploadRosterFile(
   if (!reservation.ok) return failed(reservation);
 
   events.onUploading?.();
-  let lastPercent = -1;
   const put = await deps.putFile(reservation.data.uploadUrl, file, contentType, {
     signal,
-    onProgress: (loaded, total) => {
-      const percent = total > 0 ? Math.floor((loaded / total) * 100) : 0;
-      if (percent === lastPercent) return;
-      lastPercent = percent;
-      events.onProgress?.(percent);
-    },
+    onProgress: wholePercents((percent) => events.onProgress?.(percent)),
   });
   if (put === 'aborted' || signal?.aborted) return { kind: 'aborted' };
   if (put === 'failed') return { kind: 'failed' };
