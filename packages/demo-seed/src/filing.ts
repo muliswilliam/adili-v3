@@ -105,13 +105,23 @@ export async function startCarriedOver(
   existing: MyDeclaration | undefined,
   previous: Holdings,
 ): Promise<{ declarationId: string; started: boolean }> {
+  const api = await context.as(declarant.demoKey);
   if (existing && existing.status !== 'discarded') {
     if (existing.status !== 'draft') {
       throw new Error(`${declarant.demoKey}'s ${obligation.cycleKey} declaration is filed already`);
     }
-    return { declarationId: existing.id, started: false };
+    if (await carriesOver(api, existing.id, previous)) {
+      return { declarationId: existing.id, started: false };
+    }
+    // A draft seeded before the carry-over changed (e.g. #704's salary and loan): discard it
+    // through the API, as the declarant could, and start it again below.
+    ok(
+      await api.declarations.DELETE('/v1/declarations/{declarationId}', {
+        params: { path: { declarationId: existing.id } },
+      }),
+      `discard ${existing.id}`,
+    );
   }
-  const api = await context.as(declarant.demoKey);
   const draft = ok(
     await api.declarations.POST('/v1/obligations/{id}/declaration', {
       params: { path: { id: obligation.id } },
@@ -150,6 +160,36 @@ export async function startCarriedOver(
   });
   await save('other', otherInformation(previous, previous, followsEarlier));
   return { declarationId, started: true };
+}
+
+/**
+ * Whether a statement holds the carried-over income and liabilities: compared by each item's
+ * identity (type and description), not the server's normalised form.
+ */
+export function holdsCarriedItems(
+  statement: Record<string, unknown>,
+  expected: { income: unknown[]; liabilities: unknown[] },
+): boolean {
+  const items = (list: unknown) =>
+    (Array.isArray(list) ? (list as { type?: unknown; description?: unknown }[]) : [])
+      .map((item) => `${String(item.type)}:${String(item.description)}`)
+      .sort();
+  return (
+    JSON.stringify([items(statement.income), items(statement.liabilities)]) ===
+    JSON.stringify([items(expected.income), items(expected.liabilities)])
+  );
+}
+
+/** Whether a draft's statement holds the income and liabilities carried over from `previous`. */
+async function carriesOver(api: Apis, declarationId: string, previous: Holdings): Promise<boolean> {
+  const statement = ok(
+    await api.declarations.GET('/v1/declarations/{declarationId}/sections/{sectionKey}', {
+      params: { path: { declarationId, sectionKey: 'statement:officer' } },
+    }),
+    'read statement:officer',
+  ).contents as Record<string, unknown>;
+  const expected = carriedOverStatement(previous);
+  return holdsCarriedItems(statement, expected);
 }
 
 /**
