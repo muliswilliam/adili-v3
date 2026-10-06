@@ -261,8 +261,11 @@ export class EnforcementService {
           by: principal.subject,
         },
       });
-      // Last, inside the transaction: if Temporal cannot be reached nothing is restarted.
-      await this.workflows.start({
+      // Last, inside the transaction: if Temporal cannot be reached nothing is restarted. The
+      // ladder stays locked across the start, as an exception to ADR-003 decision 7: the start
+      // terminates the declined run if it is still open, and the lock is what guarantees that
+      // run is not another restart's (a rare supervisor action on one row).
+      await this.workflows.restart({
         tenant,
         subjectKind: ladder.subjectKind,
         subjectId: ladder.subjectId,

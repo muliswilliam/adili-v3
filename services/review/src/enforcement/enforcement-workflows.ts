@@ -26,7 +26,7 @@ export interface LadderSubject {
 /**
  * Starts `EnforcementWorkflow` on Temporal (ADR-003), one per subject, and signals it when an
  * officer decides its step or the ladder closes. A start is idempotent: a running workflow for the
- * subject is left as it is; a closed one (a declined ladder) is followed by the restart's new run.
+ * subject is left as it is. A restart replaces whatever run is still open (`restart`).
  */
 @Injectable()
 export class EnforcementWorkflows {
@@ -36,17 +36,35 @@ export class EnforcementWorkflows {
 
   async start(input: EnforcementInput): Promise<void> {
     try {
-      // By name: workflow code is loaded by the worker's bundler, not by this process.
-      await this.temporal.workflow.start<typeof enforcement>(ENFORCEMENT_WORKFLOW, {
-        taskQueue: config.TEMPORAL_TASK_QUEUE,
-        workflowId: enforcementWorkflowId(input.subjectKind, input.subjectId),
-        args: [input],
-        workflowIdConflictPolicy: 'USE_EXISTING',
-        workflowIdReusePolicy: 'ALLOW_DUPLICATE',
-      });
+      await this.run(input, 'USE_EXISTING');
     } catch (error) {
       if (!(error instanceof WorkflowExecutionAlreadyStartedError)) throw error;
     }
+  }
+
+  /**
+   * A supervisor's restart of a declined ladder: a new run, terminating the subject's run if one
+   * is still open. That can only be the declined run on its way out (it has read, or is about to
+   * read, the decline, and records nothing more), which a start that joined it would leave the
+   * restarted ladder with no workflow behind it (#509). Called with the declined ladder locked,
+   * so no other restart's run can be the one terminated.
+   */
+  async restart(input: EnforcementInput): Promise<void> {
+    await this.run(input, 'TERMINATE_EXISTING');
+  }
+
+  private async run(
+    input: EnforcementInput,
+    workflowIdConflictPolicy: 'USE_EXISTING' | 'TERMINATE_EXISTING',
+  ): Promise<void> {
+    // By name: workflow code is loaded by the worker's bundler, not by this process.
+    await this.temporal.workflow.start<typeof enforcement>(ENFORCEMENT_WORKFLOW, {
+      taskQueue: config.TEMPORAL_TASK_QUEUE,
+      workflowId: enforcementWorkflowId(input.subjectKind, input.subjectId),
+      args: [input],
+      workflowIdConflictPolicy,
+      workflowIdReusePolicy: 'ALLOW_DUPLICATE',
+    });
   }
 
   /**

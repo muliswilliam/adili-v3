@@ -6,6 +6,7 @@ import { asc, eq } from 'drizzle-orm';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ladderHistory, outbox } from '../../src/db/schema.js';
+import { administrativeActions, enforcementLadders } from '../../src/enforcement/schema.js';
 import { DECIDED_SIGNAL, enforcementWorkflowId } from '../../src/enforcement/contract.js';
 
 import type {
@@ -695,6 +696,49 @@ describe('salary stoppage, reinstatement and disciplinary referral', () => {
       ),
     );
     expect(redrafted.ladder).toMatchObject({ status: 'active', run: 2 });
+  }, 150_000);
+
+  it('S6: a restart while the declined run is still open replaces that run: the stoppage is drafted again', async () => {
+    const { stoppage } = await draftedStoppage();
+    // Declined with its signal lost: the run that drafted the stoppage is still open, waiting.
+    const ladder = await api.asPlatform(async (tx) => {
+      await tx
+        .update(administrativeActions)
+        .set({
+          status: 'declined',
+          declinedBy: supervisorS.sub,
+          declinedByName: 'Supervisor S',
+          declinedAt: new Date(),
+          declineNote: 'Response under review.',
+        })
+        .where(eq(administrativeActions.id, stoppage.id));
+      const [row] = await tx
+        .update(enforcementLadders)
+        .set({ status: 'declined', endedAt: new Date() })
+        .where(eq(enforcementLadders.id, stoppage.ladderId))
+        .returning();
+      return row;
+    });
+    const before = await temporal().workflow.getHandle(workflowId()).describe();
+    expect(before.status.name).toBe('RUNNING');
+
+    const restarted = await api.send(
+      'POST',
+      `/v1/review/ladders/${ladder?.id ?? ''}/restart`,
+      supervisorT,
+    );
+
+    expect(restarted.statusCode, restarted.body).toBe(200);
+    const redrafted = await ladderWhen(api, 'obligation', obligation.obligationId, ({ actions }) =>
+      actions.some(
+        (action) =>
+          action.step === 'salary-stoppage' && action.status === 'proposed' && action.run === 2,
+      ),
+    );
+    expect(redrafted.ladder).toMatchObject({ status: 'active', run: 2 });
+    const after = await temporal().workflow.getHandle(workflowId()).describe();
+    expect(after.runId).not.toBe(before.runId);
+    expect(after.status.name).toBe('RUNNING');
   }, 150_000);
 
   it('S15: payroll unavailable: the stoppage stays approved-pending-payroll with nothing issued, retried with backoff until payroll acknowledges', async () => {
