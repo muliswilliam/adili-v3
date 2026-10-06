@@ -80,7 +80,10 @@ export function Breadcrumbs() {
             // Home stays whole; the crumbs between it and the page give way on a narrow bar.
             <li
               key={crumb.id}
-              className={cn('flex items-center gap-1.5', crumb === HOME ? 'shrink-0' : 'min-w-0')}
+              className={cn(
+                'flex items-center gap-1.5',
+                crumb.to === HOME.to ? 'shrink-0' : 'min-w-0',
+              )}
             >
               <Link
                 to={crumb.to}
