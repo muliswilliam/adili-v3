@@ -78,8 +78,9 @@ const refused = {
  *
  * - `POST /internal/v1/payroll/instructions` (`payroll`), with the legal basis `am-sanctions` and
  *   the review case when there is one. 201 (sent now) and 200 (a replay of the same reference)
- *   both answer the acknowledgement; an instruction the gateway refuses (400, or 409 for another
- *   instruction under the reference) is `InternalApiRejected`, anything else unexpected
+ *   both answer the acknowledgement; an instruction the gateway refuses (400, 403 when the token
+ *   lacks the scope, or 409 for another instruction under the reference) is
+ *   `InternalApiRejected`, anything else unexpected
  *   `IntegrationGatewayUnavailable`.
  * - The registry lookups, the supplier check and stored results (`registry`), acting for the
  *   Commission (`X-Acting-Tenant`) with the legal basis, the case and its declarant
@@ -125,9 +126,10 @@ export class HttpIntegrationGatewayClient extends IntegrationGatewayClient {
       {
         status: [200, 201],
         schema: instructionSchema,
-        // A conflict (another instruction under the reference) is no better on a retry.
+        // A refusal, or a conflict (another instruction under the reference), is no better on a
+        // retry.
         otherwise: {
-          400: rejectedBy('integration-gateway'),
+          ...refused,
           409: rejectedBy('integration-gateway'),
         },
       },
