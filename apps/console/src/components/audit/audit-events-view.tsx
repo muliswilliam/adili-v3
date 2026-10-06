@@ -36,6 +36,8 @@ export interface AuditEventsViewProps {
   pager?: ReactNode;
   /** Loads an event in full for the drawer; tests may stub it. */
   loadEvent?: (eventId: string) => Promise<ServiceResult<AuditEventView>>;
+  /** Names the person an event is about, for the drawer; tests may stub it. */
+  loadPersonName?: (personId: string) => Promise<ServiceResult<string>>;
 }
 
 /**
@@ -49,6 +51,7 @@ export function AuditEventsView({
   firstPage,
   pager,
   loadEvent,
+  loadPersonName,
 }: AuditEventsViewProps) {
   const [opened, setOpened] = useState<AuditEventSummary | null>(null);
   const items = result?.ok ? result.data.items : [];
@@ -184,6 +187,7 @@ export function AuditEventsView({
           setOpened(null);
         }}
         {...(loadEvent ? { load: loadEvent } : {})}
+        {...(loadPersonName ? { loadPersonName } : {})}
       />
     </>
   );

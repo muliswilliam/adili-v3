@@ -960,6 +960,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/persons/{personId}/name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The name of a person, by id (auditor)
+         * @description Auditors only, audited: the audit trail names the person an event is about by id, and this names them. The name only, never contacts, identifiers or roster records. 404 when no person has this id.
+         */
+        get: operations["getPersonName"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/persons/{personId}/contacts": {
         parameters: {
             query?: never;
@@ -2143,6 +2163,12 @@ export interface components {
              * @description When the account was created
              */
             createdAt: string;
+        };
+        PersonName: {
+            /** Format: uuid */
+            personId: string;
+            /** @description As confirmed at onboarding, or as entered by an applicant */
+            fullName: string;
         };
         PersonContacts: {
             /** Format: uuid */
@@ -5872,6 +5898,59 @@ export interface operations {
                 };
             };
             /** @description No person has this officer reference */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getPersonName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person's name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonName"];
+                };
+            };
+            /** @description personId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Only auditors read a person by id
+             *
+             *     Requires one of the roles: auditor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No person has this id */
             404: {
                 headers: {
                     [name: string]: unknown;

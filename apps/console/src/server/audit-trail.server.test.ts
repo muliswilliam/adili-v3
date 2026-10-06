@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { mockAuditClient, resetAuditMock } from './audit/mock.server';
+import { mockAuditClient, mockAuditPersonsClient, resetAuditMock } from './audit/mock.server';
 import {
   getAuditEvent,
+  getAuditPersonName,
   listAuditChains,
   listAuditEvents,
   nairobiDayEnd,
@@ -51,6 +52,22 @@ describe('the audit trail reads', () => {
     if (!event.ok) return;
     expect(JSON.parse(event.data.dataJson)).toBeTypeOf('object');
     expect(event.data.chain.seq).toBeGreaterThanOrEqual(1);
+  });
+
+  it('names the person an event is about, for an auditor only', async () => {
+    const page = await listAuditEvents(auditor(), { action: 'review.case.viewed' }, 1);
+    const personId = page.ok ? page.data.items[0]?.resource.subjectPersonId : null;
+    expect(personId).toBeTruthy();
+    const name = await getAuditPersonName(mockAuditPersonsClient(['auditor']), personId ?? '');
+    expect(name).toEqual({ ok: true, data: 'Wanjiku Kamau' });
+    const refused = await getAuditPersonName(
+      mockAuditPersonsClient(['eacc-analyst']),
+      personId ?? '',
+    );
+    expect(refused).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 403 } },
+    });
   });
 
   it('lists chains and verifies one', async () => {

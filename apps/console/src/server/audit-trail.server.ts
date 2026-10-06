@@ -1,4 +1,4 @@
-import type { AuditClient } from './audit/client.server';
+import type { AuditClient, AuditPersonsClient } from './audit/client.server';
 import type {
   AuditChainPage,
   AuditChainVerification,
@@ -91,4 +91,18 @@ export function verifyAuditChain(
       params: { path: { tenant, chainDay } },
     }),
   );
+}
+
+/**
+ * The name of the person an event is about, from the directory (auditors only, audited), so the
+ * drawer names them rather than showing an id alone.
+ */
+export async function getAuditPersonName(
+  client: AuditPersonsClient,
+  personId: string,
+): Promise<ServiceResult<string>> {
+  const result = await callService(() =>
+    client.GET('/v1/persons/{personId}/name', { params: { path: { personId } } }),
+  );
+  return result.ok ? { ok: true, data: result.data.fullName } : result;
 }

@@ -15,7 +15,7 @@ import {
 import { useEffect, useEffectEvent, useState } from 'react';
 
 import type { AuditEventSummary } from '../../server/audit/types';
-import { getAuditEventDetail } from '../../server/audit-trail';
+import { getAuditEventDetail, getAuditSubjectName } from '../../server/audit-trail';
 import type { AuditEventView } from '../../server/audit-trail.server';
 import type { ServiceResult } from '../../server/service-call';
 import { Fact } from '../referrals/fact';
@@ -31,14 +31,18 @@ export function AuditEventDrawer({
   event,
   onClose,
   load = (eventId) => getAuditEventDetail({ data: { eventId } }),
+  loadPersonName = (personId) => getAuditSubjectName({ data: { personId } }),
 }: {
   /** The row opened; null when closed. */
   event: AuditEventSummary | null;
   onClose: () => void;
   /** Loads the event in full; tests may stub it. */
   load?: (eventId: string) => Promise<ServiceResult<AuditEventView>>;
+  /** Names the person an event is about (the directory, audited); tests may stub it. */
+  loadPersonName?: (personId: string) => Promise<ServiceResult<string>>;
 }) {
   const detail = useEventDetail(event?.eventId ?? null, load);
+  const personName = usePersonName(event?.resource.subjectPersonId ?? null, loadPersonName);
   const full = detail?.ok ? detail.data : null;
   return (
     <Drawer
@@ -81,7 +85,9 @@ export function AuditEventDrawer({
                     t.drawer.none
                   )}
                 </Fact>
-                <Fact term={t.drawer.client}>{event.actor.clientId ?? t.drawer.none}</Fact>
+                <Fact term={t.drawer.client}>
+                  {event.actor.clientId ? t.drawer.channel(event.actor.clientId) : t.drawer.none}
+                </Fact>
                 <Fact term={t.drawer.resource}>
                   <span className="block">{event.resource.type}</span>
                   {event.resource.id ? (
@@ -92,7 +98,18 @@ export function AuditEventDrawer({
                 </Fact>
                 <Fact term={t.drawer.person}>
                   {event.resource.subjectPersonId ? (
-                    <ShortId value={event.resource.subjectPersonId} keep={13} />
+                    <>
+                      {personName ? <span className="block">{personName}</span> : null}
+                      <span
+                        className={
+                          personName
+                            ? 'block text-[13px] font-normal text-muted-foreground break-all'
+                            : 'block break-all'
+                        }
+                      >
+                        <ShortId value={event.resource.subjectPersonId} keep={13} />
+                      </span>
+                    </>
                   ) : (
                     t.drawer.none
                   )}
@@ -187,6 +204,34 @@ function useEventDetail(
     };
   }, [eventId]);
   return loaded?.eventId === eventId ? loaded.result : null;
+}
+
+/**
+ * The name of the person an event is about, once the directory gives it: null while it loads, and
+ * when it cannot (an unknown id, a failure), so the drawer falls back to the id alone. Kept per
+ * person id, so another event never shows the previous one's name.
+ */
+function usePersonName(
+  personId: string | null,
+  load: (personId: string) => Promise<ServiceResult<string>>,
+): string | null {
+  const [loaded, setLoaded] = useState<{ personId: string; name: string | null } | null>(null);
+  const fetchName = useEffectEvent((id: string) =>
+    load(id)
+      .then((result) => (result.ok ? result.data : null))
+      .catch(() => null),
+  );
+  useEffect(() => {
+    if (personId === null) return;
+    let live = true;
+    void fetchName(personId).then((name) => {
+      if (live) setLoaded({ personId, name });
+    });
+    return () => {
+      live = false;
+    };
+  }, [personId]);
+  return loaded?.personId === personId ? loaded.name : null;
 }
 
 function HashLine({ term, value }: { term: string; value: string }) {

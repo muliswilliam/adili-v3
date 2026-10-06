@@ -8,6 +8,7 @@ import { commissions, type DirectorySchema, persons, rosterRecords } from '../db
 import type {
   DeclarantProfile,
   PersonContacts,
+  PersonName,
   PersonNationalId,
   PersonSummary,
 } from './representation.js';
@@ -90,6 +91,20 @@ export class PersonsService {
         createdAt: found.createdAt.toISOString(),
       };
     });
+  }
+
+  /**
+   * The name of the person with id `personId`, for the auditor reading the audit trail: the
+   * person an event is about, named. Nothing else of the person; 404 if none.
+   */
+  async name(subject: string, personId: string): Promise<PersonName> {
+    const [person] = await withTenant(this.db, { tenant: PLATFORM_TENANT, subject }, (tx) =>
+      tx
+        .select({ personId: persons.id, fullName: persons.fullName })
+        .from(persons)
+        .where(eq(persons.id, personId)),
+    );
+    return notFoundIfInvisible(person);
   }
 
   /**
