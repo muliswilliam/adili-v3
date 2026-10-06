@@ -48,6 +48,7 @@ function renderAt(path: string) {
       getParentRoute: () => root,
       path: '/hidden',
       staticData: { crumb: () => null },
+      component: () => <p>Hidden page</p>,
     }),
   ]);
   const router = createRouter({
@@ -90,7 +91,7 @@ describe('Breadcrumbs', () => {
 
   it('shows no trail when every crumb opts out', async () => {
     renderAt('/hidden');
-    await screen.findByText((_, element) => element?.tagName === 'BODY');
+    await screen.findByText('Hidden page');
     expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
   });
 });

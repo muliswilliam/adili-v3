@@ -77,11 +77,18 @@ export function Breadcrumbs() {
               </span>
             </li>
           ) : (
-            <li key={crumb.id} className="flex shrink-0 items-center gap-1.5">
-              <Link to={crumb.to} className={cn(focusRing, 'rounded-sm hover:text-foreground')}>
+            // Home stays whole; the crumbs between it and the page give way on a narrow bar.
+            <li
+              key={crumb.id}
+              className={cn('flex items-center gap-1.5', crumb === HOME ? 'shrink-0' : 'min-w-0')}
+            >
+              <Link
+                to={crumb.to}
+                className={cn(focusRing, 'truncate rounded-sm hover:text-foreground')}
+              >
                 {crumb.label}
               </Link>
-              <Icon icon={ArrowRight01Icon} className="size-3.5" />
+              <Icon icon={ArrowRight01Icon} className="size-3.5 shrink-0" />
             </li>
           ),
         )}
