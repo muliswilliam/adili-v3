@@ -283,6 +283,22 @@ describe('Ask Adili panel (S12)', () => {
     });
   });
 
+  it("keeps offering the section's suggestions under a conversation, less those asked (#703)", async () => {
+    const spouse = "Do I declare my spouse's salary?";
+    openMock.mockResolvedValue({
+      status: 'ok',
+      conversation: conversation({ messages: [msg({ role: 'user', text: spouse }), answer] }),
+    });
+    renderPanel();
+    const panel = await openPanel();
+
+    expect(await within(panel).findByText('Suggested for Income')).toBeTruthy();
+    expect(
+      within(panel).getByRole('button', { name: 'What counts as a material change?' }),
+    ).toBeTruthy();
+    expect(within(panel).queryByRole('button', { name: spouse })).toBeNull();
+  });
+
   it("opens a cited passage's help page from the passage (Read in help)", async () => {
     openMock.mockResolvedValue({
       status: 'ok',

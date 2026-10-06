@@ -78,6 +78,91 @@ function change(
 const cents = (shillings: number) => ({ kesCents: Math.round(shillings * 100) });
 
 /**
+ * The officer's salary, flagged against the previous declaration's when `compare`, without its
+ * amount (`incomeItems` adds it).
+ */
+function salaryItems(
+  holdings: Holdings,
+  previous: Holdings | undefined,
+  compare: boolean,
+): Omit<IncomeItem, 'amount'>[] {
+  if (holdings.salaryKes === 0) return [];
+  const salaryChange = change(previous?.salaryKes, holdings.salaryKes, compare, 'Salary');
+  return [
+    {
+      id: itemId('salary'),
+      type: 'salary-emoluments',
+      description: `Salary from ${holdings.employer}`,
+      location: { inKenya: true, county: '047' },
+      // A salary is a source the officer had before; its change is in value.
+      change:
+        salaryChange.kind === 'acquisition'
+          ? {
+              changed: true,
+              kind: 'new-source',
+              explanation: 'New employment since the last declaration.',
+            }
+          : salaryChange,
+    },
+  ];
+}
+
+const incomeItems = (
+  holdings: Holdings,
+  previous: Holdings | undefined,
+  compare: boolean,
+): IncomeItem[] =>
+  salaryItems(holdings, previous, compare).map((item) => ({
+    ...item,
+    amount: cents(holdings.salaryKes),
+  }));
+
+/** The officer's loans, flagged against the previous declaration's when `compare`. */
+function liabilityItems(
+  holdings: Holdings,
+  previous: Holdings | undefined,
+  compare: boolean,
+): LiabilityItem[] {
+  return holdings.loans.map((loan) => ({
+    id: itemId('loan', loan.creditor),
+    type: 'loan',
+    description: loan.description,
+    creditor: loan.creditor,
+    outstanding: cents(loan.outstandingKes),
+    location: { inKenya: true, county: '047' },
+    change: change(
+      previous?.loans.find((l) => l.creditor === loan.creditor)?.outstandingKes,
+      loan.outstandingKes,
+      compare,
+      loan.description,
+    ),
+  }));
+}
+
+/**
+ * What a new declaration's officer statement carries over unchanged from the previous one (#682,
+ * #704): its income and liabilities exactly as declared, so the comparison pairs each with itself
+ * and flags only what really changed. The income goes without its amount, which is the new
+ * period's for the declarant to enter; assets are left for the live filing (the registries and the
+ * documents read into the form put them in).
+ */
+export function carriedOverStatement(previous: Holdings): {
+  incomeNil: boolean;
+  income: Omit<IncomeItem, 'amount'>[];
+  liabilitiesNil: boolean;
+  liabilities: LiabilityItem[];
+} {
+  const income = salaryItems(previous, previous, true);
+  const liabilities = liabilityItems(previous, previous, true);
+  return {
+    incomeNil: income.length === 0,
+    income,
+    liabilitiesNil: liabilities.length === 0,
+    liabilities,
+  };
+}
+
+/**
  * The officer's statement section (`statement:officer`) for holdings, flagged against the
  * previous declaration's holdings when the declaration follows one.
  */
@@ -93,28 +178,7 @@ export function officerStatement(
   followsEarlier: boolean,
 ): Statement {
   const compare = followsEarlier && previous !== undefined;
-  const salaryChange = change(previous?.salaryKes, holdings.salaryKes, compare, 'Salary');
-  const income: IncomeItem[] =
-    holdings.salaryKes === 0
-      ? []
-      : [
-          {
-            id: itemId('salary'),
-            type: 'salary-emoluments',
-            description: `Salary from ${holdings.employer}`,
-            amount: cents(holdings.salaryKes),
-            location: { inKenya: true, county: '047' },
-            // A salary is a source the officer had before; its change is in value.
-            change:
-              salaryChange.kind === 'acquisition'
-                ? {
-                    changed: true,
-                    kind: 'new-source',
-                    explanation: 'New employment since the last declaration.',
-                  }
-                : salaryChange,
-          },
-        ];
+  const income = incomeItems(holdings, previous, compare);
   const assets: AssetItem[] = [
     ...holdings.vehicles.map((vehicle): AssetItem => ({
       id: itemId('vehicle', vehicle.registration),
@@ -162,20 +226,7 @@ export function officerStatement(
       ),
     })),
   ];
-  const liabilities: LiabilityItem[] = holdings.loans.map((loan) => ({
-    id: itemId('loan', loan.creditor),
-    type: 'loan',
-    description: loan.description,
-    creditor: loan.creditor,
-    outstanding: cents(loan.outstandingKes),
-    location: { inKenya: true, county: '047' },
-    change: change(
-      previous?.loans.find((l) => l.creditor === loan.creditor)?.outstandingKes,
-      loan.outstandingKes,
-      compare,
-      loan.description,
-    ),
-  }));
+  const liabilities = liabilityItems(holdings, previous, compare);
   return {
     personKey: frame.personKey ?? 'officer',
     personName: frame.personName,

@@ -122,9 +122,13 @@ export const CORPUS: readonly CorpusPassage[] = [
   {
     id: 'help-value',
     source: 'help',
-    citation: 'Help: Valuing assets',
+    // As the demo seeds it (packages/demo-seed, steps/help.ts): a citation too long for one line.
+    citation: 'Help: Valuing your assets: vehicles, land and other property',
     tags: ['statement', 'assets'],
-    title: ['Valuing assets', 'Kuthamini mali'],
+    title: [
+      'Valuing your assets: vehicles, land and other property',
+      'Kuthamini mali yako: magari, ardhi na mali nyingine',
+    ],
     text: [
       'Use what the asset would sell for on the statement date. For a car, compare prices of similar cars; for land, recent sales nearby. A rough figure is fine.',
       'Tumia bei ambayo mali ingeuzwa tarehe ya taarifa. Kwa gari, linganisha bei za magari yanayofanana; kwa ardhi, mauzo ya karibuni jirani. Kiasi cha kukadiria kinatosha.',

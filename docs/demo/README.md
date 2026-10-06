@@ -86,11 +86,11 @@ Live: A to E, Wanjiku's case end to end, in the 5-minute demo. Seeded: F to I, s
 
 Sample files: `payslip-kemsa-june-2026.pdf`, `logbook-fielder-kcx-214j.jpg`, `title-deed-kiambu-ruiru.pdf` (`mocks/demo/files/`). Download them from the console's **Demo panel**, **Demo files**, before the demo, so they are the stack's.
 
-1. Act as **Wanjiku Kamau**. On the home page **Continue** her 2026 declaration (`/declarations/<id>`). It opens at 75%: Your details, Spouses and children, Other information and "no liabilities" are what she carried over from her 2024 declaration, already confirmed. What is left is her financial statement.
-2. **Financial statement: you**, then **Check registries**: tick "I request this check", **Continue**. **Add** three suggestion cards: **Salary and emoluments** (KRA: it has her declared income on record, a hint, never a value), the Fielder (KCX 214J, NTSA) and the Kiambu Ruiru parcel (ArdhiSasa). Leave the Prado, the Kajiado parcel and Afya Bora for the reviewer (beat E).
+1. Act as **Wanjiku Kamau**. On the home page **Continue** her 2026 declaration (`/declarations/<id>`). It opens at 75%: Your details, Spouses and children, Other information, her salary (without an amount: the new period's is hers to enter) and her Sacco development loan are what she carried over from her 2024 declaration, exactly as she declared them then. What is left is her financial statement.
+2. **Financial statement: you**, then **Check registries**: tick "I request this check", **Continue**. **Add** two suggestion cards: the Fielder (KCX 214J, NTSA) and the Kiambu Ruiru parcel (ArdhiSasa). Point at KRA's **Salary and emoluments** card without adding it: KRA has her declared income on record, a hint to check the salary she carried over, never a value (adding it would make a second salary). Leave the Prado, the Kajiado parcel and Afya Bora for the reviewer (beat E).
 3. **Read into the form**, one file per item: open the item, **Add document**, then the file's **Actions**, **Read into the form**, **Read document** (the kind is chosen for the item), and **Apply to this item** (about 10 seconds each with the real provider):
-   - the payslip on the salary: it fills the description and location, and leaves the amount for her (the payslip is one month, the form wants the whole income period);
-   - the logbook on the Fielder: the description she already has is kept and shown; tick **Use what was read** to take "Toyota Fielder station wagon";
+   - the payslip on the salary she carried over: the description she declared it under in 2024 is kept (leave **Use what was read** unticked, so the comparison pairs it with her 2024 salary), and the amount is left for her (the payslip is one month, the form wants the whole income period);
+   - the logbook on the Fielder: the description she already has is kept and shown; tick **Use what was read** to take "Toyota Fielder station wagon". The item's source badge then reads **Document**, not NTSA: it now holds what the logbook says. Its registration is still NTSA's, which is what the comparison and the registry check go by;
    - the title deed on the Ruiru parcel.
 
    The AI suggests values for review (indicators, never findings).
@@ -106,7 +106,7 @@ Sample files: `payslip-kemsa-june-2026.pdf`, `logbook-fielder-kcx-214j.jpg`, `ti
 ### E. Cross-checks and copilot (console, Achieng Njeri)
 
 1. Act as **Achieng Njeri**. **Review queue** (`/review`): Wanjiku's case is on top.
-2. Open it (`/review/cases/<id>`): the registry flags (undeclared Prado KDK 482M, undeclared Kajiado parcel, director of Afya Bora Medical Supplies, which supplies her employer), the comparison with her previous declaration, and the **Copilot** summary.
+2. Open it (`/review/cases/<id>`): four registry flags (undeclared Prado KDK 482M, undeclared Kajiado parcel, director of Afya Bora Medical Supplies, which supplies her employer) and nothing else; the comparison with her previous declaration (**Compare with previous declaration**) pairs every item and shows only the real changes, none flagged: the salary up 6.1%, the Fielder down 13.0%, the Ruiru parcel up 5.3%, the Sacco loan unchanged; and the **Copilot** summary. Typing other figures in beat D can raise a 25% value-change flag.
 3. Optional: **Draft with AI** for the clarification.
 
 ### F. Clarification and determination (console and portal, from `2-after-review`)
@@ -173,7 +173,7 @@ Printed QR card: after the final reset, print the verify links from `.demo/verif
 
 | Checkpoint | State | Starts beats |
 | --- | --- | --- |
-| `0-start` | Seeded; Wanjiku's current declaration is a draft holding what she carried over from 2024 (details, household, other information, no liabilities) | A, B, C, D |
+| `0-start` | Seeded; Wanjiku's current declaration is a draft holding what she carried over from 2024 (details, household, other information, her salary without an amount, her loan) | A, B, C, D |
 | `1-after-filing` | Wanjiku submitted; her case has its registry flags and copilot | E |
 | `2-after-review` | Wanjiku's clarification issued | F |
 | `3-form-m-ready` | PSC's Form M compiled and reviewed | G, H |
