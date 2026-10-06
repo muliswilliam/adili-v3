@@ -158,7 +158,9 @@ ADR-008: "Access to the audit trail is restricted to auditor and investigator ro
 
 ### Q&A extra: graceful degradation
 
-In the console's demo panel, pause **KRA** (or NTSA, BRS, ArdhiSasa). As Wanjiku, **Check registries** again: the paused registry shows as unavailable and the rest still answer. Resume it afterwards.
+In the console's demo panel, pause **KRA** (or NTSA, BRS, ArdhiSasa). The panel takes the registry mock offline and pauses it in the integration-gateway, as the platform admin would: **Integrations** (as Juma Omondi) shows it paused by him. As Wanjiku, **Check again**: KRA shows **Not available now** with **Retry**, even though its answer was cached, and the rest still answer. Suggestions from her earlier check stay, dated. Resume it in the panel afterwards; **Retry** then answers again.
+
+A case checked while a registry is paused shows it unavailable on its Registry tab and still gets its copilot summary; the hourly sweep (or **Re-check**) fills it in once resumed. So resume before beat E, or re-check the case.
 
 ### Things to say rather than click
 

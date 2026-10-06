@@ -16,8 +16,13 @@ import { policyOf, SYSTEM_POLICIES, type SystemPolicies } from './system-policie
 import { UpstreamError } from './upstream-error.js';
 
 /** One call's outcome: the upstream's answer, or why there is none. */
-export type CallOutcome<T> =
-  { outcome: 'answered'; value: T } | { outcome: 'unavailable'; reason: UnavailableReason };
+export type CallOutcome<T> = { outcome: 'answered'; value: T } | Unavailable;
+
+/** No answer, and why. */
+export interface Unavailable {
+  outcome: 'unavailable';
+  reason: UnavailableReason;
+}
 
 /** The upstream work of one call, made within the system's timeout. */
 export type UpstreamWork<T> = (signal: AbortSignal, calls: UpstreamCalls) => Promise<T>;
@@ -62,7 +67,8 @@ export class ResilientCalls {
     options: CallOptions = {},
   ): Promise<CallOutcome<T>> {
     const policy = policyOf(this.policies, system);
-    if (await this.pauses.isPaused(system)) return this.unavailable(system, 'paused', options);
+    const paused = await this.whilePaused(system, options);
+    if (paused) return paused;
     // An open circuit answers at once, before the call would queue for the rate limit.
     if (this.breakers.failsFast(system)) return this.unavailable(system, 'breaker-open', options);
     if (!(await this.rateLimiter.reserve(system, policy, options.calls ?? 1))) {
@@ -83,11 +89,22 @@ export class ResilientCalls {
     }
   }
 
+  /**
+   * `unavailable` (reason `paused`) when a platform administrator paused `system`, else null. The
+   * first check of every call; lookups make it before their cache too, so a pause shows even for
+   * a subject already looked up (spec 07b S13, #477).
+   */
+  async whilePaused(system: System, options: CallOptions = {}): Promise<Unavailable | null> {
+    return (await this.pauses.isPaused(system))
+      ? this.unavailable(system, 'paused', options)
+      : null;
+  }
+
   private unavailable(
     system: System,
     reason: UnavailableReason,
     { log }: CallOptions,
-  ): CallOutcome<never> {
+  ): Unavailable {
     const breaker = CircuitState[this.breakers.of(system).state];
     this.logger.warn({ system, ...log, reason, breaker }, 'System unavailable');
     return { outcome: 'unavailable', reason };

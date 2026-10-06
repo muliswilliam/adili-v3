@@ -64,7 +64,7 @@ export const en = {
   paused: (system: SystemName) => `${is(system)} paused.`,
   pausedSince: (by: string, time: string) => `Paused by ${by} since ${time}.`,
   pausedDetail: (system: SystemName) =>
-    `Lookups are marked unavailable until ${itIs(system)} resumed. Cached answers still serve.`,
+    `Lookups are marked unavailable until ${itIs(system)} resumed, cached answers included.`,
   pausedInstructionsDetail: (system: InstructedSystem) =>
     `${system.instructed.instructions} get "unavailable" until ${itIs(system)} resumed; nothing is queued. ${system.instructed.retries}`,
   // Coverage
@@ -102,7 +102,7 @@ export const en = {
   pauseRechecked: (system: SystemName) =>
     `Affected cases are re-checked every hour until ${system.plural ? 'they answer' : 'it answers'}.`,
   pauseOnboarding: 'Declarants cannot confirm their identity at onboarding until it is resumed.',
-  pauseCached: 'Answers already in the cache are still served.',
+  pauseCached: 'Answers already in the cache are held back too.',
   auditNote: 'Recorded in the audit trail with your name.',
   pausing: 'Pausing…',
   pauseFailed: (system: string) => `Could not pause ${system}. Try again.`,

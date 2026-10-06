@@ -11,8 +11,8 @@ import { SEED, StubRegistries } from './support/stub-registries.js';
 import { createTestApp, type TestApp } from './support/test-app.js';
 
 /**
- * S13 (pause): a platform administrator pauses a registry during a known outage, so lookups of
- * IDs not in the cache answer `unavailable` (reason `paused`) without calling it, then resumes
+ * S13 (pause): a platform administrator pauses a registry during a known outage, so its lookups
+ * answer `unavailable` (reason `paused`) without calling it, cached answers included, then resumes
  * it; both recorded with who and when, and announced.
  */
 describe('POST /v1/integrations/{system}/pause and /resume', () => {
@@ -66,7 +66,7 @@ describe('POST /v1/integrations/{system}/pause and /resume', () => {
       event.eventType.startsWith('integrations.'),
     );
 
-  it('pauses: lookups of uncached IDs are unavailable (paused) with no registry call; cached answers still serve', async () => {
+  it('pauses: lookups are unavailable (paused) with no registry call, even for an ID in the cache (#477)', async () => {
     expect(await kraLookup(SEED.wanjiku)).toMatchObject({ outcome: 'found', cached: false });
     const callsBefore = registries.calls.kra;
 
@@ -82,7 +82,10 @@ describe('POST /v1/integrations/{system}/pause and /resume', () => {
     expect(await kraLookup(SEED.kiprono)).toEqual(
       expect.objectContaining({ outcome: 'unavailable', reason: 'paused' }),
     );
-    expect(await kraLookup(SEED.wanjiku)).toMatchObject({ outcome: 'found', cached: true });
+    // Pause wins over the cache: the outage shows, as spec 05b and 07b want ("not available now").
+    expect(await kraLookup(SEED.wanjiku)).toEqual(
+      expect.objectContaining({ outcome: 'unavailable', reason: 'paused', cached: false }),
+    );
     expect(registries.calls.kra).toBe(callsBefore);
 
     const [row] = await t.db
@@ -136,7 +139,8 @@ describe('POST /v1/integrations/{system}/pause and /resume', () => {
     ]);
   });
 
-  it('resumes: lookups call the registry again; the coverage no longer shows who paused it', async () => {
+  it('resumes: lookups call the registry again, cached answers serve again; the coverage no longer shows who paused it', async () => {
+    expect(await kraLookup(SEED.wanjiku)).toMatchObject({ outcome: 'found', cached: false });
     await act('kra', 'pause');
     expect(await kraLookup(SEED.kiprono)).toMatchObject({ reason: 'paused' });
 
@@ -150,6 +154,8 @@ describe('POST /v1/integrations/{system}/pause and /resume', () => {
       pausedAt: null,
     });
     expect(await kraLookup(SEED.kiprono)).toMatchObject({ outcome: 'found', cached: false });
+    // The pause kept the cache: the answer from before it serves again.
+    expect(await kraLookup(SEED.wanjiku)).toMatchObject({ outcome: 'found', cached: true });
     expect(registries.calls.kra).toBeGreaterThan(0);
     expect((await events()).map((event) => [event.eventType, event.envelope.data])).toEqual([
       ['integrations.system.paused.v1', { system: 'kra', by: 'user-platform-admin' }],

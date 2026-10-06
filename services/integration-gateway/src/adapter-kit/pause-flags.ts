@@ -8,7 +8,8 @@ import type { System } from '../db/schema.js';
 /**
  * Systems a platform administrator paused during a known outage: a circuit forced open, shared
  * by every instance. Lookups of a paused system answer `unavailable` (reason `paused`) without
- * calling it; cached answers are still served. When Valkey is down no system reads as paused.
+ * calling it, even for a subject in the cache, which serves again on resume. When Valkey is down
+ * no system reads as paused.
  */
 @Injectable()
 export class PauseFlags {
