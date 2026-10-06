@@ -3,6 +3,8 @@ import {
   compareDeclarations,
   type Compared,
   type Item,
+  normalise,
+  personKind,
   type PlacedItem,
   type StatementComparison,
   valueOf,
@@ -10,6 +12,7 @@ import {
 
 import type { DeclarationListItem } from '../server/declarations/types';
 import type { AssetItem, Draft, IncomeItem, LiabilityItem, Statement } from './contents';
+import { fullName } from './format';
 
 type AnyItem = Draft<IncomeItem> | Draft<AssetItem> | Draft<LiabilityItem>;
 
@@ -20,39 +23,71 @@ type AnyItem = Draft<IncomeItem> | Draft<AssetItem> | Draft<LiabilityItem>;
  * declarant edits it.
  */
 
+/** Where each category keeps an item's money. */
+const MONEY = { income: 'amount', assets: 'value', liabilities: 'outstanding' } as const;
+
+/** Marks an item compared before its value was given: it pairs, but shows no change yet. */
+const UNVALUED = 'unvalued';
+
 /**
- * A draft's statements as the matcher reads them. An item still being filled in, without a type
- * or a value yet, is left out: there is nothing to compare it on.
+ * A draft's statements as the matcher reads them. An item without a type yet is left out: there
+ * is nothing to pair it on. One without a value still pairs, so its earlier counterpart is not
+ * shown as gone while the declarant types the figure, but it is marked to show no change yet.
  */
 function comparable(statements: readonly Draft<Statement>[]): Compared {
-  // The matcher reads an item's type, description, value, change flag and registry details: the
-  // filter checks type and value, and the rest are defaulted or optional.
-  const items = <T>(list: readonly AnyItem[] | undefined) =>
-    (list ?? []).filter(isComparable).map((item) => ({
-      ...item,
-      description: item.description ?? '',
-      change: { changed: item.change?.changed === true },
-    })) as unknown as T[];
+  // The matcher reads an item's type, description, value, change flag and registry details: type
+  // is checked, and the rest are defaulted or optional.
+  const items = <T>(category: Category, list: readonly AnyItem[] | undefined) =>
+    (list ?? [])
+      .filter((item) => typeof item.type === 'string')
+      .map((item) => {
+        const money = (item as Record<string, { kesCents?: number } | undefined>)[MONEY[category]];
+        const valued = typeof money?.kesCents === 'number';
+        return {
+          ...item,
+          description: item.description ?? '',
+          change: { changed: item.change?.changed === true },
+          ...(!valued && { [MONEY[category]]: { kesCents: 0 }, [UNVALUED]: true }),
+        };
+      }) as unknown as T[];
   return {
     statements: statements.map((statement) => ({
       personKey: statement.personKey ?? 'officer',
-      income: items(statement.income),
-      assets: items(statement.assets),
-      liabilities: items(statement.liabilities),
+      income: items('income', statement.income),
+      assets: items('assets', statement.assets),
+      liabilities: items('liabilities', statement.liabilities),
     })),
   };
 }
 
-function isComparable(item: AnyItem): boolean {
-  const money =
-    'amount' in item
-      ? item.amount
-      : 'value' in item
-        ? item.value
-        : 'outstanding' in item
-          ? item.outstanding
-          : undefined;
-  return typeof item.type === 'string' && typeof money?.kesCents === 'number';
+const isUnvalued = (item: Item) => UNVALUED in item;
+
+/**
+ * The previous statements keyed as the draft keys the same people. A spouse or child is given a
+ * new id in each declaration, so one the draft has no statement under the old id is paired by
+ * kind and name with a draft statement the previous declaration has none of; anyone else keeps
+ * their old key.
+ */
+function alignPersons(
+  previous: readonly Draft<Statement>[],
+  current: readonly Draft<Statement>[],
+): Draft<Statement>[] {
+  const keyOf = (statement: Draft<Statement>) => statement.personKey ?? 'officer';
+  const previousKeys = new Set(previous.map(keyOf));
+  const currentKeys = new Set(current.map(keyOf));
+  const unclaimed = current.filter((statement) => !previousKeys.has(keyOf(statement)));
+  const nameOf = (statement: Draft<Statement>) => normalise(fullName(statement.personName));
+  return previous.map((statement) => {
+    const key = keyOf(statement);
+    if (currentKeys.has(key) || nameOf(statement) === '') return statement;
+    const index = unclaimed.findIndex(
+      (other) =>
+        personKind(keyOf(other)) === personKind(key) && nameOf(other) === nameOf(statement),
+    );
+    if (index === -1) return statement;
+    const [same] = unclaimed.splice(index, 1);
+    return same ? { ...statement, personKey: same.personKey } : statement;
+  });
 }
 
 /** Every statement of the draft against the previous declaration's. */
@@ -60,7 +95,7 @@ export function compareStatements(
   previous: readonly Draft<Statement>[],
   current: readonly Draft<Statement>[],
 ): StatementComparison[] {
-  return compareDeclarations(comparable(previous), comparable(current));
+  return compareDeclarations(comparable(alignPersons(previous, current)), comparable(current));
 }
 
 /** One change to show: a value that moved, an item that is new, or one that is gone. */
@@ -91,7 +126,8 @@ export interface Changes {
 
 /** A statement's changes: value changes in the draft's order, then new items, then gone ones. */
 export function changeRows(statement: StatementComparison): Changes {
-  const moved = statement.matched.filter((pair) => pair.deltaCents !== 0);
+  const valued = statement.matched.filter((pair) => !isUnvalued(pair.current));
+  const moved = valued.filter((pair) => pair.deltaCents !== 0);
   return {
     rows: [
       ...moved.map((pair): ChangeRow => ({
@@ -104,14 +140,16 @@ export function changeRows(statement: StatementComparison): Changes {
         material: pair.material,
         markedAsChanged: pair.current.change.changed,
       })),
-      ...statement.onlyCurrent.map((placed): ChangeRow => ({
-        kind: 'new',
-        ...unmatched(placed),
-        itemId: placed.item.id,
-        previousCents: null,
-        currentCents: valueOf(placed.item),
-        markedAsChanged: placed.item.change.changed,
-      })),
+      ...statement.onlyCurrent
+        .filter((placed) => !isUnvalued(placed.item))
+        .map((placed): ChangeRow => ({
+          kind: 'new',
+          ...unmatched(placed),
+          itemId: placed.item.id,
+          previousCents: null,
+          currentCents: valueOf(placed.item),
+          markedAsChanged: placed.item.change.changed,
+        })),
       ...statement.onlyPrevious.map((placed): ChangeRow => ({
         kind: 'gone',
         ...unmatched(placed),
@@ -121,7 +159,7 @@ export function changeRows(statement: StatementComparison): Changes {
         markedAsChanged: false,
       })),
     ],
-    unchanged: statement.matched.length - moved.length,
+    unchanged: valued.length - moved.length,
   };
 }
 

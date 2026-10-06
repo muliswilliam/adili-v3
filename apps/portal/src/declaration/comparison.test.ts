@@ -102,6 +102,54 @@ describe('changeRows', () => {
   });
 });
 
+describe('compareStatements: people and items in progress', () => {
+  it('pairs a spouse declared again under a new id by their name', () => {
+    const mary = { surname: 'Kennedy', firstName: 'Mary' };
+    const previous: Draft<Statement>[] = [
+      {
+        personKey: 'spouse:old',
+        personName: mary,
+        assets: [land('a', 'Plot in Nyeri', 1_000_000)],
+      },
+    ];
+    const current: Draft<Statement>[] = [
+      {
+        personKey: 'spouse:new',
+        personName: { surname: ' kennedy', firstName: 'MARY ' },
+        assets: [land('a2', 'Plot in Nyeri', 1_000_000)],
+      },
+    ];
+
+    expect(compareStatements(previous, current).map((s) => s.personKey)).toEqual(['spouse:new']);
+    expect(statementChanges(previous, current, 'spouse:new')).toEqual({ rows: [], unchanged: 1 });
+  });
+
+  it('does not pair people of different kinds, or a spouse already declared under the old id', () => {
+    const name = { surname: 'Kamau', firstName: 'Amani' };
+    const previous: Draft<Statement>[] = [
+      { personKey: 'child:old', personName: name },
+      { personKey: 'spouse:kept', personName: { surname: 'Kennedy', firstName: 'Mary' } },
+    ];
+    const current: Draft<Statement>[] = [
+      { personKey: 'spouse:new', personName: name },
+      { personKey: 'spouse:kept', personName: { surname: 'Kennedy', firstName: 'Mary' } },
+    ];
+
+    expect(compareStatements(previous, current).map((s) => s.personKey)).toEqual([
+      'spouse:new',
+      'spouse:kept',
+      'child:old',
+    ]);
+  });
+
+  it('shows nothing for an item whose value is still being typed, not its earlier one as gone', () => {
+    const previous = [officer({ assets: [land('a', 'Plot in Kisumu', 1_000_000)] })];
+    const current = [officer({ assets: [land('a2', 'Plot in Kisumu')] })];
+
+    expect(statementChanges(previous, current, 'officer')).toEqual({ rows: [], unchanged: 0 });
+  });
+});
+
 describe('statementChanges', () => {
   it("is one person's changes, or none when neither declaration has their statement", () => {
     const previous = [officer({ income: [salary(1_000_000)] })];

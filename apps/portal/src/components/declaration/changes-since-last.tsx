@@ -4,6 +4,7 @@ import {
   formatDate,
   formatMoney,
   Icon,
+  plural,
   Skeleton,
   Table,
   TableBody,
@@ -126,11 +127,23 @@ export function ChangesTable({ changes, caption }: { changes: Changes; caption: 
       </Table>
       <p className="text-[13px] text-muted-foreground">
         KES, approximate.
-        {changes.unchanged > 0
-          ? ` ${String(changes.unchanged)} ${changes.unchanged === 1 ? 'item' : 'items'} unchanged.`
-          : ''}
+        {changes.unchanged > 0 ? ` ${plural(changes.unchanged, 'item')} unchanged.` : ''}
       </p>
     </div>
+  );
+}
+
+/** "2 material changes"; nothing when there are none. */
+function MaterialBadge({ count }: { count: number }) {
+  return count > 0 ? <Badge variant="warning">{plural(count, 'material change')}</Badge> : null;
+}
+
+/** Which declaration the changes are against, and what makes one material. */
+function ComparedWith({ previous }: { previous: PreviousDeclaration }) {
+  return (
+    <p className="text-sm text-muted-foreground">
+      {comparedWith(previous)} {CHANGES_COPY.threshold}
+    </p>
   );
 }
 
@@ -160,17 +173,11 @@ export function StatementChanges({
         <h3 id={headingId} className="flex-1 font-semibold">
           {CHANGES_COPY.title}
         </h3>
-        {material > 0 ? (
-          <Badge variant="warning">
-            {material} material {material === 1 ? 'change' : 'changes'}
-          </Badge>
-        ) : null}
+        <MaterialBadge count={material} />
       </header>
       {load.status === 'ready' && changes ? (
         <>
-          <p className="text-sm text-muted-foreground">
-            {comparedWith(load.previous)} {CHANGES_COPY.threshold}
-          </p>
+          <ComparedWith previous={load.previous} />
           <ChangesTable changes={changes} caption={CHANGES_COPY.title} />
         </>
       ) : (
@@ -226,19 +233,13 @@ export function DeclarationChanges({
               {CHANGES_COPY.title}
             </h2>
           </div>
-          {material > 0 ? (
-            <Badge variant="warning">
-              {material} material {material === 1 ? 'change' : 'changes'}
-            </Badge>
-          ) : null}
+          <MaterialBadge count={material} />
         </header>
         {load.status === 'loading' ? (
           <Skeleton className="h-24" />
         ) : previous ? (
           <>
-            <p className="text-sm text-muted-foreground">
-              {comparedWith(previous)} {CHANGES_COPY.threshold}
-            </p>
+            <ComparedWith previous={previous} />
             {persons.map((person) => (
               <div key={person.personKey} className="grid gap-2">
                 <h3 className="font-semibold">{person.name}</h3>
