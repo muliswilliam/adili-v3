@@ -153,7 +153,9 @@ function humanize(field: string): string {
 function plainFragment(code: string, message: string): string {
   const limit = /\d+/.exec(message)?.[0];
   switch (code) {
+    // The validator's own wording for these is already plain (`forms` validate.ts).
     case 'required':
+    case 'additionalProperties':
       return message;
     case 'minLength':
       return limit === undefined || limit === '1'
@@ -162,7 +164,9 @@ function plainFragment(code: string, message: string): string {
     case 'maxLength':
       return limit === undefined ? 'is too long' : `is too long: use at most ${limit} characters`;
     case 'format':
-      return message.includes('date') ? 'is not a valid date' : 'is not in the expected format';
+      // ajv names the format in its message ("must match format \"date\""); dates are the ones asked.
+      if (message.includes('date')) return 'is not a valid date';
+      return 'is not in the expected format';
     case 'pattern':
       return 'is not in the expected format';
     case 'enum':

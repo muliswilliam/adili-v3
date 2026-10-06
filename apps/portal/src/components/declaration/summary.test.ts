@@ -204,6 +204,13 @@ describe('issueText', () => {
     code: 'required',
     message,
   });
+  /** A schema check with its keyword, e.g. `minLength`. */
+  const check = (
+    sectionKey: CompletenessIssue['sectionKey'],
+    path: string,
+    message: string,
+    code: string,
+  ): CompletenessIssue => ({ ...issue(sectionKey, path, message), code });
 
   it('names the item and field of a schema check, not "is required / is required"', () => {
     expect(issueText(issue('statement:officer', '/assets/0/value', 'is required'), document)).toBe(
@@ -261,10 +268,8 @@ describe('issueText', () => {
         },
       ],
     } as unknown as SummaryDocument;
-    const at = (path: string, message: string, code = 'required') => ({
-      ...issue('statement:officer', path, message),
-      code,
-    });
+    const at = (path: string, message: string, code = 'required') =>
+      check('statement:officer', path, message, code);
     expect(
       issueText(
         at('/assets/1/description', 'must NOT have fewer than 1 characters', 'minLength'),
@@ -278,10 +283,7 @@ describe('issueText', () => {
   });
 
   it('words schema checks plainly, not as the validator writes them (#706)', () => {
-    const at = (path: string, message: string, code: string) => ({
-      ...issue('bio', path, message),
-      code,
-    });
+    const at = (path: string, message: string, code: string) => check('bio', path, message, code);
     expect(
       issueText(at('/birth/place', 'must NOT have fewer than 2 characters', 'minLength'), document),
     ).toBe('Place of birth is too short: use at least 2 characters');
@@ -304,6 +306,9 @@ describe('issueText', () => {
       ),
     ).toBe('Marital status is not one of the options');
     expect(issueText(at('/foo', 'must be string', 'type'), document)).toBe('Foo is not valid');
+    expect(issueText(at('/foo', 'is not allowed', 'additionalProperties'), document)).toBe(
+      'Foo is not allowed',
+    );
   });
 
   it('keeps the rules’ own sentences', () => {
