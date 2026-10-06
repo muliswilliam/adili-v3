@@ -7,7 +7,7 @@
     "messages": [
       {
         "role": "user",
-        "content": "<untrusted-input>\n{\"commissionName\":\"Public Service Commission\",\"kind\":\"draft-clarification\",\"language\":\"en\",\"selections\":[{\"flag\":{\"evidence\":{\"registrationNumber\":\"[[REGISTRATION_1]]\"},\"id\":\"01a10e09-5573-7778-8c39-c5c472329513\",\"indicator\":\"NTSA lists a vehicle in this person's name that no declared vehicle carries. A sale whose transfer was not yet registered can explain this.\",\"itemRefs\":[{\"fieldPath\":null,\"itemId\":null,\"personKey\":\"officer\",\"sectionKey\":\"statement:officer\"}],\"ruleId\":\"registry-vehicle-undeclared\",\"severity\":\"medium\",\"title\":\"Registered vehicle not declared\"},\"itemContext\":{\"personKey\":\"officer\",\"section\":\"statement:officer\"},\"ref\":{\"fieldPath\":null,\"itemId\":null,\"personKey\":\"officer\",\"sectionKey\":\"statement:officer\"},\"requirement\":null},{\"flag\":{\"evidence\":{\"parcelNumber\":\"[[PARCEL_1]]\"},\"id\":\"01a10e09-5573-7778-8c39-d03751135a6f\",\"indicator\":\"ArdhiSasa lists a parcel in this person's name that no declared land or building carries. A recent sale not yet registered, or a parcel held in trust, can explain this.\",\"itemRefs\":[{\"fieldPath\":null,\"itemId\":null,\"personKey\":\"officer\",\"sectionKey\":\"statement:officer\"}],\"ruleId\":\"registry-parcel-undeclared\",\"severity\":\"high\",\"title\":\"Registered parcel not declared\"},\"itemContext\":{\"personKey\":\"officer\",\"section\":\"statement:officer\"},\"ref\":{\"fieldPath\":null,\"itemId\":null,\"personKey\":\"officer\",\"sectionKey\":\"statement:officer\"},\"requirement\":null}]}\n</untrusted-input>"
+        "content": "<untrusted-input>\n{\"commissionName\":\"Public Service Commission\",\"kind\":\"draft-clarification\",\"language\":\"en\",\"selections\":[{\"flag\":{\"evidence\":{\"registrationNumber\":\"[[REGISTRATION_1]]\"},\"id\":\"01a10f6a-d093-73e1-bb18-89aca3abae62\",\"indicator\":\"NTSA lists a vehicle in this person's name that no declared vehicle carries. A sale whose transfer was not yet registered can explain this.\",\"itemRefs\":[{\"fieldPath\":null,\"itemId\":null,\"personKey\":\"officer\",\"sectionKey\":\"statement:officer\"}],\"ruleId\":\"registry-vehicle-undeclared\",\"severity\":\"medium\",\"title\":\"Registered vehicle not declared\"},\"itemContext\":{\"personKey\":\"officer\",\"section\":\"statement:officer\"},\"ref\":{\"fieldPath\":null,\"itemId\":null,\"personKey\":\"officer\",\"sectionKey\":\"statement:officer\"},\"requirement\":null},{\"flag\":{\"evidence\":{\"parcelNumber\":\"[[PARCEL_1]]\"},\"id\":\"01a10f6a-d093-73e1-bb18-97dc466f6e9d\",\"indicator\":\"ArdhiSasa lists a parcel in this person's name that no declared land or building carries. A recent sale not yet registered, or a parcel held in trust, can explain this.\",\"itemRefs\":[{\"fieldPath\":null,\"itemId\":null,\"personKey\":\"officer\",\"sectionKey\":\"statement:officer\"}],\"ruleId\":\"registry-parcel-undeclared\",\"severity\":\"high\",\"title\":\"Registered parcel not declared\"},\"itemContext\":{\"personKey\":\"officer\",\"section\":\"statement:officer\"},\"ref\":{\"fieldPath\":null,\"itemId\":null,\"personKey\":\"officer\",\"sectionKey\":\"statement:officer\"},\"requirement\":null}]}\n</untrusted-input>"
       }
     ],
     "maxOutputTokens": 4096,
@@ -107,14 +107,14 @@
   "response": {
     "model": "anthropic/claude-opus-5-5",
     "usage": {
-      "inputTokens": 631,
-      "outputTokens": 515,
+      "inputTokens": 638,
+      "outputTokens": 479,
       "cacheReadTokens": 0,
       "cacheWriteTokens": 1468
     },
     "status": "completed",
     "output": {
-      "opening": "Both items below concern property that public registries list in your name but that does not appear among the assets in your declaration.",
+      "opening": "The items below concern property that public registries record in your name but that does not appear among the assets in your declaration.",
       "items": [
         {
           "ref": {
@@ -124,7 +124,7 @@
             "fieldPath": null
           },
           "requirement": "provide-omitted",
-          "text": "The National Transport and Safety Authority (NTSA) register lists a vehicle with registration number [[REGISTRATION_1]] in your name, but no vehicle declared in your statement carries this registration number. Kindly provide details of this vehicle as an asset, including its description, date of acquisition and value, together with any supporting documents. If you no longer own the vehicle, for example because it was sold and the transfer has not yet been registered, please explain the circumstances and provide supporting documents such as a sale agreement or transfer forms."
+          "text": "The National Transport and Safety Authority (NTSA) records a vehicle with registration number [[REGISTRATION_1]] in your name, but no vehicle declared in your statement carries this registration number. Kindly provide the details of this vehicle so that it can be included in your declaration. If you no longer own it, for example because you sold it and the transfer has not yet been registered, please explain the circumstances and provide any supporting documents, such as a sale agreement or transfer forms."
         },
         {
           "ref": {
@@ -134,7 +134,7 @@
             "fieldPath": null
           },
           "requirement": "provide-omitted",
-          "text": "The ArdhiSasa land registry lists parcel number [[PARCEL_1]] in your name, but none of the land or buildings declared in your statement carries this parcel number. Kindly provide details of this parcel as an asset, including its location, size, date of acquisition and value, together with supporting documents such as a title deed or search certificate. If the parcel was recently sold and the transfer has not yet been registered, or if you hold it in trust for another person, please explain the circumstances and provide supporting documents such as a sale agreement, transfer forms or a trust instrument."
+          "text": "ArdhiSasa records a land parcel with number [[PARCEL_1]] in your name, but no land or building declared in your statement carries this parcel number. Kindly provide the details of this parcel so that it can be included in your declaration. If you do not hold it for your own benefit, for example because it was recently sold and the transfer has not yet been registered, or because you hold it in trust for another person, please explain the circumstances and provide any supporting documents, such as a sale agreement, transfer documents or a trust instrument."
         }
       ]
     }
