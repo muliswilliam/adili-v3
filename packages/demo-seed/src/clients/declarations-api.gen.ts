@@ -1391,6 +1391,8 @@ export interface components {
                 /** @enum {string} */
                 action: "created" | "archived" | "restored";
             }[];
+            /** @description Registry suggestions (KRA, NTSA, BRS, ArdhiSasa) the declarant had accepted that this save offers again: it deleted the item one went into, or changed or cleared the item's identifier (a registration, parcel, company or spouse's KRA PIN). Each is `new` again, with no `acceptedItemId`; `declaration.suggestion-reopened.v1` is recorded for each. A document's reading, and a dismissed suggestion, is never reopened. Usually empty */
+            reopenedSuggestions: components["schemas"]["ReopenedSuggestion"][];
         };
         AttachmentLink: {
             /** @description The statement section holding the item */
@@ -2089,6 +2091,19 @@ export interface components {
             /** @description Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back), `unavailable` (the reading service could not do it now: try again) or `not-a-draft` (the declaration was submitted while it was read, or while a registry was looked up). Null otherwise */
             reason: ("document-unavailable" | "document-unreadable" | "not-read" | "unavailable" | "not-a-draft") | null;
             suggestions: components["schemas"]["Suggestion"][];
+        };
+        /** @description An accepted registry suggestion a section save offered again, by its identifiers: `new` again, with no item (`acceptedItemId` null in `listSuggestions`); what it proposes is unchanged (`listSuggestions`). Identifiers only, so a save is not a read of the registry's record */
+        ReopenedSuggestion: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            setId: string;
+            personKey: string;
+            sectionKey: components["schemas"]["SectionKey"];
+            /** @constant */
+            status: "new";
+            /** @description The item of the section whose identifier the suggestion now matches, if any: offer "Apply to this item" */
+            matchItemId: string | null;
         };
         RegistryLookupRequest: {
             /** @description `officer`, or a spouse or child of the household (`spouse:<id>`, `child:<id>`) */

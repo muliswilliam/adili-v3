@@ -226,6 +226,7 @@ describe('statement items (S7)', () => {
       draftVersion: 2,
       issues: [],
       sectionsChanged: [],
+      reopenedSuggestions: [],
     });
     const read = await getSection(draft.id, 'statement:officer');
     expect(contractErrors(SECTION_BODY, read.json())).toEqual([]);

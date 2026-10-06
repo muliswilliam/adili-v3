@@ -565,6 +565,7 @@ describe('saving a section (S4)', () => {
       issues: [],
       prefilledFields: ['/employment/appointmentDate'],
       sectionsChanged: [],
+      reopenedSuggestions: [],
     });
     const read = await getSection(draft.id, 'bio');
     expect(read.headers.etag).toBe('"2"');

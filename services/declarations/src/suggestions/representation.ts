@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { sectionKeySchema } from '../drafts/representation.js';
+import { sectionKeySchema } from '../drafts/section-key-schema.js';
 import {
   DOCUMENT_KINDS,
   SET_FAILURES,
@@ -48,6 +48,24 @@ export const suggestionSchema = z.object({
   acceptedItemId: z.uuid().nullable(),
 });
 export type Suggestion = z.infer<typeof suggestionSchema>;
+
+export const reopenedSuggestionSchema = z
+  .object({
+    id: z.uuid(),
+    setId: z.uuid(),
+    personKey: z.string(),
+    sectionKey: sectionKeySchema,
+    status: z.literal('new'),
+    matchItemId: z.uuid().nullable().meta({
+      description:
+        'The item of the section whose identifier the suggestion now matches, if any: offer "Apply to this item"',
+    }),
+  })
+  .meta({
+    description:
+      "An accepted registry suggestion a section save offered again, by its identifiers: `new` again, with no item (`acceptedItemId` null in `listSuggestions`); what it proposes is unchanged (`listSuggestions`). Identifiers only, so a save is not a read of the registry's record",
+  });
+export type ReopenedSuggestion = z.infer<typeof reopenedSuggestionSchema>;
 
 export const suggestionSetSchema = z.object({
   id: z.uuid(),

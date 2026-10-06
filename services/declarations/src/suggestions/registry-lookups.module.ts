@@ -5,7 +5,6 @@ import { DirectoryModule } from '../directory/directory.module.js';
 import { DraftsModule } from '../drafts/drafts.module.js';
 import { IntegrationGatewayModule } from '../integration-gateway/integration-gateway.module.js';
 import { RegistryLookupSteps } from './registry-lookup-steps.js';
-import { SuggestionCipher } from './suggestion-cipher.js';
 
 /**
  * What the registry lookup workflow's activities need (spec 05b): the person's national ID from
@@ -14,7 +13,8 @@ import { SuggestionCipher } from './suggestion-cipher.js';
  */
 @Module({
   imports: [ClockModule, DirectoryModule, DraftsModule, IntegrationGatewayModule],
-  providers: [RegistryLookupSteps, SuggestionCipher],
-  exports: [RegistryLookupSteps, SuggestionCipher],
+  providers: [RegistryLookupSteps],
+  // The suggestions' encryption (`SuggestionCipher`) comes with the drafts.
+  exports: [RegistryLookupSteps, DraftsModule],
 })
 export class RegistryLookupsModule {}

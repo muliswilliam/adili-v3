@@ -21,6 +21,7 @@ import { acknowledgementOf } from '../declaration/acknowledgement.js';
 import { declarations, declarationVersions, isEditable } from '../declaration/schema.js';
 import { amendRefusal, isLate, submitRefusal } from '../declaration/window.js';
 import { keptSources } from '../suggestions/item-sources.js';
+import { SuggestionReopening } from '../suggestions/reopening.js';
 import { personOf } from './access.js';
 import { itemIds, keepAttachments } from './attachments.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
@@ -117,6 +118,7 @@ export class DraftsService {
     private readonly sections: SectionCipher,
     private readonly events: EventPublisher,
     private readonly clock: Clock,
+    private readonly reopening: SuggestionReopening,
   ) {}
 
   /**
@@ -518,7 +520,9 @@ export class DraftsService {
    * a statement's person and dates are the service's, and so is each item's `source`: kept as
    * stored, without its verification result once the item changed where the registry spoke. One
    * transaction bumps the draft version, stores the encrypted section with its clear metadata and
-   * records the save (ADR-008: no change without its audit record), identifiers only.
+   * records the save (ADR-008: no change without its audit record), identifiers only. In it, the
+   * accepted registry suggestions whose item the save deletes, or whose identifier it changes or
+   * clears, become `new` again (`SuggestionReopening`), and the result lists them.
    */
   async saveSection(
     principal: Principal,
@@ -619,8 +623,10 @@ export class DraftsService {
     const sectionsChanged = statements.flatMap((change) =>
       change.action ? [{ key: change.key, action: change.action }] : [],
     );
+    // Accepted registry suggestions this save no longer bears out are offered again (spec 05b).
+    const reopenings = await this.reopening.weigh(person, declaration, key, stored, contents);
     const now = this.clock.now();
-    const { draftVersion, unlinked } = await withPerson(this.db, person, async (tx) => {
+    const { draftVersion, unlinked, reopened } = await withPerson(this.db, person, async (tx) => {
       const bumped = await storeSection(tx, this.sections, declaration, key, contents, {
         now,
         ifVersion: expected,
@@ -651,8 +657,9 @@ export class DraftsService {
           sectionsChanged,
         }),
       );
+      const reopened = await this.reopening.reopen(tx, declaration, reopenings);
       await within?.(tx);
-      return { draftVersion: bumped, unlinked };
+      return { draftVersion: bumped, unlinked, reopened };
     });
     await releaseUploads(this.documents, this.logger, declaration.tenant, unlinked);
     await this.sections.cache(
@@ -679,6 +686,7 @@ export class DraftsService {
       ...(household && { notIncluded: household.notIncluded }),
       ...(key === 'bio' && { prefilledFields: metadata.prefilledFields ?? [] }),
       sectionsChanged,
+      reopenedSuggestions: reopened,
     };
   }
 

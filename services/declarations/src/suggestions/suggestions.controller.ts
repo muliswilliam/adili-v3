@@ -31,7 +31,7 @@ import {
 } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { sectionKeySchema } from '../drafts/representation.js';
+import { sectionKeySchema } from '../drafts/section-key-schema.js';
 import { ApiDeclarationIdParam, etagHeader, NOT_VISIBLE, type Reply } from '../http.js';
 import type { Suggestion, SuggestionAcceptance, SuggestionSet } from './representation.js';
 import { SuggestionsService } from './suggestions.service.js';

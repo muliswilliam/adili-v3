@@ -10,7 +10,11 @@ import {
   rosterSnapshots,
   suggestions,
 } from '../../src/db/schema.js';
-import type { Declaration, SectionEnvelope } from '../../src/drafts/representation.js';
+import type {
+  Declaration,
+  SectionEnvelope,
+  SectionSaveResult,
+} from '../../src/drafts/representation.js';
 import type { Suggestion, SuggestionSet } from '../../src/suggestions/representation.js';
 import { reasonRecordId } from '../../src/suggestions/suggestion-cipher.js';
 import { contractErrors, responseBody } from '../support/contract.js';
@@ -44,6 +48,7 @@ const SPOUSE_NATIONAL_ID = '31877402';
 
 const ACCEPT = '/v1/declarations/{declarationId}/suggestions/{suggestionId}/accept';
 const DISMISS = '/v1/declarations/{declarationId}/suggestions/{suggestionId}/dismiss';
+const SAVE = '/v1/declarations/{declarationId}/sections/{sectionKey}';
 
 interface Acceptance {
   suggestion: Suggestion;
@@ -135,7 +140,7 @@ async function section(declarationId: string, key: string): Promise<SectionEnvel
   return response.json<SectionEnvelope>();
 }
 
-async function save(declarationId: string, key: string, body: unknown): Promise<void> {
+async function save(declarationId: string, key: string, body: unknown): Promise<SectionSaveResult> {
   const response = await api.request(
     'PUT',
     `/v1/declarations/${declarationId}/sections/${key}`,
@@ -146,6 +151,9 @@ async function save(declarationId: string, key: string, body: unknown): Promise<
     },
   );
   expect(response.statusCode, response.body).toBe(200);
+  const result = response.json<SectionSaveResult>();
+  expect(contractErrors(responseBody(SAVE, 'put', 200), result)).toEqual([]);
+  return result;
 }
 
 /** Saves the officer's statement with a car whose registration NTSA also holds. */
@@ -967,7 +975,188 @@ describe('dismissing, and checking again (S5)', () => {
       ['KCA 123A', 'new'],
       ['KDA 456X', 'superseded'],
     ]);
-    // The earlier card still says what the declarant did with it.
-    expect(sets.find((set) => set.id === first?.id)?.suggestions[0]?.status).toBe('accepted');
+    // The save reopened the earlier one, which the re-check then superseded like any new one:
+    // one card for the Fielder, not "Added" beside "Add".
+    expect(sets.find((set) => set.id === first?.id)?.suggestions[0]?.status).toBe('superseded');
+    const fielderCards = sets
+      .flatMap((set) => set.suggestions)
+      .filter((each) => each.fields.registration === 'KCA 123A' && each.status !== 'superseded');
+    expect(fielderCards.map((each) => each.status)).toEqual(['new']);
+  });
+});
+
+describe('reopening an accepted suggestion when a save no longer bears it out (S5)', () => {
+  /** The suggestion as the declarant's list has it now. */
+  async function listed(declarationId: string, suggestionId: string): Promise<Suggestion> {
+    const response = await api.request(
+      'GET',
+      `/v1/declarations/${declarationId}/suggestions`,
+      achieng,
+    );
+    const found = response
+      .json<SuggestionSet[]>()
+      .flatMap((set) => set.suggestions)
+      .find((each) => each.id === suggestionId);
+    if (!found) throw new Error(`No suggestion ${suggestionId}`);
+    return found;
+  }
+
+  /** NTSA checked for the officer, the Fielder accepted as a new car, the D-Max dismissed. */
+  async function acceptedFielder() {
+    const draft = await givenDraft();
+    givenOfficerRegistries();
+    const [set] = await checked(draft.id, achieng, 'officer', ['ntsa']);
+    const fielder = suggestionOf(set, 'vehicle');
+    const dmax = suggestionOf(set, 'vehicle', 1);
+    const { itemId } = await accepted(draft.id, fielder);
+    await dismiss(draft.id, dmax.id);
+    const statement = await section(draft.id, 'statement:officer');
+    const car = itemsOf(statement, 'assets').find((item) => item.id === itemId);
+    if (!car) throw new Error('No car accepted');
+    return { draft, fielder, dmax, itemId, statement, car };
+  }
+
+  it('reopens it in the save that deletes its item, recording why and listing it in the answer', async () => {
+    const { draft, fielder, dmax, itemId, statement } = await acceptedFielder();
+
+    const result = await save(draft.id, 'statement:officer', {
+      ...statement.contents,
+      assetsNil: true,
+      assets: [],
+    });
+
+    expect(result.reopenedSuggestions).toEqual([
+      {
+        id: fielder.id,
+        setId: fielder.setId,
+        personKey: 'officer',
+        sectionKey: 'statement:officer',
+        status: 'new',
+        matchItemId: null,
+      },
+    ]);
+    expect(await listed(draft.id, fielder.id)).toMatchObject({
+      status: 'new',
+      acceptedItemId: null,
+    });
+    // A dismissal stands, whatever the draft holds.
+    expect((await listed(draft.id, dmax.id)).status).toBe('dismissed');
+    const events = await eventsOf('declaration.suggestion-reopened.v1');
+    expect(events.map((event) => event.data)).toEqual([
+      {
+        declarationId: draft.id,
+        suggestionId: fielder.id,
+        setId: fielder.setId,
+        source: 'ntsa',
+        sectionKey: 'statement:officer',
+        itemId,
+        reason: 'item-removed',
+      },
+    ]);
+    expect(events[0]).toMatchObject({ subject: draft.id, tenant: 'psc' });
+    // In the save's own transaction, beside its audit record.
+    const saved = await eventsOf('declaration.section-saved.v1');
+    expect(saved.at(-1)?.data).toMatchObject({ draftVersion: result.draftVersion });
+  });
+
+  it('reopens it when the save changes the registration, not when it values or rewords the car', async () => {
+    const { draft, fielder, itemId, statement, car } = await acceptedFielder();
+    const details = car.details as Record<string, unknown>;
+
+    const valued = await save(draft.id, 'statement:officer', {
+      ...statement.contents,
+      assets: [{ ...car, description: 'The school-run car', value: { kesCents: 90_000_000 } }],
+    });
+
+    expect(valued.reopenedSuggestions).toEqual([]);
+    expect(await listed(draft.id, fielder.id)).toMatchObject({
+      status: 'accepted',
+      acceptedItemId: itemId,
+    });
+
+    const renumbered = await save(draft.id, 'statement:officer', {
+      ...statement.contents,
+      assets: [{ ...car, details: { ...details, registration: 'KCA 128A' } }],
+    });
+
+    expect(renumbered.reopenedSuggestions.map((each) => [each.id, each.matchItemId])).toEqual([
+      [fielder.id, null],
+    ]);
+    expect((await listed(draft.id, fielder.id)).status).toBe('new');
+    const [event] = await eventsOf('declaration.suggestion-reopened.v1');
+    expect(event?.data).toMatchObject({ itemId, reason: 'identifier-changed' });
+  });
+
+  it('matches it afresh: a car the declarant typed with its registration is offered to apply to', async () => {
+    const draft = await givenDraft();
+    givenOfficerRegistries();
+    const typedId = await givenDeclaredCar(draft.id);
+    const [set] = await checked(draft.id, achieng, 'officer', ['ntsa']);
+    const fielder = suggestionOf(set, 'vehicle');
+    // Added as a second car rather than applied to the one typed.
+    const { itemId } = await accepted(draft.id, fielder);
+    const statement = await section(draft.id, 'statement:officer');
+
+    const result = await save(draft.id, 'statement:officer', {
+      ...statement.contents,
+      assets: itemsOf(statement, 'assets').filter((item) => item.id !== itemId),
+    });
+
+    expect(result.reopenedSuggestions.map((each) => [each.id, each.matchItemId])).toEqual([
+      [fielder.id, typedId],
+    ]);
+    expect((await listed(draft.id, fielder.id)).matchItemId).toBe(typedId);
+  });
+
+  it("reopens a spouse's KRA PIN the declarant clears from Household", async () => {
+    const draft = await givenDraft();
+    const contents = household();
+    contents.spouses.items = [spouse({ nationalId: SPOUSE_NATIONAL_ID })];
+    await save(draft.id, 'household', contents);
+    api.gateway.given('kra', SPOUSE_NATIONAL_ID, kra.found);
+    const [set] = await checked(draft.id, achieng, `spouse:${SPOUSE_ID}`, ['kra']);
+    const pin = suggestionOf(set, 'bio-tax');
+    await accepted(draft.id, pin);
+    const saved = await section(draft.id, 'household');
+    const spouses = saved.contents.spouses as { items: Record<string, unknown>[] };
+
+    const result = await save(draft.id, 'household', {
+      ...saved.contents,
+      spouses: { ...spouses, items: spouses.items.map((each) => ({ ...each, kraPin: undefined })) },
+    });
+
+    expect(result.reopenedSuggestions).toEqual([
+      expect.objectContaining({
+        id: pin.id,
+        personKey: `spouse:${SPOUSE_ID}`,
+        sectionKey: 'household',
+        status: 'new',
+      }),
+    ]);
+    expect(await listed(draft.id, pin.id)).toMatchObject({ status: 'new', acceptedItemId: null });
+    const [event] = await eventsOf('declaration.suggestion-reopened.v1');
+    expect(event?.data).toMatchObject({
+      source: 'kra',
+      itemId: SPOUSE_ID,
+      reason: 'identifier-changed',
+    });
+  });
+
+  it('can be accepted again, into a new item', async () => {
+    const { draft, fielder, itemId, statement } = await acceptedFielder();
+    await save(draft.id, 'statement:officer', {
+      ...statement.contents,
+      assetsNil: true,
+      assets: [],
+    });
+
+    const again = await accepted(draft.id, await listed(draft.id, fielder.id));
+
+    expect(again.itemId).not.toBe(itemId);
+    expect(again.suggestion).toMatchObject({ status: 'accepted', acceptedItemId: again.itemId });
+    expect(
+      itemsOf(await section(draft.id, 'statement:officer'), 'assets').map((item) => item.id),
+    ).toEqual([again.itemId]);
+    expect(await eventsOf('declaration.suggestion-accepted.v1')).toHaveLength(2);
   });
 });
