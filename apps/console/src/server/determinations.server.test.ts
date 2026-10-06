@@ -1,9 +1,6 @@
 import { SUPERVISOR } from '@adili/roles';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import createClient from 'openapi-fetch';
-
-import type { paths as DocumentsPaths } from './documents/api.gen';
 import {
   approveDetermination,
   decisionLetterLink,
@@ -16,7 +13,6 @@ import { loadCaseView } from './review-case.server';
 import {
   MOCK_CASE_IDS as CASES,
   MOCK_DETERMINATION_IDS as D,
-  mockLetterFetch,
   mockReviewClient,
   resetReviewMock,
 } from './review/mock.server';
@@ -181,12 +177,8 @@ describe('returnDetermination and withdrawDetermination (S2)', () => {
 });
 
 describe('decisionLetterLink', () => {
-  it('names the letter in review, then links it through documents', async () => {
-    const documents = createClient<DocumentsPaths>({
-      baseUrl: 'http://documents.test',
-      fetch: mockLetterFetch,
-    });
-    const result = await decisionLetterLink(reviewer(), documents, D.determined);
+  it('links the letter through review, which asks documents for the Commission (#507)', async () => {
+    const result = await decisionLetterLink(reviewer(), D.determined);
     expect(result).toMatchObject({
       ok: true,
       data: { downloadUrl: expect.stringMatching(/^\/api\/mock-files\//) as string },
@@ -194,11 +186,7 @@ describe('decisionLetterLink', () => {
   });
 
   it('passes on review’s 409 for a determination that is not approved', async () => {
-    const documents = createClient<DocumentsPaths>({
-      baseUrl: 'http://documents.test',
-      fetch: mockLetterFetch,
-    });
-    const result = await decisionLetterLink(reviewer(), documents, D.peters);
+    const result = await decisionLetterLink(reviewer(), D.peters);
     expect(result).toMatchObject({
       ok: false,
       error: { kind: 'problem', problem: { status: 409, code: 'not-approved' } },

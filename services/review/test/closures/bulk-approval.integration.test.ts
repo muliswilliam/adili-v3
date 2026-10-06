@@ -24,7 +24,7 @@ interface BulkResult {
 interface LetterDownload {
   documentId: string;
   verificationId: string;
-  downloadUrl: string | null;
+  downloadUrl: string;
 }
 
 /**
@@ -285,7 +285,6 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
       ),
     ).toEqual([]);
     const letter = staff.json<LetterDownload>();
-    expect(letter.downloadUrl).toBeNull();
     expect(api.documents.issued).toHaveLength(1);
     const [issued] = api.documents.issued;
     expect(issued?.request).toMatchObject({
@@ -303,6 +302,14 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
       documentId: issued?.document.id,
       verificationId: issued?.document.verificationId,
     });
+    // #507: documents' public download serves only the declarant, so staff get the link from
+    // documents for the Commission, through review, naming the staff member it is read for.
+    expect(letter.downloadUrl).toBe(
+      `https://objects.test/issued/${letter.documentId}?signature=test`,
+    );
+    expect(api.documents.documentDownloads).toEqual([
+      { documentId: letter.documentId, tenant: 'psc', actingSubject: reviewer.sub },
+    ]);
 
     // Served after that, to staff and to the declarant (owner): the same document, no new one.
     const declarant: Caller = {
@@ -312,13 +319,21 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
     };
     const again = await api.get(url, supervisor);
     const own = await api.get(url, declarant);
-    expect(again.json<LetterDownload>().documentId).toBe(letter.documentId);
+    expect(again.json<LetterDownload>()).toMatchObject({
+      documentId: letter.documentId,
+      downloadUrl: expect.stringContaining(`issued/${letter.documentId}`) as string,
+    });
     expect(own.statusCode, own.body).toBe(200);
     expect(own.json<LetterDownload>()).toMatchObject({
       documentId: letter.documentId,
       downloadUrl: expect.stringContaining(`api/documents/${letter.documentId}/download`) as string,
     });
     expect(api.documents.issued).toHaveLength(1);
+    // The declarant's link is the portal's owner download: documents hands nothing out for them.
+    expect(api.documents.documentDownloads.map((each) => each.actingSubject)).toEqual([
+      reviewer.sub,
+      supervisor.sub,
+    ]);
     const read = await api.get(`/v1/review/determinations/${closure.id}`, reviewer);
     expect(read.json()).toMatchObject({ letterAvailable: true });
 
@@ -334,7 +349,7 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
     expect(api.documents.issued).toHaveLength(2);
   });
 
-  it("audit: staff reads of the letter are recorded, even with a person id; a declarant's own read is not", async () => {
+  it("audit: staff reads of the letter are recorded naming the declarant, even with a person id; a declarant's own read is not", async () => {
     await givenProposals(1);
     await approveAll(supervisor);
     const [closure] = await closures();
@@ -366,9 +381,20 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
         tenant: 'psc',
         data: expect.objectContaining({
           actor: expect.objectContaining({ subject: reviewer.sub }) as unknown,
+          resource: expect.objectContaining({
+            tenant: 'psc',
+            subjectPersonId: closure.personId,
+          }) as unknown,
         }) as unknown,
       }),
     ]);
+
+    // Documents down when handing out the link: 503, and nothing audited as read.
+    api.documents.failCalls(1);
+    const down = await api.get(url, reviewer);
+    expect(down.statusCode).toBe(503);
+    expect(down.json()).toMatchObject({ type: 'documents-unavailable' });
+    expect(await letterReads()).toHaveLength(1);
   });
 
   it('authorisation: the letter is for the Commission staff and its declarant only', async () => {

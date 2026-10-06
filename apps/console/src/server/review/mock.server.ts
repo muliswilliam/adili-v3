@@ -1749,16 +1749,15 @@ function issueDraft(id: string, caller: Assignee): Promise<Response> {
 }
 
 /**
- * The documents service's download of a decision letter or referral evidence package the mock
- * issued (spec 08), for the console's links under REVIEW_MOCK: a link to the placeholder file
- * route.
+ * The documents service's download of a referral evidence package the mock issued (spec 08), for
+ * the console's links under REVIEW_MOCK: a link to the placeholder file route. (Decision letters
+ * come with their link from review's letter read, #507.)
  */
 export function mockLetterFetch(request: Request): Promise<Response> {
   ensureSeeded();
   const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(request.url).pathname);
   const documentId = match?.[1];
-  const known =
-    documentId && (mockDecisionLetterTitle(documentId) ?? mockReferralPackageTitle(documentId));
+  const known = documentId && mockReferralPackageTitle(documentId);
   if (request.method !== 'GET' || !known) {
     return Promise.resolve(problem(404, 'Not found'));
   }
