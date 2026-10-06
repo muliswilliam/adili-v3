@@ -12,6 +12,7 @@
     "typecheck": "pnpm generate:api && tsc --noEmit",
     "test": "vitest run",
     "checkpoints": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/checkpoints.ts",
+    "e2e-accounts": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/e2e-accounts.ts",
     "rehearse": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/rehearse.ts"
   },
   "dependencies": {

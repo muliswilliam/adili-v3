@@ -40,7 +40,8 @@
     "demo:seed": "pnpm --filter @adili/demo-seed seed",
     "demo:checkpoints": "pnpm --filter @adili/demo-seed checkpoints",
     "demo:checkpoint": "./scripts/demo-checkpoint.sh capture",
-    "demo:reset": "./scripts/demo-reset.sh"
+    "demo:reset": "./scripts/demo-reset.sh",
+    "e2e:accounts": "pnpm --filter @adili/demo-seed e2e-accounts"
   },
   "devDependencies": {
     "dependency-cruiser": "^18.4.0",

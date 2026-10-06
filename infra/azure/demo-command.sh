@@ -7,6 +7,7 @@
 #   infra/azure/demo-command.sh checkpoints [<from>]   play the beats and capture every checkpoint
 #   infra/azure/demo-command.sh checkpoint [<name>]    capture the stack as <name>; list without
 #   infra/azure/demo-command.sh ai replay|anthropic|record
+#   infra/azure/demo-command.sh e2e-accounts [resend]   the real end-to-end test accounts
 #   infra/azure/demo-command.sh check
 #   infra/azure/demo-command.sh health
 #   infra/azure/demo-command.sh diagnose
@@ -101,6 +102,23 @@ diagnose() {
   fi
 }
 
+# The real end-to-end test accounts (docs/demo-accounts.md) at the domain of this host's SMTP
+# settings (infra/azure/demo-vault.sh). `resend` emails the setup link again to the accounts that
+# have not finished setting up.
+e2e_accounts() {
+  # shellcheck disable=SC1091
+  . "$ROOT/infra/azure/demo-vault.sh"
+  domain="$(adili_e2e_email_domain)"
+  if [ -z "$domain" ]; then
+    echo "No SMTP settings on this host: set the repo's SMTP_* secrets and deploy." >&2
+    return 1
+  fi
+  if [ ! -s "$ADILI_MAILPIT_RELAY_ENV" ]; then
+    echo "WARNING: Mailpit relays nothing yet (deploy after setting the SMTP secrets); emails stay in Mailpit."
+  fi
+  run env E2E_EMAIL_DOMAIN="$domain" pnpm --silent e2e:accounts "$@"
+}
+
 case "$cmd" in
   seed) run pnpm demo:seed ;;
   wipe)
@@ -134,6 +152,13 @@ case "$cmd" in
       exit 2
     fi
     run pnpm demo:reset "$arg"
+    # The restore keeps the e2e staff, law-enforcement and applicant accounts; the declarant's
+    # roster record and the e2e people in the registries come back from here when the checkpoint
+    # predates them. A failure leaves the reset done.
+    # shellcheck disable=SC1091
+    if [ -n "$(. "$ROOT/infra/azure/demo-vault.sh" && adili_e2e_email_domain)" ]; then
+      e2e_accounts || echo "WARNING: e2e accounts not checked after the reset; run e2e-accounts."
+    fi
     ;;
   checkpoints)
     if [ -n "$arg" ]; then
@@ -158,11 +183,21 @@ case "$cmd" in
         ;;
     esac
     ;;
+  e2e-accounts)
+    case "$arg" in
+      '') e2e_accounts ;;
+      resend) e2e_accounts --resend ;;
+      *)
+        echo "usage: $0 e2e-accounts [resend]" >&2
+        exit 2
+        ;;
+    esac
+    ;;
   check) run pnpm demo:check ;;
   health) run pnpm health ;;
   diagnose) diagnose ;;
   *)
-    echo "usage: $0 seed|wipe yes|reset <checkpoint>|checkpoints [<from>]|checkpoint [<name>]|ai <mode>|check|health|diagnose" >&2
+    echo "usage: $0 seed|wipe yes|reset <checkpoint>|checkpoints [<from>]|checkpoint [<name>]|ai <mode>|e2e-accounts [resend]|check|health|diagnose" >&2
     exit 2
     ;;
 esac

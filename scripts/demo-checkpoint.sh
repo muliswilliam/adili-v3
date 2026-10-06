@@ -15,7 +15,8 @@
 # (databases closed to connections, containers paused), so the parts agree with each other.
 # Restore stops the containers that cache state (Temporal, Keycloak, OpenBao, SeaweedFS,
 # RabbitMQ, Mailpit), swaps the copies in and starts them again; Valkey (sessions, caches) is
-# emptied. Temporal's history comes back with its database: workflows started after the
+# emptied. The real end-to-end test accounts at E2E_EMAIL_DOMAIN stay as they are now, password
+# and authenticator included (scripts/lib/e2e-keep.sh). Temporal's history comes back with its database: workflows started after the
 # checkpoint are gone, and the ones running at the checkpoint run again from where they were.
 #
 # Restore needs the services and apps stopped, so no process keeps state from after the
@@ -31,6 +32,8 @@ ROOT="$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)"
 . "$ROOT/scripts/lib/compose.sh"
 # shellcheck source=SCRIPTDIR/../infra/azure/demo-databases.sh
 . "$ROOT/infra/azure/demo-databases.sh"
+# shellcheck source=SCRIPTDIR/lib/e2e-keep.sh
+. "$ROOT/scripts/lib/e2e-keep.sh"
 
 # On the Azure host, compose runs with its overlay and the host's settings (deploy.sh does the same).
 if [ -z "${ADILI_COMPOSE_OVERLAY:-}" ] && [ -f "${ADILI_PUBLIC_ENV:-/etc/adili/public.env}" ]; then
@@ -41,6 +44,8 @@ if [ -z "${ADILI_COMPOSE_OVERLAY:-}" ] && [ -f "${ADILI_PUBLIC_ENV:-/etc/adili/p
   # shellcheck source=SCRIPTDIR/../infra/azure/demo-vault.sh
   . "$ROOT/infra/azure/demo-vault.sh"
   ADILI_COMPOSE_OVERLAY="$ROOT/infra/compose/docker-compose.azure.yml"
+  # The real end-to-end test accounts a restore keeps (scripts/lib/e2e-keep.sh).
+  E2E_EMAIL_DOMAIN="${E2E_EMAIL_DOMAIN:-$(adili_e2e_email_domain)}"
 fi
 
 compose() {
@@ -256,6 +261,11 @@ restore() {
   # shellcheck disable=SC2086
   [ -z "$stopped" ] || compose stop -t 3 $stopped >/dev/null 2>&1
 
+  keep="$(mktemp -d)"
+  # shellcheck disable=SC2064 # expanded now: the directory of this restore
+  trap "rm -rf '$keep'" EXIT INT TERM
+  e2e_keep_save "$keep"
+
   dbs="$(volumes_sh "sed -n 's/^databases=//p' '/checkpoints/$name/manifest'")"
   # Databases whose grants are Postgres's default (Temporal's); init-databases.sh makes the
   # others owner-only, and a copy starts with the default.
@@ -270,6 +280,9 @@ restore() {
     esac
   done | psql_script
   log 'Databases restored'
+  e2e_keep_restore "$keep"
+  rm -rf "$keep"
+  trap - EXIT INT TERM
 
   volumes_sh "
     set -eu
