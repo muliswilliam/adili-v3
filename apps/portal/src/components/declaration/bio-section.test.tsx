@@ -345,7 +345,7 @@ describe('date and place of birth from IPRS (#612, story 2)', () => {
           declarationId: DECLARATION_ID,
           personKey: 'officer',
           systems: ['iprs'],
-          textVersion: 'registry-consent.v1:iprs',
+          textVersion: 'iprs-birth-consent.v1',
           idempotencyKey: expect.any(String) as string,
         },
       });

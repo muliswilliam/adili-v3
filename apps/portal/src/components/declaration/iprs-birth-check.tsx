@@ -1,7 +1,6 @@
 import {
   Button,
   ConsentDialog,
-  consentTextVersion,
   formatDate,
   SuggestionCard,
   type SuggestionField,
@@ -46,6 +45,13 @@ export const IPRS_BIRTH_COPY = {
   startFailed: 'Could not ask IPRS. Try again.',
   acceptFailed: 'Could not fill your details from IPRS. Try again.',
 } as const;
+
+/**
+ * Names the IPRS consent text above (`consentTitle` and `consentBody`) in the recorded consent, so
+ * the record says which words the declarant agreed to (spec 05b). Bump it whenever that copy
+ * changes.
+ */
+export const IPRS_BIRTH_CONSENT_VERSION = 'iprs-birth-consent.v1';
 
 /** The one registry this check asks. */
 const IPRS_ONLY = ['iprs'] as const;
@@ -137,7 +143,7 @@ export function IprsBirthCheck({
           declarationId,
           personKey: 'officer',
           systems: [...IPRS_ONLY],
-          textVersion: consentTextVersion(IPRS_ONLY),
+          textVersion: IPRS_BIRTH_CONSENT_VERSION,
           idempotencyKey: crypto.randomUUID(),
         },
       });

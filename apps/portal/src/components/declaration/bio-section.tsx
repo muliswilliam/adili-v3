@@ -35,6 +35,7 @@ import {
   optionsOf,
 } from '../../declaration/labels';
 import { HR_LABELS, HR_PLACEHOLDERS, ROSTER_HINT } from '../../declaration/copy';
+import { fullName } from '../../declaration/format';
 import { isFromRoster, type RosterField, rosterPrefill } from '../../declaration/roster-prefill';
 import { IprsBirthCheck } from './iprs-birth-check';
 import { optionalLabel } from './optional-label';
@@ -168,7 +169,7 @@ export function BioSection({ section, etag, showErrors = false, focusField }: Bi
 
       <Card className="grid gap-5 p-5 sm:grid-cols-2">
         <IprsBirthCheck
-          name={fullName(officer)}
+          name={fullName(officer.name)}
           current={{ date: officer.birth?.date, place: officer.birth?.place }}
           onAccepted={(fresh) => {
             if (fresh.key !== 'bio') return;
@@ -416,10 +417,4 @@ export function BioSection({ section, etag, showErrors = false, focusField }: Bi
       </Card>
     </div>
   );
-}
-
-/** The declarant's name as the roster gave it, first name first. */
-function fullName(officer: Draft<Officer>): string {
-  const name = officer.name;
-  return [name?.firstName, name?.otherNames, name?.surname].filter(Boolean).join(' ');
 }

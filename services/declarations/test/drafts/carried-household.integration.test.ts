@@ -40,25 +40,54 @@ beforeEach(async () => {
   api.clock.setToday(DUE_DAY);
 });
 
-/** Achieng's biennial of 2027, submitted with Grace as her spouse and Faith as her child. */
-async function submittedWithHousehold(): Promise<Declaration> {
-  const draft = await completeDraft(ACHIENG);
+/** Faith's younger brother, listed only where a test adds him. */
+const BROTHER = {
+  id: '0192f1a0-5a11-7000-8000-000000000202',
+  name: { surname: 'Otieno', firstName: 'Brian' },
+  dateOfBirth: '2014-02-11',
+  includedAtStatementDate: true,
+};
+
+type Household = ReturnType<typeof household>;
+
+/** Saves the household and a nil statement for each person listed in it. */
+async function saveHousehold(id: string, people: Household): Promise<void> {
+  await save(ACHIENG, id, 'household', people);
+  const keys = [
+    ...people.spouses.items.map((s) => `statement:spouse:${s.id}`),
+    ...people.children.items.map((c) => `statement:child:${c.id}`),
+  ];
+  for (const key of keys) {
+    await save(ACHIENG, id, key, { ...(await section(ACHIENG, id, key)), ...NIL });
+  }
+}
+
+/**
+ * Achieng's declaration submitted with the household given: the biennial of 2027 unless another
+ * obligation is given, and by default with Grace as her spouse and Faith as her child.
+ */
+async function submittedWithHousehold(
+  people: Household = household(),
+  obligationId?: string,
+): Promise<Declaration> {
+  const draft = await completeDraft(ACHIENG, obligationId);
   const bio = await section(ACHIENG, draft.id, 'bio');
   await save(ACHIENG, draft.id, 'bio', { ...bio, maritalStatus: 'married' });
-  await save(ACHIENG, draft.id, 'household', household());
-  for (const key of [`statement:spouse:${SPOUSE_ID}`, `statement:child:${CHILD_ID}`]) {
-    await save(ACHIENG, draft.id, key, { ...(await section(ACHIENG, draft.id, key)), ...NIL });
-  }
+  await saveHousehold(draft.id, people);
   const response = await submit(draft.id, steppedUp(ACHIENG));
   expect(response.statusCode).toBe(201);
   return draft;
 }
 
-/** Achieng's final declaration on leaving office (in March 2028 unless said), with the Commission. */
+/**
+ * Achieng's obligation with the Commission: her final declaration on leaving office (in March 2028)
+ * unless another type or date is given.
+ */
 async function givenFinal({
   tenant = 'psc',
+  type = 'final',
   statementDate = FINAL_DATE,
-}: { tenant?: string; statementDate?: string } = {}): Promise<string> {
+}: { tenant?: string; type?: 'initial' | 'final'; statementDate?: string } = {}): Promise<string> {
   const record = rosterRecord(tenant, {
     personId: ACHIENG,
     fullName: 'Achieng Wambui Otieno',
@@ -83,8 +112,8 @@ async function givenFinal({
       tenant,
       rosterRecordId: record.id,
       personId: ACHIENG,
-      type: 'final',
-      cycleKey: `final:${statementDate}`,
+      type,
+      cycleKey: `${type}:${statementDate}`,
       statementDate,
       dueDate: statementDate,
       status: 'due',
@@ -189,5 +218,60 @@ describe('household carried over from the previous declaration (story 4)', () =>
       children: { none: false, items: [] },
     });
     expect(envelope).not.toHaveProperty('carriedOverFrom');
+  });
+
+  it('carries the household of the latest earlier declaration, as at its statement date', async () => {
+    await submittedWithHousehold();
+    // Submitted after the biennial, but declared as at an earlier date: it is not the last one.
+    const initial = await givenFinal({ type: 'initial', statementDate: '2025-02-01' });
+    await submittedWithHousehold(
+      { spouses: { none: true, items: [] }, children: { none: false, items: [BROTHER] } },
+      initial,
+    );
+    const final = await started(ACHIENG, await givenFinal());
+
+    const envelope = await householdOf(final.id);
+    const previous = household();
+    expect(envelope.carriedOverFrom).toEqual({ statementDate: STATEMENT_DATE });
+    expect(envelope.contents).toEqual({
+      spouses: { none: false, items: previous.spouses.items },
+      children: { none: false, items: previous.children.items },
+    });
+  });
+
+  it('carries the household of an amended declaration as in its version in force', async () => {
+    const biennial = await submittedWithHousehold();
+    expect(
+      (await api.request('POST', `/v1/declarations/${biennial.id}/amend`, declarant(ACHIENG)))
+        .statusCode,
+    ).toBe(200);
+    const amended = household();
+    amended.children.items.push(BROTHER);
+    await saveHousehold(biennial.id, amended);
+    const obligationId = await givenFinal();
+
+    // While the amendment is open, version 1 is still the one in force.
+    const during = await started(ACHIENG, obligationId);
+    expect((await householdOf(during.id)).contents).toEqual({
+      spouses: { none: false, items: household().spouses.items },
+      children: { none: false, items: household().children.items },
+    });
+    const discarded = await api.request(
+      'DELETE',
+      `/v1/declarations/${during.id}`,
+      declarant(ACHIENG),
+    );
+    expect(discarded.statusCode).toBe(204);
+
+    const resubmitted = await submit(biennial.id, steppedUp(ACHIENG));
+    expect(resubmitted.statusCode).toBe(201);
+    const final = await started(ACHIENG, obligationId);
+
+    const envelope = await householdOf(final.id);
+    expect(envelope.carriedOverFrom).toEqual({ statementDate: STATEMENT_DATE });
+    expect(envelope.contents).toEqual({
+      spouses: { none: false, items: amended.spouses.items },
+      children: { none: false, items: amended.children.items },
+    });
   });
 });
