@@ -28,10 +28,20 @@ export type InboxItemOf<K extends InboxKind> = Omit<ApprovalItem, 'kind' | 'summ
 /** One approval as the inbox shows it, of any kind it shows. */
 export type InboxItem = { [K in InboxKind]: InboxItemOf<K> }[InboxKind];
 
-/** The pending approvals by kind (every kind, shown or not) and by how long they have waited. */
+/** How many approvals have waited how long. */
+export interface AgeCounts {
+  under7Days: number;
+  from7To30Days: number;
+  over30Days: number;
+}
+
+/**
+ * The pending approvals by kind (every kind, shown or not) and, within each kind, by how long
+ * they have waited, so a tab's age bands count only what the tab lists (#712).
+ */
 export interface ApprovalCounts {
   byKind: Record<ApprovalKind, number>;
-  byAge: { under7Days: number; from7To30Days: number; over30Days: number };
+  byAge: Record<ApprovalKind, AgeCounts>;
 }
 
 export interface ApprovalsPage {
@@ -46,19 +56,24 @@ export interface ApprovalsQuery {
   limit?: number;
 }
 
-/** The counts the service sends, keyed by kind and by age band; 0 for a missing key. */
+/**
+ * The counts the service sends, keyed by kind (`determination`) and by kind and age band
+ * (`determination:under-7-days`); 0 for a missing key.
+ */
 function countsOf(counts: Record<string, number>): ApprovalCounts {
   const count = (key: string) => counts[key] ?? 0;
-  return {
-    byKind: Object.fromEntries(APPROVAL_KINDS.map((kind) => [kind, count(kind)])) as Record<
+  const perKind = <T>(value: (kind: ApprovalKind) => T) =>
+    Object.fromEntries(APPROVAL_KINDS.map((kind) => [kind, value(kind)])) as Record<
       ApprovalKind,
-      number
-    >,
-    byAge: {
-      under7Days: count('under-7-days'),
-      from7To30Days: count('7-to-30-days'),
-      over30Days: count('over-30-days'),
-    },
+      T
+    >;
+  return {
+    byKind: perKind(count),
+    byAge: perKind((kind) => ({
+      under7Days: count(`${kind}:under-7-days`),
+      from7To30Days: count(`${kind}:7-to-30-days`),
+      over30Days: count(`${kind}:over-30-days`),
+    })),
   };
 }
 

@@ -4143,6 +4143,7 @@ export interface operations {
                     "application/json": {
                         items: components["schemas"]["ApprovalItem"][];
                         nextCursor: string | null;
+                        /** @description Pending approvals whatever the filter: by kind (`determination`), by age band across kinds (`under-7-days`, `7-to-30-days`, `over-30-days`), and by kind and age band (`determination:under-7-days`) */
                         counts: {
                             [key: string]: number;
                         };

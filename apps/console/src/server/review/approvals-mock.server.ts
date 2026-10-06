@@ -110,9 +110,11 @@ function listApprovals(params: URLSearchParams, caller: MockApprover, cases: Moc
   for (const source of sources) {
     const pending = source.pending(caller, cases);
     counts[source.kind] = pending.length;
+    for (const band of AGE_BANDS) counts[`${source.kind}:${band}`] = 0;
     for (const each of pending) {
       const band = ageBand(each.proposedAt, now);
       counts[band] = (counts[band] ?? 0) + 1;
+      counts[`${source.kind}:${band}`] = (counts[`${source.kind}:${band}`] ?? 0) + 1;
       if (kind !== null && kind !== source.kind) continue;
       listed.push({
         ...each,

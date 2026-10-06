@@ -65,7 +65,7 @@ export type ApprovalItemView = z.infer<typeof approvalItemSchema>;
 export interface ApprovalPage {
   items: ApprovalItemView[];
   nextCursor: string | null;
-  /** Pending approvals by kind and by age band, whatever the page's filter. */
+  /** Pending approvals by kind, by age band, and by kind and age band, whatever the page's filter. */
   counts: Record<string, number>;
 }
 
@@ -79,6 +79,10 @@ export type ReassignedApproval = z.infer<typeof approvalReassignmentSchema>;
 
 /** The age bands of the inbox's counts. */
 const AGE_BANDS = ['under-7-days', '7-to-30-days', 'over-30-days'] as const;
+type AgeBand = (typeof AGE_BANDS)[number];
+
+/** The counts key of one kind's approvals in one age band, e.g. `determination:under-7-days`. */
+const kindAgeKey = (kind: string, band: AgeBand) => `${kind}:${band}`;
 
 /**
  * The supervisors' approvals inbox (spec 08): the union of every kind's pending approvals of the
@@ -182,21 +186,35 @@ export class ApprovalsService {
     });
   }
 
-  /** Pending approvals by kind (every kind, 0 when none) and by age band. */
+  /**
+   * Pending approvals by kind (every kind, 0 when none), by age band across kinds
+   * (`under-7-days`), and by age band within each kind (`determination:under-7-days`), so a tab
+   * can say how long its own approvals have waited (#712).
+   */
   private async counts(
     tx: ReviewTransaction,
     tenant: string,
     now: Date,
   ): Promise<Record<string, number>> {
     const counts: Record<string, number> = Object.fromEntries(
-      [...APPROVAL_KINDS, ...AGE_BANDS].map((key) => [key, 0]),
+      [
+        ...APPROVAL_KINDS,
+        ...AGE_BANDS,
+        ...APPROVAL_KINDS.flatMap((kind) => AGE_BANDS.map((band) => kindAgeKey(kind, band))),
+      ].map((key) => [key, 0]),
     );
     for (const source of this.sources) {
       const ages = await source.ageCounts(tx, tenant, now);
+      const byBand: Record<AgeBand, number> = {
+        'under-7-days': ages.under7Days,
+        '7-to-30-days': ages.from7To30Days,
+        'over-30-days': ages.over30Days,
+      };
       counts[source.kind] = ages.under7Days + ages.from7To30Days + ages.over30Days;
-      counts['under-7-days'] = (counts['under-7-days'] ?? 0) + ages.under7Days;
-      counts['7-to-30-days'] = (counts['7-to-30-days'] ?? 0) + ages.from7To30Days;
-      counts['over-30-days'] = (counts['over-30-days'] ?? 0) + ages.over30Days;
+      for (const band of AGE_BANDS) {
+        counts[band] = (counts[band] ?? 0) + byBand[band];
+        counts[kindAgeKey(source.kind, band)] = byBand[band];
+      }
     }
     return counts;
   }

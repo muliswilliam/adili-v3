@@ -143,6 +143,15 @@ describe('approvals inbox and reassignment', () => {
       'under-7-days': 2,
       '7-to-30-days': 0,
       'over-30-days': 1,
+      'determination:under-7-days': 2,
+      'determination:7-to-30-days': 0,
+      'determination:over-30-days': 1,
+      'action:under-7-days': 0,
+      'action:7-to-30-days': 0,
+      'action:over-30-days': 0,
+      'referral:under-7-days': 0,
+      'referral:7-to-30-days': 0,
+      'referral:over-30-days': 0,
     });
 
     expect((await approve(api, one.id, supervisorS)).statusCode).toBe(200);

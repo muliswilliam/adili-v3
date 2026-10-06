@@ -51,11 +51,15 @@ describe('loadApprovals (S14)', () => {
     });
   });
 
-  it('counts the pending approvals by kind and by age band', async () => {
+  it('counts the pending approvals by kind, and each kind by age band (#712)', async () => {
     const result = await loadApprovals(supervisor(), 'tsc', { kind: 'determination' });
     expect(result.ok && result.data.counts).toEqual({
       byKind: { determination: 4, action: 10, referral: 5 },
-      byAge: { under7Days: 10, from7To30Days: 8, over30Days: 1 },
+      byAge: {
+        determination: { under7Days: 1, from7To30Days: 2, over30Days: 1 },
+        action: { under7Days: 6, from7To30Days: 4, over30Days: 0 },
+        referral: { under7Days: 3, from7To30Days: 2, over30Days: 0 },
+      },
     });
   });
 
@@ -70,9 +74,9 @@ describe('loadApprovals (S14)', () => {
       vi.setSystemTime(Date.parse(addDays(new Date(NOW_MS).toISOString(), 31)));
       resetReviewMock(NOW_MS);
       const result = await loadApprovals(supervisor(), 'tsc', { kind: 'determination' });
-      expect(result.ok && result.data.counts.byAge).toEqual({
-        under7Days: 10,
-        from7To30Days: 8,
+      expect(result.ok && result.data.counts.byAge.determination).toEqual({
+        under7Days: 1,
+        from7To30Days: 2,
         over30Days: 1,
       });
     });
@@ -82,7 +86,7 @@ describe('loadApprovals (S14)', () => {
     const result = await loadApprovals(supervisor(), 'tsc', { kind: 'determination' });
     if (!result.ok) throw new Error(JSON.stringify(result.error));
     expect(result.data.items.map((item) => item.subjectId)).not.toContain(D.bulkClosure);
-    expect(result.data.counts.byAge.over30Days).toBe(1);
+    expect(result.data.counts.byAge.determination.over30Days).toBe(1);
   });
 
   it('pages with the cursor', async () => {
