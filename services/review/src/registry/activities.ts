@@ -79,9 +79,10 @@ const logger = new Logger('RegistryChecks');
  * helpers out of this class); each is safe to retry. National IDs and records stay in the
  * activities; what they hand on is listed in contract.ts.
  *
- * A pull from declarations or the directory that fails propagates, so Temporal retries it. The
- * gateway not answering a lookup is not an error: it is that lookup's `unavailable`, which the
- * workflow looks up again with backoff.
+ * A pull from declarations or the directory that fails propagates, so Temporal retries it (for a
+ * bounded time, see workflows.ts). The gateway not answering a lookup, or the read-back of its
+ * result, is not an error: it is that lookup's `unavailable`, which the workflow looks up again
+ * with backoff and the sweep after it.
  */
 @Injectable()
 export class RegistryCheckActivities {
@@ -288,7 +289,8 @@ function outcomeOf(result: {
  * A lookup as the matching module takes it: a found one with its records read back from the
  * gateway, a not-found one with none, or `unavailable`. A result the gateway no longer has is
  * unavailable (`result-missing`), one it refuses to give `gateway-rejected`, as a refused lookup
- * is; the gateway not answering propagates, so the activity retries.
+ * is; the gateway not answering is `gateway-unavailable`, as an unanswered lookup is: the check is
+ * stored without it, and the sweep looks it up again (no case waits on the gateway).
  */
 async function recordsOf(
   gateway: IntegrationGatewayClient,
@@ -304,13 +306,7 @@ async function recordsOf(
   try {
     stored = await gateway.getStoredResult(lookup.resultId, tenant, SYSTEM_SUBJECT);
   } catch (error) {
-    if (error instanceof InternalApiRejected) {
-      logger.error(
-        `The integration-gateway refused a ${system} result with ${String(error.status)}`,
-      );
-      return unavailable(GATEWAY_REJECTED, lookup.resultId);
-    }
-    throw error;
+    return unavailable(gatewayFailureReason(error, `${system} result`), lookup.resultId);
   }
   const records = stored && REGISTRY_RECORDS[system].safeParse(stored.payload);
   if (!records?.success) return unavailable(RESULT_MISSING, lookup.resultId);
@@ -433,13 +429,23 @@ function gatewayFailure(
   error: unknown,
   system: string,
 ): Pick<LookupOutcome, 'outcome' | 'reason' | 'resultId'> {
+  return {
+    outcome: 'unavailable',
+    reason: gatewayFailureReason(error, `${system} lookup`),
+    resultId: null,
+  };
+}
+
+/**
+ * Why the gateway gave no answer to a request (`what`, for the log): it refused it
+ * (`gateway-rejected`), or could not be reached (`gateway-unavailable`). Anything else propagates.
+ */
+function gatewayFailureReason(error: unknown, what: string): string {
   if (error instanceof InternalApiRejected) {
     // A request the gateway refuses (the token lacks the scope, say) needs fixing, not waiting.
-    logger.error(`The integration-gateway refused a ${system} lookup with ${String(error.status)}`);
-    return { outcome: 'unavailable', reason: GATEWAY_REJECTED, resultId: null };
+    logger.error(`The integration-gateway refused a ${what} with ${String(error.status)}`);
+    return GATEWAY_REJECTED;
   }
-  if (error instanceof IntegrationGatewayUnavailable) {
-    return { outcome: 'unavailable', reason: GATEWAY_UNAVAILABLE, resultId: null };
-  }
+  if (error instanceof IntegrationGatewayUnavailable) return GATEWAY_UNAVAILABLE;
   throw error;
 }

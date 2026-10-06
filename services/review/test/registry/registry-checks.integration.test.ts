@@ -370,6 +370,27 @@ describe('registry checks', () => {
     expect(await checksOf(request.caseId)).toContain('officer ntsa unavailable gateway-rejected');
   });
 
+  it('S9: the gateway unreachable when the results are read back leaves the found registries unavailable (gateway-unavailable); the check is stored', async () => {
+    const request = await caseOf(wanjikuVersion());
+    const lookups = await registry.lookupRegistries({ check: request, previous: null });
+    if (!lookups) throw new Error('stale');
+    api.gateway.failStoredResults();
+
+    // Not retried until the gateway is back: stored, for the sweep to look up again.
+    const result = await registry.matchAndStoreRegistries({ check: request, lookups });
+
+    expect(result.outcome).toBe('checked');
+    expect(await checksOf(request.caseId)).toContain(
+      'officer ntsa unavailable gateway-unavailable',
+    );
+    expect(await caseRow(request.caseId)).toMatchObject({ registryUnavailable: true });
+    // Once the gateway is back, the Registry tab shows what the check stored: unavailable.
+    api.gateway.failStoredResults(false);
+    const view = (await api.get(registryPath(request.caseId), reviewer)).json<RegistryView>();
+    const ntsa = view.persons[0]?.systems.find((s) => s.system === 'ntsa');
+    expect(ntsa).toMatchObject({ status: 'unavailable', reason: 'gateway-unavailable' });
+  });
+
   it('M7: storing the same check twice changes nothing: no second timeline entry or event; a reviewed registry flag keeps its note', async () => {
     const request = await caseOf(wanjikuVersion());
     const { lookups, result: first } = await check(request);

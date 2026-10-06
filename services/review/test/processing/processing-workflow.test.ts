@@ -230,6 +230,24 @@ describe('DeclarationProcessingWorkflow', () => {
     });
   }, 60_000);
 
+  it('asks for the copilot all the same when the registry check keeps failing', async () => {
+    const unavailable = new DeclarationsUnavailable('declarations unreachable');
+    const mocks = activities({ matchAndStoreRegistries: vi.fn(() => Promise.reject(unavailable)) });
+
+    const result = await env.execute(declarationProcessing, {
+      workflowsPath,
+      activities: mocks,
+      args: [input],
+    });
+
+    expect(result).toEqual({ outcome: 'created', caseId: 'case-1' });
+    expect(mocks.requestCopilot).toHaveBeenCalledTimes(1);
+    // Without a check's time: its registries stay unchecked.
+    expect(mocks.requestCopilot).toHaveBeenCalledWith(
+      expect.not.objectContaining({ registryCheckedAt: expect.anything() as unknown }),
+    );
+  }, 60_000);
+
   it("records the copilot's own reason when the declaration cannot be pulled for it", async () => {
     const unavailable = new DeclarationsUnavailable('declarations unreachable');
     const mocks = activities({ requestCopilot: vi.fn(() => Promise.reject(unavailable)) });
