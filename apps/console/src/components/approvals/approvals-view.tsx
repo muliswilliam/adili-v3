@@ -20,7 +20,7 @@ import { useCallback, useState } from 'react';
 import { APPROVAL_KINDS, INBOX_KINDS, type InboxKind } from '../../approvals/kinds';
 import type { ApprovalsLoad } from '../../server/approvals';
 import { getSupervisors, reassignToSupervisor } from '../../server/approvals';
-import type { ApprovalCounts, InboxItem } from '../../server/approvals.server';
+import type { AgeCounts, InboxItem } from '../../server/approvals.server';
 import type { Assignee } from '../../server/review/types';
 import { CursorPager } from '../cursor-pager';
 import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
@@ -92,7 +92,7 @@ export function ApprovalsView({
 
   const page = load?.ok ? load.data : null;
   const counts = page?.counts ?? null;
-  // Every kind, as the age bands count them (review counts ages across kinds).
+  // Every kind: the page's summary. The tabs and their age bands count one kind each.
   const total = counts ? APPROVAL_KINDS.reduce((sum, each) => sum + counts.byKind[each], 0) : null;
 
   const loadSupervisors = useCallback(() => getSupervisors({ data: { slug } }), [slug]);
@@ -163,7 +163,7 @@ export function ApprovalsView({
         })}
       </TabsNav>
 
-      {counts && total ? <AgeBands counts={counts} /> : null}
+      {counts && counts.byKind[kind] > 0 ? <AgeBands ages={counts.byAge[kind]} /> : null}
 
       {load === null ? (
         <ApprovalsSkeleton />
@@ -240,12 +240,12 @@ export function ApprovalsView({
   );
 }
 
-/** How long the approvals have waited, across every kind (the service counts them so). */
-function AgeBands({ counts }: { counts: ApprovalCounts }) {
+/** How long the selected tab's approvals have waited: they add up to the tab's count. */
+function AgeBands({ ages }: { ages: AgeCounts }) {
   const bands = [
-    { label: t.age.under7Days, count: counts.byAge.under7Days, tone: '' },
-    { label: t.age.from7To30Days, count: counts.byAge.from7To30Days, tone: 'text-warning' },
-    { label: t.age.over30Days, count: counts.byAge.over30Days, tone: 'text-destructive' },
+    { label: t.age.under7Days, count: ages.under7Days, tone: '' },
+    { label: t.age.from7To30Days, count: ages.from7To30Days, tone: 'text-warning' },
+    { label: t.age.over30Days, count: ages.over30Days, tone: 'text-destructive' },
   ];
   return (
     <dl

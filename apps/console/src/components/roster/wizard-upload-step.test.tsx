@@ -107,6 +107,19 @@ describe('WizardUploadStep', () => {
     expect(screen.queryByRole('button', { name: /Try again/ })).toBeNull();
   });
 
+  it('says an empty file is empty and offers another file, not Try again (#713)', () => {
+    const { onChooseAnother } = renderStep({
+      phase: 'rejected',
+      file: { name: 'roster.csv', size: 0 },
+      reason: 'empty',
+    });
+    expect(screen.getByRole('alert').textContent).toContain('This file is empty.');
+    expect(screen.queryByText('The upload did not complete. Try again.')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Try again/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Choose another file' }));
+    expect(onChooseAnother).toHaveBeenCalled();
+  });
+
   it('offers to try again after an upload that did not complete', () => {
     const { onRetry } = renderStep({ phase: 'failed', file });
     expect(screen.getByRole('alert').textContent).toContain(

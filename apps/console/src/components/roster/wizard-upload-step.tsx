@@ -20,6 +20,12 @@ const REJECTED_TITLE: Record<UploadRejectionReason, string> = {
   type: m.rejectedType,
   encoding: m.rejectedEncoding,
   size: m.rejectedSize,
+  empty: m.rejectedEmpty,
+};
+
+const REJECTED_TEXT: Partial<Record<UploadRejectionReason, string>> = {
+  encoding: m.rejectedEncodingText,
+  empty: m.rejectedEmptyText,
 };
 
 export interface WizardUploadStepProps {
@@ -174,11 +180,7 @@ function UploadProgress({
           {box(<Badge variant="destructive">{m.notUploaded}</Badge>)}
           <ProblemAlert
             title={upload.phase === 'failed' ? m.uploadFailed : REJECTED_TITLE[upload.reason]}
-            text={
-              upload.phase === 'rejected' && upload.reason === 'encoding'
-                ? m.rejectedEncodingText
-                : undefined
-            }
+            text={upload.phase === 'rejected' ? REJECTED_TEXT[upload.reason] : undefined}
           >
             {upload.phase === 'failed' ? (
               <Button size="sm" onClick={onRetry}>

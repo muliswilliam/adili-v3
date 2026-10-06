@@ -207,6 +207,9 @@ export const en = {
   rejectedEncodingText:
     'In Excel, choose Save As > CSV UTF-8 (Comma delimited), then upload the file again.',
   rejectedSize: 'The file is over 50 MB.',
+  rejectedEmpty: 'This file is empty.',
+  rejectedEmptyText:
+    'Export the roster again, check it has a header row and officers, then upload it.',
   uploadFailed: 'The upload did not complete. Try again.',
   retryUpload: 'Try again',
   chooseAnother: 'Choose another file',
@@ -589,7 +592,6 @@ export const en = {
   coverageLate: 'Late',
   coverageLateHint: 'Past the due date and not submitted, with or without a draft.',
   coverageHintLabel: (label: string) => `About ${label}`,
-  coverageShare: (percent: number) => `${formatNumber(percent)}%`,
   coverageEntity: 'Reporting entity',
   coverageObligations: 'Obligations',
   coverageBar: 'Progress',
@@ -600,8 +602,8 @@ export const en = {
   coverageLoadingCaption: 'Obligations per reporting entity (loading)',
   coverageTotal: 'Total',
   coverageTotalMatching: (count: number) => `Total, ${formatNumber(count)} matching`,
-  coverageBarLabel: (submitted: number, inProgress: number, late: number) =>
-    `${formatNumber(submitted)}% submitted, ${formatNumber(inProgress)}% in progress, ${formatNumber(late)}% late`,
+  coverageBarLabel: (submitted: string, inProgress: string, late: string) =>
+    `${submitted} submitted, ${inProgress} in progress, ${late} late`,
   coverageCardCounts: (notStarted: number, inProgress: number, submitted: number) =>
     `${formatNumber(notStarted)} not started · ${formatNumber(inProgress)} in progress · ${formatNumber(submitted)} submitted`,
   coverageCardLate: (late: number) => `${formatNumber(late)} late`,

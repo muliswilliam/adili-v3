@@ -97,6 +97,7 @@ describe('wizardReducer: upload', () => {
     [{ kind: 'infected' } as const, { phase: 'infected', file }],
     [{ kind: 'rejected', reason: 'type' } as const, { phase: 'rejected', file, reason: 'type' }],
     [{ kind: 'rejected', reason: 'size' } as const, { phase: 'rejected', file, reason: 'size' }],
+    [{ kind: 'rejected', reason: 'empty' } as const, { phase: 'rejected', file, reason: 'empty' }],
     [{ kind: 'failed' } as const, { phase: 'failed', file }],
     [{ kind: 'aborted' } as const, { phase: 'idle' }],
     [{ kind: 'unauthenticated' } as const, { phase: 'idle' }],

@@ -51,7 +51,12 @@ export class ApprovalsController {
       properties: {
         items: { type: 'array', items: schemaRef('ApprovalItem') },
         nextCursor: { type: ['string', 'null'] },
-        counts: { type: 'object', additionalProperties: { type: 'integer' } },
+        counts: {
+          type: 'object',
+          additionalProperties: { type: 'integer' },
+          description:
+            'Pending approvals whatever the filter: by kind (`determination`), by age band across kinds (`under-7-days`, `7-to-30-days`, `over-30-days`), and by kind and age band (`determination:under-7-days`)',
+        },
       },
     },
   })

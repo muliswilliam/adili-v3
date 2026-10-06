@@ -68,10 +68,11 @@ export interface CleanUpload {
 }
 
 /**
- * Why the documents service refused a file for good: not a CSV or XLSX file, a CSV not saved as
- * UTF-8, or too big.
+ * Why a file was refused for good: not a CSV or XLSX file, a CSV not saved as UTF-8, or too big
+ * (the documents service says so); or empty (refused before any request: the service reserves
+ * no upload of 0 bytes, #713).
  */
-export type UploadRejectionReason = 'type' | 'encoding' | 'size';
+export type UploadRejectionReason = 'type' | 'encoding' | 'size' | 'empty';
 
 /** How uploading a roster file ended. */
 export type UploadOutcome =
@@ -141,6 +142,7 @@ export async function uploadRosterFile(
 ): Promise<UploadOutcome> {
   const contentType = rosterContentType(file.name);
   if (!contentType) return { kind: 'rejected', reason: 'type' };
+  if (file.size === 0) return { kind: 'rejected', reason: 'empty' };
   const failed = (result: DocumentsResult<unknown>): UploadOutcome =>
     !result.ok && result.error.kind === 'unauthenticated'
       ? { kind: 'unauthenticated' }

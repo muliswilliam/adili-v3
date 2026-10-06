@@ -10,7 +10,7 @@ import {
   progressPage,
   progressSearchSchema,
   progressTotals,
-  sharePercent,
+  shareLabel,
 } from './declaration-progress';
 
 function row(
@@ -67,14 +67,27 @@ describe('obligationTotal', () => {
   });
 });
 
-describe('sharePercent', () => {
-  it('rounds down, so a share never reads 100% while one is left', () => {
-    expect(sharePercent(199, 200)).toBe(99);
-    expect(sharePercent(1, 3)).toBe(33);
+describe('shareLabel', () => {
+  it('rounds to the nearest whole percent', () => {
+    expect(shareLabel(1, 3)).toBe('33%');
+    expect(shareLabel(2, 3)).toBe('67%');
+    expect(shareLabel(94, 112)).toBe('84%');
+    expect(shareLabel(2, 112)).toBe('2%');
   });
 
-  it('is 0 of nothing', () => {
-    expect(sharePercent(0, 0)).toBe(0);
+  it('never reads 0% for a share above none (1 of 112 in progress, #711)', () => {
+    expect(shareLabel(1, 112)).toBe('<1%');
+    expect(shareLabel(1, 1000)).toBe('<1%');
+  });
+
+  it('never reads 100% while one is left', () => {
+    expect(shareLabel(199, 200)).toBe('>99%');
+    expect(shareLabel(200, 200)).toBe('100%');
+  });
+
+  it('is 0% of none, and of nothing', () => {
+    expect(shareLabel(0, 112)).toBe('0%');
+    expect(shareLabel(0, 0)).toBe('0%');
   });
 });
 

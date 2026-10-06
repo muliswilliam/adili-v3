@@ -86,6 +86,7 @@ import { Route as CommissionsSlugIndexRouteImport } from './routes/commissions/$
 import { Route as CommissionsSlugObligationsRouteRouteImport } from './routes/commissions/$slug/obligations/route'
 import { Route as CommissionsSlugRecordsRouteRouteImport } from './routes/commissions/$slug/records/route'
 import { Route as DemoFilesNameRouteImport } from './routes/demo/files.$name'
+import { Route as DemoVerifyFilesNameRouteImport } from './routes/demo/verify-files.$name'
 import { Route as EaccOpenDataIndexRouteImport } from './routes/eacc/open-data/index'
 import { Route as EaccOpenDataReleaseIdRouteImport } from './routes/eacc/open-data/$releaseId'
 import { Route as EaccReferralsIndexRouteImport } from './routes/eacc/referrals/index'
@@ -515,6 +516,11 @@ const DemoFilesNameRoute = DemoFilesNameRouteImport.update({
   path: '/demo/files/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DemoVerifyFilesNameRoute = DemoVerifyFilesNameRouteImport.update({
+  id: '/demo/verify-files/$name',
+  path: '/demo/verify-files/$name',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EaccOpenDataIndexRoute = EaccOpenDataIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -775,6 +781,7 @@ export interface FileRoutesByFullPath {
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/demo/files/$name': typeof DemoFilesNameRoute
+  '/demo/verify-files/$name': typeof DemoVerifyFilesNameRoute
   '/eacc/open-data/$releaseId': typeof EaccOpenDataReleaseIdRoute
   '/eacc/reports/$reportId': typeof EaccReportsReportIdRoute
   '/eacc/reports/ncr': typeof EaccReportsNcrRoute
@@ -856,6 +863,7 @@ export interface FileRoutesByTo {
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/demo/files/$name': typeof DemoFilesNameRoute
+  '/demo/verify-files/$name': typeof DemoVerifyFilesNameRoute
   '/eacc/open-data/$releaseId': typeof EaccOpenDataReleaseIdRoute
   '/eacc/reports/$reportId': typeof EaccReportsReportIdRoute
   '/eacc/reports/ncr': typeof EaccReportsNcrRoute
@@ -969,6 +977,7 @@ export interface FileRoutesById {
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/demo/files/$name': typeof DemoFilesNameRoute
+  '/demo/verify-files/$name': typeof DemoVerifyFilesNameRoute
   '/eacc/open-data/$releaseId': typeof EaccOpenDataReleaseIdRoute
   '/eacc/reports/$reportId': typeof EaccReportsReportIdRoute
   '/eacc/reports/ncr': typeof EaccReportsNcrRoute
@@ -1083,6 +1092,7 @@ export interface FileRouteTypes {
     | '/api/mock-files/$id'
     | '/api/mock-uploads/$id'
     | '/demo/files/$name'
+    | '/demo/verify-files/$name'
     | '/eacc/open-data/$releaseId'
     | '/eacc/reports/$reportId'
     | '/eacc/reports/ncr'
@@ -1164,6 +1174,7 @@ export interface FileRouteTypes {
     | '/api/mock-files/$id'
     | '/api/mock-uploads/$id'
     | '/demo/files/$name'
+    | '/demo/verify-files/$name'
     | '/eacc/open-data/$releaseId'
     | '/eacc/reports/$reportId'
     | '/eacc/reports/ncr'
@@ -1276,6 +1287,7 @@ export interface FileRouteTypes {
     | '/api/mock-files/$id'
     | '/api/mock-uploads/$id'
     | '/demo/files/$name'
+    | '/demo/verify-files/$name'
     | '/eacc/open-data/$releaseId'
     | '/eacc/reports/$reportId'
     | '/eacc/reports/ncr'
@@ -1348,6 +1360,7 @@ export interface RootRouteChildren {
   ApiMockFilesIdRoute: typeof ApiMockFilesIdRoute
   ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
   DemoFilesNameRoute: typeof DemoFilesNameRoute
+  DemoVerifyFilesNameRoute: typeof DemoVerifyFilesNameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1889,6 +1902,13 @@ declare module '@tanstack/react-router' {
       path: '/demo/files/$name'
       fullPath: '/demo/files/$name'
       preLoaderRoute: typeof DemoFilesNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo/verify-files/$name': {
+      id: '/demo/verify-files/$name'
+      path: '/demo/verify-files/$name'
+      fullPath: '/demo/verify-files/$name'
+      preLoaderRoute: typeof DemoVerifyFilesNameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/eacc/open-data/': {
@@ -2672,6 +2692,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMockFilesIdRoute: ApiMockFilesIdRoute,
   ApiMockUploadsIdRoute: ApiMockUploadsIdRoute,
   DemoFilesNameRoute: DemoFilesNameRoute,
+  DemoVerifyFilesNameRoute: DemoVerifyFilesNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

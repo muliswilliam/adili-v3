@@ -41,9 +41,11 @@ const MEBIBYTE = 1024 * 1024;
 
 /**
  * `4.3 MB`, `12 KB`: binary units as upload limits count them. Rounded up, so a file just over
- * a limit never reads as the limit itself ("50.1 MB", not "50.0 MB").
+ * a limit never reads as the limit itself ("50.1 MB", not "50.0 MB"), and a file with any bytes
+ * never reads as empty; an empty file is `0 KB` (#713).
  */
 export function formatFileSize(bytes: number): string {
+  if (bytes <= 0) return '0 KB';
   // The epsilon keeps float noise (4.3 MiB is 43.000000001 tenths) from rounding up a tenth.
   if (bytes >= MEBIBYTE) return `${(Math.ceil((bytes / MEBIBYTE) * 10 - 1e-9) / 10).toFixed(1)} MB`;
   return `${formatNumber(Math.max(1, Math.ceil(bytes / 1024)))} KB`;

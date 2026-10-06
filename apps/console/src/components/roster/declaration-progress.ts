@@ -57,9 +57,17 @@ export function obligationTotal(counts: ProgressCounts): number {
   return PROGRESS_KEYS.reduce((sum, key) => sum + counts[key], 0);
 }
 
-/** `part` as a whole percentage of `whole`, rounded down so 100% means all; 0 of nothing. */
-export function sharePercent(part: number, whole: number): number {
-  return whole > 0 ? Math.floor((part / whole) * 100) : 0;
+/**
+ * `part` of `whole` as a percentage label, to the nearest whole percent. A share that is neither
+ * none nor all never rounds to 0% or 100%: it reads "<1%" or ">99%" instead. "0%" of nothing.
+ */
+export function shareLabel(part: number, whole: number): string {
+  if (whole <= 0 || part <= 0) return '0%';
+  if (part >= whole) return '100%';
+  const percent = (part / whole) * 100;
+  if (percent < 1) return '<1%';
+  if (percent > 99) return '>99%';
+  return `${String(Math.round(percent))}%`;
 }
 
 /**

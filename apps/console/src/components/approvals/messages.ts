@@ -7,9 +7,11 @@ import { formatNumber, plural } from '@adili/ui';
  */
 export const messages = {
   title: 'Approvals',
-  /** Every pending approval, of every kind: what the age bands count too. */
+  /** Every pending approval, of every kind; the tabs and age bands count one kind each. */
   summary: (count: number) =>
-    count === 0 ? 'Nothing waits for approval' : `${formatNumber(count)} awaiting approval`,
+    count === 0
+      ? 'Nothing waits for approval'
+      : `${formatNumber(count)} awaiting approval across all kinds`,
   tabsLabel: 'Kinds of approval',
   /** Bulk closures are not inbox items: the low-risk clean cases the sweep proposes (#202). */
   bulkClosure: 'Bulk closure',

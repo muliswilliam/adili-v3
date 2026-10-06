@@ -136,11 +136,12 @@ describe('ApprovalsView (spec 08 FE-3, S14)', () => {
   it('lists the proposals with counts by kind and age, oldest first', async () => {
     await open();
     // Across the tabs: 4 determinations, the ladders' 10 drafted steps (#205, #208) and 5 referrals.
-    expect(screen.getByText('19 awaiting approval')).toBeTruthy();
+    expect(screen.getByText('19 awaiting approval across all kinds')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Determinations\s*4/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: /Referrals\s*5/ })).toBeTruthy();
+    // The age bands count the selected tab's 4 determinations, not every kind (#712).
     const bands = screen.getByLabelText('Waiting');
-    expect(bands.textContent).toBe('WaitingUnder 7 days107 to 30 days8Over 30 days1');
+    expect(bands.textContent).toBe('WaitingUnder 7 days17 to 30 days2Over 30 days1');
     expect(screen.getAllByRole('article')).toHaveLength(4);
     expect(within(card('Ruth Nekesa Wafula')).getByText('Reassigned to you')).toBeTruthy();
     expect(within(card('Ruth Nekesa Wafula')).getByText('Waiting 35 days')).toBeTruthy();
@@ -255,7 +256,11 @@ describe('ApprovalsView (spec 08 FE-3, S14)', () => {
     const now = new Date(NOW_MS).toISOString();
     const counts = {
       byKind: { determination: 0, action: 0, referral: 0 },
-      byAge: { under7Days: 0, from7To30Days: 0, over30Days: 0 },
+      byAge: {
+        determination: { under7Days: 0, from7To30Days: 0, over30Days: 0 },
+        action: { under7Days: 0, from7To30Days: 0, over30Days: 0 },
+        referral: { under7Days: 0, from7To30Days: 0, over30Days: 0 },
+      },
     };
     const { unmount } = render(
       <ToastProvider>

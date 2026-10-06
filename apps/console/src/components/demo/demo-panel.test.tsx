@@ -5,17 +5,19 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DemoState } from '../../server/demo/demo';
-import type { DemoInbox, DemoPanelState } from '../../server/demo/panel';
+import type { DemoInbox, DemoPanelState, DemoVerifyCodes } from '../../server/demo/panel';
 import { DemoContext } from './demo-context';
 import { DemoPanel } from './demo-panel';
 
 const getDemoPanel = vi.fn<() => Promise<DemoPanelState | null>>();
 const getDemoInbox = vi.fn<() => Promise<DemoInbox | null>>();
+const getDemoVerifyCodes = vi.fn<() => Promise<DemoVerifyCodes | null>>();
 const resetDemo = vi.fn();
 const setDemoRegistryPaused = vi.fn();
 vi.mock('../../server/demo/panel', () => ({
   getDemoPanel: () => getDemoPanel(),
   getDemoInbox: () => getDemoInbox(),
+  getDemoVerifyCodes: () => getDemoVerifyCodes(),
   resetDemo: (...args: unknown[]) => resetDemo(...args) as unknown,
   setDemoRegistryPaused: (...args: unknown[]) => setDemoRegistryPaused(...args) as unknown,
 }));
@@ -49,6 +51,8 @@ beforeEach(() => {
   getDemoPanel.mockReset();
   getDemoInbox.mockReset();
   getDemoInbox.mockResolvedValue({ sms: [], email: [] });
+  getDemoVerifyCodes.mockReset();
+  getDemoVerifyCodes.mockResolvedValue({ state: 'not-seeded' });
   resetDemo.mockReset();
   setDemoRegistryPaused.mockReset();
 });
@@ -66,6 +70,68 @@ describe('DemoPanel (#621)', () => {
     expect(roster.getAttribute('href')).toBe('/demo/files/psc-roster.csv');
     expect(roster.getAttribute('download')).toBe('psc-roster.csv');
     expect(within(files).getAllByRole('link')).toHaveLength(4);
+  });
+
+  it('lists a document in every verify status with its code and verify page', async () => {
+    getDemoPanel.mockResolvedValue(panel('button'));
+    getDemoVerifyCodes.mockResolvedValue({
+      state: 'ready',
+      documents: [
+        {
+          status: 'revoked',
+          what: 'JSC clarification letter, issued in error and withdrawn',
+          verificationId: 'ADL-REVOKED',
+          verifyUrl: 'https://verify.test/v/ADL-REVOKED',
+        },
+        {
+          status: 'expired',
+          what: 'JSC access package past its validity',
+          verificationId: 'ADL-EXPIRED',
+          verifyUrl: 'https://verify.test/v/ADL-EXPIRED',
+        },
+        {
+          status: 'hash-mismatch',
+          what: "Tampered copy of Otieno's slip",
+          verificationId: 'ADL-VALID',
+          verifyUrl: 'https://verify.test/v/ADL-VALID',
+          file: 'tampered-acknowledgement-slip.pdf',
+        },
+      ],
+    });
+    renderPanel(signedIn);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Demo panel' }));
+
+    const codes = await screen.findByRole('list', { name: 'Verify codes' });
+    const [revoked, expired, tampered] = within(codes).getAllByRole('listitem');
+    if (!revoked || !expired || !tampered) throw new Error('Missing a verify code');
+    expect(revoked.textContent).toContain('Revoked');
+    expect(revoked.textContent).toContain('ADL-REVOKED');
+    expect(
+      within(revoked)
+        .getByRole('link', { name: "Open the revoked document's verify page" })
+        .getAttribute('href'),
+    ).toBe('https://verify.test/v/ADL-REVOKED');
+    expect(within(revoked).getByRole('button', { name: 'Copy the revoked code' })).toBeTruthy();
+    expect(expired.textContent).toContain('ADL-EXPIRED');
+    expect(tampered.textContent).toContain('Does not match');
+    const download = within(tampered).getByRole('link', {
+      name: 'Download tampered-acknowledgement-slip.pdf',
+    });
+    expect(download.getAttribute('href')).toBe(
+      '/demo/verify-files/tampered-acknowledgement-slip.pdf',
+    );
+  });
+
+  it('says how to write the verify codes when the stack has none', async () => {
+    getDemoPanel.mockResolvedValue(panel('button'));
+    renderPanel(signedIn);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Demo panel' }));
+
+    expect((await screen.findByText(/No codes on this stack yet/)).textContent).toContain(
+      'pnpm demo:seed --only verify',
+    );
   });
 
   it('is absent outside demo mode', () => {
