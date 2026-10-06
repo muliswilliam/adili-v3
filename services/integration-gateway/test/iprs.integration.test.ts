@@ -258,6 +258,17 @@ describe('POST /internal/v1/iprs/person-lookups', () => {
       expect(row?.latencyMs).toBeGreaterThanOrEqual(300);
     });
 
+    it("records IPRS's own rate limit (429) as rate-limited, as every registry's (#477)", async () => {
+      iprs.behaviour = { kind: 'status', status: 429 };
+
+      const response = await lookup('23456789');
+
+      expect(response.statusCode).toBe(503);
+      expect(response.json()).toMatchObject({ type: 'upstream-unavailable' });
+      const [row] = await results();
+      expect(row).toMatchObject({ outcome: 'unavailable', reason: 'rate-limited', cached: false });
+    });
+
     it('keeps names and national IDs out of the rows and the logs', async () => {
       await lookup('23456789');
       iprs.behaviour = { kind: 'status', status: 500 };

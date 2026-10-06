@@ -397,15 +397,16 @@ describe('adapter kit', () => {
       expect(row).toMatchObject({ outcome: 'unavailable', reason: 'paused' });
     });
 
-    it('still serves cached answers while paused, and calls again once resumed', async () => {
+    it('answers paused even for a cached subject; the cache serves again once resumed (#477)', async () => {
       await lookup(WANJIKU);
       await pauses.pause('kra');
 
-      expect(await lookup(WANJIKU)).toMatchObject({ outcome: 'found', cached: true });
+      expect(await lookup(WANJIKU)).toMatchObject({ outcome: 'unavailable', reason: 'paused' });
       expect(await lookup('99999999')).toMatchObject({ reason: 'paused' });
 
       await pauses.resume('kra');
 
+      expect(await lookup(WANJIKU)).toMatchObject({ outcome: 'found', cached: true });
       expect(await lookup('99999999')).toMatchObject({ outcome: 'not-found', cached: false });
       expect(kra.calls).toBe(2);
     });
