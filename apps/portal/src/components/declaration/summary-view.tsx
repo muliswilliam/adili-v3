@@ -90,7 +90,9 @@ import {
   statementTotals,
   submitNote,
 } from './summary';
+import { DeclarationChanges } from './changes-since-last';
 import { residualKey, type SummaryHints, useSummaryHints } from './use-hints';
+import { usePreviousDeclaration } from './use-previous-declaration';
 import { useWorkspace } from './workspace';
 
 type Sections = DeclarationSection[];
@@ -862,6 +864,7 @@ export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryVie
     state.step === 'incomplete' ? 'incomplete' : summary.cannotSubmitReason;
   const canSubmit = cannotSubmitReason === null;
   const note = submitNote({ cannotSubmitReason, blocking, declaration });
+  const previous = usePreviousDeclaration(declaration.id, declaration.type);
 
   return (
     <div className="grid gap-6">
@@ -892,6 +895,7 @@ export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryVie
       <SpousesCard summary={summary} document={document} />
       <ChildrenCard summary={summary} document={document} />
       <StatementsCard summary={summary} document={document} />
+      <DeclarationChanges load={previous} statements={document.statements ?? []} />
       <OtherCard summary={summary} document={document} />
 
       <section aria-labelledby={solemnId} className="grid gap-2 rounded-lg bg-muted p-5">

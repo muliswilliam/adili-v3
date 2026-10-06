@@ -1,7 +1,7 @@
 import type { DeclarationV1, PersonName } from '@adili/forms';
 import { z } from 'zod';
 
-import { CATEGORIES, match, type PlacedItem, valueOf } from '../rules/match.js';
+import { CATEGORIES, match, type PlacedItem, valueOf } from '@adili/forms/compare';
 
 const categorySchema = z.enum(CATEGORIES as ['income', 'assets', 'liabilities']);
 

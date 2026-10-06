@@ -5,7 +5,7 @@ export {
   type MatchResult,
   normalise,
   type PlacedItem,
-} from './match.js';
+} from '@adili/forms/compare';
 export {
   type ArdhisasaResult,
   type BrsResult,

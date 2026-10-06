@@ -1,3 +1,4 @@
+import { previousDeclarationOf } from '../declaration/comparison';
 import type { SectionContentsByKind } from '../declaration/contents';
 import type { DeclarationsClient } from './declarations/client.server';
 import type {
@@ -239,6 +240,56 @@ export function loadSummary(
     });
     if (data) return { status: 'ok', summary: { ...data, document: data.document as JsonObject } };
     return response.status === 404 ? notFound : unavailable;
+  });
+}
+
+/**
+ * The declaration a draft follows, as its comparison reads it (ADR-006 point 10): the version in
+ * force, with only its statements, which is all the comparison needs.
+ */
+export interface PreviousDeclaration {
+  declarationId: string;
+  version: number;
+  reference: string | null;
+  type: DeclarationListItem['type'];
+  statementDate: string;
+  submittedAt: string | null;
+  statements: JsonObject[];
+}
+
+export type PreviousDeclarationResult =
+  { status: 'ok'; previous: PreviousDeclaration | null } | Unavailable;
+
+/**
+ * The declarant's previous filed declaration (`GET /v1/me/declarations`, then the version in
+ * force of the one the draft follows): none for a first declaration.
+ */
+export function loadPreviousDeclaration(
+  client: DeclarationsClient,
+  declarationId: string,
+): Promise<PreviousDeclarationResult> {
+  return attempt(async () => {
+    const listed = await listDeclarations(client);
+    if (listed.status !== 'ok') return unavailable;
+    const found = previousDeclarationOf(listed.declarations, declarationId);
+    if (found?.currentVersion == null) return { status: 'ok', previous: null };
+    const { data } = await client.GET('/v1/declarations/{declarationId}/versions/{version}', {
+      params: { path: { declarationId: found.id, version: found.currentVersion } },
+    });
+    if (!data) return unavailable;
+    const { statements } = data.document;
+    return {
+      status: 'ok',
+      previous: {
+        declarationId: found.id,
+        version: found.currentVersion,
+        reference: found.reference,
+        type: found.type,
+        statementDate: found.statementDate,
+        submittedAt: found.submittedAt,
+        statements: Array.isArray(statements) ? (statements as JsonObject[]) : [],
+      },
+    };
   });
 }
 

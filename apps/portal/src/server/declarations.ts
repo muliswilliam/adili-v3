@@ -18,9 +18,11 @@ import {
   type ExtractResult,
   linkAttachment,
   type LinkResult,
+  type PreviousDeclarationResult,
   listDeclarations,
   listSuggestions,
   loadDeclaration,
+  loadPreviousDeclaration,
   loadSection,
   loadSummary,
   type RegistryLookupsResult,
@@ -126,6 +128,12 @@ export const getDeclarationSummary = createServerFn({ method: 'GET' })
   .validator(declarationInput)
   .handler(({ data }): Promise<SummaryResult | Unauthenticated> =>
     asDeclarant((client) => loadSummary(client, data.declarationId)),
+  );
+
+export const getPreviousDeclaration = createServerFn({ method: 'GET' })
+  .validator(declarationInput)
+  .handler(({ data }): Promise<PreviousDeclarationResult | Unauthenticated> =>
+    asDeclarant((client) => loadPreviousDeclaration(client, data.declarationId)),
   );
 
 const personKey = z.string().refine((value) => parsePersonKey(value) !== null, 'Not a person key');

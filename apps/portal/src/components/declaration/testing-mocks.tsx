@@ -60,6 +60,8 @@ export function serverMock() {
     linkDeclarationAttachment: vi.fn(),
     unlinkDeclarationAttachment: vi.fn(),
     getDeclarationSummary: vi.fn(),
+    // A first declaration unless a test gives one to compare with.
+    getPreviousDeclaration: vi.fn(() => Promise.resolve({ status: 'ok', previous: null })),
     requestRegistryLookups: vi.fn(),
     listDeclarationSuggestions: vi.fn(),
     acceptDeclarationSuggestion: vi.fn(),

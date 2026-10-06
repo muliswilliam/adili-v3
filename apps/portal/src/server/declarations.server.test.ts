@@ -6,6 +6,7 @@ import {
   linkAttachment,
   listDeclarations,
   loadDeclaration,
+  loadPreviousDeclaration,
   loadSection,
   loadSummary,
   saveSection,
@@ -443,5 +444,77 @@ describe('summary, list and discard (S12, S15, S16)', () => {
 
     const fresh = await startDeclaration(client(), MOCK_OBLIGATIONS.biennial);
     expect(fresh).toMatchObject({ status: 'started', created: true });
+  });
+});
+
+describe('the previous declaration, to compare with (ADR-006 point 10)', () => {
+  const listed = (id: string, statementDate: string, currentVersion: number | null) => ({
+    id,
+    statementDate,
+    currentVersion,
+    reference: currentVersion === null ? null : `DCB-TSC-${statementDate.slice(0, 4)}-0000001-B`,
+    type: 'biennial',
+    submittedAt: currentVersion === null ? null : `${statementDate}T09:00:00Z`,
+  });
+  const statements = [{ personKey: 'officer', assets: [{ id: 'a', type: 'land' }] }];
+
+  /** The service with the given list; versions answer with the statements above. */
+  function service(list: unknown[], versionStatus = 200) {
+    const asked: string[] = [];
+    const send = (request: Request) => {
+      const path = new URL(request.url).pathname;
+      asked.push(path);
+      if (path === '/v1/me/declarations') return Promise.resolve(Response.json(list));
+      return Promise.resolve(
+        versionStatus === 200
+          ? Response.json({ version: 2, document: { statements } })
+          : new Response(null, { status: versionStatus }),
+      );
+    };
+    return { client: client(send), asked };
+  }
+
+  it('reads the version in force of the declaration this one follows, and keeps its statements', async () => {
+    const { client: declarations, asked } = service([
+      listed('this', '2027-11-01', null),
+      listed('previous', '2025-11-01', 2),
+    ]);
+
+    const result = await loadPreviousDeclaration(declarations, 'this');
+
+    expect(asked).toEqual(['/v1/me/declarations', '/v1/declarations/previous/versions/2']);
+    expect(result).toEqual({
+      status: 'ok',
+      previous: {
+        declarationId: 'previous',
+        version: 2,
+        reference: 'DCB-TSC-2025-0000001-B',
+        type: 'biennial',
+        statementDate: '2025-11-01',
+        submittedAt: '2025-11-01T09:00:00Z',
+        statements,
+      },
+    });
+  });
+
+  it('is none for a first declaration, without reading any version', async () => {
+    const { client: declarations, asked } = service([listed('this', '2027-11-01', null)]);
+
+    expect(await loadPreviousDeclaration(declarations, 'this')).toEqual({
+      status: 'ok',
+      previous: null,
+    });
+    expect(asked).toEqual(['/v1/me/declarations']);
+  });
+
+  it('is unavailable when the version cannot be read', async () => {
+    const { client: declarations } = service(
+      [listed('this', '2027-11-01', null), listed('previous', '2025-11-01', 1)],
+      503,
+    );
+
+    expect(await loadPreviousDeclaration(declarations, 'this')).toEqual({
+      status: 'unavailable',
+    });
   });
 });

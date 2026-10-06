@@ -9,7 +9,7 @@ import type {
 } from '../ai-gateway/ai-gateway-client.js';
 import { REQUIREMENTS, type reviewFlags } from '../cases/schema.js';
 import { letterLanguageSchema, requirementSchema } from '../clarifications/representation.js';
-import { type PlacedItem, placedItems, statementSectionKey } from '../rules/match.js';
+import { type PlacedItem, placedItems, statementSectionKey } from '@adili/forms/compare';
 import { flagInput, itemRef, placedItemContext } from './copilot-inputs.js';
 
 /** The most items the gateway drafts in one call (ai-gateway.yaml `DraftClarificationInput`). */

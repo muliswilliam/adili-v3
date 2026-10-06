@@ -6,13 +6,14 @@ import {
   type Category,
   type Item,
   match,
+  MATERIAL_CHANGE_RATIO,
   type MatchedPair,
   normalise,
   type PlacedItem,
   placedItems,
   statementSectionKey,
   valueOf,
-} from './match.js';
+} from '@adili/forms/compare';
 import { RULES, type RuleId, type Severity } from './registry.js';
 
 /** What the rules read: the submitted version and, if the person has one, the previous one. */
@@ -122,7 +123,7 @@ function valueChange(pair: MatchedPair): Flag[] {
   // Up from nothing is more than any percentage, and there is none to give.
   const ratio = before === 0 ? (after === 0 ? 0 : Infinity) : Math.abs(after - before) / before;
   const changePercent = Number.isFinite(ratio) ? Math.round(ratio * 100) : null;
-  const material = ratio >= 0.25;
+  const material = ratio >= MATERIAL_CHANGE_RATIO;
   const { changed, kind } = pair.current.change;
   const markedAsNew = changed && kind === NEW_KIND[pair.category];
   const refs = [ref({ personKey: pair.personKey, item: pair.current })];

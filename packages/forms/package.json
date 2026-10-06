@@ -12,6 +12,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./compare": {
+      "types": "./dist/compare.d.ts",
+      "default": "./dist/compare.js"
     }
   },
   "scripts": {
