@@ -192,9 +192,9 @@ describe('DemoPanel (#621)', () => {
     const row = (await screen.findByText('1-after-filing')).closest('li');
     if (!row) throw new Error('no checkpoint row');
 
-    fireEvent.click(within(row).getByRole('button', { name: 'Reset' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'Reset to 1-after-filing' }));
     expect(resetDemo).not.toHaveBeenCalled();
-    fireEvent.click(within(row).getByRole('button', { name: 'Reset now' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'Reset now to 1-after-filing' }));
 
     expect(resetDemo).toHaveBeenCalledWith({ data: { checkpoint: '1-after-filing' } });
     const resetting = await screen.findByRole('status', {
@@ -207,6 +207,26 @@ describe('DemoPanel (#621)', () => {
     vi.unstubAllGlobals();
   });
 
+  it("names each checkpoint's reset buttons after the checkpoint", async () => {
+    getDemoPanel.mockResolvedValue(panel('button'));
+    renderPanel(signedIn);
+    fireEvent.click(screen.getByRole('button', { name: 'Demo panel' }));
+    await screen.findByText('0-start');
+
+    const resets = screen
+      .getAllByRole('button', { name: /^Reset to / })
+      .map((button) => button.getAttribute('aria-label'));
+    expect(resets).toEqual(
+      panel('button').checkpoints.map((checkpoint) => `Reset to ${checkpoint.name}`),
+    );
+    // The visible label stays short, and the accessible name starts with it.
+    expect(screen.getByRole('button', { name: 'Reset to 0-start' }).textContent).toBe('Reset');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to 0-start' }));
+    expect(screen.getByRole('button', { name: 'Cancel reset to 0-start' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reset now to 0-start' })).toBeTruthy();
+  });
+
   it('shows why a reset did not start', async () => {
     getDemoPanel.mockResolvedValue(panel('button'));
     resetDemo.mockResolvedValue({ ok: false, message: 'No complete checkpoint 0-start' });
@@ -215,8 +235,8 @@ describe('DemoPanel (#621)', () => {
     const row = (await screen.findByText('0-start')).closest('li');
     if (!row) throw new Error('no checkpoint row');
 
-    fireEvent.click(within(row).getByRole('button', { name: 'Reset' }));
-    fireEvent.click(within(row).getByRole('button', { name: 'Reset now' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'Reset to 0-start' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'Reset now to 0-start' }));
 
     expect(await screen.findByText('No complete checkpoint 0-start')).toBeTruthy();
   });
@@ -229,7 +249,7 @@ describe('DemoPanel (#621)', () => {
     expect(
       await screen.findByRole('button', { name: 'Copy pnpm demo:reset 2-after-review' }),
     ).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Reset/ })).toBeNull();
   });
 
   it('shows the codes just sent by text and email, newest first', async () => {

@@ -188,6 +188,7 @@ function DemoPanelContent({
                         <Button
                           size="sm"
                           variant="ghost"
+                          aria-label={`Cancel reset to ${checkpoint.name}`}
                           onClick={() => {
                             setConfirming(null);
                           }}
@@ -197,6 +198,7 @@ function DemoPanelContent({
                         <Button
                           size="sm"
                           variant="destructive"
+                          aria-label={`Reset now to ${checkpoint.name}`}
                           onClick={() => void reset(checkpoint.name)}
                         >
                           Reset now
@@ -207,6 +209,7 @@ function DemoPanelContent({
                         size="sm"
                         variant="secondary"
                         className="shrink-0"
+                        aria-label={`Reset to ${checkpoint.name}`}
                         onClick={() => {
                           setConfirming(checkpoint.name);
                         }}
