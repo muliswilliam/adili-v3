@@ -27,7 +27,7 @@ Then, in under 5 minutes to beat A's import report:
 
 ## Accounts
 
-Every demo account, its login and purpose: [demo accounts](../demo-accounts.md). The ones the story uses:
+Every demo account, its login and purpose: [demo accounts](../demo-accounts.md). For testing as a real user, with real email and MFA and no **Act as**, there is one more account per role: [real end-to-end test accounts](../demo-accounts.md#real-end-to-end-test-accounts) (`e2e-accounts` in the **Azure demo command** workflow). The ones the story uses:
 
 | Beat | App | Act as | Role |
 | --- | --- | --- | --- |
@@ -205,7 +205,7 @@ Hosted: the **Azure demo command** workflow (`command` = `reset`, `argument` = t
 gh workflow run "Azure demo command" -R muliswilliam/adili-v3 -f command=reset -f argument=2-after-review
 ```
 
-The workflow run takes about 2.5 minutes, plus the apps' start. Every reset signs everyone out ([sessions and resets](#sessions-and-resets)). How checkpoints are captured and what they hold: [packages/demo-seed](../../packages/demo-seed/README.md#checkpoints-621).
+The workflow run takes about 2.5 minutes, plus the apps' start. A reset keeps the [real end-to-end test accounts](../demo-accounts.md#real-end-to-end-test-accounts) but the declarant's onboarding, and the workflow's `reset` runs `e2e-accounts` after it. Every reset signs everyone out ([sessions and resets](#sessions-and-resets)). How checkpoints are captured and what they hold: [packages/demo-seed](../../packages/demo-seed/README.md#checkpoints-621).
 
 ## Real backend and AI provider
 

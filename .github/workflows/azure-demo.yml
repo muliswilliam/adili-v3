@@ -91,6 +91,29 @@ jobs:
           done |
             ssh "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}" \
               'umask 077 && mkdir -p ~/.config/adili && cat > ~/.config/adili/secrets.env'
+      - name: SMTP settings
+        # Real email for the end-to-end test accounts (docs/demo-accounts.md): deploy.sh has
+        # Mailpit relay what is addressed to the e2e domain (repo variable E2E_EMAIL_DOMAIN, else
+        # SMTP_FROM's) through this provider. Over stdin into a file only adili reads, like the AI
+        # settings; never on a command line or in the log.
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          E2E_EMAIL_DOMAIN: ${{ vars.E2E_EMAIL_DOMAIN }}
+        run: |
+          if [ -z "$SMTP_HOST" ]; then
+            echo '::notice::Repo secret SMTP_HOST is not set: mail stays in Mailpit unless ~/.config/adili/smtp.env on the VM has settings.'
+            exit 0
+          fi
+          for name in SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD SMTP_FROM E2E_EMAIL_DOMAIN; do
+            value=$(printenv "$name" || true)
+            if [ -n "$value" ]; then printf '%s=%s\n' "$name" "$value"; fi
+          done |
+            ssh "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}" \
+              'umask 077 && mkdir -p ~/.config/adili && cat > ~/.config/adili/smtp.env'
       - name: Run deploy.sh
         run: ssh "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}" '/opt/adili/infra/azure/deploy.sh'
       - name: Check HTTPS

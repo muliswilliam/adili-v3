@@ -5,8 +5,29 @@ import { jsonBody, requestJson } from './http.js';
 export interface KeycloakUser {
   id: string;
   username: string;
+  email?: string;
   attributes?: Record<string, string[]>;
   requiredActions?: string[];
+}
+
+/** A new account as the admin API creates it (`POST /users`). */
+export interface NewKeycloakUser {
+  username: string;
+  email: string;
+  emailVerified: boolean;
+  firstName: string;
+  lastName: string;
+  enabled: boolean;
+  attributes: Record<string, string[]>;
+  requiredActions: string[];
+}
+
+/** Keycloak's execute-actions email: a link that runs `actions`, valid `lifespanSeconds`. */
+export interface ExecuteActionsEmail {
+  actions: readonly string[];
+  lifespanSeconds: number;
+  clientId: string;
+  redirectUri: string;
 }
 
 /**
@@ -135,6 +156,82 @@ export class KeycloakAdmin {
     return (await this.ensureDemoAccount(user, staff.demoKey)) || changed;
   }
 
+  /** Creates the account and returns it as the admin API reads it back. */
+  async createUser(user: NewKeycloakUser): Promise<KeycloakUser> {
+    await requestJson(`${this.base}/users`, {
+      method: 'POST',
+      ...jsonBody(user),
+      headers: { ...(await this.headers()), 'content-type': 'application/json' },
+      what: `create ${user.username}`,
+    });
+    const created = await this.userByUsername(user.username);
+    if (!created) throw new Error(`${user.username} is missing after create`);
+    return created;
+  }
+
+  /**
+   * Sets `attributes` on the account (others kept), removes `remove`, and returns whether that
+   * changed anything. The admin API replaces the attributes it is given, so all are sent back.
+   */
+  async updateAttributes(
+    user: KeycloakUser,
+    attributes: Record<string, string[]>,
+    remove: readonly string[] = [],
+  ): Promise<boolean> {
+    const current = user.attributes ?? {};
+    const next = Object.fromEntries(
+      Object.entries({ ...current, ...attributes }).filter(([name]) => !remove.includes(name)),
+    );
+    if (JSON.stringify(sorted(next)) === JSON.stringify(sorted(current))) return false;
+    const headers = { ...(await this.headers()), 'content-type': 'application/json' };
+    const { body: full } = await requestJson<Record<string, unknown>>(
+      `${this.base}/users/${user.id}`,
+      { headers, what: `read Keycloak user ${user.username}` },
+    );
+    await requestJson(`${this.base}/users/${user.id}`, {
+      method: 'PUT',
+      ...jsonBody({ ...full, attributes: next }),
+      headers,
+      what: `update ${user.username}'s attributes`,
+    });
+    return true;
+  }
+
+  /** Grants the realm role unless the account has it; returns whether it granted it. */
+  async ensureRealmRole(user: KeycloakUser, roleName: string): Promise<boolean> {
+    const { body: held } = await requestJson<{ name: string }[]>(
+      `${this.base}/users/${user.id}/role-mappings/realm`,
+      { headers: await this.headers(), what: `read ${user.username}'s roles` },
+    );
+    if (held.some((role) => role.name === roleName)) return false;
+    const { body: role } = await requestJson<{ id: string; name: string }>(
+      `${this.base}/roles/${encodeURIComponent(roleName)}`,
+      { headers: await this.headers(), what: `read role ${roleName}` },
+    );
+    await requestJson(`${this.base}/users/${user.id}/role-mappings/realm`, {
+      method: 'POST',
+      ...jsonBody([role]),
+      headers: { ...(await this.headers()), 'content-type': 'application/json' },
+      what: `grant ${roleName} to ${user.username}`,
+    });
+    return true;
+  }
+
+  /** Has Keycloak email the account a link that runs `email.actions`. */
+  async sendExecuteActionsEmail(user: KeycloakUser, email: ExecuteActionsEmail): Promise<void> {
+    const query = new URLSearchParams({
+      lifespan: String(email.lifespanSeconds),
+      client_id: email.clientId,
+      redirect_uri: email.redirectUri,
+    });
+    await requestJson(`${this.base}/users/${user.id}/execute-actions-email?${query.toString()}`, {
+      method: 'PUT',
+      ...jsonBody(email.actions),
+      headers: { ...(await this.headers()), 'content-type': 'application/json' },
+      what: `email ${user.username} the link to ${email.actions.join(', ')}`,
+    });
+  }
+
   private async headers(): Promise<Record<string, string>> {
     if (!this.token || this.token.expiresAt < Date.now() + 10_000) {
       const { body } = await requestJson<{ access_token: string; expires_in: number }>(
@@ -154,4 +251,9 @@ export class KeycloakAdmin {
     }
     return { authorization: `Bearer ${this.token.value}` };
   }
+}
+
+/** Attributes with their names in order, so two sets compare as JSON. */
+function sorted(attributes: Record<string, string[]>): [string, string[]][] {
+  return Object.entries(attributes).sort(([a], [b]) => a.localeCompare(b));
 }

@@ -113,7 +113,7 @@ The Azure demo workflow runs that check after each deploy.
 
 Every deploy also puts the stack on the real backend (#615): all app mocks off and the ai-gateway on Anthropic, then checks it with `pnpm demo:check` (a warning, not a failed deploy). The provider credentials (an Anthropic API key, or a self-hosted LLM Gateway's token and URL) come from `/etc/adili/secrets.env` or, when the repo secrets are set, from `~adili/.config/adili/secrets.env`, which the workflow writes over SSH stdin. See [docs/demo](../../docs/demo/README.md#real-backend-and-ai-provider).
 
-The **Azure demo command** workflow (`.github/workflows/azure-demo-command.yml`, run by hand) runs one allow-listed command on the VM through `infra/azure/demo-command.sh`: `check`, `health`, `diagnose`, `seed`, `checkpoints [<from>]` (play the beats and capture every checkpoint, or from one on), `checkpoint [<name>]` (capture the stack as it is under a name; without one, list the checkpoints), `reset <checkpoint>` or `ai anthropic|record|replay`. Its log is public, so every line goes through a redactor (API keys, bearer tokens, JWTs, demo tickets, secret- and password-named values). `diagnose` prints health, whether the stack is on the real backend, Keycloak discovery on loopback and on the public URL, the containers, and the last log lines of whatever is down.
+The **Azure demo command** workflow (`.github/workflows/azure-demo-command.yml`, run by hand) runs one allow-listed command on the VM through `infra/azure/demo-command.sh`: `check`, `health`, `diagnose`, `seed`, `checkpoints [<from>]` (play the beats and capture every checkpoint, or from one on), `checkpoint [<name>]` (capture the stack as it is under a name; without one, list the checkpoints), `reset <checkpoint>`, `ai anthropic|record|replay` or `e2e-accounts [resend]` (the real end-to-end test accounts, below). Its log is public, so every line goes through a redactor (API keys, bearer tokens, JWTs, demo tickets, secret- and password-named values). `diagnose` prints health, whether the stack is on the real backend, Keycloak discovery on loopback and on the public URL, the containers, and the last log lines of whatever is down.
 
 ## Backups
 
@@ -170,6 +170,14 @@ OpenBao holds the per-tenant transit keys that seal declaration fields, the docu
 - Deleting the volume (`pnpm infra:reset`, `docker compose down -v`) deletes the keys: drop and re-seed the demo databases too.
 
 One-time switch on a stack that ran the old dev-mode OpenBao (in memory): its keys are already gone after any restart, so data sealed under them cannot be recovered. After the deploy recreates `openbao` and `openbao-init` initialises it, reset the demo data (drop and migrate the service databases, then seed again).
+
+## Real email for the end-to-end test accounts
+
+The real end-to-end test accounts ([docs/demo-accounts.md](../../docs/demo-accounts.md#real-end-to-end-test-accounts)) get real email through an SMTP provider (Resend). Repo secrets `SMTP_HOST`, `SMTP_PORT` (587, STARTTLS), `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM`, and optionally the repo variable `E2E_EMAIL_DOMAIN` (default: `SMTP_FROM`'s domain). Every deploy writes them over SSH stdin to `~adili/.config/adili/smtp.env` (mode 0600), as the AI settings; `deploy.sh` (`adili_prepare_mail_relay` in `demo-vault.sh`) turns them into Mailpit's relay settings in `~adili/.config/adili/mailpit-relay.env`, which `docker-compose.azure.yml` gives the `mailpit` container. Without `SMTP_HOST` the workflow leaves the file as it is; an empty file means no relay.
+
+Nothing else changes: Keycloak and the notifications service still send to Mailpit, as locally. Mailpit keeps every message and relays a copy of those addressed to the e2e domain, and only those (`MP_SMTP_RELAY_MATCHING`, and `MP_SMTP_RELAY_ALLOWED_RECIPIENTS` for a release from its UI), with STARTTLS and password auth, from `SMTP_FROM`. So the seed's thousands of messages to synthetic officers' `*.go.ke` addresses never leave the host, the seed still reads its codes from Mailpit, and the console's Demo inbox still shows every code. Relay errors are in `docker compose logs mailpit`.
+
+`infra/azure/demo-command.sh e2e-accounts` runs `pnpm e2e:accounts` with that domain. A checkpoint restore keeps those accounts (`scripts/lib/e2e-keep.sh`, with the domain from the same file).
 
 ## Demo checkpoints
 
