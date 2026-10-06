@@ -25,7 +25,7 @@ import type {
   Statement,
 } from '../../declaration/contents';
 import { ageOn, fullName, UNANSWERED } from '../../declaration/format';
-import { changeWord, OCCUPATION_SECTOR_LABELS } from '../../declaration/labels';
+import { changeWord, OCCUPATION_SECTOR_LABELS, TYPE_LABELS } from '../../declaration/labels';
 import type { Category } from '../../declaration/statement';
 import { type SectionKind, sectionKind } from '../../declaration/section-key';
 import { liveSections, stepTitle } from './steps';
@@ -146,16 +146,74 @@ function humanize(field: string): string {
 }
 
 /**
+ * A schema check's fragment in plain words: the validator writes "must NOT have fewer than 1
+ * characters" for an empty description (#706). An empty answer reads as a missing one; a fragment
+ * this does not know reads "is not valid" rather than the validator's wording.
+ */
+function plainFragment(code: string, message: string): string {
+  const limit = /-?\d+(?:\.\d+)?/.exec(message)?.[0];
+  switch (code) {
+    // The validator's own wording for these is already plain (`forms` validate.ts).
+    case 'required':
+    case 'additionalProperties':
+      return message;
+    case 'minLength':
+      return limit === undefined || limit === '1'
+        ? 'is required'
+        : `is too short: use at least ${limit} characters`;
+    case 'maxLength':
+      return limit === undefined ? 'is too long' : `is too long: use at most ${limit} characters`;
+    case 'format':
+      // ajv names the format in its message ("must match format \"date\""); dates are the ones asked.
+      if (message.includes('date')) return 'is not a valid date';
+      return 'is not in the expected format';
+    case 'pattern':
+      return 'is not in the expected format';
+    case 'enum':
+      return 'is not one of the options';
+    // ajv writes the bound as a comparison ("must be >= 0"); the summary says it in words.
+    case 'minimum':
+      return limit === undefined ? 'is not valid' : `must be at least ${limit}`;
+    case 'maximum':
+      return limit === undefined ? 'is not valid' : `must be at most ${limit}`;
+    case 'exclusiveMinimum':
+      return limit === undefined ? 'is not valid' : `must be more than ${limit}`;
+    case 'exclusiveMaximum':
+      return limit === undefined ? 'is not valid' : `must be less than ${limit}`;
+    case 'minItems':
+      return limit === undefined || limit === '1'
+        ? 'is required'
+        : `must have at least ${limit} entries`;
+    default:
+      return 'is not valid';
+  }
+}
+
+/**
+ * An item with no description as the statement heads it, by its type ("Vehicle"), numbered among
+ * the items of that type: "Vehicle 2" is the second vehicle. "Other" alone says nothing, so that
+ * type takes its category: "Other asset 1". Untyped, by its place: "Asset 2".
+ */
+function itemName(category: Category, items: { type?: string }[], position: number): string {
+  const type = items[position]?.type;
+  const label = type === undefined ? undefined : TYPE_LABELS[category][type];
+  if (label === undefined) return `${ITEM_NOUNS[category]} ${String(position + 1)}`;
+  const nth = items.slice(0, position + 1).filter((item) => item.type === type).length;
+  if (type === 'other') return `Other ${ITEM_NOUNS[category].toLowerCase()} ${String(nth)}`;
+  return `${label} ${String(nth)}`;
+}
+
+/**
  * An issue as the summary lists it. The rules write whole sentences; schema checks write what is
  * wrong with a field ("is required"), for the screen that shows it beside the field. Listed on
  * their own those read "is required / is required", so they are named: the item (its description,
- * or "Asset 2", a spouse or child by name) and the field, "One-bedroom apartment: Value is
- * required". The rules' sentences start with a capital and schema checks' fragments do not; the
- * issue's code cannot tell them apart, as both use `required`.
+ * or "Vehicle 1", a spouse or child by name) and the field, "One-bedroom apartment: Value is
+ * required", in plain words. The rules' sentences start with a capital and schema checks'
+ * fragments do not; the issue's code cannot tell them apart, as both use `required`.
  */
 export function issueText(issue: CompletenessIssue, document: SummaryDocument): string {
-  const { message } = issue;
-  if (!/^[a-z]/.test(message)) return message;
+  if (!/^[a-z]/.test(issue.message)) return issue.message;
+  const message = plainFragment(issue.code, issue.message);
   const parts = issue.path.split('/').slice(1);
   const named = parts.filter((part) => !/^\d+$/.test(part) && !VALUE_PARTS.has(part));
   const last = named.at(-1);
@@ -174,11 +232,12 @@ export function issueText(issue: CompletenessIssue, document: SummaryDocument): 
     const position = Number(index);
     if (Number.isInteger(position)) {
       const statement = document.statements?.find((each) => each.personKey === personKey);
-      const description = statement?.[category]?.[position]?.description?.trim();
+      const items: AnyItem[] = statement?.[category] ?? [];
+      const description = items[position]?.description?.trim();
       const item =
         description !== undefined && description.length > 0
           ? description
-          : `${ITEM_NOUNS[category]} ${String(position + 1)}`;
+          : itemName(category, items, position);
       return last === category ? `${item}: ${message}` : `${item}: ${field} ${message}`;
     }
   }

@@ -204,6 +204,13 @@ describe('issueText', () => {
     code: 'required',
     message,
   });
+  /** A schema check with its keyword, e.g. `minLength`. */
+  const check = (
+    sectionKey: CompletenessIssue['sectionKey'],
+    path: string,
+    message: string,
+    code: string,
+  ): CompletenessIssue => ({ ...issue(sectionKey, path, message), code });
 
   it('names the item and field of a schema check, not "is required / is required"', () => {
     expect(issueText(issue('statement:officer', '/assets/0/value', 'is required'), document)).toBe(
@@ -250,6 +257,103 @@ describe('issueText', () => {
         document,
       ),
     ).toBe('One-bedroom apartment, Dubai Marina: Parcel or plot number is required');
+  });
+
+  it('names an item with no description by its type, as the statement does (#706)', () => {
+    const vehicles = {
+      statements: [
+        {
+          personKey: 'officer',
+          income: [{ type: 'other' }],
+          assets: [
+            { type: 'land', description: 'Plot' },
+            { type: 'vehicle' },
+            { type: 'vehicle' },
+            { type: 'other' },
+          ],
+        },
+      ],
+    } as unknown as SummaryDocument;
+    const at = (path: string, message: string, code = 'required') =>
+      check('statement:officer', path, message, code);
+    expect(
+      issueText(
+        at('/assets/1/description', 'must NOT have fewer than 1 characters', 'minLength'),
+        vehicles,
+      ),
+    ).toBe('Vehicle 1: Description is required');
+    // Numbered among the items of its type, not by its place in the list.
+    expect(issueText(at('/assets/2/value', 'is required'), vehicles)).toBe(
+      'Vehicle 2: Value is required',
+    );
+    // "Other" alone says nothing, so an untitled Other item is named by its category.
+    expect(issueText(at('/assets/3/value', 'is required'), vehicles)).toBe(
+      'Other asset 1: Value is required',
+    );
+    expect(issueText(at('/income/0/value', 'is required'), vehicles)).toBe(
+      'Other income 1: Value is required',
+    );
+  });
+
+  it('words schema checks plainly, not as the validator writes them (#706)', () => {
+    const at = (path: string, message: string, code: string) => check('bio', path, message, code);
+    expect(
+      issueText(at('/birth/place', 'must NOT have fewer than 2 characters', 'minLength'), document),
+    ).toBe('Place of birth is too short: use at least 2 characters');
+    expect(
+      issueText(
+        at('/address/postal', 'must NOT have more than 200 characters', 'maxLength'),
+        document,
+      ),
+    ).toBe('Postal address is too long: use at most 200 characters');
+    expect(
+      issueText(at('/kraPin', 'must match pattern "^[AP]\\d{9}[A-Z]$"', 'pattern'), document),
+    ).toBe('KRA PIN is not in the expected format');
+    expect(issueText(at('/birth/date', 'must match format "date"', 'format'), document)).toBe(
+      'Date of birth is not a valid date',
+    );
+    expect(
+      issueText(
+        at('/maritalStatus', 'must be equal to one of the allowed values', 'enum'),
+        document,
+      ),
+    ).toBe('Marital status is not one of the options');
+    // Number and list checks keep their limit.
+    const item = (path: string, message: string, code: string) =>
+      check('statement:officer', path, message, code);
+    expect(issueText(item('/assets/0/value/kesCents', 'must be >= 0', 'minimum'), document)).toBe(
+      'One-bedroom apartment, Dubai Marina: Value must be at least 0',
+    );
+    // A signed or decimal limit keeps its sign and fraction.
+    expect(issueText(item('/assets/0/value/kesCents', 'must be >= -1', 'minimum'), document)).toBe(
+      'One-bedroom apartment, Dubai Marina: Value must be at least -1',
+    );
+    expect(
+      issueText(item('/assets/0/joint/sharePercent', 'must be >= 0.5', 'minimum'), document),
+    ).toBe('One-bedroom apartment, Dubai Marina: Share must be at least 0.5');
+    expect(
+      issueText(item('/assets/0/joint/sharePercent', 'must be <= 100', 'maximum'), document),
+    ).toBe('One-bedroom apartment, Dubai Marina: Share must be at most 100');
+    expect(
+      issueText(item('/assets/0/joint/sharePercent', 'must be > 0', 'exclusiveMinimum'), document),
+    ).toBe('One-bedroom apartment, Dubai Marina: Share must be more than 0');
+    expect(
+      issueText(
+        item('/assets/0/joint/sharePercent', 'must be < 100', 'exclusiveMaximum'),
+        document,
+      ),
+    ).toBe('One-bedroom apartment, Dubai Marina: Share must be less than 100');
+    expect(
+      issueText(item('/income', 'must NOT have fewer than 1 items', 'minItems'), document),
+    ).toBe('Income is required');
+    expect(
+      issueText(item('/assets', 'must NOT have fewer than 2 items', 'minItems'), document),
+    ).toBe('Assets must have at least 2 entries');
+    expect(issueText(at('/foo', 'must be a number', 'minimum'), document)).toBe('Foo is not valid');
+    expect(issueText(at('/foo', 'must be string', 'type'), document)).toBe('Foo is not valid');
+    expect(issueText(at('/foo', 'is not allowed', 'additionalProperties'), document)).toBe(
+      'Foo is not allowed',
+    );
   });
 
   it('keeps the rules’ own sentences', () => {
