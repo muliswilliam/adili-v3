@@ -65,7 +65,10 @@ import {
   internalApplicantSchema,
   personContactsSchema,
   personNationalIdSchema,
+  personPreferredLanguageSchema,
   personSummarySchema,
+  preferredLanguageSchema,
+  setPreferredLanguageBody,
   verifyApplicantIdentityBody,
 } from './persons/representation.js';
 import {
@@ -183,7 +186,10 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   OnboardingConfirmResult: onboardingConfirmResultSchema,
   OnboardingProblem: onboardingProblemSchema,
   OnboardingFailures: onboardingFailuresSchema,
+  PreferredLanguage: preferredLanguageSchema,
   DeclarantProfile: declarantProfileSchema,
+  SetPreferredLanguage: setPreferredLanguageBody,
+  PersonPreferredLanguage: personPreferredLanguageSchema,
   PersonSummary: personSummarySchema,
   PersonContacts: personContactsSchema,
   PersonNationalId: personNationalIdSchema,

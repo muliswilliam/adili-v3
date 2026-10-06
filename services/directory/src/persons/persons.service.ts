@@ -9,8 +9,10 @@ import type {
   DeclarantProfile,
   PersonContacts,
   PersonNationalId,
+  PersonPreferredLanguage,
   PersonSummary,
 } from './representation.js';
+import type { PreferredLanguage } from './schema.js';
 
 /**
  * Reading persons (spec 03): a declarant's own profile, found by the subject of their token, and
@@ -51,12 +53,32 @@ export class PersonsService {
         ofr: person.ofr,
         fullName: person.fullName,
         contacts: { email: person.email, phone: person.phone },
+        preferredLanguage: person.preferredLanguage,
         commissions: records.map((record) => ({
           ...record,
           onboardedAt: record.onboardedAt?.toISOString() ?? null,
         })),
       };
     });
+  }
+
+  /**
+   * Stores the language the declarant whose account is `subject` prefers (spec 07c FE-3) and
+   * answers with their profile; 404 if they are not an onboarded declarant.
+   */
+  async setPreferredLanguage(
+    subject: string,
+    language: PreferredLanguage,
+  ): Promise<DeclarantProfile> {
+    const updated = await withTenant(this.db, { tenant: PLATFORM_TENANT, subject }, (tx) =>
+      tx
+        .update(persons)
+        .set({ preferredLanguage: language })
+        .where(and(eq(persons.keycloakUserId, subject), eq(persons.kind, 'declarant')))
+        .returning({ id: persons.id }),
+    );
+    notFoundIfInvisible(updated[0]);
+    return this.declarantProfile(subject);
   }
 
   /**
@@ -111,6 +133,30 @@ export class PersonsService {
               inArray(persons.kind, ['law-enforcement', 'applicant']),
               onboardedAt(tx, context.tenant),
             ),
+          ),
+        )
+        .limit(1),
+    );
+    return notFoundIfInvisible(person);
+  }
+
+  /**
+   * The language a declarant prefers, null until they choose one; 404 if no declarant onboarded
+   * at the acting tenant has this id.
+   */
+  async preferredLanguage(
+    context: TenantContext,
+    personId: string,
+  ): Promise<PersonPreferredLanguage> {
+    const [person] = await withTenant(this.db, context, (tx) =>
+      tx
+        .select({ personId: persons.id, preferredLanguage: persons.preferredLanguage })
+        .from(persons)
+        .where(
+          and(
+            eq(persons.id, personId),
+            eq(persons.kind, 'declarant'),
+            onboardedAt(tx, context.tenant),
           ),
         )
         .limit(1),

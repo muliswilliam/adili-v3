@@ -1,0 +1,2 @@
+ALTER TABLE "persons" ADD COLUMN "preferred_language" text;--> statement-breakpoint
+ALTER TABLE "persons" ADD CONSTRAINT "persons_preferred_language_check" CHECK ("persons"."preferred_language" is null or "persons"."preferred_language" in ('en', 'sw'));

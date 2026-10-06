@@ -3342,6 +3342,50 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/me/declarant/preferred-language:
+    put:
+      tags:
+        - me
+      summary: Set the signed-in declarant's preferred language
+      description: "Declarants only, their own. English or Kiswahili: a clarification letter to them starts in it, and so does the reviewer's Draft with AI (spec 07c FE-3). Setting the same language again changes nothing."
+      operationId: setMyPreferredLanguage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPreferredLanguage'
+      responses:
+        '200':
+          description: Profile with the language stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarantProfile'
+        '400':
+          description: Not a language letters are issued in
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Missing, expired or invalid access token
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: declarant'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: The account has the declarant role but no onboarded person
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/persons:
     get:
       tags:
@@ -3488,6 +3532,52 @@ paths:
       x-audited-read:
         action: person.national-id.read
         resource: person
+  /internal/v1/persons/{personId}/preferred-language:
+    get:
+      tags:
+        - internal
+      summary: A declarant's preferred language (review)
+      description: Service tokens with scope directory:internal, acting for a Commission the declarant is onboarded at. The language the declarant chose in the portal, null until they choose one. 404 when the person is unknown or not a declarant onboarded at that tenant.
+      operationId: internalGetPersonPreferredLanguage
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: personId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The preferred language
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonPreferredLanguage'
+        '400':
+          description: personId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No declarant onboarded at the acting tenant has this id
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/me/applicant:
     get:
       tags:
@@ -6221,6 +6311,12 @@ components:
         - since
         - failedAttempts
         - hours
+    PreferredLanguage:
+      type: string
+      enum:
+        - en
+        - sw
+      description: "A declarant's preferred language, English or Kiswahili: a clarification letter to them starts in it"
     DeclarantProfile:
       type: object
       properties:
@@ -6248,6 +6344,11 @@ components:
             - email
             - phone
           description: The contacts verified at the latest onboarding
+        preferredLanguage:
+          anyOf:
+            - $ref: '#/components/schemas/PreferredLanguage'
+            - type: 'null'
+          description: As the declarant chose it in the portal; null until they choose one
         commissions:
           type: array
           items:
@@ -6282,7 +6383,29 @@ components:
         - ofr
         - fullName
         - contacts
+        - preferredLanguage
         - commissions
+    SetPreferredLanguage:
+      type: object
+      properties:
+        preferredLanguage:
+          $ref: '#/components/schemas/PreferredLanguage'
+      required:
+        - preferredLanguage
+    PersonPreferredLanguage:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+        preferredLanguage:
+          anyOf:
+            - $ref: '#/components/schemas/PreferredLanguage'
+            - type: 'null'
+          description: Null until the declarant chooses one
+      required:
+        - personId
+        - preferredLanguage
     PersonSummary:
       type: object
       properties:

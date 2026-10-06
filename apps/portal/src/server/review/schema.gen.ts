@@ -1356,6 +1356,8 @@ export interface components {
             /** @description Every determination of the case, oldest first; the current one is last */
             determinations: components["schemas"]["Determination"][];
             registry: components["schemas"]["RegistrySummary"];
+            /** @description The language the declarant prefers, from the directory: a clarification letter and Draft with AI start in it (spec 07c FE-3). Null when they have not chosen one or the directory could not say */
+            declarantLanguage: components["schemas"]["LetterLanguage"] | null;
         };
         VersionComparison: {
             previousVersion: number;

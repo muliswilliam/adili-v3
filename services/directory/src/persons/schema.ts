@@ -30,6 +30,13 @@ export type IdentityDocumentKind = (typeof IDENTITY_DOCUMENT_KINDS)[number];
 export const IDENTITY_STATUSES = ['verified', 'pending-verification'] as const;
 export type IdentityStatus = (typeof IDENTITY_STATUSES)[number];
 
+/**
+ * The languages a declarant may prefer: those clarification letters are issued in (English and
+ * Kiswahili, the letter language). Spec 07c FE-3: the composer and Draft with AI start in it.
+ */
+export const PREFERRED_LANGUAGES = ['en', 'sw'] as const;
+export type PreferredLanguage = (typeof PREFERRED_LANGUAGES)[number];
+
 const list = (values: readonly string[]) => sql.raw(values.map((value) => `'${value}'`).join(', '));
 
 /**
@@ -79,6 +86,8 @@ export const persons = pgTable(
     email: text(),
     /** E.164, verified at onboarding, or as provisioned. */
     phone: text(),
+    /** Declarants only: the language they chose in the portal; null until they choose one. */
+    preferredLanguage: text().$type<PreferredLanguage>(),
     ...timestamps,
   },
   (table) => [
@@ -98,6 +107,10 @@ export const persons = pgTable(
     check(
       'persons_applicant_only_check',
       sql`${table.kind} = 'applicant' or (${table.passportNumber} is null and ${table.passportCountry} is null and ${table.identityStatus} is null)`,
+    ),
+    check(
+      'persons_preferred_language_check',
+      sql`${table.preferredLanguage} is null or ${table.preferredLanguage} in (${list(PREFERRED_LANGUAGES)})`,
     ),
     check(
       'persons_identity_status_check',

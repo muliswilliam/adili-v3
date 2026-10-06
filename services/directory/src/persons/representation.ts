@@ -4,9 +4,14 @@ import { z } from 'zod';
 import { slugSchema } from '../commissions/create-commission.js';
 import { ofrSchema } from '../onboarding/representation.js';
 import { rosterRecordStateSchema } from '../roster/records/representation.js';
-import { IDENTITY_DOCUMENT_KINDS, IDENTITY_STATUSES } from './schema.js';
+import { IDENTITY_DOCUMENT_KINDS, IDENTITY_STATUSES, PREFERRED_LANGUAGES } from './schema.js';
 
 /** Representations of a person (a declarant) to themself and to the helpdesk. */
+
+export const preferredLanguageSchema = z.enum(PREFERRED_LANGUAGES).meta({
+  description:
+    "A declarant's preferred language, English or Kiswahili: a clarification letter to them starts in it",
+});
 
 export const declarantProfileSchema = z.object({
   personId: z.uuid(),
@@ -18,6 +23,9 @@ export const declarantProfileSchema = z.object({
       phone: z.string().nullable().meta({ description: 'E.164' }),
     })
     .meta({ description: 'The contacts verified at the latest onboarding' }),
+  preferredLanguage: preferredLanguageSchema
+    .nullable()
+    .meta({ description: 'As the declarant chose it in the portal; null until they choose one' }),
   commissions: z
     .array(
       z.object({
@@ -32,6 +40,19 @@ export const declarantProfileSchema = z.object({
     .meta({ description: "The person's roster records, one per Commission, ordered by name" }),
 });
 export type DeclarantProfile = z.infer<typeof declarantProfileSchema>;
+
+/** Body of `PUT /v1/me/declarant/preferred-language`. */
+export const setPreferredLanguageBody = z.object({ preferredLanguage: preferredLanguageSchema });
+export type SetPreferredLanguageBody = z.infer<typeof setPreferredLanguageBody>;
+
+/** A declarant's preferred language as a service reads it (the review service, spec 07c FE-3). */
+export const personPreferredLanguageSchema = z.object({
+  personId: z.uuid(),
+  preferredLanguage: preferredLanguageSchema
+    .nullable()
+    .meta({ description: 'Null until the declarant chooses one' }),
+});
+export type PersonPreferredLanguage = z.infer<typeof personPreferredLanguageSchema>;
 
 export const personSummarySchema = z.object({
   personId: z.uuid(),

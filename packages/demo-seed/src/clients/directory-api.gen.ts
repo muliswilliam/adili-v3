@@ -940,6 +940,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/declarant/preferred-language": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the signed-in declarant's preferred language
+         * @description Declarants only, their own. English or Kiswahili: a clarification letter to them starts in it, and so does the reviewer's Draft with AI (spec 07c FE-3). Setting the same language again changes nothing.
+         */
+        put: operations["setMyPreferredLanguage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/persons": {
         parameters: {
             query?: never;
@@ -992,6 +1012,26 @@ export interface paths {
          * @description Service tokens with scope directory:person-national-id (the declarations service only), acting for the Commission of the declaration; audited. The national ID verified at onboarding, for the declarant's own registry lookups. 404 when the person is unknown or not onboarded at that tenant.
          */
         get: operations["internalGetPersonNationalId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/persons/{personId}/preferred-language": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A declarant's preferred language (review)
+         * @description Service tokens with scope directory:internal, acting for a Commission the declarant is onboarded at. The language the declarant chose in the portal, null until they choose one. 404 when the person is unknown or not a declarant onboarded at that tenant.
+         */
+        get: operations["internalGetPersonPreferredLanguage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2103,6 +2143,11 @@ export interface components {
                 failedAttempts: number;
             }[];
         };
+        /**
+         * @description A declarant's preferred language, English or Kiswahili: a clarification letter to them starts in it
+         * @enum {string}
+         */
+        PreferredLanguage: "en" | "sw";
         DeclarantProfile: {
             /** Format: uuid */
             personId: string;
@@ -2115,6 +2160,8 @@ export interface components {
                 /** @description E.164 */
                 phone: string | null;
             };
+            /** @description As the declarant chose it in the portal; null until they choose one */
+            preferredLanguage: components["schemas"]["PreferredLanguage"] | null;
             /** @description The person's roster records, one per Commission, ordered by name */
             commissions: {
                 slug: components["schemas"]["Slug"];
@@ -2125,6 +2172,15 @@ export interface components {
                 state: components["schemas"]["RosterRecordState"];
                 onboardedAt: string | null;
             }[];
+        };
+        SetPreferredLanguage: {
+            preferredLanguage: components["schemas"]["PreferredLanguage"];
+        };
+        PersonPreferredLanguage: {
+            /** Format: uuid */
+            personId: string;
+            /** @description Null until the declarant chooses one */
+            preferredLanguage: components["schemas"]["PreferredLanguage"] | null;
         };
         PersonSummary: {
             /** Format: uuid */
@@ -5828,6 +5884,66 @@ export interface operations {
             };
         };
     };
+    setMyPreferredLanguage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetPreferredLanguage"];
+            };
+        };
+        responses: {
+            /** @description Profile with the language stored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarantProfile"];
+                };
+            };
+            /** @description Not a language letters are issued in */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Missing, expired or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: declarant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The account has the declarant role but no onboarded person */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     findPersonByOfr: {
         parameters: {
             query: {
@@ -5976,6 +6092,58 @@ export interface operations {
                 };
             };
             /** @description No person has this id, or not one onboarded at the acting tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetPersonPreferredLanguage: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The preferred language */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonPreferredLanguage"];
+                };
+            };
+            /** @description personId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No declarant onboarded at the acting tenant has this id */
             404: {
                 headers: {
                     [name: string]: unknown;

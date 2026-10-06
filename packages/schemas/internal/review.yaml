@@ -4131,6 +4131,11 @@ components:
           description: Every determination of the case, oldest first; the current one is last
         registry:
           $ref: '#/components/schemas/RegistrySummary'
+        declarantLanguage:
+          anyOf:
+            - $ref: '#/components/schemas/LetterLanguage'
+            - type: 'null'
+          description: 'The language the declarant prefers, from the directory: a clarification letter and Draft with AI start in it (spec 07c FE-3). Null when they have not chosen one or the directory could not say'
       required:
         - case
         - flags
@@ -4142,6 +4147,7 @@ components:
         - reviewerHistory
         - determinations
         - registry
+        - declarantLanguage
     VersionComparison:
       type: object
       properties:

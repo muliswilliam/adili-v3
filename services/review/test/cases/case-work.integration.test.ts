@@ -471,6 +471,27 @@ describe('review case: assignment, detail, notes and flags', () => {
       expect(await eventsOf('review.case.viewed.v1')).toHaveLength(0);
     });
 
+    it("S9: carries the declarant's preferred language, the letter's default (spec 07c FE-3); null when they chose none or the directory cannot say", async () => {
+      const { caseId, version } = await givenCase();
+
+      const unset = await api.get(at(casePath, { caseId }), reviewerA);
+      expect(unset.statusCode, unset.body).toBe(200);
+      expect(unset.json<Record<string, unknown>>().declarantLanguage).toBeNull();
+
+      api.directory.givenPreferredLanguage(version.personId, 'sw');
+      const chosen = await api.get(at(casePath, { caseId }), reviewerA);
+      expect(chosen.statusCode, chosen.body).toBe(200);
+      const body = chosen.json<Record<string, unknown>>();
+      expect(contractErrors(okResponse(casePath, 'get'), body)).toEqual([]);
+      expect(body.declarantLanguage).toBe('sw');
+
+      // The directory being down never costs the reviewer the case.
+      api.directory.failPreferredLanguageReads();
+      const down = await api.get(at(casePath, { caseId }), reviewerA);
+      expect(down.statusCode, down.body).toBe(200);
+      expect(down.json<Record<string, unknown>>().declarantLanguage).toBeNull();
+    });
+
     it('S9: a declarations service that hangs is 502 with the case within the view budget, before the console gives up', async () => {
       const { caseId } = await givenCase();
       api.declarations.stallReads(1);

@@ -209,4 +209,33 @@ describe('HttpDirectoryClient', () => {
     );
     expect(requests[0]?.headers.get('x-acting-tenant')).toBe('psc');
   });
+
+  it("reads a declarant's preferred language each time, acting for the case's Commission; null when they have none or the Commission does not know them", async () => {
+    const PERSON = '0199b000-0000-7000-8000-0000000000a1';
+    const answers = [
+      Response.json({ personId: PERSON, preferredLanguage: 'sw' }),
+      Response.json({ personId: PERSON, preferredLanguage: null }),
+      new Response(null, { status: 404 }),
+    ];
+    const requests: Request[] = [];
+    const directory = new HttpDirectoryClient({
+      directoryUrl: 'http://directory.test',
+      tokens: { token: () => Promise.resolve('token'), invalidate: vi.fn() },
+      fetch: (input) => {
+        requests.push(input as Request);
+        return Promise.resolve(answers.shift() ?? new Response(null, { status: 500 }));
+      },
+    });
+
+    expect(await directory.getPreferredLanguage('psc', PERSON)).toBe('sw');
+    expect(await directory.getPreferredLanguage('psc', PERSON)).toBeNull();
+    expect(await directory.getPreferredLanguage('psc', PERSON)).toBeNull();
+    expect(requests[0]?.url).toBe(
+      `http://directory.test/internal/v1/persons/${PERSON}/preferred-language`,
+    );
+    expect(requests[0]?.headers.get('x-acting-tenant')).toBe('psc');
+    await expect(directory.getPreferredLanguage('psc', PERSON)).rejects.toBeInstanceOf(
+      DirectoryUnavailable,
+    );
+  });
 });

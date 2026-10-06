@@ -1,5 +1,6 @@
 import { maskEmail, maskPhone } from '@adili/ui';
 
+import type { Language } from '../language';
 import type { DirectoryClient } from './directory/client.server';
 
 /** A Commission the declarant is onboarded at. */
@@ -20,6 +21,11 @@ export interface DeclarantAccount {
   commissions: DeclarantCommission[];
   maskedEmail: string | null;
   maskedPhone: string | null;
+  /**
+   * The language a clarification letter to them starts in (spec 07c FE-3); null until they
+   * choose one, when letters start in English.
+   */
+  preferredLanguage: Language | null;
 }
 
 export type DeclarantAccountResult =
@@ -56,11 +62,32 @@ export async function loadDeclarantAccount(
           ),
           maskedEmail: data.contacts.email === null ? null : maskEmail(data.contacts.email),
           maskedPhone: data.contacts.phone === null ? null : maskPhone(data.contacts.phone),
+          preferredLanguage: data.preferredLanguage,
         },
       };
     }
     return response.status === 403 || response.status === 404
       ? { status: 'not-declarant' }
+      : { status: 'unavailable' };
+  } catch {
+    return { status: 'unavailable' };
+  }
+}
+
+export type SavePreferredLanguageResult =
+  { status: 'saved'; preferredLanguage: Language } | { status: 'unavailable' };
+
+/** `PUT /v1/me/declarant/preferred-language`: stores the language the declarant prefers. */
+export async function savePreferredLanguage(
+  client: DirectoryClient,
+  language: Language,
+): Promise<SavePreferredLanguageResult> {
+  try {
+    const { data } = await client.PUT('/v1/me/declarant/preferred-language', {
+      body: { preferredLanguage: language },
+    });
+    return data?.preferredLanguage
+      ? { status: 'saved', preferredLanguage: data.preferredLanguage }
       : { status: 'unavailable' };
   } catch {
     return { status: 'unavailable' };

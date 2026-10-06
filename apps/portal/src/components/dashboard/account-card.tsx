@@ -17,6 +17,9 @@ import {
   Icon,
   MaskedContact,
   OfficerReference,
+  Select,
+  SelectItem,
+  useToast,
 } from '@adili/ui';
 import {
   AlertCircleIcon,
@@ -27,8 +30,13 @@ import {
   ViewIcon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
 
+import type { Language } from '../../language';
 import type { DeclarantAccount } from '../../server/declarant.server';
+import { setMyPreferredLanguage } from '../../server/preferences';
+
+const LANGUAGE_NAMES: Record<Language, string> = { en: 'English', sw: 'Kiswahili' };
 
 /** "Your account" for an onboarded declarant: Commission, OFR to copy, verified contacts. */
 export function DeclarantCard({ account }: { account: DeclarantAccount }) {
@@ -67,6 +75,9 @@ export function DeclarantCard({ account }: { account: DeclarantAccount }) {
           </DescriptionItem>
           <DescriptionItem term="Phone">
             <Contact kind="phone" value={account.maskedPhone} />
+          </DescriptionItem>
+          <DescriptionItem term="Letter language" className="items-center">
+            <LetterLanguage saved={account.preferredLanguage} />
           </DescriptionItem>
         </DescriptionList>
       </CardContent>
@@ -120,6 +131,52 @@ function AccountLink({
       <span className="flex-1">{children}</span>
       <Icon icon={ArrowRight01Icon} className="size-4 text-muted-foreground" />
     </Link>
+  );
+}
+
+/**
+ * The language a clarification letter to the declarant starts in (spec 07c FE-3): the reviewer
+ * can still choose another. English until the declarant chooses; a choice that cannot be saved
+ * goes back to the one saved.
+ */
+function LetterLanguage({ saved }: { saved: Language | null }) {
+  const { toast } = useToast();
+  const [language, setLanguage] = useState<Language>(saved ?? 'en');
+  const [saving, setSaving] = useState(false);
+
+  async function choose(next: Language) {
+    if (next === language || saving) return;
+    const before = language;
+    setLanguage(next);
+    setSaving(true);
+    const result = await setMyPreferredLanguage({ data: { language: next } }).catch(() => null);
+    setSaving(false);
+    if (result?.status === 'saved') {
+      toast({
+        title: `Letters from your Commission will start in ${LANGUAGE_NAMES[result.preferredLanguage]}.`,
+      });
+      return;
+    }
+    setLanguage(before);
+    toast({ title: 'Your language could not be saved. Try again.', urgency: 'assertive' });
+  }
+
+  return (
+    <Select
+      aria-label="Language of letters to you"
+      className="h-8 w-[132px]"
+      value={language}
+      disabled={saving}
+      onValueChange={(value) => {
+        if (value === 'en' || value === 'sw') void choose(value);
+      }}
+    >
+      {(['en', 'sw'] as const).map((each) => (
+        <SelectItem key={each} value={each}>
+          {LANGUAGE_NAMES[each]}
+        </SelectItem>
+      ))}
+    </Select>
   );
 }
 

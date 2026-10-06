@@ -18,12 +18,22 @@ import type { Problem } from '../support/reporting-officers.js';
 
 const NOW = new Date('2026-10-01T09:00:00Z');
 const PROFILE = '/v1/me/declarant';
+const PREFERRED_LANGUAGE = '/v1/me/declarant/preferred-language';
+const internalLanguage = (personId: string) =>
+  `/internal/v1/persons/${personId}/preferred-language`;
 const lookup = (ofr: string) => `/v1/persons?ofr=${encodeURIComponent(ofr)}`;
 
 const HELPDESK: Caller = { sub: 'helpdesk-1', tenant: 'platform', roles: ['helpdesk'] };
 const PLATFORM_ADMIN: Caller = { sub: 'admin-1', tenant: 'platform', roles: ['platform-admin'] };
 const TSC_OFFICER: Caller = { sub: 'officer-tsc', tenant: 'tsc', roles: ['reporting-officer'] };
 const EACC_ANALYST: Caller = { sub: 'analyst-1', tenant: 'eacc', roles: ['eacc-analyst'] };
+/** The review service's client credentials token. */
+const REVIEW: Caller = {
+  sub: 'service-account-review',
+  azp: 'review',
+  scope: 'profile directory:internal',
+};
+const ACTING_TSC = { 'x-acting-tenant': 'tsc' };
 
 let api: DirectoryApi;
 let wanjiru: OnboardedPerson;
@@ -84,6 +94,7 @@ describe('GET /v1/me/declarant (S18)', () => {
       ofr: wanjiru.ofr,
       fullName: 'Wanjiru Kamau',
       contacts: { email: 'wanjiru.kamau@example.go.ke', phone: '+254712345678' },
+      preferredLanguage: null,
       commissions: [
         {
           slug: 'tsc',
@@ -245,5 +256,86 @@ describe('GET /v1/persons?ofr=', () => {
       const response = await api.get(lookup(wanjiru.ofr), caller);
       expect(response.statusCode, response.body).toBe(403);
     }
+  });
+});
+
+describe('PUT /v1/me/declarant/preferred-language (spec 07c FE-3)', () => {
+  it("stores the declarant's language and answers with the profile carrying it", async () => {
+    const response = await api.put(
+      PREFERRED_LANGUAGE,
+      { preferredLanguage: 'sw' },
+      declarant(wanjiru),
+    );
+
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<DeclarantProfile>();
+    expect(contractErrors(okResponse(PREFERRED_LANGUAGE, 'put'), body)).toEqual([]);
+    expect(body).toMatchObject({ personId: wanjiru.personId, preferredLanguage: 'sw' });
+
+    const again = await api.get(PROFILE, declarant(wanjiru));
+    expect(again.json<DeclarantProfile>().preferredLanguage).toBe('sw');
+
+    const back = await api.put(PREFERRED_LANGUAGE, { preferredLanguage: 'en' }, declarant(wanjiru));
+    expect(back.json<DeclarantProfile>().preferredLanguage).toBe('en');
+  });
+
+  it('is 400 for a language the letters are not issued in, or none', async () => {
+    for (const body of [{ preferredLanguage: 'fr' }, { preferredLanguage: null }, {}]) {
+      const response = await api.put(PREFERRED_LANGUAGE, body, declarant(wanjiru));
+      expect(response.statusCode, JSON.stringify(body)).toBe(400);
+    }
+  });
+
+  it('is 404 without an onboarded person and 403 without the declarant role', async () => {
+    const unknown = await api.put(
+      PREFERRED_LANGUAGE,
+      { preferredLanguage: 'sw' },
+      { sub: 'someone-else', tenant: 'tsc', roles: ['declarant'] },
+    );
+    expect(unknown.statusCode, unknown.body).toBe(404);
+
+    for (const caller of [TSC_OFFICER, HELPDESK]) {
+      const response = await api.put(PREFERRED_LANGUAGE, { preferredLanguage: 'sw' }, caller);
+      expect(response.statusCode, response.body).toBe(403);
+    }
+  });
+});
+
+describe('GET /internal/v1/persons/{personId}/preferred-language', () => {
+  it("gives the declarant's language to a service acting for a Commission they are onboarded at", async () => {
+    const unset = await api.get(internalLanguage(wanjiru.personId), REVIEW, ACTING_TSC);
+    expect(unset.statusCode, unset.body).toBe(200);
+    expect(unset.json()).toEqual({ personId: wanjiru.personId, preferredLanguage: null });
+
+    await api.put(PREFERRED_LANGUAGE, { preferredLanguage: 'sw' }, declarant(wanjiru));
+    const response = await api.get(internalLanguage(wanjiru.personId), REVIEW, ACTING_TSC);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<unknown>();
+    expect(
+      contractErrors(okResponse('/internal/v1/persons/{personId}/preferred-language', 'get'), body),
+    ).toEqual([]);
+    expect(body).toEqual({ personId: wanjiru.personId, preferredLanguage: 'sw' });
+  });
+
+  it('is 404 for a person unknown or not onboarded at the acting tenant, 403 without the scope', async () => {
+    const otherTenant = await api.get(internalLanguage(wanjiru.personId), REVIEW, {
+      'x-acting-tenant': 'psc',
+    });
+    expect(otherTenant.statusCode, otherTenant.body).toBe(404);
+
+    const unknown = await api.get(
+      internalLanguage('0190a0f0-0000-7000-8000-000000000000'),
+      REVIEW,
+      ACTING_TSC,
+    );
+    expect(unknown.statusCode, unknown.body).toBe(404);
+
+    const noScope = await api.get(
+      internalLanguage(wanjiru.personId),
+      { ...REVIEW, scope: 'profile directory:person-contacts' },
+      ACTING_TSC,
+    );
+    expect(noScope.statusCode, noScope.body).toBe(403);
   });
 });

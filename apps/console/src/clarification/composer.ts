@@ -150,9 +150,17 @@ function seeded(
   return { ...state, items: [...state.items, ...items], next };
 }
 
-/** A new clarification: one blank item to start from, in English. */
-export function emptyComposer(): ComposerState {
-  return { items: [blank('item-1')], opening: null, language: DEFAULT_DRAFT_LANGUAGE, next: 2 };
+/**
+ * A new clarification: one blank item to start from, in the declarant's preferred language
+ * (`CaseDetail.declarantLanguage`, spec 07c FE-3), or English when they have none.
+ */
+export function emptyComposer(declarantLanguage: DraftLanguage | null = null): ComposerState {
+  return {
+    items: [blank('item-1')],
+    opening: null,
+    language: declarantLanguage ?? DEFAULT_DRAFT_LANGUAGE,
+    next: 2,
+  };
 }
 
 /** A saved draft (or a follow-up's pre-filled draft), its items on their targets. */

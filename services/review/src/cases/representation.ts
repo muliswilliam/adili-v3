@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   clarificationSchema,
   clarificationStatusSchema,
+  letterLanguageSchema,
 } from '../clarifications/representation.js';
 import { determinationSchema } from '../determinations/representation.js';
 import {
@@ -237,6 +238,10 @@ export const caseDetailSchema = z.object({
     description: 'Every determination of the case, oldest first; the current one is last',
   }),
   registry: registrySummarySchema,
+  declarantLanguage: letterLanguageSchema.nullable().meta({
+    description:
+      'The language the declarant prefers, from the directory: a clarification letter and Draft with AI start in it (spec 07c FE-3). Null when they have not chosen one or the directory could not say',
+  }),
 });
 export type CaseDetail = z.infer<typeof caseDetailSchema>;
 

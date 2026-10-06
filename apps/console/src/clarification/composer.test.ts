@@ -203,11 +203,18 @@ describe('Draft with AI insertion (spec 07c FE-3)', () => {
 
   it('starts a letter in English, takes the chosen language and sends it (S7)', () => {
     expect(emptyComposer().language).toBe('en');
+    expect(emptyComposer(null).language).toBe('en');
     const state = composerReducer(filled(), { type: 'language', language: 'sw' });
     expect(composerToInput(state).language).toBe('sw');
     expect(draftComposer({ items: [], opening: null, language: 'sw' }, targets).language).toBe(
       'sw',
     );
+  });
+
+  it("starts a new letter in the declarant's preferred language (spec 07c FE-3)", () => {
+    expect(emptyComposer('sw').language).toBe('sw');
+    // Draft with AI drafts in the composer's language.
+    expect(composerToInput(emptyComposer('sw')).language).toBe('sw');
   });
 
   it('appends after the reviewer’s own items', () => {
