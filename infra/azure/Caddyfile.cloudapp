@@ -2,6 +2,22 @@
   email __EMAIL__
 }
 
+# While an app is down (a demo reset or a deploy restarts every app, #622), a page that says so
+# and tries again, instead of a bare 502. Only the proxy's own errors: an app's 5xx passes as is.
+# The status stays the error's, so a poll never takes the page for the app being up. The matcher
+# form, not `handle_errors 502 503 504`, because Ubuntu 24.04's Caddy is 2.6.
+(restarting) {
+  handle_errors {
+    @down expression `{err.status_code} in [502, 503, 504]`
+    handle @down {
+      root * /opt/adili/infra/azure/static
+      rewrite * /restarting.html
+      header Cache-Control no-store
+      file_server
+    }
+  }
+}
+
 http://__HOST__ {
   redir https://__HOST__{uri} permanent
 }
@@ -16,6 +32,7 @@ https://__HOST__ {
   handle {
     reverse_proxy 127.0.0.1:13010
   }
+  import restarting
 }
 
 https://__HOST__:3010 {
@@ -24,10 +41,12 @@ https://__HOST__:3010 {
 
 https://__HOST__:3020 {
   reverse_proxy 127.0.0.1:13020
+  import restarting
 }
 
 https://__HOST__:3030 {
   reverse_proxy 127.0.0.1:13030
+  import restarting
 }
 
 # Object storage (SeaweedFS S3 on loopback): presigned upload and download URLs.

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Caddy serves this while an app is down (a demo reset or a deploy restarts them all). -->
+    <meta http-equiv="refresh" content="10" />
+    <meta name="robots" content="noindex" />
+    <title>Adili is restarting</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #f6f7f6;
+        color: #15201a;
+      }
+      main {
+        max-width: 28rem;
+        margin: 1rem;
+        padding: 1.5rem;
+        border: 1px solid #dfe3e0;
+        border-radius: 0.75rem;
+        background: #fff;
+      }
+      h1 {
+        margin: 0 0 0.75rem;
+        font-size: 1.125rem;
+      }
+      p {
+        margin: 0.5rem 0 0;
+        font-size: 0.875rem;
+        line-height: 1.5;
+      }
+      .muted {
+        color: #5b6660;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0f1411;
+          color: #e7ece9;
+        }
+        main {
+          background: #161d19;
+          border-color: #2a332e;
+        }
+        .muted {
+          color: #9aa59f;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main role="status">
+      <h1>Adili is restarting</h1>
+      <p>
+        The demo is being reset to a checkpoint, or updated. Every app restarts and everyone is
+        signed out. It is usually back within 4 minutes.
+      </p>
+      <p class="muted">
+        This page tries again every 10 seconds. Once it is back, open the start page and pick an
+        account from the DEMO pill.
+      </p>
+    </main>
+  </body>
+</html>

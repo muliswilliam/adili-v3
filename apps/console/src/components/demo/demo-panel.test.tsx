@@ -179,7 +179,7 @@ describe('DemoPanel (#621)', () => {
     });
   });
 
-  it('resets only once confirmed, and says the console restarts', async () => {
+  it('resets only once confirmed, then covers the console while it restarts (#622)', async () => {
     getDemoPanel.mockResolvedValue(panel('button'));
     resetDemo.mockResolvedValue({ ok: true });
     vi.stubGlobal(
@@ -197,7 +197,13 @@ describe('DemoPanel (#621)', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Reset now' }));
 
     expect(resetDemo).toHaveBeenCalledWith({ data: { checkpoint: '1-after-filing' } });
-    expect(await screen.findByText('Resetting the demo to 1-after-filing')).toBeTruthy();
+    const resetting = await screen.findByRole('status', {
+      name: /Resetting the demo to 1-after-filing/,
+    });
+    expect(resetting.textContent).toContain('everyone is signed out');
+    expect(resetting.textContent).toContain('back in about 4 minutes');
+    // The drawer is gone: the reset is not undone, or hidden, by closing it.
+    expect(screen.queryByRole('heading', { name: 'Demo panel' })).toBeNull();
     vi.unstubAllGlobals();
   });
 
