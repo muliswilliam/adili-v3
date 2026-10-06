@@ -55,12 +55,9 @@ describe('uploadAttachment', () => {
       size: file.size,
       fileName: 'deed.pdf',
     });
-    expect(given.put).toHaveBeenCalledWith(
-      `/api/mock-uploads/${UPLOAD_ID}`,
-      file,
-      'application/pdf',
-      expect.objectContaining({ onProgress: expect.any(Function) }),
-    );
+    const [url, body, type, options] = vi.mocked(given.put).mock.calls[0] ?? [];
+    expect([url, body, type]).toEqual([`/api/mock-uploads/${UPLOAD_ID}`, file, 'application/pdf']);
+    expect(options?.onProgress).toBeTypeOf('function');
     expect(given.link).toHaveBeenCalledWith(UPLOAD_ID);
   });
 
