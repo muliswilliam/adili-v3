@@ -14,7 +14,10 @@ import {
   categoryOf,
   declaredType,
   findMatch,
+  identifierPath,
+  readPath,
   REGISTRIES,
+  sameIdentifier,
   type SuggestionKind,
   suggestionKind,
   suggestionPatch,
@@ -24,6 +27,7 @@ import type {
   DeclarationAttachment,
   DocumentKind,
   RegistrySystem,
+  ReopenedSuggestion,
   Suggestion,
   SuggestionSet,
 } from '../types';
@@ -56,6 +60,9 @@ import { isRecord, json, problem, readJson } from '../../mock-http';
  *   item, or the matching item's empty fields unless `overwrite`) with `source` on the item and
  *   bumps the draft version. A spouse's KRA PIN goes to Household; the officer has no KRA
  *   fields in declaration.v1, so theirs answers 400 `no-target`.
+ * - A section save that deletes the item an accepted registry suggestion went into, or changes
+ *   or clears its identifier (a registration, parcel, company, spouse's KRA PIN), reopens it:
+ *   `new` again, matched afresh, and listed in the save's `reopenedSuggestions` (#738).
  */
 
 function isEmpty(value: unknown) {
@@ -582,6 +589,66 @@ export async function acceptSuggestion(
   const etag = commit(fillsTax ? 'household' : suggestion.sectionKey);
   const accepted: Suggestion = { ...suggestion };
   return json(200, { suggestion: accepted, itemId, etag }, { ETag: etag });
+}
+
+/**
+ * In a section save, once `contents` are stored: the accepted registry suggestions of the section
+ * whose item is gone, or no longer holds the suggestion's identifier, become `new` again, as the
+ * service reopens them (#738). A document's reading and a dismissal are left as they are.
+ */
+export function reopenSuggestions(
+  stored: SuggestionDraft,
+  sectionKey: string,
+  contents: Record<string, unknown>,
+): ReopenedSuggestion[] {
+  const reopened: ReopenedSuggestion[] = [];
+  for (const set of stored.suggestions.sets) {
+    if (set.source === 'document') continue;
+    for (const suggestion of set.suggestions) {
+      if (suggestion.status !== 'accepted' || suggestion.sectionKey !== sectionKey) continue;
+      if (stands(suggestion, contents)) continue;
+      suggestion.status = 'new';
+      suggestion.acceptedItemId = null;
+      suggestion.matchItemId = sectionKey.startsWith('statement:')
+        ? findMatch(
+            suggestion,
+            CATEGORIES.flatMap((category) => itemsIn(contents, category)),
+          )
+        : null;
+      reopened.push({
+        id: suggestion.id,
+        setId: suggestion.setId,
+        personKey: suggestion.personKey,
+        sectionKey: suggestion.sectionKey,
+        status: 'new',
+        matchItemId: suggestion.matchItemId,
+      });
+    }
+  }
+  return reopened;
+}
+
+function itemsIn(contents: Record<string, unknown>, list: string): Item[] {
+  const items = contents[list];
+  return Array.isArray(items) ? (items as Item[]) : [];
+}
+
+/** Whether the item an accepted suggestion went into is still there with its identifier. */
+function stands(suggestion: Suggestion, contents: Record<string, unknown>): boolean {
+  const itemId = suggestion.acceptedItemId;
+  if (suggestionKind(suggestion.itemType).target === 'tax') {
+    const spouses = (contents as Draft<Household>).spouses?.items ?? [];
+    const spouse = spouses.find((each) => each.id === itemId);
+    return spouse !== undefined && sameIdentifier(spouse.kraPin, suggestion.fields.kraPin);
+  }
+  const item = CATEGORIES.flatMap((category) => itemsIn(contents, category)).find(
+    (each) => each.id === itemId,
+  );
+  if (!item) return false;
+  const path = identifierPath(suggestion.itemType);
+  if (!path) return true;
+  const identifier = suggestionPatch(suggestion).find((each) => each.path === path)?.value;
+  return sameIdentifier(readPath(item, path), identifier);
 }
 
 /** `POST .../suggestions/{id}/dismiss` (S5). */

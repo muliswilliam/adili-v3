@@ -54,7 +54,14 @@ function saved(completeness: 'complete' | 'incomplete' = 'complete'): SaveOutcom
   return {
     status: 'saved',
     etag: '"2"',
-    result: { key: 'bio', completeness, draftVersion: 2, issues: [], sectionsChanged: [] },
+    result: {
+      key: 'bio',
+      completeness,
+      draftVersion: 2,
+      issues: [],
+      sectionsChanged: [],
+      reopenedSuggestions: [],
+    },
   };
 }
 

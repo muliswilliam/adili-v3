@@ -900,6 +900,7 @@ describe('fixing one item, then another, from the summary (#700, #701)', () => {
         draftVersion: version,
         issues: [],
         sectionsChanged: [],
+        reopenedSuggestions: [],
       },
     };
   }

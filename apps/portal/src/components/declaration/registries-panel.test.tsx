@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -787,5 +787,202 @@ describe('Check registries: suggestion cards (S4, S5)', () => {
       to: '/declarations/$id/household',
       params: { id: DECLARATION_ID },
     });
+  });
+});
+
+describe('Check registries: an accepted suggestion whose item is removed (#739)', () => {
+  const ADDED = 'a0000000-0000-4000-8000-00000000000b';
+  const TYPED = 'a0000000-0000-4000-8000-00000000000c';
+  const title = 'KCA 123A · Toyota Probox 2016';
+
+  function car(id: string, description: string, registration: string) {
+    return {
+      id,
+      type: 'vehicle',
+      description,
+      details: { registration },
+      value: { kesCents: 90_000_000 },
+      location: { inKenya: true },
+      change: { changed: false },
+      joint: { isJoint: false },
+    };
+  }
+
+  /** NTSA's Probox, accepted into ADDED, beside a car the declarant typed themselves. */
+  function acceptedProbox() {
+    const accepted = { ...probox(), status: 'accepted' as const, acceptedItemId: ADDED };
+    const section = statement({
+      assets: [car(ADDED, 'Toyota Probox', 'KCA 123A'), car(TYPED, 'Family car', 'KBZ 789C')],
+    });
+    return { accepted, section };
+  }
+
+  /** The save of the statement answers once `resolve` is called, reopening `reopened`. */
+  function saveAnswering(reopened: { id: string; setId: string }[]) {
+    let resolve: () => void = () => undefined;
+    saveMock.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = () => {
+          done({
+            status: 'saved',
+            etag: '"2"',
+            result: {
+              key: 'statement:officer',
+              completeness: 'incomplete',
+              draftVersion: 2,
+              issues: [],
+              sectionsChanged: [],
+              reopenedSuggestions: reopened.map((each) => ({
+                ...each,
+                personKey: 'officer',
+                sectionKey: 'statement:officer',
+                status: 'new' as const,
+                matchItemId: null,
+              })),
+            },
+          });
+        };
+      }),
+    );
+    return () => {
+      resolve();
+    };
+  }
+
+  async function remove(name: string) {
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /^Assets/ }), { button: 0 });
+    fireEvent.click(screen.getByRole('button', { name: `Remove Vehicle: ${name}` }));
+    const dialog = screen.getByRole('dialog', { name: 'Remove this asset?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_500);
+    });
+  }
+
+  it('offers the card again, and counts it to review, once the save reports it reopened', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { accepted, section } = acceptedProbox();
+      const answer = saveAnswering([accepted]);
+      renderPanel({ section, sets: readySets([accepted]) });
+      expect(suggestionCard(title).textContent).toContain('Added');
+      expect(within(registries()).queryByText(/to review/)).toBeNull();
+      expect(statusOf('NTSA')).toBe('Nothing found');
+
+      await remove('Toyota Probox');
+
+      // Not before the save returns: the rule is the service's.
+      expect(saveMock).toHaveBeenCalledTimes(1);
+      expect(suggestionCard(title).textContent).toContain('Added');
+      await act(async () => {
+        answer();
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      const card = suggestionCard(title);
+      expect(card.textContent).not.toContain('Added');
+      expect(card.textContent).toContain('From NTSA, 26 Sep 2026');
+      for (const action of ['Add', 'Edit and add', 'Dismiss']) {
+        expect(within(card).getByRole('button', { name: `${action}: ${title}` })).toBeTruthy();
+      }
+      expect(within(registries()).getByText('1 to review')).toBeTruthy();
+      expect(statusOf('NTSA')).toBe('1 suggestion');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('leaves the panel as it is when the item removed came from no suggestion', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { accepted, section } = acceptedProbox();
+      const answer = saveAnswering([]);
+      renderPanel({ section, sets: readySets([accepted]) });
+
+      await remove('Family car');
+      await act(async () => {
+        answer();
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(saveMock).toHaveBeenCalledTimes(1);
+      const card = suggestionCard(title);
+      expect(card.textContent).toContain('Added');
+      expect(within(card).queryByRole('button', { name: `Add: ${title}` })).toBeNull();
+      expect(within(registries()).queryByText(/to review/)).toBeNull();
+      expect(statusOf('NTSA')).toBe('Nothing found');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('adds the reopened suggestion again, and View opens the new item', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { accepted, section } = acceptedProbox();
+      const answer = saveAnswering([accepted]);
+      renderPanel({ section, sets: readySets([accepted]) });
+      await remove('Toyota Probox');
+      await act(async () => {
+        answer();
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      acceptMock.mockResolvedValue({
+        status: 'accepted',
+        suggestion: { ...accepted, acceptedItemId: NEW_ITEM },
+        itemId: NEW_ITEM,
+        etag: '"3"',
+      });
+      getSectionMock.mockResolvedValue({
+        status: 'ok',
+        etag: '"3"',
+        section: statement({
+          assets: [
+            car(TYPED, 'Family car', 'KBZ 789C'),
+            car(NEW_ITEM, 'Toyota Probox', 'KCA 123A'),
+          ],
+        }),
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: `Add: ${title}` }));
+
+      expect(await screen.findByText('Added. Enter its value.')).toBeTruthy();
+      expect(acceptMock.mock.calls[0]?.[0].data).toMatchObject({
+        suggestionId: accepted.id,
+        ifMatch: '"2"',
+        applyToItemId: null,
+      });
+      const card = suggestionCard(title);
+      expect(card.textContent).toContain('Added');
+      fireEvent.click(within(card).getByRole('button', { name: `View: ${title}` }));
+      await waitFor(() => {
+        expect(document.activeElement?.id).toContain(NEW_ITEM);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('sends the save at once when View finds the item already removed here', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { accepted, section } = acceptedProbox();
+      saveAnswering([accepted]);
+      renderPanel({ section, sets: readySets([accepted]) });
+      fireEvent.mouseDown(screen.getByRole('tab', { name: /^Assets/ }), { button: 0 });
+      fireEvent.click(screen.getByRole('button', { name: 'Remove Vehicle: Toyota Probox' }));
+      const dialog = screen.getByRole('dialog', { name: 'Remove this asset?' });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
+      expect(saveMock).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: `View: ${title}` }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(saveMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

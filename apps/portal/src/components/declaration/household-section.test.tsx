@@ -387,6 +387,7 @@ describe('HouseholdSection', () => {
         draftVersion: 2,
         issues: [],
         sectionsChanged: [{ key: tomKey, action: 'archived' }],
+        reopenedSuggestions: [],
       },
     });
     renderWorkspace(
@@ -437,6 +438,7 @@ describe('HouseholdSection', () => {
         draftVersion: 2,
         issues: [],
         sectionsChanged: [],
+        reopenedSuggestions: [],
       },
     });
     renderWorkspace(

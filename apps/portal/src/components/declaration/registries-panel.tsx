@@ -71,6 +71,7 @@ import {
   supersededBy,
   typeWord,
   valuesAt,
+  withReopened,
   withSuggestion,
 } from '../../declaration/suggestions';
 import { REGISTRY_COPY, SUGGESTION_COPY } from '../../declaration/copy';
@@ -151,7 +152,7 @@ export function RegistriesPanel({
   pollMs = REGISTRY_POLL_MS,
   pollLimit = REGISTRY_POLL_LIMIT,
 }: RegistriesPanelProps) {
-  const { declaration } = useWorkspace();
+  const { declaration, onReopened } = useWorkspace();
   const { toast } = useToast();
   const accept = useAcceptSuggestion();
   const headingId = useId();
@@ -182,6 +183,18 @@ export function RegistriesPanel({
   const dismissed = shown.filter((each) => each.suggestion.status === 'dismissed');
   const toReview = shown.filter((each) => each.suggestion.status === 'new').length;
   const items = itemsOf(statement);
+
+  // A save that deleted an accepted suggestion's item, or changed its identifier, reopened it on
+  // the service (#738): its card offers it again as soon as the save returns, never before.
+  useEffect(
+    () =>
+      onReopened((reopened) => {
+        setSets((current) => withReopened(current, reopened));
+        const ids = new Set(reopened.map((each) => each.id));
+        setApplied((current) => new Set([...current].filter((id) => !ids.has(id))));
+      }),
+    [onReopened],
+  );
 
   // While a registry has not answered, read the person's sets again. After about a minute, stop
   // waiting: the registries still pending show as not available now, with Retry. A new check
