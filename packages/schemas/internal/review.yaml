@@ -2611,6 +2611,7 @@ paths:
       tags:
         - referrals
       summary: One referral with its package manifest, or what its package will include
+      description: 'A Confidential read, audited like a case view (ADR-008): every call records an audit.read.v1 `review.referral.viewed` with the viewer and the referral.'
       operationId: getReferral
       parameters:
         - name: referralId
@@ -2632,6 +2633,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: review.referral.viewed
+        resource: referral
   /v1/review/referrals/{referralId}/approve:
     post:
       tags:

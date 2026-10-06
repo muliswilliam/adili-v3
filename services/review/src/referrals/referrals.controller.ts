@@ -11,6 +11,7 @@ import {
   AcceptIdempotencyKey,
   ApiProblemResponse,
   ApiQueryParameters,
+  AuditedRead,
   CurrentPrincipal,
   type Principal,
   RequireIdempotencyKey,
@@ -100,10 +101,13 @@ export class ReferralsController {
   }
 
   @Get('review/referrals/:referralId')
+  @AuditedRead({ action: 'review.referral.viewed', resource: 'referral' })
   @ApiUuidParam('referralId')
   @ApiOperation({
     operationId: 'getReferral',
     summary: 'One referral with its package manifest, or what its package will include',
+    description:
+      'A Confidential read, audited like a case view (ADR-008): every call records an audit.read.v1 `review.referral.viewed` with the viewer and the referral.',
   })
   @ApiOkResponse({ description: 'Referral', schema: schemaRef('Referral') })
   @ApiProblemResponse(404, NOT_VISIBLE)

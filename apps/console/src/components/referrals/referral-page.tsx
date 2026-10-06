@@ -324,6 +324,10 @@ export function ReferralPage({
           </div>
         </Section>
       </div>
+      <p className="mt-[22px] flex items-center justify-center gap-2 text-[13px] text-muted-foreground">
+        <Icon icon={SquareLock02Icon} className="size-3.5" />
+        {t.detail.audit}
+      </p>
 
       <ApproveReferralDialog
         subject={approving}

@@ -839,7 +839,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One referral with its package manifest, or what its package will include */
+        /**
+         * One referral with its package manifest, or what its package will include
+         * @description A Confidential read, audited like a case view (ADR-008): every call records an audit.read.v1 `review.referral.viewed` with the viewer and the referral.
+         */
         get: operations["getReferral"];
         put?: never;
         post?: never;

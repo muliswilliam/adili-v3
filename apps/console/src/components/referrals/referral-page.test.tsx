@@ -138,6 +138,8 @@ describe('ReferralPage (spec 08 FE-6)', () => {
     expect(screen.getByText('Two missed cycles')).toBeTruthy();
     expect(screen.getByText('Confidential')).toBeTruthy();
     expect(screen.getByText('The declarant is not told. EACC decides what they learn.'));
+    // Every read of a referral is audited (#523), as the case view says of a case.
+    expect(screen.getByText('Every view of this referral is recorded.')).toBeTruthy();
     expect(screen.getByText(/^System sweep · /)).toBeTruthy();
     expect(screen.getByText('Assembled on approval, with a SHA-256 hash per item.')).toBeTruthy();
     const preview = screen.getByRole('table', { name: 'Evidence package' });

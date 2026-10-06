@@ -61,6 +61,7 @@ export const messages = {
   },
   detail: {
     crumb: 'Referral',
+    audit: 'Every view of this referral is recorded.',
     subtitle: (name: string, file: string) => (file ? `${name} · file ${file}` : name),
     groundsTitle: 'Grounds',
     proposedBy: (name: string, date: string) => `${name} · ${formatDate(date)}`,
