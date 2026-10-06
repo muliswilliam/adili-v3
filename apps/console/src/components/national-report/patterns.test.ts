@@ -7,7 +7,13 @@ import type {
   PatternCandidate,
   SectionAggregate,
 } from '../../server/reporting/types';
-import { candidateCard, citedCandidateIds, figureFormatter, figureTarget } from './patterns';
+import {
+  candidateCard,
+  citedCandidateIds,
+  earlierYearsCited,
+  figureFormatter,
+  figureTarget,
+} from './patterns';
 
 const counts = (expected: number, declared: number): SectionAggregate => ({
   expected,
@@ -46,7 +52,7 @@ const AGGREGATES: NationalAggregates = {
     final: counts(0, 0),
     all: counts(3000, 2700),
     clarifications: 27,
-    accessRequests: { received: 0, granted: 0, declined: 0 },
+    accessRequests: { received: 12, granted: 9, declined: 3 },
   },
   byCommission: {
     cpsbnairobicity: reported(
@@ -247,6 +253,40 @@ describe('figures cited by aggregate key', () => {
     });
   });
 
+  it('resolves the access requests figures the service sends the gateway', () => {
+    expect(format('national.accessRequestsReceived')).toEqual({
+      label: 'National access requests received 2025/2026',
+      value: '12',
+    });
+    expect(format('national.accessRequestsGranted')?.value).toBe('9');
+    expect(format('national.accessRequestsDeclined')?.value).toBe('3');
+
+    const psc = reported('Public Service Commission', 'submitted-on-time', [1000, 900], 9);
+    const counted = {
+      ...AGGREGATES,
+      byCommission: {
+        ...AGGREGATES.byCommission,
+        psc: { ...psc, accessRequests: { received: 4, granted: 4, declined: 0 } },
+      },
+    };
+    expect(figureFormatter(counted, [])('commission.psc.accessRequestsDeclined')).toEqual({
+      label: 'Public Service Commission access requests declined 2025/2026',
+      value: '0',
+    });
+  });
+
+  it("says this year's figure the report has no value for is not available, not missing", () => {
+    expect(format('commission.psc.accessRequestsReceived')).toEqual({
+      label: 'Public Service Commission access requests received 2025/2026',
+      value: 'not available',
+    });
+    expect(format('commission.cpsbmandera.nonFilerRate')).toEqual({
+      label: 'Mandera County Public Service Board non-filer rate 2025/2026',
+      value: 'not available',
+    });
+    expect(format('national.initialFilingRate')?.value).toBe('not available');
+  });
+
   it("reads the nation's totals from the service's own All sections", () => {
     const withAll = {
       ...AGGREGATES,
@@ -257,7 +297,7 @@ describe('figures cited by aggregate key', () => {
     expect(figureFormatter(withAll, [])('national.clarificationRatio')?.value).toBe('9.7');
   });
 
-  it('finds no clarification figure for a Commission whose report did not count them', () => {
+  it('has no clarification figure for a Commission whose report did not count them', () => {
     const psc = reported('Public Service Commission', 'submitted-on-time', [1000, 900], 0);
     const uncounted = {
       ...AGGREGATES,
@@ -265,8 +305,8 @@ describe('figures cited by aggregate key', () => {
     };
     const formatUncounted = figureFormatter(uncounted, []);
 
-    expect(formatUncounted('commission.psc.clarifications')).toBeNull();
-    expect(formatUncounted('commission.psc.clarificationRatio')).toBeNull();
+    expect(formatUncounted('commission.psc.clarifications')?.value).toBe('not available');
+    expect(formatUncounted('commission.psc.clarificationRatio')?.value).toBe('not available');
     expect(formatUncounted('commission.psc.filed')?.value).toBe('900');
   });
 
@@ -282,11 +322,71 @@ describe('figures cited by aggregate key', () => {
   });
 
   it('finds nothing for a figure it does not have', () => {
-    expect(format('commission.cpsbmandera.nonFilerRate')).toBeNull();
     expect(format('fy2024.national.filingRate')).toBeNull();
     expect(format('commission.nobody.filed')).toBeNull();
     expect(format('national.unknown')).toBeNull();
     expect(format('nonsense')).toBeNull();
+  });
+
+  it("resolves any earlier year's figure from that year's report, candidate or not", () => {
+    /** FY 2024/2025: the nation and Nairobi as they stood, Mandera's report still out. */
+    const fy2024: NationalAggregates = {
+      ...AGGREGATES,
+      fy: 2024,
+      national: {
+        ...AGGREGATES.national,
+        all: counts(2900, 2465),
+        accessRequests: { received: 7, granted: 5, declined: 2 },
+      },
+      byCommission: {
+        ...AGGREGATES.byCommission,
+        retired: reported('Retired Commission', 'submitted-on-time', [100, 50], 0),
+      },
+    };
+    const withEarlier = figureFormatter(AGGREGATES, [], [fy2024]);
+
+    expect(withEarlier('fy2025.national.filingRate')).toEqual({
+      label: 'National filing rate 2024/2025',
+      value: '85%',
+    });
+    expect(withEarlier('fy2025.national.accessRequestsReceived')?.value).toBe('7');
+    expect(withEarlier('fy2025.commission.psc.filed')).toEqual({
+      label: 'Public Service Commission declarations filed 2024/2025',
+      value: '900',
+    });
+    // In the task input that year, with no value: not available, as for this year.
+    expect(withEarlier('fy2025.commission.cpsbmandera.nonFilerRate')?.value).toBe('not available');
+    // A Commission of that year the report no longer lists keeps its name.
+    expect(withEarlier('fy2025.commission.retired.filingRate')).toEqual({
+      label: 'Retired Commission filing rate 2024/2025',
+      value: '50%',
+    });
+    // Nothing that year's report lacks, nor a year whose report is not there.
+    expect(withEarlier('fy2025.commission.nobody.filed')).toBeNull();
+    expect(withEarlier('fy2024.national.filingRate')).toBeNull();
+  });
+
+  it('lists the earlier years the paragraphs cite, by start year', () => {
+    const citing = (aggregateRefs: string[]): NarrativeParagraph => ({
+      id: crypto.randomUUID(),
+      section: 'findings',
+      position: 0,
+      text: '',
+      aiDraft: true,
+      aggregateRefs,
+      candidateIds: [],
+    });
+
+    expect(
+      earlierYearsCited(
+        [
+          citing(['national.filingRate', 'fy2025.national.filingRate']),
+          citing(['fy2024.commission.psc.filed', 'fy2025.commission.psc.filed', 'nonsense']),
+          citing(['fy2026.national.filed']),
+        ],
+        2025,
+      ),
+    ).toEqual([2024, 2023]);
   });
 
   it("points this year's figure at its table row", () => {

@@ -19,6 +19,7 @@ import { useCallback, useEffect, useEffectEvent, useId, useMemo, useRef, useStat
 import type { NationalReportResult } from '../../server/national-report.server';
 import type {
   NarrativeParagraph,
+  NationalAggregates,
   NationalReport,
   PatternCandidate,
 } from '../../server/reporting/types';
@@ -33,17 +34,20 @@ import {
 } from './aggregate-tables';
 import { messages as m } from './messages';
 import { appendParagraph } from './model';
+import type { NationalReportLoad } from './narrative-drafting';
 import type { NcrExtensionContext, NcrExtensions } from './national-report-view';
 import {
   candidateCard,
   citationText,
   fyLabel,
   citedCandidateIds,
+  earlierYearsCited,
   figureFormatter,
   figureTarget,
 } from './patterns';
 
 const NO_CANDIDATES: PatternCandidate[] = [];
+const NO_YEARS: number[] = [];
 
 /** Candidates per page of the panel, as the prototype pages them. */
 export const PATTERNS_PER_PAGE = 6;
@@ -64,6 +68,11 @@ export interface NcrPatternsOptions {
   /** The year's report as the page has it; nothing is fetched before its first build. */
   report: NationalReport | null;
   load: PatternCandidatesLoad;
+  /**
+   * Reads a year's report: an earlier year's, whose figures a paragraph cites (`fy<year>.` keys,
+   * the prior years the service sends the narrative task), resolves those citations.
+   */
+  loadReport: NationalReportLoad;
   /** The per-Commission table's page, and how to turn it, to show a cited figure's row. */
   page: number;
   onPageChange: (page: number) => void;
@@ -78,7 +87,8 @@ export interface NcrPatternsOptions {
  *   show their table row. These chips are the page's one rendering of a paragraph's figures; the
  *   page puts the AI-draft label before them. #341 adds its own items (its label transitions) by
  *   composing: render this `paragraphMeta` and its items beside it, rather than chips of its own.
- * The candidates are fetched once the report is built, and again after each rebuild.
+ * The candidates are fetched once the report is built, and again after each rebuild; the report
+ * of each earlier year the paragraphs cite, once.
  */
 export function useNcrPatterns(options: NcrPatternsOptions): NcrExtensions {
   const { fy, report, load, onUnauthenticated } = options;
@@ -121,6 +131,7 @@ export function useNcrPatterns(options: NcrPatternsOptions): NcrExtensions {
   }, []);
   const showFigure = useShowFigure(options);
   const candidates = state.status === 'loaded' ? state.candidates : NO_CANDIDATES;
+  const earlier = useEarlierYears(options);
 
   // The panel and the paragraphs' figures read the same candidates.
   return {
@@ -140,10 +151,59 @@ export function useNcrPatterns(options: NcrPatternsOptions): NcrExtensions {
           paragraph={paragraph}
           context={context}
           candidates={candidates}
+          earlier={earlier}
           onShow={showFigure}
         />
       ),
   };
+}
+
+/**
+ * The aggregates of the earlier years the report's paragraphs cite, each year's report read once.
+ * A year whose report cannot be read (not built, or the call failed) is left out, so its figures
+ * resolve from the candidates or not at all.
+ */
+function useEarlierYears({
+  fy,
+  report,
+  loadReport,
+  onUnauthenticated,
+}: NcrPatternsOptions): NationalAggregates[] {
+  const cited = useMemo(
+    () => (report ? earlierYearsCited(report.narrativeParagraphs, fy) : NO_YEARS),
+    [report, fy],
+  );
+  const [read, setRead] = useState<ReadonlyMap<number, NationalAggregates>>(() => new Map());
+  const asked = useRef(new Set<number>());
+  const signIn = useEffectEvent(() => {
+    onUnauthenticated();
+  });
+
+  useEffect(() => {
+    let current = true;
+    for (const year of cited) {
+      if (asked.current.has(year)) continue;
+      asked.current.add(year);
+      void loadReport(year).then(
+        (result) => {
+          if (result.ok) {
+            const { aggregates } = result.data;
+            setRead((years) => new Map(years).set(year, aggregates));
+          } else if (result.error.kind === 'unauthenticated') {
+            if (current) signIn();
+          }
+        },
+        () => {
+          // Left out: its figures resolve from the candidates, if any carry them.
+        },
+      );
+    }
+    return () => {
+      current = false;
+    };
+  }, [cited, loadReport]);
+
+  return useMemo(() => cited.flatMap((year) => read.get(year) ?? []), [cited, read]);
 }
 
 /** Shows a cited figure's row: its Commission's (turning the table's page) or a national total. */
@@ -185,16 +245,18 @@ function ParagraphMeta({
   paragraph,
   context,
   candidates,
+  earlier,
   onShow,
 }: {
   paragraph: NarrativeParagraph;
   context: NcrExtensionContext;
   candidates: readonly PatternCandidate[];
+  earlier: readonly NationalAggregates[];
   onShow: (aggregateKey: string) => void;
 }) {
   const format = useMemo(
-    () => figureFormatter(context.report.aggregates, candidates),
-    [context.report.aggregates, candidates],
+    () => figureFormatter(context.report.aggregates, candidates, earlier),
+    [context.report.aggregates, candidates, earlier],
   );
   return (
     <>

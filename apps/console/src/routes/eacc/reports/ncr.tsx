@@ -90,6 +90,7 @@ function NcrPage({ screen }: { screen: NationalReportScreen | null }) {
     fy: fy ?? 0,
     report,
     load: loadCandidates,
+    loadReport,
     page,
     onPageChange,
     onUnauthenticated: goToSignIn,

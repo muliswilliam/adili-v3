@@ -5,6 +5,7 @@ import type { ComponentProps } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  loadNationalReport,
   loadNationalReportPage,
   saveNationalReportNarrative,
 } from '../../server/national-report.server';
@@ -21,6 +22,7 @@ import {
 } from '../../server/reporting/mock.server';
 import { type NcrMockSeed, resetNcrMock } from '../../server/reporting/ncr-mock.server';
 import type { NationalReport } from '../../server/reporting/types';
+import type { NationalReportLoad } from './narrative-drafting';
 import { NationalReportView } from './national-report-view';
 import { type PatternCandidatesLoad, useNcrPatterns } from './notable-patterns';
 
@@ -41,6 +43,9 @@ const client = (roles: readonly string[]) =>
 const loadFromMock: PatternCandidatesLoad = (fy) =>
   loadPatternCandidates(client(['eacc-analyst']), fy);
 
+/** The mock's report of a year: FY 2025/2026's alone, so an earlier year's is not built. */
+const reportFromMock: NationalReportLoad = (fy) => loadNationalReport(client(['eacc-analyst']), fy);
+
 async function pageOf(seed: NcrMockSeed) {
   setReportingMockLatency(0);
   setEaccIntakeMockLatency(0);
@@ -56,6 +61,7 @@ interface Options {
   seed?: NcrMockSeed;
   candidates?: CandidatesMockSeed;
   load?: PatternCandidatesLoad;
+  loadReport?: NationalReportLoad;
   viewer?: typeof ANALYST;
   edit?: (report: NationalReport) => NationalReport;
   page?: number;
@@ -65,6 +71,7 @@ async function renderPage({
   seed = 'draft',
   candidates = 'computed',
   load = loadFromMock,
+  loadReport = reportFromMock,
   viewer = ANALYST,
   edit = (report) => report,
   page = 1,
@@ -86,6 +93,7 @@ async function renderPage({
       fy: 2025,
       report,
       load,
+      loadReport,
       page,
       onPageChange,
       onUnauthenticated,
@@ -323,6 +331,54 @@ describe('Cited in findings', () => {
       exact: false,
     });
     expect(late.closest('button')).toBeNull();
+  });
+
+  it("shows an earlier year's figure no candidate carries from that year's report", async () => {
+    const earlier = (report: NationalReport): NationalReport => ({
+      ...citing(report),
+      narrativeParagraphs: [
+        ...report.narrativeParagraphs,
+        {
+          id: '0199c000-0000-7000-8000-000000000002',
+          section: 'overview',
+          position: 9,
+          text: 'Access requests fell on the year before.',
+          aiDraft: true,
+          aggregateRefs: ['fy2025.national.accessRequestsReceived'],
+          candidateIds: [],
+        },
+      ],
+    });
+    const loadReport = vi.fn<NationalReportLoad>(async (fy) => {
+      const thisYear = await reportFromMock(2025);
+      if (!thisYear.ok || fy !== 2024) return reportFromMock(fy);
+      const { aggregates } = thisYear.data;
+      return {
+        ok: true,
+        data: {
+          ...thisYear.data,
+          aggregates: {
+            ...aggregates,
+            fy: 2024,
+            national: {
+              ...aggregates.national,
+              accessRequests: { received: 41, granted: 40, declined: 1 },
+            },
+          },
+        },
+      };
+    });
+    await renderPage({ edit: earlier, loadReport });
+
+    const narrative = screen.getByRole('region', { name: 'Narrative' });
+    expect(
+      await within(narrative).findByText('National access requests received 2024/2025:', {
+        exact: false,
+      }),
+    ).toBeDefined();
+    expect(within(narrative).getByText('41')).toBeDefined();
+    // Asked once for the one earlier year the paragraphs cite.
+    expect(loadReport.mock.calls).toEqual([[2024]]);
   });
 
   it("turns the table to a figure's Commission row and highlights it", async () => {

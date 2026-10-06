@@ -14,7 +14,7 @@ import {
   aggregateKeyOf,
   type AggregateKey,
   type CommissionFigure,
-  currentFigure,
+  figureOf,
   type NationalFigure,
   parseAggregateKey,
   NATIONAL_SUBJECT,
@@ -196,6 +196,9 @@ const FIGURES: Record<FigureName, FigureCopy> = {
   finalFiled: count('final declarations filed', 'final'),
   finalNonFilers: count('final non-filers', 'final'),
   clarifications: count('clarifications'),
+  accessRequestsReceived: count('access requests received'),
+  accessRequestsGranted: count('access requests granted'),
+  accessRequestsDeclined: count('access requests declined'),
   reportingRate: rate('reporting rate'),
   filingRate: rate('filing rate', 'all'),
   nonFilerRate: rate('non-filer rate', 'all'),
@@ -244,34 +247,65 @@ function candidateFigures(candidates: readonly PatternCandidate[]): Map<string, 
 }
 
 /**
+ * The earlier years (start years, latest first) whose figures `paragraphs` cite, as read from the
+ * report for `fy`: the years whose reports resolve those citations.
+ */
+export function earlierYearsCited(paragraphs: readonly NarrativeParagraph[], fy: number): number[] {
+  const years = new Set<number>();
+  for (const paragraph of paragraphs) {
+    for (const aggregateKey of paragraph.aggregateRefs) {
+      const key = parseAggregateKey(aggregateKey, fy);
+      if (key && key.fy < fy) years.add(key.fy);
+    }
+  }
+  return [...years].sort((a, b) => b - a);
+}
+
+/**
  * Resolves the aggregate keys a narrative paragraph cites to "{label}: {value}", e.g. "Nairobi
  * City County Public Service Board non-filer rate 2024/2025: 4.1%": this year's from the report,
- * earlier ones from the candidates citing them; null for a figure neither has.
+ * an earlier year's from that year's report (`earlier`, the aggregates the service sent the
+ * narrative task as its prior years) or else the candidates citing it; null for a figure none of
+ * them has. A figure the year's report holds as null (a Commission yet to report, a count its
+ * report did not give, a rate of nobody expected) is in the task input all the same, so it reads
+ * "not available".
  */
 export function figureFormatter(
   aggregates: NationalAggregates,
   candidates: readonly PatternCandidate[],
+  earlier: readonly NationalAggregates[] = [],
 ): FigureFormatter {
-  const earlier = candidateFigures(candidates);
+  const fromCandidates = candidateFigures(candidates);
   return (aggregateKey) => {
     const key = parseAggregateKey(aggregateKey, aggregates.fy);
     if (!key) return null;
-    const value =
-      key.fy === aggregates.fy
-        ? currentFigure(aggregates, key)
-        : (earlier.get(aggregateKeyOf(key, aggregates.fy)) ?? null);
-    if (value === null) return null;
-    if (key.scope === 'commission' && !aggregates.byCommission[key.slug]) return null;
+    const year = key.fy === aggregates.fy ? aggregates : earlier.find(({ fy }) => fy === key.fy);
+    let value: number | null;
+    if (year) {
+      if (key.scope === 'commission' && !year.byCommission[key.slug]) return null;
+      value = figureOf(year, key);
+    } else {
+      value = fromCandidates.get(aggregateKeyOf(key, aggregates.fy)) ?? null;
+      if (value === null) return null;
+    }
     return {
-      label: `${labelOf(key, aggregates)} ${fyLabel(key.fy)}`,
-      value: formatFigure(key.name, value),
+      label: `${labelOf(key, aggregates, year)} ${fyLabel(key.fy)}`,
+      value: value === null ? NOT_AVAILABLE : formatFigure(key.name, value),
     };
   };
 }
 
-function labelOf(key: AggregateKey, aggregates: NationalAggregates): string {
+/** The figure's words, naming a Commission as the report does, or as its year's did. */
+function labelOf(
+  key: AggregateKey,
+  aggregates: NationalAggregates,
+  year: NationalAggregates | undefined,
+): string {
   const copy = FIGURES[key.name];
-  if (key.scope === 'commission') return `${subjectName(key.slug, aggregates)} ${copy.label}`;
+  if (key.scope === 'commission') {
+    const known = aggregates.byCommission[key.slug] ? aggregates : (year ?? aggregates);
+    return `${subjectName(key.slug, known)} ${copy.label}`;
+  }
   return copy.alone ? copy.label : `National ${copy.label}`;
 }
 
