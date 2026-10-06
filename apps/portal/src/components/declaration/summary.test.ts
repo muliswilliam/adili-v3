@@ -252,6 +252,60 @@ describe('issueText', () => {
     ).toBe('One-bedroom apartment, Dubai Marina: Parcel or plot number is required');
   });
 
+  it('names an item with no description by its type, as the statement does (#706)', () => {
+    const vehicles = {
+      statements: [
+        {
+          personKey: 'officer',
+          assets: [{ type: 'land', description: 'Plot' }, { type: 'vehicle' }, { type: 'vehicle' }],
+        },
+      ],
+    } as unknown as SummaryDocument;
+    const at = (path: string, message: string, code = 'required') => ({
+      ...issue('statement:officer', path, message),
+      code,
+    });
+    expect(
+      issueText(
+        at('/assets/1/description', 'must NOT have fewer than 1 characters', 'minLength'),
+        vehicles,
+      ),
+    ).toBe('Vehicle 1: Description is required');
+    // Numbered among the items of its type, not by its place in the list.
+    expect(issueText(at('/assets/2/value', 'is required'), vehicles)).toBe(
+      'Vehicle 2: Value is required',
+    );
+  });
+
+  it('words schema checks plainly, not as the validator writes them (#706)', () => {
+    const at = (path: string, message: string, code: string) => ({
+      ...issue('bio', path, message),
+      code,
+    });
+    expect(
+      issueText(at('/birth/place', 'must NOT have fewer than 2 characters', 'minLength'), document),
+    ).toBe('Place of birth is too short: use at least 2 characters');
+    expect(
+      issueText(
+        at('/address/postal', 'must NOT have more than 200 characters', 'maxLength'),
+        document,
+      ),
+    ).toBe('Postal address is too long: use at most 200 characters');
+    expect(
+      issueText(at('/kraPin', 'must match pattern "^[AP]\\d{9}[A-Z]$"', 'pattern'), document),
+    ).toBe('KRA PIN is not in the expected format');
+    expect(issueText(at('/birth/date', 'must match format "date"', 'format'), document)).toBe(
+      'Date of birth is not a valid date',
+    );
+    expect(
+      issueText(
+        at('/maritalStatus', 'must be equal to one of the allowed values', 'enum'),
+        document,
+      ),
+    ).toBe('Marital status is not one of the options');
+    expect(issueText(at('/foo', 'must be string', 'type'), document)).toBe('Foo is not valid');
+  });
+
   it('keeps the rules’ own sentences', () => {
     const sentence = 'Add your dependent children or tick "No dependent children".';
     expect(issueText(issue('household', '/children', sentence), document)).toBe(sentence);
