@@ -31,7 +31,7 @@ import type { StoredEnvelope } from '../drafts/schema.js';
  * draft's sections; nobody else reads them.
  */
 
-export const SUGGESTION_SOURCES = ['kra', 'ntsa', 'brs', 'ardhisasa', 'document'] as const;
+export const SUGGESTION_SOURCES = ['kra', 'ntsa', 'brs', 'ardhisasa', 'iprs', 'document'] as const;
 export type SuggestionSource = (typeof SUGGESTION_SOURCES)[number];
 
 export const SUGGESTION_SET_STATUSES = [
@@ -150,7 +150,7 @@ export const suggestionSets = pgTable(
       .where(sql`${table.status} = 'pending' and ${table.source} = 'document'`),
     check(
       'suggestion_sets_source_check',
-      sql`${table.source} in ('kra', 'ntsa', 'brs', 'ardhisasa', 'document')`,
+      sql`${table.source} in ('kra', 'ntsa', 'brs', 'ardhisasa', 'iprs', 'document')`,
     ),
     check(
       'suggestion_sets_status_check',

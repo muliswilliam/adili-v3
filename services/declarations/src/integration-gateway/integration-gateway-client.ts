@@ -41,8 +41,8 @@ export class IntegrationGatewayUnavailable extends Error {
 
 /**
  * What the declarations service asks of the integration-gateway (ADR-013: the only egress to the
- * registries): KRA, NTSA, BRS and ArdhiSasa lookups by national ID, on the declarant's request
- * (spec 05b). A Nest token: the service uses `HttpIntegrationGatewayClient`, tests a fake.
+ * registries): KRA, NTSA, BRS, ArdhiSasa and IPRS lookups by national ID, on the declarant's
+ * request (spec 05b, #612). A Nest token: the service uses `HttpIntegrationGatewayClient`, tests a fake.
  */
 export abstract class IntegrationGatewayClient {
   /**

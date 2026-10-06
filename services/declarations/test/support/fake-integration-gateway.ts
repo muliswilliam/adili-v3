@@ -72,6 +72,8 @@ export function notFound(system: RegistrySystem): RegistryResult {
       return { ...envelope, system, directorships: [] };
     case 'ardhisasa':
       return { ...envelope, system, parcels: [] };
+    case 'iprs':
+      return { ...envelope, system, person: null };
   }
 }
 

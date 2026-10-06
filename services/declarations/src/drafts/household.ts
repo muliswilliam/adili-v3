@@ -73,6 +73,25 @@ export function householdPeople(
   return { contents: derived, statements, notIncluded };
 }
 
+/**
+ * Household as a new draft offers it to a declarant who has declared before (story 4): the
+ * spouses and children of their last declaration, as declared, each under the same id so their
+ * statements keep their keys. A "none" is not carried: it is a fresh answer each time. Null when
+ * the last declaration listed nobody, so the household starts empty.
+ */
+export function carriedHousehold(previous: {
+  spouses?: unknown;
+  children?: unknown;
+}): SectionContents | null {
+  const spouses = listOf(record(previous.spouses).items).map(withLowerCaseId);
+  const children = listOf(record(previous.children).items).map(withLowerCaseId);
+  if (spouses.length === 0 && children.length === 0) return null;
+  return {
+    spouses: { none: false, items: spouses },
+    children: { none: false, items: children },
+  };
+}
+
 /** A copy of the listed person, its id in lower case like the section keys made of it. */
 function withLowerCaseId(item: unknown): Record<string, unknown> {
   const person = { ...record(item) };

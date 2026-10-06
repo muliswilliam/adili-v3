@@ -24,7 +24,8 @@ export type AcceptResult =
   | {
       status: 'accepted';
       suggestion: LoadedSuggestion;
-      itemId: string;
+      /** Null for the declarant's birth from IPRS, which fills the bio rather than an item. */
+      itemId: string | null;
       /** The suggestion's section as read back after the accept; null if that read failed. */
       section: LoadedSection | null;
       /** The section had changed and was refreshed before the accept went through. */

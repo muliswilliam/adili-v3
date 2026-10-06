@@ -50,6 +50,8 @@ export interface Stored {
   versions: DeclarationVersion[];
   /** What each version filed, by number: its document, and the sections to reopen it from. */
   filed: Map<number, Filed>;
+  /** Household started from the declarant's last declaration (story 4), as at its statement date. */
+  carriedOverFrom?: { statementDate: string };
 }
 
 /** A submitted version's content, kept as the service keeps its immutable snapshot. */

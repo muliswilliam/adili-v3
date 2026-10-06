@@ -36,6 +36,7 @@ import {
 } from '../../declaration/labels';
 import { HR_LABELS, HR_PLACEHOLDERS, ROSTER_HINT } from '../../declaration/copy';
 import { isFromRoster, type RosterField, rosterPrefill } from '../../declaration/roster-prefill';
+import { IprsBirthCheck } from './iprs-birth-check';
 import { optionalLabel } from './optional-label';
 import { useFocusFirstError, useFocusLinkedField, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
@@ -166,6 +167,15 @@ export function BioSection({ section, etag, showErrors = false, focusField }: Bi
       <RosterBlock officer={officer} commission={declaration.commission.name} />
 
       <Card className="grid gap-5 p-5 sm:grid-cols-2">
+        <IprsBirthCheck
+          name={fullName(officer)}
+          current={{ date: officer.birth?.date, place: officer.birth?.place }}
+          onAccepted={(fresh) => {
+            if (fresh.key !== 'bio') return;
+            const birth = (fresh.contents as Draft<Officer>).birth;
+            set((current) => ({ ...current, birth }));
+          }}
+        />
         <FormField
           label={PERSON_FIELD_LABELS.dateOfBirth}
           error={error('birthDate')}
@@ -406,4 +416,10 @@ export function BioSection({ section, etag, showErrors = false, focusField }: Bi
       </Card>
     </div>
   );
+}
+
+/** The declarant's name as the roster gave it, first name first. */
+function fullName(officer: Draft<Officer>): string {
+  const name = officer.name;
+  return [name?.firstName, name?.otherNames, name?.surname].filter(Boolean).join(' ');
 }

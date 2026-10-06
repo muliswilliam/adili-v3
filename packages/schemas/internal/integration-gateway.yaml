@@ -70,6 +70,78 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
       security:
         - bearer: []
+  /internal/v1/iprs/person-record-lookups:
+    post:
+      tags:
+        - internal
+      summary: 'The person IPRS holds for a national ID: names, date and place of birth, sex'
+      description: "A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours, shared with onboarding's lookup. An IPRS that gives no answer is outcome unavailable with a reason, never an error. not-found: IPRS has no person with the national ID. Requires a service token with scope `registry` acting for the Commission."
+      operationId: lookupIprsPersonRecord
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: X-Legal-Basis
+          in: header
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403
+          required: true
+          schema:
+            type: string
+            enum:
+              - regs-r20-1-b
+              - act-s35-5
+              - declarant-request
+        - name: X-Case-Ref
+          in: header
+          description: The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event
+          required: true
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+        - name: X-Subject-Person
+          in: header
+          description: Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistryLookup'
+      responses:
+        '200':
+          description: The lookup result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IprsResult'
+        '400':
+          description: X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope registry
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
   /internal/v1/kra/taxpayer-lookups:
     post:
       tags:
@@ -888,6 +960,10 @@ components:
         dateOfBirth:
           type: string
           format: date
+        placeOfBirth:
+          type:
+            - string
+            - 'null'
         sex:
           type: string
           enum:
@@ -899,6 +975,7 @@ components:
         - middleName
         - lastName
         - dateOfBirth
+        - placeOfBirth
         - sex
       description: A person as IPRS holds them
     System:
@@ -1187,6 +1264,38 @@ components:
         - checkedAt
         - parcels
       description: Land parcels registered to the national ID; empty unless found.
+    IprsResult:
+      type: object
+      properties:
+        resultId:
+          type: string
+          format: uuid
+        system:
+          $ref: '#/components/schemas/System'
+        outcome:
+          $ref: '#/components/schemas/LookupOutcome'
+        reason:
+          anyOf:
+            - $ref: '#/components/schemas/UnavailableReason'
+            - type: 'null'
+        cached:
+          type: boolean
+        checkedAt:
+          type: string
+          format: date-time
+        person:
+          anyOf:
+            - $ref: '#/components/schemas/IprsPerson'
+            - type: 'null'
+      required:
+        - resultId
+        - system
+        - outcome
+        - reason
+        - cached
+        - checkedAt
+        - person
+      description: 'The person IPRS holds for the national ID. not-found: IPRS has no such person. person is null unless found.'
     SupplierCheckResult:
       type: object
       properties:

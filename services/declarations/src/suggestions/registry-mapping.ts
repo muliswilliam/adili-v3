@@ -1,9 +1,4 @@
-import {
-  COUNTIES,
-  type DeclarationSectionKey,
-  type ItemSource,
-  type PersonKey,
-} from '@adili/forms';
+import { COUNTIES, type DeclarationSectionKey, type PersonKey } from '@adili/forms';
 
 import {
   companyNameMatchKey,
@@ -16,6 +11,7 @@ import {
 import type {
   ArdhisasaParcel,
   BrsDirectorship,
+  IprsPerson,
   KraTaxpayer,
   NtsaVehicle,
   RegistryResult,
@@ -37,6 +33,7 @@ import type {
  *   companyName, role. Whether it is remunerated stays the declarant's to say.
  * - `bio-tax` (KRA): kraPin, complianceStatus
  * - `income-hint` (KRA): incomeType only; the declared income travels in `sourceRef` as a hint
+ * - `bio-birth` (IPRS, the declarant's own, #612): dateOfBirth, placeOfBirth
  * Every statement item also carries a `description` the declarant can edit before adding.
  *
  * Value fields (`value`, `amount`) are never set: valuing an asset is the declarant's call.
@@ -87,6 +84,11 @@ export interface IncomeHintFields {
   incomeType: 'salary-emoluments';
 }
 
+export interface BioBirthFields {
+  dateOfBirth: string;
+  placeOfBirth?: string;
+}
+
 interface Proposed<TType extends string, TFields> {
   /** Where the suggestion lands: a person's financial statement, the bio, household or other. */
   sectionKey: DeclarationSectionKey;
@@ -104,7 +106,8 @@ export type MappedSuggestion =
   | Proposed<'shareholding', ShareholdingFields>
   | Proposed<'directorship', DirectorshipFields>
   | Proposed<'bio-tax', BioTaxFields>
-  | Proposed<'income-hint', IncomeHintFields>;
+  | Proposed<'income-hint', IncomeHintFields>
+  | Proposed<'bio-birth', BioBirthFields>;
 
 /**
  * The suggestions one registry result yields for one person, with the result they came from: the
@@ -114,7 +117,7 @@ export type MappedSuggestion =
  * checked on …".
  */
 export interface MappedSuggestionSet {
-  source: RegistrySystem & ItemSource['kind'];
+  source: RegistrySystem;
   /** `ready` when the registry answered (found or not found); `unavailable` when it did not. */
   status: 'ready' | 'unavailable';
   verificationResultId: string;
@@ -149,7 +152,28 @@ function suggestionsOf(result: RegistryResult, personKey: PersonKey): MappedSugg
       return result.directorships.flatMap((record) => mapDirectorship(record, personKey));
     case 'ardhisasa':
       return result.parcels.flatMap((parcel) => mapParcel(parcel, personKey));
+    case 'iprs':
+      return result.person ? mapPerson(result.person, personKey) : [];
   }
+}
+
+/**
+ * IPRS: the declarant's date and place of birth → their bio (paragraph 1). Name and sex are not
+ * offered: the name is the roster's, locked, and declaration.v1 holds no sex. A spouse's or
+ * child's particulars have no place in the bio, so they yield none.
+ */
+function mapPerson(person: IprsPerson, personKey: PersonKey): MappedSuggestion[] {
+  const dateOfBirth = text(person.dateOfBirth);
+  if (personKey !== 'officer' || !dateOfBirth) return [];
+  return [
+    {
+      sectionKey: 'bio',
+      itemType: 'bio-birth',
+      fields: { dateOfBirth, ...compact({ placeOfBirth: text(person.placeOfBirth) }) },
+      sourceRef: {},
+      matchKeys: [],
+    },
+  ];
 }
 
 /** NTSA: each vehicle registered to the person → a `vehicle` asset. */

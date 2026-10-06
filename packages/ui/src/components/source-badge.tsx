@@ -3,6 +3,7 @@ import {
   Briefcase01Icon,
   Car01Icon,
   File01Icon,
+  IdIcon,
   Location01Icon,
 } from '@hugeicons/core-free-icons';
 import type { ComponentProps } from 'react';
@@ -14,8 +15,11 @@ import { Badge } from './badge';
 import { Icon, type IconProps } from './icon';
 import { Tooltip } from './tooltip';
 
-/** Where a declared item's details can come from: a government registry, or a document the declarant read in. */
-export const SOURCE_KINDS = ['kra', 'ntsa', 'brs', 'ardhisasa', 'document'] as const;
+/**
+ * Where a declared item's details can come from: a government registry, or a document the
+ * declarant read in. IPRS (the civil register) offers the declarant's own particulars.
+ */
+export const SOURCE_KINDS = ['kra', 'ntsa', 'brs', 'ardhisasa', 'iprs', 'document'] as const;
 
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
@@ -25,6 +29,7 @@ export const SOURCE_NAMES: Record<SourceKind, string> = {
   ntsa: 'NTSA',
   brs: 'BRS',
   ardhisasa: 'ArdhiSasa',
+  iprs: 'IPRS',
   document: 'Document',
 };
 
@@ -33,6 +38,7 @@ export const SOURCE_ICONS: Record<SourceKind, IconProps['icon']> = {
   ntsa: Car01Icon,
   brs: Briefcase01Icon,
   ardhisasa: Location01Icon,
+  iprs: IdIcon,
   document: File01Icon,
 };
 

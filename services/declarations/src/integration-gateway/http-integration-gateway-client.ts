@@ -89,8 +89,22 @@ const ardhisasaResultSchema = envelope('ardhisasa').extend({
   ),
 });
 
+const iprsResultSchema = envelope('iprs').extend({
+  person: z
+    .object({
+      nationalId: z.string(),
+      firstName: z.string(),
+      middleName: z.string().nullable(),
+      lastName: z.string(),
+      dateOfBirth: z.string(),
+      placeOfBirth: z.string().nullable(),
+      sex: z.enum(['F', 'M']),
+    })
+    .nullable(),
+});
+
 /**
- * The integration-gateway's registry lookups (KRA, NTSA, BRS, ArdhiSasa, spec 07b) through the
+ * The integration-gateway's registry lookups (KRA, NTSA, BRS, ArdhiSasa, spec 07b; IPRS, #612) through the
  * client generated from its contract (packages/schemas/internal/integration-gateway.yaml →
  * integration-gateway-api.gen.ts) on api-kit's service client: the service's own token (`registry`), the national ID in the body, the Commission in
  * `X-Acting-Tenant`, the legal basis in `X-Legal-Basis`, the declaration in `X-Case-Ref` and the
@@ -144,6 +158,11 @@ export class HttpIntegrationGatewayClient extends IntegrationGatewayClient {
         return this.gateway.call(
           (api) => api.POST('/internal/v1/ardhisasa/parcel-lookups', { params, body }),
           { status: 200, schema: ardhisasaResultSchema },
+        );
+      case 'iprs':
+        return this.gateway.call(
+          (api) => api.POST('/internal/v1/iprs/person-record-lookups', { params, body }),
+          { status: 200, schema: iprsResultSchema },
         );
     }
   }

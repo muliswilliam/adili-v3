@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/iprs/person-record-lookups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The person IPRS holds for a national ID: names, date and place of birth, sex
+         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours, shared with onboarding's lookup. An IPRS that gives no answer is outcome unavailable with a reason, never an error. not-found: IPRS has no person with the national ID. Requires a service token with scope `registry` acting for the Commission.
+         */
+        post: operations["lookupIprsPersonRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/kra/taxpayer-lookups": {
         parameters: {
             query?: never;
@@ -319,6 +339,7 @@ export interface components {
             lastName: string;
             /** Format: date */
             dateOfBirth: string;
+            placeOfBirth: string | null;
             /** @enum {string} */
             sex: "F" | "M";
         };
@@ -425,6 +446,18 @@ export interface components {
                 /** Format: date */
                 registeredOn: string;
             }[];
+        };
+        /** @description The person IPRS holds for the national ID. not-found: IPRS has no such person. person is null unless found. */
+        IprsResult: {
+            /** Format: uuid */
+            resultId: string;
+            system: components["schemas"]["System"];
+            outcome: components["schemas"]["LookupOutcome"];
+            reason: components["schemas"]["UnavailableReason"] | null;
+            cached: boolean;
+            /** Format: date-time */
+            checkedAt: string;
+            person: components["schemas"]["IprsPerson"] | null;
         };
         /** @description Whether the company is on the employer's supplier list (HR). null when unavailable. */
         SupplierCheckResult: {
@@ -627,6 +660,66 @@ export interface operations {
                 };
             };
             /** @description Problem type `upstream-unavailable`: circuit open or timeout */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    lookupIprsPersonRecord: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
+                /** @description The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event */
+                "X-Case-Ref": string;
+                /** @description Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data */
+                "X-Subject-Person"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegistryLookup"];
+            };
+        };
+        responses: {
+            /** @description The lookup result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IprsResult"];
+                };
+            };
+            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope registry */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
             503: {
                 headers: {
                     [name: string]: unknown;

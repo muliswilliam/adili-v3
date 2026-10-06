@@ -19,6 +19,8 @@ import { companyKeys, type MatchKey, matchKeysOfItem } from './match-keys.js';
  * - `directorship`: a directorship among the declarant's registrable interests (paragraph 9)
  * - `bio-tax` for a spouse: the spouse's KRA PIN in Household. The declarant's has no field in
  *   declaration.v1, so it cannot be accepted.
+ * - `bio-birth` (IPRS, #612): the declarant's date and place of birth in the bio, which is no item:
+ *   accepting names none.
  *
  * A new item carries the suggestion as its `source`. Applied to an existing item, a suggestion
  * fills only the fields the item leaves empty unless `overwrite` is set, and marks the item with
@@ -48,8 +50,8 @@ export interface SuggestionToAccept {
 /** What accepting writes: into which section, and the edit that makes its new contents. */
 export interface Placement {
   sectionKey: DeclarationSectionKey;
-  /** The section's contents with the suggestion accepted, and the item it went into. */
-  apply: (stored: SectionContents) => { contents: SectionContents; itemId: string };
+  /** The section's contents with the suggestion accepted, and the item it went into (none for the bio). */
+  apply: (stored: SectionContents) => { contents: SectionContents; itemId: string | null };
 }
 
 /** A dotted path in an item, and the value accepting writes there. */
@@ -108,19 +110,22 @@ const STATEMENT_ITEMS: Record<
 
 const NIL_FLAG = { assets: 'assetsNil', income: 'incomeNil' } as const;
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 /**
  * Where the suggestion lands and how, or a 400 when it has no place in declaration.v1 (the
- * declarant's own KRA PIN, an item type the service does not know), or it is applied without
+ * declarant's own KRA PIN, an item type the service does not know, an item from a registry an
+ * item's `source` cannot name: `source` is null for IPRS), or it is applied without
  * `overwrite` to an item that describes something else (another registration, parcel or company).
  */
 export function placementOf(
   suggestion: SuggestionToAccept,
   accepted: AcceptedFields,
-  source: ItemSource,
+  source: ItemSource | null,
   newId: string,
 ): Placement {
   const statementItem = STATEMENT_ITEMS[suggestion.itemType];
-  if (statementItem && suggestion.sectionKey.startsWith('statement:')) {
+  if (statementItem && source && suggestion.sectionKey.startsWith('statement:')) {
     const patch = statementItem.patch(accepted.fields);
     const sourced = sourcing(suggestion, statementItem.patch(suggestion.fields), source, accepted);
     return {
@@ -158,7 +163,7 @@ export function placementOf(
       },
     };
   }
-  if (suggestion.itemType === 'directorship' && suggestion.sectionKey === 'other') {
+  if (suggestion.itemType === 'directorship' && source && suggestion.sectionKey === 'other') {
     const patch = directorshipPatch(accepted.fields);
     const sourced = sourcing(suggestion, directorshipPatch(suggestion.fields), source, accepted);
     return {
@@ -211,6 +216,20 @@ export function placementOf(
           itemId: spouseId,
         };
       },
+    };
+  }
+  if (suggestion.itemType === 'bio-birth' && suggestion.sectionKey === 'bio') {
+    const date = text(accepted.fields.dateOfBirth);
+    if (date && !ISO_DATE.test(date)) {
+      throw validationProblem([{ path: 'fields.dateOfBirth', message: 'Expected a date' }]);
+    }
+    const patch: Patch = [
+      ['birth.date', date],
+      ['birth.place', text(accepted.fields.placeOfBirth)],
+    ];
+    return {
+      sectionKey: 'bio',
+      apply: (stored) => ({ contents: patched(stored, patch, accepted.overwrite), itemId: null }),
     };
   }
   throw validationProblem([

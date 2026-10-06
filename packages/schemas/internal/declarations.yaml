@@ -3442,6 +3442,16 @@ components:
           examples:
             - - /employment/jobGroup
               - /maritalStatus
+        carriedOverFrom:
+          type: object
+          properties:
+            statementDate:
+              type: string
+              format: date
+              description: The earlier declaration's statement date
+          required:
+            - statementDate
+          description: "Household only, when the draft was started with the spouses and children of the declarant's last submitted declaration (its version in force). The household is offered, not confirmed: it is `not-started` until the declarant saves it, and that save sets up the statements. Absent when the household started empty."
         draftVersion:
           type: integer
       required:
@@ -5149,6 +5159,7 @@ components:
         - ntsa
         - brs
         - ardhisasa
+        - iprs
         - document
     Suggestion:
       type: object
@@ -5165,13 +5176,13 @@ components:
           $ref: '#/components/schemas/SectionKey'
         itemType:
           type: string
-          description: 'What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS, the type a document was read into), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value)'
+          description: "What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS, the type a document was read into), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse), `income-hint` (KRA, a hint to check the salary item, never a value) or `bio-birth` (IPRS, the declarant's date and place of birth, in `bio`)"
         fields:
           type: object
           propertyNames:
             type: string
           additionalProperties: {}
-          description: "Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call. A document's reading (source `document`) names its fields by their declaration.v1 path within the item instead (`details.registration`, `outstanding.kesCents`, `location.county`), typed as the item types them, amounts included: what the document says"
+          description: "Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType; `bio-birth` dateOfBirth, placeOfBirth. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call. A document's reading (source `document`) names its fields by their declaration.v1 path within the item instead (`details.registration`, `outstanding.kesCents`, `location.county`), typed as the item types them, amounts included: what the document says"
         sourceRef:
           type: object
           propertyNames:
@@ -5315,6 +5326,8 @@ components:
               - ntsa
               - brs
               - ardhisasa
+              - iprs
+          description: "The registries to check. `iprs` (the person's date and place of birth, for the bio) only for `officer`: a household member's are not declared, so they are not looked up (400)"
         consent:
           type: object
           properties:
@@ -5360,9 +5373,11 @@ components:
         suggestion:
           $ref: '#/components/schemas/Suggestion'
         itemId:
-          type: string
-          format: uuid
-          description: "The item added or filled: an asset or income of the person's statement, a directorship in `other`, or the spouse in `household` (for a spouse's KRA PIN)"
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: "The item added or filled: an asset or income of the person's statement, a directorship in `other`, or the spouse in `household` (for a spouse's KRA PIN). Null for the declarant's date and place of birth (IPRS `bio-birth`), filled into the bio, which is no item"
         etag:
           type: string
           description: The new draft version, as in the `ETag` header

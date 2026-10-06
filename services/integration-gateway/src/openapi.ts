@@ -2,7 +2,7 @@ import type { z } from 'zod';
 
 import { icmsReferralRequestSchema, icmsReferralSchema } from './icms/icms-records.js';
 import { coverageSchema, systemCoverageSchema } from './integrations/coverage.js';
-import { iprsPersonSchema, lookupIprsPersonSchema } from './iprs/iprs-person.js';
+import { iprsPersonSchema, iprsResultSchema, lookupIprsPersonSchema } from './iprs/iprs-person.js';
 import {
   payrollActionSchema,
   payrollInstructionRequestSchema,
@@ -38,6 +38,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   NtsaResult: ntsaResultSchema,
   BrsResult: brsResultSchema,
   ArdhisasaResult: ardhisasaResultSchema,
+  IprsResult: iprsResultSchema,
   SupplierCheckResult: supplierCheckResultSchema,
   StoredResult: storedResultSchema,
   SystemCoverage: systemCoverageSchema,

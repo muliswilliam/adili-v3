@@ -342,6 +342,52 @@ describe('accepting outside the statements', () => {
   });
 });
 
+describe('accepting into the bio', () => {
+  const bio = { name: { surname: 'Otieno' }, maritalStatus: 'single' };
+  const birth = (
+    stored: Record<string, unknown>,
+    fields: Record<string, unknown>,
+    overwrite = false,
+  ) =>
+    placementOf(
+      {
+        itemType: 'bio-birth',
+        sectionKey: 'bio',
+        personKey: 'officer',
+        fields: { dateOfBirth: '1980-04-02', placeOfBirth: 'Kisumu' },
+        matchKeys: [],
+      },
+      { fields, applyToItemId: null, overwrite },
+      { ...SOURCE, kind: 'kra' },
+      NEW_ID,
+    ).apply(stored);
+
+  it("fills the officer's date and place of birth, as accepted, into no item", () => {
+    const { contents, itemId } = birth(bio, { dateOfBirth: '1980-04-02', placeOfBirth: 'Kisumu' });
+
+    expect(contents).toEqual({ ...bio, birth: { date: '1980-04-02', place: 'Kisumu' } });
+    expect(itemId).toBeNull();
+  });
+
+  it('fills only what the bio leaves empty, unless told to overwrite', () => {
+    const stored = { ...bio, birth: { place: 'Kisumu City' } };
+    const fields = { dateOfBirth: '1980-04-02', placeOfBirth: 'Kisumu' };
+
+    expect(birth(stored, fields).contents.birth).toEqual({
+      date: '1980-04-02',
+      place: 'Kisumu City',
+    });
+    expect(birth(stored, fields, true).contents.birth).toEqual({
+      date: '1980-04-02',
+      place: 'Kisumu',
+    });
+  });
+
+  it('refuses a date that is not one', () => {
+    expect(() => birth(bio, { dateOfBirth: '2 April 1980' })).toThrow();
+  });
+});
+
 describe("naming the registry's verification result on the item's source", () => {
   const vehicle = { ...officerStatement, itemType: 'vehicle', fields: fielder };
   const unverified = { kind: SOURCE.kind, suggestionId: SOURCE.suggestionId, at: SOURCE.at };

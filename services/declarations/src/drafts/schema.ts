@@ -67,6 +67,11 @@ export interface SectionMetadata {
   prefilledFields?: string[];
   /** Household: the children who get no statement, by person key, with the reason. */
   notIncluded?: { personKey: string; reason: string }[];
+  /**
+   * Household: the statement date of the declaration whose spouses and children it was started
+   * with (story 4); absent when it started empty.
+   */
+  carriedOverFrom?: { statementDate: string };
 }
 
 /** One capture section of a declaration: `bio`, `household`, `statement:<personKey>`, `other`. */
