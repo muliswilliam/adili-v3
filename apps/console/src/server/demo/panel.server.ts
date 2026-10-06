@@ -1,16 +1,25 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import { DEMO_CHECKPOINTS, type DemoCheckpoint, isDemoCheckpoint } from '@adili/demo-auth';
+import {
+  DEMO_CHECKPOINTS,
+  type DemoCheckpoint,
+  demoSignIn,
+  isDemoCheckpoint,
+} from '@adili/demo-auth';
 
 import { env } from '../env.server';
+import {
+  callIntegrationGateway,
+  createIntegrationGatewayClient,
+} from '../integration-gateway/client';
 import { getDemoSwitch } from './demo.server';
 
 /**
- * The console's demo panel (#621): resets the stack to a checkpoint and takes a registry mock
- * offline, as thin wrappers over `pnpm demo:reset` (the configured script) and the mocks'
- * `/demo/registries` routes. Demo mode only, and only for a signed-in demo account: everything
- * here answers null (the panel is absent) otherwise.
+ * The console's demo panel (#621): resets the stack to a checkpoint and pauses a registry, as thin
+ * wrappers over `pnpm demo:reset` (the configured script), the mocks' `/demo/registries` routes and
+ * the integration-gateway's pause. Demo mode only, and only for a signed-in demo account:
+ * everything here answers null (the panel is absent) otherwise.
  */
 
 /** The registries the mocks can pause (mocks/config/faults.py), as the panel names them. */
@@ -78,13 +87,27 @@ async function registryPaused(mocksUrl: string, system: DemoRegistry): Promise<b
   }
 }
 
-/** Pauses or resumes a registry mock; answers its state after, or null (not allowed, or down). */
+/**
+ * Pauses or resumes a registry, both where the panel shows it and where lookups see it (#477): the
+ * registry mock goes offline, and the integration-gateway pauses it as the platform admin would on
+ * the Integrations page, so even a subject in the gateway's 24-hour cache answers unavailable
+ * (paused). The mock alone would not show: a declarant's "Check again" is answered from the cache.
+ * Answers the state after, or null (not allowed, or either did not answer).
+ */
 export async function setRegistryPaused(
   request: Request,
   system: DemoRegistry,
   paused: boolean,
 ): Promise<boolean | null> {
   if (!(await demoAccount(request))) return null;
+  const [mock, gateway] = await Promise.all([
+    setMockPaused(system, paused),
+    setGatewayPaused(system, paused),
+  ]);
+  return mock && gateway ? paused : null;
+}
+
+async function setMockPaused(system: DemoRegistry, paused: boolean): Promise<boolean> {
   const { DEMO_MOCKS_URL } = env();
   const action = paused ? 'pause' : 'resume';
   try {
@@ -92,10 +115,58 @@ export async function setRegistryPaused(
       new URL(`demo/registries/${system}/${action}`, withSlash(DEMO_MOCKS_URL)),
       { method: 'POST', signal: AbortSignal.timeout(3000) },
     );
-    return response.ok ? paused : null;
+    return response.ok;
   } catch {
-    return null;
+    return false;
   }
+}
+
+/** The demo account the gateway's pause is recorded as: Juma Omondi, the platform admin. */
+const PLATFORM_ADMIN = 'platform-admin';
+
+async function setGatewayPaused(system: DemoRegistry, paused: boolean): Promise<boolean> {
+  const config = env();
+  try {
+    const client = createIntegrationGatewayClient({
+      baseUrl: config.INTEGRATION_GATEWAY_API_URL,
+      accessToken: await platformAdminToken(),
+    });
+    const params = { params: { path: { system } } };
+    const result = await callIntegrationGateway(() =>
+      paused
+        ? client.POST('/v1/integrations/{system}/pause', params)
+        : client.POST('/v1/integrations/{system}/resume', params),
+    );
+    return result.ok;
+  } catch (error) {
+    console.error('Demo panel: the integration-gateway pause failed', error);
+    return false;
+  }
+}
+
+let adminToken: { accessToken: string; expiresAt: number } | undefined;
+
+/**
+ * The platform admin's access token, signed in with a demo ticket through the console's own client
+ * (as the role switcher does, without a browser); reused while it has a minute left.
+ */
+async function platformAdminToken(): Promise<string> {
+  if (adminToken && adminToken.expiresAt - Date.now() > 60_000) return adminToken.accessToken;
+  const config = env();
+  if (!config.DEMO_TICKET_SECRET) throw new Error('DEMO_MODE needs DEMO_TICKET_SECRET');
+  const tokens = await demoSignIn({
+    issuerUrl: config.OIDC_ISSUER_URL,
+    clientId: config.OIDC_CLIENT_ID,
+    clientSecret: config.OIDC_CLIENT_SECRET,
+    redirectUri: new URL('/auth/callback', config.APP_URL).href,
+    demoKey: PLATFORM_ADMIN,
+    ticketSecret: config.DEMO_TICKET_SECRET,
+  });
+  adminToken = {
+    accessToken: tokens.accessToken,
+    expiresAt: Date.now() + tokens.expiresInSeconds * 1000,
+  };
+  return adminToken.accessToken;
 }
 
 const run = promisify(execFile);

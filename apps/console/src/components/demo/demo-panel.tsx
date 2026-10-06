@@ -219,8 +219,8 @@ function DemoPanelContent() {
                 Registries
               </h3>
               <p className="text-sm text-muted-foreground">
-                A paused registry answers as unavailable: new checks wait and retry, cases show the
-                check as pending.
+                A paused registry answers as unavailable, cached answers included: filing and review
+                carry on and show it as not available. Integrations shows it paused by Juma Omondi.
               </p>
               <ul className="flex flex-col divide-y rounded-lg border">
                 {panel.registries.map((registry) => (
