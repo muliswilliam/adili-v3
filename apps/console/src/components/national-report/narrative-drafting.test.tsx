@@ -53,6 +53,8 @@ interface Options {
   narrative?: NarrativeDraftMockSeed;
   viewer?: typeof ANALYST;
   draft?: NarrativeDraftAsk;
+  /** Holds each narrative save until it settles, for a test to see what happens meanwhile. */
+  saveHeld?: Promise<unknown>;
 }
 
 async function renderPage({
@@ -61,6 +63,7 @@ async function renderPage({
   narrative = 'inserted',
   viewer = ANALYST,
   draft = draftFromMock,
+  saveHeld = Promise.resolve(),
 }: Options = {}) {
   if (!keep) {
     setReportingMockLatency(0);
@@ -75,6 +78,7 @@ async function renderPage({
   const result = page;
   const onUnauthenticated = vi.fn();
   const ask = vi.fn(draft);
+  const loadReport = (fy: number) => loadNationalReport(client(), fy);
 
   function Page() {
     const report = result.data.report;
@@ -82,6 +86,7 @@ async function renderPage({
       fy: 2025,
       report,
       load: (fy) => loadPatternCandidates(client(), fy),
+      loadReport,
       page: 1,
       onPageChange: vi.fn(),
       onUnauthenticated,
@@ -90,7 +95,7 @@ async function renderPage({
       fy: 2025,
       report,
       draft: ask,
-      load: (fy) => loadNationalReport(client(), fy),
+      load: loadReport,
       onUnauthenticated,
       figures: patterns.paragraphMeta,
       pollMs: 5,
@@ -105,7 +110,10 @@ async function renderPage({
         result={result}
         viewer={viewer}
         build={vi.fn()}
-        saveNarrative={(fy, text) => saveNationalReportNarrative(client(), fy, text)}
+        saveNarrative={async (fy, text) => {
+          await saveHeld;
+          return saveNationalReportNarrative(client(), fy, text);
+        }}
         approve={vi.fn()}
         pdfLink={vi.fn()}
         onUnauthenticated={onUnauthenticated}
@@ -274,7 +282,8 @@ describe('Draft narrative', () => {
   });
 
   it('saves edits not saved yet before asking, so the draft keeps them, and holds the editor meanwhile', async () => {
-    const { ask } = await renderPage();
+    const { promise: saveHeld, resolve: release } = Promise.withResolvers<null>();
+    const { ask } = await renderPage({ saveHeld });
     const findings = sectionOf('Findings');
     const edited = 'The Nairobi City board explained its biennial rate.';
     fireEvent.change(within(findings).getByRole('textbox', { name: 'Findings, paragraph 2' }), {
@@ -292,6 +301,7 @@ describe('Draft narrative', () => {
       ).toBe(true);
     });
     expect(ask).not.toHaveBeenCalled();
+    release(null);
     await waitFor(
       () => {
         expect(ask).toHaveBeenCalled();

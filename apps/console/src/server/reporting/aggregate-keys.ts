@@ -222,8 +222,8 @@ export function commissionFigures(
   };
 }
 
-/** A figure of the report's own year, or null (a prior year's, or one it does not have). */
-export function currentFigure(aggregates: NationalAggregates, key: AggregateKey): number | null {
+/** A figure of the year `aggregates` are for, or null (another year's, or one it does not have). */
+export function figureOf(aggregates: NationalAggregates, key: AggregateKey): number | null {
   if (key.fy !== aggregates.fy) return null;
   if (key.scope === 'national') return nationalFigures(aggregates)[key.name];
   return commissionFigures(aggregates, key.slug)?.[key.name] ?? null;

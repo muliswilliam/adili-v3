@@ -27,6 +27,14 @@
         "$TURBO_ROOT$/packages/schemas/internal/ai-gateway.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/reporting.yaml"
       ]
+    },
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/services/reporting/src/national-reports/narrative-input.ts",
+        "$TURBO_ROOT$/services/review/src/referrals/referrals.service.ts",
+        "$TURBO_ROOT$/services/review/src/referrals/referral-approvals.ts"
+      ]
     }
   }
 }
