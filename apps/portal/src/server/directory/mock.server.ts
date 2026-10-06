@@ -173,6 +173,7 @@ const DEMO_DECLARANT: DeclarantProfile = {
   ofr: 'OFR-0000312-7',
   fullName: 'Wanjiku Njoki Kamau',
   contacts: { email: 'wanjiku.kamau@tsc.go.ke', phone: '+254712345789' },
+  preferredLanguage: null,
   commissions: [
     {
       slug: 'tsc',
@@ -192,6 +193,7 @@ export const DECLARANT_PROFILES: Record<string, DeclarantProfile> = {
     ofr: 'OFR-0000417-4',
     fullName: 'Grace Wambui Njeri',
     contacts: { email: 'grace.njeri@npsc.go.ke', phone: '+254712345901' },
+    preferredLanguage: null,
     commissions: [
       {
         slug: 'psc',
@@ -241,7 +243,34 @@ function myDeclarantProfile(request: Request) {
       detail: 'Requires one of the roles: declarant',
     });
   }
-  return json(200, DECLARANT_PROFILES[claims.preferred_username ?? ''] ?? DEMO_DECLARANT);
+  return json(200, profileOf(claims));
+}
+
+/** The caller's profile: theirs by username, or the demo declarant's. */
+function profileOf(claims: TokenClaims): DeclarantProfile {
+  return DECLARANT_PROFILES[claims.preferred_username ?? ''] ?? DEMO_DECLARANT;
+}
+
+/** `PUT /v1/me/declarant/preferred-language`: kept on the profile until the server restarts. */
+async function setMyPreferredLanguage(request: Request) {
+  const claims = bearerClaims(request);
+  if (!claims) return json(401, { type: 'about:blank', title: 'Unauthorized', status: 401 });
+  if (!claims.realm_access?.roles?.includes('declarant')) {
+    return json(403, { type: 'about:blank', title: 'Forbidden', status: 403 });
+  }
+  const body = (await request.json().catch(() => null)) as { preferredLanguage?: unknown } | null;
+  const language = body?.preferredLanguage;
+  if (language !== 'en' && language !== 'sw') {
+    return json(400, {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      errors: [{ path: 'preferredLanguage', message: 'English or Kiswahili' }],
+    });
+  }
+  const profile = profileOf(claims);
+  profile.preferredLanguage = language;
+  return json(200, profile);
 }
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
@@ -641,6 +670,10 @@ export async function mockDirectoryFetch(request: Request): Promise<Response> {
 
   if (request.method === 'GET' && path === '/v1/me/declarant') {
     return myDeclarantProfile(request);
+  }
+
+  if (request.method === 'PUT' && path === '/v1/me/declarant/preferred-language') {
+    return setMyPreferredLanguage(request);
   }
 
   if (request.method === 'GET' && path === '/v1/me/applicant') {

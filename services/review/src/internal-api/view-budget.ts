@@ -10,6 +10,13 @@
 /** The declaration of the version under review, for the case view and the Registry tab. */
 export const VIEW_DECLARATIONS_BUDGET_MS = 5_000;
 
+/**
+ * The declarant's preferred language, for the case view (spec 07c FE-3). Read while the
+ * declaration is pulled; shorter than the declarations budget, so the view never waits longer
+ * for it than it already may for the declaration. Past it the view answers with no language.
+ */
+export const VIEW_PREFERRED_LANGUAGE_BUDGET_MS = 2_000;
+
 /** The registry records the Registry tab reads from the integration-gateway, all together. */
 export const VIEW_REGISTRY_RECORDS_BUDGET_MS = 3_000;
 

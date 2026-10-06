@@ -1,7 +1,7 @@
 import createClient from 'openapi-fetch';
 import { describe, expect, it } from 'vitest';
 
-import { loadDeclarantAccount } from './declarant.server';
+import { loadDeclarantAccount, savePreferredLanguage } from './declarant.server';
 import { mockDirectoryFetch } from './directory/mock.server';
 import type { paths } from './directory/schema.gen';
 import type { DeclarantProfile } from './directory/types';
@@ -42,6 +42,7 @@ describe('loadDeclarantAccount', () => {
         ],
         maskedEmail: 'w***@tsc.go.ke',
         maskedPhone: '07** *** 789',
+        preferredLanguage: null,
       },
     });
     // The full contacts stay on the server.
@@ -72,6 +73,7 @@ describe('loadDeclarantAccount', () => {
       ofr: 'OFR-0000312-7',
       fullName: 'Wanjiku Njoki Kamau',
       contacts: { email: null, phone: null },
+      preferredLanguage: null,
       commissions: [
         {
           slug: 'psc',
@@ -140,6 +142,44 @@ describe('loadDeclarantAccount', () => {
       status: 'unavailable',
     });
     expect(await loadDeclarantAccount(client(declarant, unreachable))).toEqual({
+      status: 'unavailable',
+    });
+  });
+});
+
+describe('savePreferredLanguage (spec 07c FE-3)', () => {
+  it('stores the language, which the account then carries', async () => {
+    const someone = token({
+      preferred_username: 'OFR-0000417-4',
+      realm_access: { roles: ['declarant'] },
+    });
+
+    expect(await savePreferredLanguage(client(someone), 'sw')).toEqual({
+      status: 'saved',
+      preferredLanguage: 'sw',
+    });
+    const account = await loadDeclarantAccount(client(someone));
+    expect(account.status === 'onboarded' && account.account.preferredLanguage).toBe('sw');
+
+    await savePreferredLanguage(client(someone), 'en');
+    const back = await loadDeclarantAccount(client(someone));
+    expect(back.status === 'onboarded' && back.account.preferredLanguage).toBe('en');
+  });
+
+  it('reports unavailable when the directory refuses or cannot be reached', async () => {
+    const refused = () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ type: 'about:blank', title: 'Not Found', status: 404 }), {
+          status: 404,
+          headers: { 'content-type': 'application/problem+json' },
+        }),
+      );
+    const down = () => Promise.reject(new Error('connect ECONNREFUSED'));
+
+    expect(await savePreferredLanguage(client(declarant, refused), 'sw')).toEqual({
+      status: 'unavailable',
+    });
+    expect(await savePreferredLanguage(client(declarant, down), 'sw')).toEqual({
       status: 'unavailable',
     });
   });

@@ -248,6 +248,8 @@ interface StoredCase {
   declarationsDown: boolean;
   /** Someone claims the case just before the caller does (a claim race). */
   claimedFirstBy: Assignee | null;
+  /** The language the declarant chose in the portal (spec 07c FE-3); null when none. */
+  declarantLanguage: CaseDetail['declarantLanguage'];
 }
 
 const cases = new Map<string, StoredCase>();
@@ -314,6 +316,7 @@ function storedCase(item: CaseListItem, overrides: Partial<StoredCase> = {}): St
     ],
     declarationsDown: false,
     claimedFirstBy: null,
+    declarantLanguage: null,
     ...overrides,
   };
 }
@@ -645,6 +648,8 @@ export function resetReviewMock(
       history: [MERCY, PETER],
       flags: mockFlags(C.peters),
       document: declarationOf(DECLARANTS.mary),
+      // Mary prefers Kiswahili: a clarification to her starts in it.
+      declarantLanguage: 'sw',
     }),
   );
 
@@ -1426,6 +1431,7 @@ function detail(stored: StoredCase, caller: Assignee): CaseDetail {
     reviewerHistory: history,
     determinations: determinationsOf(stored.item.id, caller),
     registry: { checkedAt: null, checks: [], recheckAvailableAt: null },
+    declarantLanguage: stored.declarantLanguage,
   };
 }
 

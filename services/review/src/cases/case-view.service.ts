@@ -14,9 +14,11 @@ import type { ReviewSchema } from '../db/schema.js';
 import { determinationView } from '../determinations/representation.js';
 import { determinations } from '../determinations/schema.js';
 import { DeclarationsClient, type PulledVersion } from '../declarations/declarations-client.js';
+import { DirectoryClient, type PreferredLanguage } from '../directory/directory-client.js';
 import { DocumentsClient, DocumentsUnavailable } from '../documents/documents-client.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { upstreamUnavailable } from '../internal-api/upstream.js';
+import { VIEW_PREFERRED_LANGUAGE_BUDGET_MS, within } from '../internal-api/view-budget.js';
 import { pullViewedVersion } from '../internal-api/view-declaration.js';
 import { registrySummary } from '../registry/representation.js';
 import { registryChecks } from '../registry/schema.js';
@@ -62,11 +64,13 @@ export class CaseViewService {
     private readonly events: EventPublisher,
     private readonly declarations: DeclarationsClient,
     private readonly documents: DocumentsClient,
+    private readonly directory: DirectoryClient,
   ) {}
 
   /**
-   * The case with its declaration. When declarations cannot give the document, 502 with the rest
-   * of the case in the problem, so the reviewer still sees the case's own data.
+   * The case with its declaration and the declarant's preferred language. When declarations
+   * cannot give the document, 502 with the rest of the case in the problem, so the reviewer
+   * still sees the case's own data.
    */
   async detail(principal: Principal, caseId: string, audit: ReadAudit): Promise<CaseDetail> {
     const tenant = caseTenant(principal);
@@ -77,9 +81,14 @@ export class CaseViewService {
     });
     auditCaseRead(audit, row);
 
-    const pulled = await this.pull(principal, row).catch((error: unknown) => {
+    const declarantLanguage = this.declarantLanguage(row);
+    const pulled = await this.pull(principal, row).catch(async (error: unknown) => {
       if (error instanceof ProblemException) {
-        throw new ProblemException(error.problem, { ...detail, document: null });
+        throw new ProblemException(error.problem, {
+          ...detail,
+          declarantLanguage: await declarantLanguage,
+          document: null,
+        });
       }
       throw error;
     });
@@ -92,7 +101,7 @@ export class CaseViewService {
         data: { caseId: row.id, subject: principal.subject },
       }),
     );
-    return { ...detail, document: pulled.document };
+    return { ...detail, declarantLanguage: await declarantLanguage, document: pulled.document };
   }
 
   /**
@@ -127,6 +136,19 @@ export class CaseViewService {
     return notFoundIfInvisible(link);
   }
 
+  /**
+   * The language the declarant prefers (spec 07c FE-3); null when they chose none, or when the
+   * directory fails or does not answer within the budget: the default letter language is
+   * English, and the reviewer can still pick.
+   */
+  private declarantLanguage(row: CaseRow): Promise<PreferredLanguage | null> {
+    return within(
+      VIEW_PREFERRED_LANGUAGE_BUDGET_MS,
+      () => this.directory.getPreferredLanguage(row.tenant, row.personId),
+      () => new Error('The directory did not give the preferred language in time.'),
+    ).catch(() => null);
+  }
+
   /** The current version as the declarations service gives it, read for the viewer and case. */
   private pull(principal: Principal, row: CaseRow): Promise<PulledVersion> {
     return pullViewedVersion(this.declarations, principal, row);
@@ -146,7 +168,7 @@ function auditCaseRead(audit: ReadAudit, row: CaseRow): void {
 async function caseData(
   tx: ReviewTransaction,
   row: CaseRow,
-): Promise<Omit<CaseDetail, 'document'>> {
+): Promise<Omit<CaseDetail, 'document' | 'declarantLanguage'>> {
   const flags = await tx
     .select()
     .from(reviewFlags)

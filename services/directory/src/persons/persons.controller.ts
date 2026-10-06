@@ -1,5 +1,5 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
+import { ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   ActingTenant,
   ApiProblemResponse,
@@ -18,6 +18,7 @@ import {
 import {
   AUDITOR,
   DECLARANT,
+  DIRECTORY_INTERNAL_SCOPE,
   DIRECTORY_PERSON_CONTACTS_SCOPE,
   DIRECTORY_PERSON_NATIONAL_ID_SCOPE,
   HELPDESK,
@@ -34,7 +35,10 @@ import {
   type PersonContacts,
   type PersonName,
   type PersonNationalId,
+  type PersonPreferredLanguage,
   type PersonSummary,
+  type SetPreferredLanguageBody,
+  setPreferredLanguageBody,
 } from './representation.js';
 
 /** Roles that look a person up by officer reference (spec 03 authorisation matrix). */
@@ -113,6 +117,63 @@ export class DeclarantProfileController {
   @ApiProblemResponse(404, 'The account has the declarant role but no onboarded person')
   profile(@CurrentPrincipal() principal: Principal): Promise<DeclarantProfile> {
     return this.persons.declarantProfile(principal.subject);
+  }
+
+  @Put('declarant/preferred-language')
+  @Roles(DECLARANT)
+  @ApiOperation({
+    operationId: 'setMyPreferredLanguage',
+    summary: "Set the signed-in declarant's preferred language",
+    description:
+      "Declarants only, their own. English or Swahili: a clarification letter to them starts in it, and so does the reviewer's Draft with AI (spec 07c FE-3). Records `person.preferred-language-set.v1`; setting the same language again changes nothing.",
+  })
+  @ApiBody({ required: true, schema: schemaRef('SetPreferredLanguage') })
+  @ApiOkResponse({
+    description: 'Profile with the language stored',
+    schema: schemaRef('DeclarantProfile'),
+  })
+  @ApiProblemResponse(400, 'Not a language letters are issued in')
+  @ApiProblemResponse(401, 'Missing, expired or invalid access token')
+  @ApiProblemResponse(404, 'The account has the declarant role but no onboarded person')
+  setPreferredLanguage(
+    @CurrentPrincipal() principal: Principal,
+    @Body(new ZodValidationPipe(setPreferredLanguageBody)) body: SetPreferredLanguageBody,
+  ): Promise<DeclarantProfile> {
+    return this.persons.setPreferredLanguage(principal.subject, body.preferredLanguage);
+  }
+}
+
+/**
+ * Internal: not routed by the public entrypoint. A declarant's preferred language, for services
+ * with `directory:internal` acting for a Commission they are onboarded at: the review service
+ * starts a clarification letter in it (spec 07c FE-3). Not personal data, so not audited.
+ */
+@ApiTags('internal')
+@Controller('internal/v1/persons')
+@InternalApi(DIRECTORY_INTERNAL_SCOPE)
+export class InternalPersonPreferredLanguageController {
+  constructor(private readonly persons: PersonsService) {}
+
+  @Get(':personId/preferred-language')
+  @ApiParam({ name: 'personId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'internalGetPersonPreferredLanguage',
+    summary: "A declarant's preferred language (review)",
+    description:
+      'Service tokens with scope directory:internal, acting for a Commission the declarant is onboarded at. The language the declarant chose in the portal, null until they choose one. 404 when the person is unknown or not a declarant onboarded at that tenant.',
+  })
+  @ApiOkResponse({
+    description: 'The preferred language',
+    schema: schemaRef('PersonPreferredLanguage'),
+  })
+  @ApiProblemResponse(400, 'personId is not a UUID')
+  @ApiProblemResponse(404, 'No declarant onboarded at the acting tenant has this id')
+  preferredLanguage(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('personId', new ZodValidationPipe(z.uuid())) personId: string,
+  ): Promise<PersonPreferredLanguage> {
+    return this.persons.preferredLanguage({ tenant, subject: principal.subject }, personId);
   }
 }
 

@@ -136,7 +136,7 @@ One thing a clarification asks: the section, person or item it concerns, what Ac
 _Avoid_: question
 
 **Letter language**:
-The language a clarification letter is issued in, English or Swahili, chosen by the reviewer. The letter's own text (heading, introduction, item labels, requirements, how to respond) is printed in it; the reviewer's text is printed as written. Draft with AI drafts in it. The contract calls it `language` (`LetterLanguage`).
+The language a clarification letter is issued in, English or Swahili, chosen by the reviewer. A new letter starts in the declarant's preferred language, which they set on their portal account (English until they do). The letter's own text (heading, introduction, item labels, requirements, how to respond) is printed in it; the reviewer's text is printed as written. Draft with AI drafts in it. The contract calls it `language` (`LetterLanguage`).
 _Avoid_: locale
 
 **Further clarification**:

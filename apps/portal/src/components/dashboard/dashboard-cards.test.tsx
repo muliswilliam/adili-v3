@@ -22,6 +22,12 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('../../server/declarations', async () =>
   (await import('../declaration/testing-mocks')).serverMock(),
 );
+const setMyPreferredLanguage = vi.hoisted(() => vi.fn());
+vi.mock('../../server/preferences', () => ({ setMyPreferredLanguage }));
+const signInAgain = vi.hoisted(() => vi.fn());
+vi.mock('../sign-in', () => ({ signInAgain }));
+// jsdom does not lay out, so it has no scrollIntoView, which the language list calls.
+Element.prototype.scrollIntoView = vi.fn();
 
 const account: DeclarantAccount = {
   fullName: 'Mwangi Njoroge Kamau',
@@ -31,6 +37,7 @@ const account: DeclarantAccount = {
   ],
   maskedEmail: 'm***@tsc.go.ke',
   maskedPhone: '07** *** 789',
+  preferredLanguage: null,
 };
 
 function renderCards(
@@ -128,6 +135,56 @@ describe('DashboardCards', () => {
     renderCards({ status: 'onboarded', account: { ...account, maskedPhone: null } });
 
     expect(valueOf('Phone').textContent).toBe('Not provided');
+  });
+
+  it('lets the declarant choose the language letters to them start in, English until they do (spec 07c FE-3)', async () => {
+    setMyPreferredLanguage.mockResolvedValueOnce({ status: 'saved', preferredLanguage: 'sw' });
+    renderCards({ status: 'onboarded', account });
+
+    const language = within(valueOf('Letter language')).getByRole('combobox', {
+      name: 'Language of letters to you',
+    });
+    expect(language.textContent).toContain('English');
+
+    fireEvent.keyDown(language, { key: 'Enter' });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('option', { name: 'Kiswahili' }));
+    });
+
+    expect(setMyPreferredLanguage).toHaveBeenCalledWith({ data: { language: 'sw' } });
+    expect(language.textContent).toContain('Kiswahili');
+    expect(screen.getByRole('status').textContent).toContain(
+      'Letters from your Commission will start in Kiswahili',
+    );
+  });
+
+  it('goes back to the language saved when the choice cannot be saved', async () => {
+    setMyPreferredLanguage.mockResolvedValueOnce({ status: 'unavailable' });
+    renderCards({ status: 'onboarded', account: { ...account, preferredLanguage: 'sw' } });
+
+    const language = within(valueOf('Letter language')).getByRole('combobox');
+    expect(language.textContent).toContain('Kiswahili');
+    fireEvent.keyDown(language, { key: 'Enter' });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('option', { name: 'English' }));
+    });
+
+    expect(language.textContent).toContain('Kiswahili');
+    expect(screen.getByRole('alert').textContent).toContain('could not be saved');
+  });
+
+  it('signs the declarant in again when their session ended before the language was saved', async () => {
+    setMyPreferredLanguage.mockResolvedValueOnce({ status: 'unauthenticated' });
+    renderCards({ status: 'onboarded', account });
+
+    const language = within(valueOf('Letter language')).getByRole('combobox');
+    fireEvent.keyDown(language, { key: 'Enter' });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('option', { name: 'Kiswahili' }));
+    });
+
+    expect(signInAgain).toHaveBeenCalledOnce();
+    expect(language.textContent).toContain('English');
   });
 
   it('shows the sign-in identity for someone not onboarded', () => {

@@ -6,6 +6,7 @@ import {
   DirectoryUnavailable,
   type LadderPolicy,
   type PayrollRosterFacts,
+  type PreferredLanguage,
   type StaffMember,
 } from '../../src/directory/directory-client.js';
 
@@ -32,6 +33,8 @@ export class FakeDirectory extends DirectoryClient {
   private readonly ladders = new Map<string, LadderPolicy>();
   private readonly rosters = new Map<string, PayrollRosterFacts>();
   private readonly staff = new Map<string, StaffMember[]>();
+  private readonly languages = new Map<string, PreferredLanguage>();
+  private languagesUnavailable = false;
 
   givenCommission(slug: string, policy: ClarificationPolicy = DEFAULT_CLARIFICATION_POLICY): void {
     this.policies.set(slug, policy);
@@ -51,6 +54,26 @@ export class FakeDirectory extends DirectoryClient {
     this.staff.set(`${slug}:${role}`, structuredClone(members));
   }
 
+  /** The language the declarant chose (none by default). */
+  givenPreferredLanguage(personId: string, language: PreferredLanguage): void {
+    this.languages.set(personId, language);
+  }
+
+  /** Every read of a preferred language fails, as when the directory is down. */
+  failPreferredLanguageReads(): void {
+    this.languagesUnavailable = true;
+  }
+
+  getPreferredLanguage(slug: string, personId: string): Promise<PreferredLanguage | null> {
+    if (this.languagesUnavailable) {
+      return Promise.reject(new DirectoryUnavailable('The directory is down'));
+    }
+    if (!this.policies.has(slug)) {
+      return Promise.reject(new DirectoryUnavailable(`No Commission ${slug}`));
+    }
+    return Promise.resolve(this.languages.get(personId) ?? null);
+  }
+
   listStaff(slug: string, role: 'reviewer' | 'supervisor'): Promise<StaffMember[]> {
     if (!this.policies.has(slug)) {
       return Promise.reject(new DirectoryUnavailable(`No Commission ${slug}`));
@@ -60,6 +83,8 @@ export class FakeDirectory extends DirectoryClient {
 
   reset(): void {
     this.staff.clear();
+    this.languages.clear();
+    this.languagesUnavailable = false;
     this.policies.clear();
     this.ladders.clear();
     this.rosters.clear();

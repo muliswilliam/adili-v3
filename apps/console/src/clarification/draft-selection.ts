@@ -23,7 +23,7 @@ export type DraftLanguage = CopilotDraftInput['language'];
 
 export const DRAFT_LANGUAGES: readonly DraftLanguage[] = ['en', 'sw'];
 
-/** No source holds the declarant's preferred language yet (see #287), so drafts start in English. */
+/** The letter language when the declarant has chosen none (`CaseDetail.declarantLanguage`). */
 export const DEFAULT_DRAFT_LANGUAGE: DraftLanguage = 'en';
 
 export const selectionSize = (selection: DraftSelection): number =>

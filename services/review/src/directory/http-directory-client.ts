@@ -1,6 +1,7 @@
 import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
+import { LETTER_LANGUAGES } from '../cases/schema.js';
 import type { paths } from './directory-api.gen.js';
 import {
   type ClarificationPolicy,
@@ -10,6 +11,7 @@ import {
   DirectoryUnavailable,
   type LadderPolicy,
   type PayrollRosterFacts,
+  type PreferredLanguage,
   type StaffMember,
 } from './directory-client.js';
 
@@ -72,12 +74,18 @@ const staffSchema = z.object({
   items: z.array(z.object({ subject: z.string().min(1), name: z.string().min(1) })),
 });
 
+/** A declarant's preferred language: null until they choose one. */
+const preferredLanguageSchema = z.object({
+  preferredLanguage: z.enum(LETTER_LANGUAGES).nullable(),
+});
+
 /** The record's national ID, which the directory serves on its own route and scope. */
 const nationalIdSchema = z.object({ nationalId: z.string().min(1) });
 
 /**
  * The directory's `internalGetTenantPolicy` (clarification periods, ladder windows),
- * `internalGetCommission`, `internalGetRosterRecord` and `internalGetRosterNationalId` through the
+ * `internalGetCommission`, `internalGetRosterRecord`, `internalGetRosterNationalId` and
+ * `internalGetPersonPreferredLanguage` through the
  * client generated from its contract (directory-api.gen.ts) on api-kit's service client, with the
  * review service's own token (`directory:internal`, and `directory:roster-national-id` for the
  * national ID) and the Commission in `X-Acting-Tenant`. A policy and a Commission are
@@ -186,5 +194,16 @@ export class HttpDirectoryClient extends DirectoryClient {
       { status: 200, schema: staffSchema },
     );
     return found.items.map(({ subject, name }) => ({ subject, name }));
+  }
+
+  async getPreferredLanguage(slug: string, personId: string): Promise<PreferredLanguage | null> {
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/persons/{personId}/preferred-language', {
+          params: { path: { personId }, header: { 'X-Acting-Tenant': slug } },
+        }),
+      { status: 200, schema: preferredLanguageSchema, otherwise: { 404: () => null } },
+    );
+    return found?.preferredLanguage ?? null;
   }
 }

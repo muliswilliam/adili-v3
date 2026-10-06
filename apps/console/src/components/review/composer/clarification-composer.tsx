@@ -139,6 +139,11 @@ export interface ClarificationComposerProps {
   followUpOf?: { reference: string | null } | null;
   /** Items a new clarification starts with instead of one blank item. */
   seed?: ComposerDraft | null;
+  /**
+   * The language the declarant prefers (`CaseDetail.declarantLanguage`): a new clarification, and
+   * so Draft with AI, starts in it; English when null. A saved draft keeps its own.
+   */
+  declarantLanguage?: DraftLanguage | null;
   /** "Now", for the letter's date and the response due date. */
   now: string;
   /** Rendered above the items: the place for Draft with AI (#288). */
@@ -213,6 +218,7 @@ function ComposerBody({
   draft = null,
   followUpOf = null,
   seed = null,
+  declarantLanguage = null,
   now,
   tools,
   onSaved,
@@ -235,7 +241,7 @@ function ComposerBody({
         targets,
       );
     }
-    const start = emptyComposer();
+    const start = emptyComposer(declarantLanguage);
     return seed ? composerReducer(start, { type: 'insert', draft: seed, targets }) : start;
   });
   const [view, setView] = useState<'items' | 'preview'>('items');

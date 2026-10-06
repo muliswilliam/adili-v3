@@ -170,6 +170,7 @@ export function caseData(overrides: Partial<CaseData> = {}): CaseData {
     reviewerHistory: [],
     determinations: [],
     registry: { checkedAt: null, checks: [], recheckAvailableAt: null },
+    declarantLanguage: null,
     ...overrides,
   };
 }

@@ -1,3 +1,5 @@
+import type { LetterLanguage } from '../cases/schema.js';
+
 /**
  * The clarification periods of a Commission's policy in force (directory.yaml
  * `TenantPolicyVersion.clarification`, Act s.35).
@@ -60,6 +62,9 @@ export interface StaffMember {
   name: string;
 }
 
+/** A declarant's preferred language (directory.yaml `PreferredLanguage`): a letter language. */
+export type PreferredLanguage = LetterLanguage;
+
 /** The directory is unreachable or answered outside its contract; activities retry. */
 export class DirectoryUnavailable extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -96,4 +101,11 @@ export abstract class DirectoryClient {
    * each time; throws `DirectoryUnavailable`.
    */
   abstract listStaff(slug: string, role: 'reviewer' | 'supervisor'): Promise<StaffMember[]>;
+
+  /**
+   * The language the declarant prefers (`internalGetPersonPreferredLanguage`), read each time;
+   * null when they have not chosen one or are not onboarded at the Commission. Throws
+   * `DirectoryUnavailable`.
+   */
+  abstract getPreferredLanguage(slug: string, personId: string): Promise<PreferredLanguage | null>;
 }

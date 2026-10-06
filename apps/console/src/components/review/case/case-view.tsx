@@ -528,6 +528,7 @@ export function CaseView({
         reviewCase={item}
         document={detail.document}
         commission={commission}
+        declarantLanguage={detail.declarantLanguage}
         now={now}
         tools={drafting.tools}
         onSaved={() => void router.invalidate()}

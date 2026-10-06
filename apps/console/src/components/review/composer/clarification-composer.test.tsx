@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { type AiLabelDetails, ToastProvider, TooltipProvider } from '@adili/ui';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { issueDraft, saveDraft } from '../../../server/clarifications.server';
@@ -409,6 +409,23 @@ describe('ClarificationComposer', () => {
     expect(
       within(drawer()).getByRole('combobox', { name: 'Letter language' }).textContent,
     ).toContain('Swahili');
+  });
+
+  it("starts a new clarification in the declarant's preferred language; a saved draft keeps its own (spec 07c FE-3)", async () => {
+    await renderComposer({ declarantLanguage: 'sw' });
+    expect(
+      within(drawer()).getByRole('combobox', { name: 'Letter language' }).textContent,
+    ).toContain('Swahili');
+    cleanup();
+
+    const { clarifications } = await caseOf(CASES.mine);
+    await renderComposer({
+      declarantLanguage: 'sw',
+      draft: { ...draftOnMine({ clarifications }), language: 'en' },
+    });
+    expect(
+      within(drawer()).getByRole('combobox', { name: 'Letter language' }).textContent,
+    ).toContain('English');
   });
 
   it('takes Draft with AI’s items through the tools slot, labelled until edited (07c FE-3)', async () => {
