@@ -231,7 +231,9 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
 
   it('declines an answer linking to a place the context does not name', async () => {
     provider.scripts = [
-      answered(['<block>Declare it. <cite ids="p-note-13"/> <link section="household"/></block>']),
+      answered([
+        '<block>Declare it. <cite ids="p-note-13"/> <link section="household" field="/spouses"/></block>',
+      ]),
     ];
 
     const { frames: all } = await stream();

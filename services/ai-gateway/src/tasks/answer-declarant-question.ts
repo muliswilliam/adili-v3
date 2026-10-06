@@ -165,15 +165,25 @@ function answerViolations(each: AnswerInput, answer: AnswerOutput): OutputViolat
 }
 
 /**
- * Where an answer may link (prompt v1): a whole section, the declarant's or a residual's, or a
- * residual's own field.
+ * The sections every declaration has, whatever its household (declarations' section keys): the
+ * officer's details, household and other information, and the officer's own statement. A spouse's
+ * or child's statement is keyed by them, so only the context can name it.
+ */
+const FORM_SECTIONS = ['bio', 'household', 'other', 'statement:officer'] as const;
+
+/**
+ * Where an answer may link (prompt v1): a whole section, the declarant's, a residual's or, in a
+ * declaration, one every declaration has (the household section, for "add your spouse there":
+ * #622), or a residual's own field. A field no residual names, or a section the context cannot
+ * vouch for, is made up.
  */
 function linkablePlaces(
   context: AnswerInput['context'],
 ): (link: NonNullable<AnswerOutput['blocks'][number]['sectionLink']>) => boolean {
   const place = (sectionKey: string, fieldPath: string) => `${sectionKey}\u0000${fieldPath}`;
-  const sections = new Set(context.residuals.map((residual) => residual.sectionKey));
+  const sections = new Set<string>(context.residuals.map((residual) => residual.sectionKey));
   if (context.sectionKey !== null) sections.add(context.sectionKey);
+  if (context.declarationType !== null) FORM_SECTIONS.forEach((each) => sections.add(each));
   const fields = new Set(
     context.residuals.map((residual) => place(residual.sectionKey, residual.fieldPath)),
   );
