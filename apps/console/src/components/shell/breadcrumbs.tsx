@@ -33,11 +33,14 @@ interface Crumb {
   to: string;
 }
 
+/** Home (`/`) is a leaf, not a parent of the other pages, so the trail adds it in front (#743). */
+const HOME: Crumb = { id: 'home', label: 'Home', to: '/' };
+
 function useCrumbs(): Crumb[] {
   const matches = useMatches();
   // The leaf is the deepest route that names itself (index routes usually don't).
   const named = matches.filter((match) => match.staticData.crumb !== undefined);
-  return named.flatMap((match, index) => {
+  const crumbs = named.flatMap((match, index) => {
     const { crumb } = match.staticData;
     const label =
       typeof crumb === 'function'
@@ -55,6 +58,8 @@ function useCrumbs(): Crumb[] {
       { id: match.id, label: label.label, to: match.pathname },
     ];
   });
+  if (crumbs.length === 0 || crumbs[0]?.to === HOME.to) return crumbs;
+  return [HOME, ...crumbs];
 }
 
 /** The trail for the current page, from each matched route's `staticData.crumb`. */
@@ -72,11 +77,21 @@ export function Breadcrumbs() {
               </span>
             </li>
           ) : (
-            <li key={crumb.id} className="flex shrink-0 items-center gap-1.5">
-              <Link to={crumb.to} className={cn(focusRing, 'rounded-sm hover:text-foreground')}>
+            // Home stays whole; the crumbs between it and the page give way on a narrow bar.
+            <li
+              key={crumb.id}
+              className={cn(
+                'flex items-center gap-1.5',
+                crumb.to === HOME.to ? 'shrink-0' : 'min-w-0',
+              )}
+            >
+              <Link
+                to={crumb.to}
+                className={cn(focusRing, 'truncate rounded-sm hover:text-foreground')}
+              >
                 {crumb.label}
               </Link>
-              <Icon icon={ArrowRight01Icon} className="size-3.5" />
+              <Icon icon={ArrowRight01Icon} className="size-3.5 shrink-0" />
             </li>
           ),
         )}
