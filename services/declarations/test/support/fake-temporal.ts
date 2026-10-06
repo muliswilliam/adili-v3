@@ -25,10 +25,20 @@ export class FakeTemporal {
   readonly signals: { workflowId: string; signal: string; args: unknown[] }[] = [];
   down = false;
   private readonly runs: Run[] = [];
+  private startHook: (() => Promise<void>) | undefined;
+
+  /** Runs `hook` on each start, before Temporal answers: what happens while a start is out. */
+  onStart(hook: () => Promise<void>): void {
+    this.startHook = hook;
+  }
 
   readonly workflow = {
-    start: (workflowType: string, options: { workflowId: string } & Record<string, unknown>) => {
+    start: async (
+      workflowType: string,
+      options: { workflowId: string } & Record<string, unknown>,
+    ) => {
       const { workflowId } = options;
+      await this.startHook?.();
       if (this.down) {
         return Promise.reject(new Error('Temporal unreachable'));
       }
@@ -90,6 +100,7 @@ export class FakeTemporal {
     this.signals.length = 0;
     this.down = false;
     this.runs.length = 0;
+    this.startHook = undefined;
   }
 
   private latest(workflowId: string): Run | undefined {

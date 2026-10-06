@@ -18,6 +18,7 @@
     "@adili/api-kit": "workspace:*",
     "@adili/bff-auth": "workspace:*",
     "@adili/demo-auth": "workspace:*",
+    "@adili/forms": "workspace:*",
     "@adili/numbering": "workspace:*",
     "@adili/ui": "workspace:*",
     "@hugeicons/core-free-icons": "^4.3.5",
@@ -30,7 +31,6 @@
   },
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
-    "@adili/forms": "workspace:*",
     "@adili/schemas": "workspace:*",
     "@adili/tsconfig": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",

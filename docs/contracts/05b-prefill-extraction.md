@@ -32,7 +32,7 @@ flowchart LR
 
 Operations changed:
 
-- `requestRegistryLookups` (#310): the body is the named `RegistryLookupRequest`; `consent.textVersion` must not be empty. `Idempotency-Key` is required. Problems: 400 `consent-required` (the declarant did not tick the request), 400 `no-id` for a spouse or child with no national ID in Household, 409 `declaration-not-draft`, 422 for a reused key. The declarant is looked up by the national ID on their person record (the directory's new `internalGetPersonNationalId`); a declarant without one gets a `no-id` set rather than a 400, as the draft's set status allowed.
+- `requestRegistryLookups` (#310): the body is the named `RegistryLookupRequest`; `consent.textVersion` must not be empty. `Idempotency-Key` is required. Problems: 400 `consent-required` (the declarant did not tick the request), 400 `no-id` for a spouse or child with no national ID in Household, 409 `declaration-not-draft`, 422 for a reused key, 503 `workflow-unavailable` (#530). The `RegistryLookupsWorkflow` is started inside the transaction that records the consent and the sets (`RegistryLookupsInput.transactionId`, ADR-003 decision 7). When the workflow engine cannot take it, the request is refused with 503 and nothing is recorded: no consent, no set, no event; the declarant asks again. A lookup that settles after the declaration was submitted writes nothing into it and fails its set as `not-a-draft` (ADR-018 decision 5). The declarant is looked up by the national ID on their person record (the directory's new `internalGetPersonNationalId`); a declarant without one gets a `no-id` set rather than a 400, as the draft's set status allowed.
 - `listSuggestions` (#310): `sectionKey` is a pattern string (the draft referenced `SectionKey`, which the export inlines for queries). A set with suggestions, none in the section, is left out; one with none yet is kept so a pending lookup can be polled. 400 on a bad query. An audited read.
 - `acceptSuggestion` (#311, #315):
   - The body is the named `AcceptSuggestionRequest`, the answer `SuggestionAcceptance`, with the new draft version also in the `ETag` header.
@@ -56,7 +56,7 @@ Operations changed:
 
 Schemas changed:
 
-- `SuggestionSet`: `attachmentId`, `documentKind` and `reason` added (#315), null for registry sets. `reason` says why a document set `failed`, in the declarant's vocabulary: `document-unavailable`, `document-unreadable`, `not-read`, `unavailable` (the gateway's `budget`, `provider`, `timeout` and the like all read as `unavailable`), `not-a-draft` (a reading that settles after the declaration was submitted). Statuses are as drafted, each documented.
+- `SuggestionSet`: `attachmentId`, `documentKind` and `reason` added (#315), `attachmentId` and `documentKind` null for registry sets. `reason` says why a set `failed`, in the declarant's vocabulary: `document-unavailable`, `document-unreadable`, `not-read`, `unavailable` (the gateway's `budget`, `provider`, `timeout` and the like all read as `unavailable`), `not-a-draft` (a reading or a registry lookup that settles after the declaration was submitted, #530); null otherwise. Statuses are as drafted, each documented.
 - `Suggestion`:
   - `itemType` is still a free string, as drafted; only its description changed. It now names `directorship` (BRS: a paragraph 9 registrable interest, in `other`) and `income-hint` (KRA: a hint to check the salary item, never a value), and BRS shareholdings as `shareholding`, not the spec's `investment`, which `declaration.v1` does not have (#306).
   - `fields` are documented per item type (`vehicle` registration, make, model, year; `land` parcelNumber, size, location, county; and so on). A document's reading names them by declaration.v1 path within the item (`details.registration`, `outstanding.kesCents`) instead (#315).
@@ -119,7 +119,3 @@ None of these is a contract left in a draft; each needs a contract change when i
 - #504: the declarant's and household's names in `ExtractDocumentInput`, so minimisation tokenises them anywhere in a text layer.
 - #505: HEIC and oversized images in `extract-document`.
 - #515: document reading in the Commission's AI status for commission-admins (story 18).
-
-**Not a contract change:**
-
-- #530: registry lookups start their workflow after commit, and settle on a declaration past the draft.

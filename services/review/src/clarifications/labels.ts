@@ -1,6 +1,6 @@
 import type { DeclarationV1, PersonName } from '@adili/forms';
 
-import { CATEGORIES, type Category } from '../rules/match.js';
+import { CATEGORIES, type Category } from '@adili/forms/compare';
 import type { ClarificationItem, LetterLanguage, REQUIREMENTS } from '../cases/schema.js';
 
 export type Requirement = (typeof REQUIREMENTS)[number];

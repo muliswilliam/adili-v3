@@ -7,7 +7,7 @@
     "messages": [
       {
         "role": "user",
-        "content": "<untrusted-input>\n{\"context\":{\"declarationType\":\"biennial\",\"householdCounts\":{\"children\":0,\"spouses\":0},\"residuals\":[{\"fieldPath\":\"/income/0/amount\",\"ruleId\":\"required\",\"sectionKey\":\"statement:officer\"},{\"fieldPath\":\"/assets/0/value\",\"ruleId\":\"required\",\"sectionKey\":\"statement:officer\"},{\"fieldPath\":\"/assets/1/value\",\"ruleId\":\"required\",\"sectionKey\":\"statement:officer\"}],\"sectionKey\":\"statement:officer\",\"statementDate\":\"2026-06-30\"},\"history\":[],\"kind\":\"answer-declarant-question\",\"language\":\"en\",\"mode\":\"answer\",\"passages\":[{\"citation\":\"Regs r.21\",\"id\":\"01a10c16-f860-758e-ad89-b57e2309310b\",\"text\":\"A material change shall, for purposes of section 31(4) of the Act, be specified by the declarant in paragraph 9 of the declaration form set out in the First Schedule to the Act.\"},{\"citation\":\"Act s.31\",\"id\":\"01a10c16-f860-758e-ad88-4013a18a4fa0\",\"text\":\"(1) Every public officer shall submit to their responsible Commission a declaration of his or her income, assets and liabilities and the income, assets and liabilities of his or her spouse and dependent children under the age of eighteen years. (2) The declaration referred to under subsection (1), shall be in the Form set out in the First Schedule. (3) Notwithstanding the generality of subsection (1), a public officer shall in a periodical or final declaration provide information on any material change in, or changes affecting any of the categories of income, assets or liabilities in the schedule of mandatory declarations that have occurred within the two-year period prior to the declaration. (4) For purposes of this section, “material change” means— (a) at least twenty-five percent increase or decrease in the value of an income, asset or liability; (b) the disposal or acquisition of an asset or liability; (c) changes in marital status; (d) appointment to or changes in directorships; (e) changes in membership in companies or partnerships and other legal entities howsoever established; or (f) changes in membership in social associations, societies, clubs, foundations or trusts.\"},{\"citation\":\"Act First Schedule, para. 9\",\"id\":\"01a10c16-f860-758e-ad89-137f20d60f27\",\"text\":\"9. Other information that may be useful or relevant:\"},{\"citation\":\"Help: Valuing your assets: vehicles, land and other property\",\"id\":\"01a10e08-362d-733d-9449-a78ccede9278\",\"text\":\"The form asks for an approximate value of each asset as at the statement date, in Kenya shillings. You do not need a professional valuation: a fair figure, what a buyer would pay for the asset on that date, is enough. Round it.\\n\\nA vehicle: what vehicles of the same make, model, year and condition sell for. Dealer and online listings, or a recent insurance valuation, are good guides. The price you paid years ago is not its value now.\\n\\nLand or a building: a recent valuation report if you have one; otherwise what similar plots or houses in the same area sell for.\\n\\nShares: the market price on the statement date for listed shares; for a private company, your share of what the company is worth, or what you paid if nothing better is known.\\n\\nIf a value rose or fell by 25% or more since your last declaration, mark the asset \\\"Changed since my last declaration\\\" and explain it.\"}],\"question\":\"What counts as a material change?\"}\n</untrusted-input>"
+        "content": "<untrusted-input>\n{\"context\":{\"declarationType\":\"biennial\",\"householdCounts\":{\"children\":0,\"spouses\":0},\"residuals\":[{\"fieldPath\":\"/income/0/amount\",\"ruleId\":\"required\",\"sectionKey\":\"statement:officer\"},{\"fieldPath\":\"/assets/0/value\",\"ruleId\":\"required\",\"sectionKey\":\"statement:officer\"},{\"fieldPath\":\"/assets/1/value\",\"ruleId\":\"required\",\"sectionKey\":\"statement:officer\"}],\"sectionKey\":\"statement:officer\",\"statementDate\":\"2026-06-30\"},\"history\":[],\"kind\":\"answer-declarant-question\",\"language\":\"en\",\"mode\":\"answer\",\"passages\":[{\"citation\":\"Regs r.21\",\"id\":\"p1\",\"text\":\"A material change shall, for purposes of section 31(4) of the Act, be specified by the declarant in paragraph 9 of the declaration form set out in the First Schedule to the Act.\"},{\"citation\":\"Act s.31\",\"id\":\"p2\",\"text\":\"(1) Every public officer shall submit to their responsible Commission a declaration of his or her income, assets and liabilities and the income, assets and liabilities of his or her spouse and dependent children under the age of eighteen years. (2) The declaration referred to under subsection (1), shall be in the Form set out in the First Schedule. (3) Notwithstanding the generality of subsection (1), a public officer shall in a periodical or final declaration provide information on any material change in, or changes affecting any of the categories of income, assets or liabilities in the schedule of mandatory declarations that have occurred within the two-year period prior to the declaration. (4) For purposes of this section, “material change” means— (a) at least twenty-five percent increase or decrease in the value of an income, asset or liability; (b) the disposal or acquisition of an asset or liability; (c) changes in marital status; (d) appointment to or changes in directorships; (e) changes in membership in companies or partnerships and other legal entities howsoever established; or (f) changes in membership in social associations, societies, clubs, foundations or trusts.\"},{\"citation\":\"Act First Schedule, para. 9\",\"id\":\"p3\",\"text\":\"9. Other information that may be useful or relevant:\"},{\"citation\":\"Help: Valuing your assets: vehicles, land and other property\",\"id\":\"p4\",\"text\":\"The form asks for an approximate value of each asset as at the statement date, in Kenya shillings. You do not need a professional valuation: a fair figure, what a buyer would pay for the asset on that date, is enough. Round it.\\n\\nA vehicle: what vehicles of the same make, model, year and condition sell for. Dealer and online listings, or a recent insurance valuation, are good guides. The price you paid years ago is not its value now.\\n\\nLand or a building: a recent valuation report if you have one; otherwise what similar plots or houses in the same area sell for.\\n\\nShares: the market price on the statement date for listed shares; for a private company, your share of what the company is worth, or what you paid if nothing better is known.\\n\\nIf a value rose or fell by 25% or more since your last declaration, mark the asset \\\"Changed since my last declaration\\\" and explain it.\"}],\"question\":\"What counts as a material change?\"}\n</untrusted-input>"
       }
     ],
     "maxOutputTokens": 2048
@@ -27,27 +27,35 @@
     },
     {
       "type": "delta",
-      "text": " a \"material change\" as any"
+      "text": " a material change as any"
     },
     {
       "type": "delta",
-      "text": " of these: a rise or f"
+      "text": " of these: a r"
     },
     {
       "type": "delta",
-      "text": "all of at least 25% in"
+      "text": "ise or fall of at least "
     },
     {
       "type": "delta",
-      "text": " the value of an income, asset"
+      "text": "25 percent in the value of"
     },
     {
       "type": "delta",
-      "text": " or liability; bu"
+      "text": " an income, asset or liability"
     },
     {
       "type": "delta",
-      "text": "ying or selling an asset,"
+      "text": "; bu"
+    },
+    {
+      "type": "delta",
+      "text": "ying or dis"
+    },
+    {
+      "type": "delta",
+      "text": "posing of an asset,"
     },
     {
       "type": "delta",
@@ -55,15 +63,11 @@
     },
     {
       "type": "delta",
-      "text": " cl"
+      "text": " ending a liability; a"
     },
     {
       "type": "delta",
-      "text": "earing a liability; a change"
-    },
-    {
-      "type": "delta",
-      "text": " in marital status; being"
+      "text": " change in marital status; being"
     },
     {
       "type": "delta",
@@ -79,67 +83,47 @@
     },
     {
       "type": "delta",
-      "text": "; a change in membership of compan"
+      "text": "; a change in membership of a"
     },
     {
       "type": "delta",
-      "text": "ies, partnerships or other"
+      "text": " company, partnership or other leg"
     },
     {
       "type": "delta",
-      "text": " legal entities; or a change"
+      "text": "al entity; or a change in"
     },
     {
       "type": "delta",
-      "text": " in membership of social associations,"
+      "text": " membership of a social association, society"
     },
     {
       "type": "delta",
-      "text": " societies, clubs, fo"
+      "text": ", club, foundation or tr"
     },
     {
       "type": "delta",
-      "text": "undations or trusts. "
+      "text": "ust. <cite ids=\""
     },
     {
       "type": "delta",
-      "text": "<cite ids=\"01a10"
+      "text": "p2\"/></block>"
     },
     {
       "type": "delta",
-      "text": "c16-f860-758e"
+      "text": "\n<block>In a peri"
     },
     {
       "type": "delta",
-      "text": "-ad88-4013a"
+      "text": "odical or final declaration,"
     },
     {
       "type": "delta",
-      "text": "18a4fa0\"/"
+      "text": " you give"
     },
     {
       "type": "delta",
-      "text": "></block>\n<block>In"
-    },
-    {
-      "type": "delta",
-      "text": " a peri"
-    },
-    {
-      "type": "delta",
-      "text": "odical declaration like"
-    },
-    {
-      "type": "delta",
-      "text": " this one, Section 31("
-    },
-    {
-      "type": "delta",
-      "text": "3) asks you"
-    },
-    {
-      "type": "delta",
-      "text": " to report material"
+      "text": " information on material"
     },
     {
       "type": "delta",
@@ -147,27 +131,19 @@
     },
     {
       "type": "delta",
-      "text": " the two"
+      "text": " the two years before the declaration"
     },
     {
       "type": "delta",
-      "text": " years before the declaration."
+      "text": ". Regulation 21 "
     },
     {
       "type": "delta",
-      "text": " Regs"
+      "text": "says you describe them in parag"
     },
     {
       "type": "delta",
-      "text": " r.21 says you describe"
-    },
-    {
-      "type": "delta",
-      "text": " them in paragraph 9"
-    },
-    {
-      "type": "delta",
-      "text": " "
+      "text": "raph 9 "
     },
     {
       "type": "delta",
@@ -179,7 +155,19 @@
     },
     {
       "type": "delta",
-      "text": "ant\". If an asset's value"
+      "text": "ant\". <cite ids=\""
+    },
+    {
+      "type": "delta",
+      "text": "p1,p2,p3"
+    },
+    {
+      "type": "delta",
+      "text": "\"/></block>\n<block"
+    },
+    {
+      "type": "delta",
+      "text": ">For an asset whose value"
     },
     {
       "type": "delta",
@@ -187,155 +175,103 @@
     },
     {
       "type": "delta",
-      "text": "ved by"
+      "text": "ved by 25 percent or"
     },
     {
       "type": "delta",
-      "text": " 25% or more, the"
+      "text": " more since your last declaration,"
     },
     {
       "type": "delta",
-      "text": " help guide says"
+      "text": " the help article says to"
     },
     {
       "type": "delta",
-      "text": " to"
+      "text": " mark it"
     },
     {
       "type": "delta",
-      "text": " mark it \"Changed since"
+      "text": " \"Changed since my last decl"
     },
     {
       "type": "delta",
-      "text": " my last declaration\" and expl"
+      "text": "aration\" and explain it."
     },
     {
       "type": "delta",
-      "text": "ain why"
+      "text": " <cite ids=\"p4"
     },
     {
       "type": "delta",
-      "text": ". <cite ids=\"01"
+      "text": "\"/> <link section=\"stat"
     },
     {
       "type": "delta",
-      "text": "a10c16-f860-"
+      "text": "ement:officer\"/></block"
     },
     {
       "type": "delta",
-      "text": "758e-ad88"
+      "text": ">\n<followup>How do"
     },
     {
       "type": "delta",
-      "text": "-4013a18a4f"
+      "text": " I work"
     },
     {
       "type": "delta",
-      "text": "a0,01a10c16"
+      "text": " out the value of my"
     },
     {
       "type": "delta",
-      "text": "-f860-758e-"
+      "text": " assets as"
     },
     {
       "type": "delta",
-      "text": "ad89-b"
+      "text": " at the statement date?</follow"
     },
     {
       "type": "delta",
-      "text": "57e"
+      "text": "up>\n<followup>"
     },
     {
       "type": "delta",
-      "text": "2309310b,01a10"
+      "text": "Do I need a professional valu"
     },
     {
       "type": "delta",
-      "text": "c16-f860-758e"
+      "text": "ation for"
     },
     {
       "type": "delta",
-      "text": "-ad89-137f20"
+      "text": " my land or vehicle?"
     },
     {
       "type": "delta",
-      "text": "d60f27,01a10"
+      "text": "</followup>\n<followup"
     },
     {
       "type": "delta",
-      "text": "e08-362d-733d"
+      "text": ">"
     },
     {
       "type": "delta",
-      "text": "-9449-a78cc"
+      "text": "Where"
     },
     {
       "type": "delta",
-      "text": "ede9278\"/> <link"
+      "text": " on"
     },
     {
       "type": "delta",
-      "text": " section=\"statement:officer\""
+      "text": " the form do I describ"
     },
     {
       "type": "delta",
-      "text": "/></block>\n<followup"
+      "text": "e a material"
     },
     {
       "type": "delta",
-      "text": ">How do I value my"
-    },
-    {
-      "type": "delta",
-      "text": " assets as at the statement date"
-    },
-    {
-      "type": "delta",
-      "text": "?</followup>\n<follow"
-    },
-    {
-      "type": "delta",
-      "text": "up>What should"
-    },
-    {
-      "type": "delta",
-      "text": " I write in paragraph "
-    },
-    {
-      "type": "delta",
-      "text": "9 about a material change?</"
-    },
-    {
-      "type": "delta",
-      "text": "followup>\n<followup>"
-    },
-    {
-      "type": "delta",
-      "text": "Does"
-    },
-    {
-      "type": "delta",
-      "text": " the decl"
-    },
-    {
-      "type": "delta",
-      "text": "aration c"
-    },
-    {
-      "type": "delta",
-      "text": "over my spouse's"
-    },
-    {
-      "type": "delta",
-      "text": " and children's ass"
-    },
-    {
-      "type": "delta",
-      "text": "ets too"
-    },
-    {
-      "type": "delta",
-      "text": "?</followup>"
+      "text": " change?</followup>"
     },
     {
       "type": "final",
@@ -343,12 +279,12 @@
         "model": "anthropic/claude-opus-5-5",
         "usage": {
           "inputTokens": 4,
-          "outputTokens": 571,
-          "cacheReadTokens": 1770,
-          "cacheWriteTokens": 1159
+          "outputTokens": 395,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 2844
         },
         "status": "completed",
-        "text": "<block>Section 31(4) of the Act defines a \"material change\" as any of these: a rise or fall of at least 25% in the value of an income, asset or liability; buying or selling an asset, or taking on or clearing a liability; a change in marital status; being appointed to a directorship, or a change in one; a change in membership of companies, partnerships or other legal entities; or a change in membership of social associations, societies, clubs, foundations or trusts. <cite ids=\"01a10c16-f860-758e-ad88-4013a18a4fa0\"/></block>\n<block>In a periodical declaration like this one, Section 31(3) asks you to report material changes from the two years before the declaration. Regs r.21 says you describe them in paragraph 9 of the form, \"Other information that may be useful or relevant\". If an asset's value moved by 25% or more, the help guide says to mark it \"Changed since my last declaration\" and explain why. <cite ids=\"01a10c16-f860-758e-ad88-4013a18a4fa0,01a10c16-f860-758e-ad89-b57e2309310b,01a10c16-f860-758e-ad89-137f20d60f27,01a10e08-362d-733d-9449-a78ccede9278\"/> <link section=\"statement:officer\"/></block>\n<followup>How do I value my assets as at the statement date?</followup>\n<followup>What should I write in paragraph 9 about a material change?</followup>\n<followup>Does the declaration cover my spouse's and children's assets too?</followup>"
+        "text": "<block>Section 31(4) of the Act defines a material change as any of these: a rise or fall of at least 25 percent in the value of an income, asset or liability; buying or disposing of an asset, or taking on or ending a liability; a change in marital status; being appointed to a directorship, or a change in one; a change in membership of a company, partnership or other legal entity; or a change in membership of a social association, society, club, foundation or trust. <cite ids=\"p2\"/></block>\n<block>In a periodical or final declaration, you give information on material changes from the two years before the declaration. Regulation 21 says you describe them in paragraph 9 of the form, \"Other information that may be useful or relevant\". <cite ids=\"p1,p2,p3\"/></block>\n<block>For an asset whose value moved by 25 percent or more since your last declaration, the help article says to mark it \"Changed since my last declaration\" and explain it. <cite ids=\"p4\"/> <link section=\"statement:officer\"/></block>\n<followup>How do I work out the value of my assets as at the statement date?</followup>\n<followup>Do I need a professional valuation for my land or vehicle?</followup>\n<followup>Where on the form do I describe a material change?</followup>"
       }
     }
   ]

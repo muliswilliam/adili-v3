@@ -184,6 +184,14 @@ describe('S2 create, PUT, complete', () => {
     expect(url.searchParams.get('X-Amz-SignedHeaders')).toBe('content-length;content-type;host');
     // No tenant or personal data in the key or the URL (ADR-002).
     expect(body.uploadUrl).not.toMatch(/psc|roster\.csv|PSC/);
+    // The reservation is audited (ADR-008): ids and purpose, never the file name.
+    expect(await uploadEvents('upload.reserved.v1', body.id)).toEqual([
+      {
+        subject: body.id,
+        tenant: 'psc',
+        data: { uploadId: body.id, purpose: 'roster-import', reservedBy: OFFICER.sub },
+      },
+    ]);
   });
 
   it('completes a CSV to clean with its SHA-256 and size', async () => {
@@ -213,6 +221,28 @@ describe('S2 create, PUT, complete', () => {
     expect(read.statusCode).toBe(200);
     expect(contractErrors(okResponse('/v1/uploads/{id}', 'get'), read.json())).toEqual([]);
     expect(read.json()).toEqual(body);
+  });
+
+  it('audits the completion with its outcome, never the file name or hash (ADR-008)', async () => {
+    const reservation = await upload(fixture('roster.csv'));
+
+    await complete(reservation.id);
+
+    const events = await uploadEvents('upload.completed.v1', reservation.id);
+    expect(events).toEqual([
+      {
+        subject: reservation.id,
+        tenant: 'psc',
+        data: {
+          uploadId: reservation.id,
+          purpose: 'roster-import',
+          outcome: 'clean',
+          rejection: null,
+          completedBy: OFFICER.sub,
+        },
+      },
+    ]);
+    expect(JSON.stringify(events)).not.toMatch(/roster\.csv|[0-9a-f]{64}/);
   });
 
   it('moves the bytes to the clean bucket encrypted, without client metadata', async () => {
@@ -271,6 +301,10 @@ describe('S3 refused files', () => {
       size: EICAR.length,
     });
     expect((await row(reservation.id)).threat).toMatch(/eicar/i);
+    expect((await uploadEvents('upload.completed.v1', reservation.id))[0]?.data).toMatchObject({
+      outcome: 'infected',
+      rejection: null,
+    });
     const key = `roster-import/${reservation.id}`;
     expect(await objectStatus('quarantine', key)).toBe(404);
     expect(await objectStatus('clean', key)).toBe(404);
@@ -337,6 +371,10 @@ describe('S3 refused files', () => {
     const body = (await complete(reservation.id)).json<Upload>();
 
     expect(body).toMatchObject({ state: 'rejected', rejection: 'missing', size: null });
+    expect((await uploadEvents('upload.completed.v1', reservation.id))[0]?.data).toMatchObject({
+      outcome: 'rejected',
+      rejection: 'missing',
+    });
   });
 
   it('answers 409 to a second completion', async () => {
@@ -1031,6 +1069,15 @@ describe('expiry sweep', () => {
     });
     expect((await row(fresh.id)).state).toBe('awaiting-upload');
     expect(await objectStatus('quarantine', `roster-import/${stale.id}`)).toBe(404);
+    // Expired by the system, audited (ADR-008).
+    expect(await uploadEvents('upload.expired.v1', stale.id)).toEqual([
+      {
+        subject: stale.id,
+        tenant: 'psc',
+        data: { uploadId: stale.id, purpose: 'roster-import' },
+      },
+    ]);
+    expect(await uploadEvents('upload.expired.v1', fresh.id)).toEqual([]);
 
     const late = await complete(stale.id);
     expect(late.statusCode).toBe(409);

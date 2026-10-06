@@ -2,12 +2,12 @@
 
 This is **not** the production architecture. The platform design is:
 
-| Environment | Where | How |
-|---|---|---|
-| Local | laptop | `pnpm infra:up` (Compose) |
-| Hackathon demo | 3-node Dokploy / Swarm + Traefik | per-app container images (ADR-012) |
-| Hackathon stand-in | Azure VM, South Africa North | Compose for infra; `pnpm dev` for services and mocks, production builds for the apps (ADR-016) |
-| EACC production | Kenyan DCs (Konza / Nairobi), RKE2, Ceph | Helm, not Azure |
+| Environment        | Where                                    | How                                                                                            |
+| ------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Local              | laptop                                   | `pnpm infra:up` (Compose)                                                                      |
+| Hackathon demo     | 3-node Dokploy / Swarm + Traefik         | per-app container images (ADR-012)                                                             |
+| Hackathon stand-in | Azure VM, South Africa North             | Compose for infra; `pnpm dev` for services and mocks, production builds for the apps (ADR-016) |
+| EACC production    | Kenyan DCs (Konza / Nairobi), RKE2, Ceph | Helm, not Azure                                                                                |
 
 Azure is a **credit-funded stand-in for the Dokploy demo host** ([ADR-016](../../docs/adr/0016-azure-vm-demo-stand-in.md)). It runs the same Compose file and the same Keycloak image (`adili/keycloak:dev`, realm `adili`, OTP extension, theme). Services and mocks on this VM run as `pnpm dev`; portal, console and verify run from their production builds (`deploy.sh` builds them, `run-apps.sh` starts them, #371), but not as the CI-built images. Do not replace Keycloak with Microsoft Entra ID.
 
@@ -15,12 +15,12 @@ Azure is a **credit-funded stand-in for the Dokploy demo host** ([ADR-016](../..
 
 Terraform in this directory creates the **Azure resources**. The demo **stack** on the VM is still Compose + Caddy + `pnpm`, driven by scripts.
 
-| In Terraform | On the VM (scripts / CD) |
-|---|---|
-| Resource group, VNet, NSG | Compose: Postgres, Valkey, RabbitMQ, Temporal, OpenBao, SeaweedFS, Keycloak |
-| Ubuntu 24.04 VM (`Standard_E4s_v5`) | Caddy + Let's Encrypt (`enable-https.sh` once) |
-| Static public IP + DNS label | App `.env` files (`configure-app-env.sh`) |
-| Basic ACR + `AcrPull` (unused until we push images) | `pnpm bootstrap`, `db:migrate`, systemd `adili-apps` |
+| In Terraform                                        | On the VM (scripts / CD)                                                    |
+| --------------------------------------------------- | --------------------------------------------------------------------------- |
+| Resource group, VNet, NSG                           | Compose: Postgres, Valkey, RabbitMQ, Temporal, OpenBao, SeaweedFS, Keycloak |
+| Ubuntu 24.04 VM (`Standard_E4s_v5`)                 | Caddy + Let's Encrypt (`enable-https.sh` once)                              |
+| Static public IP + DNS label                        | App `.env` files (`configure-app-env.sh`)                                   |
+| Basic ACR + `AcrPull` (unused until we push images) | `pnpm bootstrap`, `db:migrate`, systemd `adili-apps`                        |
 
 State is **local** (`terraform.tfstate`, gitignored). CI does not `terraform apply`. After CI on `main`, the workflow rsyncs the repo onto the existing VM and runs `deploy.sh`.
 
@@ -141,10 +141,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 Repo secret (Actions -> Secrets):
 
-| Name | Value |
-|---|---|
-| `AZURE_DEMO_SSH_KEY` | Private ed25519 key whose public half is in `~adili/.ssh/authorized_keys` on the VM |
-| `ANTHROPIC_API_KEY` | Optional. The demo's Anthropic key, written to the VM on each deploy; without it (or a gateway token) the AI stays on replay unless `/etc/adili/secrets.env` has one |
+| Name                   | Value                                                                                                                                                                                                                                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AZURE_DEMO_SSH_KEY`   | Private ed25519 key whose public half is in `~adili/.ssh/authorized_keys` on the VM                                                                                                                                                                                                                |
+| `ANTHROPIC_API_KEY`    | Optional. The demo's Anthropic key, written to the VM on each deploy; without it (or a gateway token) the AI stays on replay unless `/etc/adili/secrets.env` has one                                                                                                                               |
 | `ANTHROPIC_AUTH_TOKEN` | Optional, instead of the key. A self-hosted LLM Gateway's API key; set repo variables `ANTHROPIC_BASE_URL` and `ANTHROPIC_STRUCTURED_OUTPUT=prompted` and `ANTHROPIC_ATTACHMENTS=image,text` (and optionally `AI_MODEL`) with it ([docs/demo](../../docs/demo/README.md#the-provider-credentials)) |
 
 `adili` may passwordless-sudo only `/usr/local/sbin/adili-demo-root` (root-owned, not in the rsync tree). PRs that touch `infra/azure` also `terraform fmt` / `validate` (no Azure credentials).
@@ -173,7 +173,7 @@ One-time switch on a stack that ran the old dev-mode OpenBao (in memory): its ke
 
 ## Demo checkpoints
 
-`pnpm demo:checkpoints` (after `pnpm demo:seed`) captures the demo's checkpoints on the VM; `pnpm demo:reset <checkpoint>` restores one (#621, `packages/demo-seed/README.md`). The restore needs every app stopped, and only systemd can stop `adili-apps`, so `infra/azure/demo-reset.sh` leaves a request in `~/.local/state/adili/` and restarts the unit through the root helper; the unit's `ExecStartPre` (`demo-pending-reset.sh`) restores while the apps are down, then they start. The outcome is in `~/.local/state/adili/demo-reset-last` and `~/adili-demo-reset.log`; a failed restore never keeps the apps down. The console's demo panel runs the same script (`DEMO_RESET_SCRIPT`, set by `configure-app-env.sh`).
+`pnpm demo:checkpoints` (after `pnpm demo:seed`) captures the demo's checkpoints on the VM; `pnpm demo:reset <checkpoint>` restores one (#621, `packages/demo-seed/README.md`). The restore needs every app stopped, and only systemd can stop `adili-apps`, so `infra/azure/demo-reset.sh` leaves a request in `~/.local/state/adili/` and restarts the unit through the root helper; the unit's `ExecStartPre` (`demo-pending-reset.sh`) restores while the apps are down, then they start. The outcome is in `~/.local/state/adili/demo-reset-last` and `~/adili-demo-reset.log`; a failed restore never keeps the apps down. The console's demo panel runs the same script (`DEMO_RESET_SCRIPT`, set by `configure-app-env.sh`). It then covers the console with a countdown, polls the console's `/health` until it says up, and opens the start page (#622). While an app is down, Caddy answers its 502, 503 and 504 with `infra/azure/static/restarting.html`, a page that says the demo is restarting and tries again every 10 seconds, instead of a bare error.
 
 Checkpoints live in the Compose Postgres (databases named `ckpt__<checkpoint>__<db>`) and the `demo-checkpoints` volume, so they survive deploys. After a restore the unit runs `pnpm db:migrate`, so a checkpoint captured before a deploy that added migrations still starts on the current schema.
 

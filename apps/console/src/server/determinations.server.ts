@@ -1,13 +1,7 @@
-import type { DocumentsClient } from './documents/client';
 import type { ReviewClient } from './review/client.server';
 import type { Determination, DeterminationInput, LetterDownload } from './review/types';
 import { type DeterminationRefusal, REFUSAL_STATUS } from '../determination/refusals';
-import {
-  callService,
-  callWithRefusals,
-  type RefusalResult,
-  type ServiceResult,
-} from './service-call';
+import { callWithRefusals, type RefusalResult, type ServiceResult } from './service-call';
 
 /**
  * The review service's determination endpoints (spec 08, S1 and S2): propose on a case, approve,
@@ -86,7 +80,7 @@ export function withdrawDetermination(
 
 /**
  * `GET .../letter`: the approved determination's decision letter (issued now for a bulk closure
- * that has none). Staff get the document id and download it from the documents service.
+ * that has none), with a short-lived link the documents service handed review for the Commission.
  */
 export function determinationLetter(
   client: ReviewClient,
@@ -101,13 +95,12 @@ export function determinationLetter(
 
 /**
  * A short-lived link to an approved determination's decision letter: review names the letter
- * (issuing it on the first request for a bulk closure), then the documents service hands out
- * the link as the signed-in officer and audits it. Review's 409 `not-approved` comes back as a
- * problem.
+ * (issuing it on the first request for a bulk closure) and asks the documents service for the
+ * link for the Commission, auditing the read (#507: documents' own download serves only the
+ * declarant). Review's 409 `not-approved` comes back as a problem.
  */
 export async function decisionLetterLink(
   review: ReviewClient,
-  documents: DocumentsClient,
   determinationId: string,
 ): Promise<ServiceResult<{ downloadUrl: string }>> {
   const letter = await determinationLetter(review, determinationId);
@@ -116,10 +109,5 @@ export async function decisionLetterLink(
       ? { ok: false, error: letter.error }
       : { ok: false, error: { kind: 'unavailable', detail: null } };
   }
-  const link = await callService(() =>
-    documents.GET('/v1/documents/{documentId}/download', {
-      params: { path: { documentId: letter.data.documentId } },
-    }),
-  );
-  return link.ok ? { ok: true, data: { downloadUrl: link.data.downloadUrl } } : link;
+  return { ok: true, data: { downloadUrl: letter.data.downloadUrl } };
 }

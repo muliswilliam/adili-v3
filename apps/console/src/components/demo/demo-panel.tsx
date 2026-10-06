@@ -6,7 +6,6 @@ import {
 import {
   Alert,
   AlertDescription,
-  AlertTitle,
   Badge,
   Button,
   CopyButton,
@@ -41,10 +40,7 @@ import {
   type VerifyStatus,
 } from '../../server/demo/verify';
 import { DemoContext } from './demo-context';
-
-/** How long the panel waits for the console to go down after asking for a reset. */
-const GOING_DOWN_MS = 45_000;
-const POLL_MS = 3000;
+import { DemoResetting } from './demo-resetting';
 /** How often the open panel reads the inboxes again. */
 const INBOX_POLL_MS = 4000;
 
@@ -56,6 +52,9 @@ const INBOX_POLL_MS = 4000;
 export function DemoPanel() {
   const demo = useContext(DemoContext);
   const [open, setOpen] = useState(false);
+  // Kept here, not in the drawer: the reset carries on, and says so, if the drawer is closed.
+  const [resetting, setResetting] = useState<string | null>(null);
+  if (resetting) return <DemoResetting checkpoint={resetting} />;
   if (!demo?.current) return null;
   return (
     <Drawer open={open} onOpenChange={setOpen}>
@@ -65,12 +64,24 @@ export function DemoPanel() {
           <span className="max-[900px]:sr-only">Demo panel</span>
         </Button>
       </DrawerTrigger>
-      {open ? <DemoPanelContent /> : null}
+      {open ? (
+        <DemoPanelContent
+          onResetStarted={(checkpoint) => {
+            setOpen(false);
+            setResetting(checkpoint);
+          }}
+        />
+      ) : null}
     </Drawer>
   );
 }
 
-function DemoPanelContent() {
+function DemoPanelContent({
+  onResetStarted,
+}: {
+  /** The reset was asked for: the console is about to go down with the stack. */
+  onResetStarted: (checkpoint: string) => void;
+}) {
   const [panel, setPanel] = useState<DemoPanelState | null | 'loading'>('loading');
   const [resetting, setResetting] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -95,8 +106,7 @@ function DemoPanelContent() {
       setError(result?.message ?? 'Only a signed-in demo account can reset the demo.');
       return;
     }
-    await waitForRestart();
-    window.location.assign('/');
+    onResetStarted(checkpoint);
   }
 
   async function toggle(system: string, paused: boolean) {
@@ -132,13 +142,9 @@ function DemoPanelContent() {
             Sign in with a demo account to use the demo panel.
           </p>
         ) : resetting ? (
-          <Alert variant="info" role="status">
-            <AlertTitle>Resetting the demo to {resetting}</AlertTitle>
-            <AlertDescription>
-              Every app restarts on the restored stack, this console too. It is back in about two
-              minutes and this page reloads by itself; then pick an account to act as.
-            </AlertDescription>
-          </Alert>
+          <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Spinner /> Asking for the reset to {resetting}
+          </p>
         ) : (
           <>
             <section aria-labelledby="demo-checkpoints" className="flex flex-col gap-2.5">
@@ -182,6 +188,7 @@ function DemoPanelContent() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          aria-label={`Cancel reset to ${checkpoint.name}`}
                           onClick={() => {
                             setConfirming(null);
                           }}
@@ -191,6 +198,7 @@ function DemoPanelContent() {
                         <Button
                           size="sm"
                           variant="destructive"
+                          aria-label={`Reset now to ${checkpoint.name}`}
                           onClick={() => void reset(checkpoint.name)}
                         >
                           Reset now
@@ -201,6 +209,7 @@ function DemoPanelContent() {
                         size="sm"
                         variant="secondary"
                         className="shrink-0"
+                        aria-label={`Reset to ${checkpoint.name}`}
                         onClick={() => {
                           setConfirming(checkpoint.name);
                         }}
@@ -219,8 +228,8 @@ function DemoPanelContent() {
                 Registries
               </h3>
               <p className="text-sm text-muted-foreground">
-                A paused registry answers as unavailable: new checks wait and retry, cases show the
-                check as pending.
+                A paused registry answers as unavailable, cached answers included: filing and review
+                carry on and show it as not available. Integrations shows it paused by Juma Omondi.
               </p>
               <ul className="flex flex-col divide-y rounded-lg border">
                 {panel.registries.map((registry) => (
@@ -522,23 +531,4 @@ function InboxList({
       )}
     </div>
   );
-}
-
-/**
- * Waits for the console to go down for the restart (or for a while, if it went faster than a
- * poll), then for it to answer again.
- */
-async function waitForRestart(): Promise<void> {
-  const answers = async () => {
-    try {
-      await fetch('/', { redirect: 'manual', cache: 'no-store' });
-      return true;
-    } catch {
-      return false;
-    }
-  };
-  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-  const asked = Date.now();
-  while (Date.now() - asked < GOING_DOWN_MS && (await answers())) await sleep(POLL_MS);
-  while (!(await answers())) await sleep(POLL_MS);
 }

@@ -2,12 +2,13 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
 import { withViewerClient } from './as-viewer.server';
-import { auditClient } from './audit/client.server';
+import { auditClient, auditPersonsClient } from './audit/client.server';
 import { AUDIT_KINDS } from './audit/types';
 import type { AuditChainPage, AuditChainVerification, AuditEventPage } from './audit/types';
 import {
   type AuditEventView,
   getAuditEvent,
+  getAuditPersonName,
   listAuditChains,
   listAuditEvents,
   verifyAuditChain,
@@ -49,6 +50,12 @@ export const getAuditEventDetail = createServerFn({ method: 'GET' })
   .validator(z.object({ eventId: z.uuid() }))
   .handler(({ data }): Promise<ServiceResult<AuditEventView>> =>
     withViewerClient(auditClient, (client) => getAuditEvent(client, data.eventId)),
+  );
+
+export const getAuditSubjectName = createServerFn({ method: 'GET' })
+  .validator(z.object({ personId: z.uuid() }))
+  .handler(({ data }): Promise<ServiceResult<string>> =>
+    withViewerClient(auditPersonsClient, (client) => getAuditPersonName(client, data.personId)),
   );
 
 export const getAuditChains = createServerFn({ method: 'GET' })

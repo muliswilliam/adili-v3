@@ -1,3 +1,4 @@
+import type * as DemoAuth from '@adili/demo-auth';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const config = {
@@ -7,8 +8,18 @@ const config = {
   DEMO_RESET_SCRIPT: undefined as string | undefined,
   DEMO_MOCKS_URL: 'http://mocks.test',
   RABBITMQ_URL: 'amqp://localhost',
+  OIDC_ISSUER_URL: 'http://keycloak.test/realms/adili',
+  OIDC_CLIENT_ID: 'console',
+  OIDC_CLIENT_SECRET: 'console-secret',
+  INTEGRATION_GATEWAY_API_URL: 'http://gateway.test',
 };
 vi.mock('../env.server', () => ({ env: () => config }));
+
+const demoSignIn = vi.fn();
+vi.mock('@adili/demo-auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof DemoAuth>()),
+  demoSignIn,
+}));
 
 const getSession = vi.fn<() => Promise<{ accessToken: string } | null>>();
 vi.mock('../bff.server', () => ({ getBff: () => ({ getSession }) }));
@@ -43,6 +54,8 @@ beforeEach(() => {
   config.DEMO_RESET_SCRIPT = undefined;
   signedInAs('reviewer');
   execFile.mockReset();
+  demoSignIn.mockReset();
+  demoSignIn.mockResolvedValue({ accessToken: 'platform-admin-token', expiresInSeconds: 300 });
   fetchMock.mockReset();
   fetchMock.mockImplementation((input) =>
     Promise.resolve(
@@ -110,17 +123,54 @@ describe('demo panel (#621)', () => {
     expect(panel?.registries.every((registry) => registry.paused === null)).toBe(true);
   });
 
-  it('pauses and resumes a registry through the mocks', async () => {
+  /** Every call the panel made: where to, and with whose token. */
+  const calls = () =>
+    fetchMock.mock.calls.map(([input, init]) => {
+      const url = input instanceof Request ? input.url : String(input);
+      const headers = input instanceof Request ? input.headers : new Headers(init?.headers);
+      return { url, authorization: headers.get('authorization') };
+    });
+
+  it('pauses and resumes a registry through the mocks and, as the platform admin, the gateway (#477)', async () => {
     expect(await setRegistryPaused(request(), 'ntsa', true)).toBe(true);
-    expect(fetchMock).toHaveBeenLastCalledWith(
-      new URL('http://mocks.test/demo/registries/ntsa/pause'),
-      expect.objectContaining({ method: 'POST' }),
-    );
     expect(await setRegistryPaused(request(), 'ntsa', false)).toBe(false);
-    expect(fetchMock).toHaveBeenLastCalledWith(
-      new URL('http://mocks.test/demo/registries/ntsa/resume'),
-      expect.objectContaining({ method: 'POST' }),
+
+    expect(calls()).toEqual(
+      expect.arrayContaining([
+        { url: 'http://mocks.test/demo/registries/ntsa/pause', authorization: null },
+        {
+          url: 'http://gateway.test/v1/integrations/ntsa/pause',
+          authorization: 'Bearer platform-admin-token',
+        },
+        { url: 'http://mocks.test/demo/registries/ntsa/resume', authorization: null },
+        {
+          url: 'http://gateway.test/v1/integrations/ntsa/resume',
+          authorization: 'Bearer platform-admin-token',
+        },
+      ]),
     );
+    expect(calls()).toHaveLength(4);
+    // Signed in once, as the platform admin through the console's client, and reused.
+    expect(demoSignIn).toHaveBeenCalledTimes(1);
+    expect(demoSignIn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        demoKey: 'platform-admin',
+        clientId: 'console',
+        redirectUri: 'http://localhost:3020/auth/callback',
+      }),
+    );
+  });
+
+  it('answers null when the gateway does not pause the registry', async () => {
+    fetchMock.mockImplementation((input) =>
+      Promise.resolve(
+        input instanceof Request && input.url.startsWith('http://gateway.test')
+          ? Response.json({ type: 'forbidden', status: 403 }, { status: 403 })
+          : Response.json({ paused: true }),
+      ),
+    );
+
+    expect(await setRegistryPaused(request(), 'kra', true)).toBeNull();
   });
 
   it('offers the command, not a button, without a reset script (a local stack)', async () => {

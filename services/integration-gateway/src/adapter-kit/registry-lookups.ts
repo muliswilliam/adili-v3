@@ -23,8 +23,9 @@ type Resolved<T> =
 
 /**
  * The adapter kit's lookups: every registry lookup goes through `lookup`, whatever the registry.
- * The 24-hour cache of answers (found and not found) first, then the adapter's call through
- * `ResilientCalls` (pause flag, rate limit, timeout and circuit breaker). Every call to the
+ * The pause flag first (a paused system answers `unavailable`, cached answers included), then the
+ * 24-hour cache of answers (found and not found), then the adapter's call through `ResilientCalls`
+ * (rate limit, timeout and circuit breaker). Every call to the
  * registry takes a rate-limit slot: the kit reserves the adapter's usual calls together before
  * the timeout starts, and the adapter charges any more (KRA's second PIN) without waiting, so
  * queueing for our own limit never counts against the timeout or the breaker. Every lookup,
@@ -91,6 +92,10 @@ export class RegistryLookups {
   ): Promise<Resolved<T>> {
     const { system } = adapter;
     const { cacheTtlSeconds } = policyOf(this.policies, system);
+    // A paused system answers nothing, not even from the cache: the outage shows (spec 07b S13:
+    // pause, then the rate limit, then the cache). The cache is kept for when it resumes.
+    const paused = await this.calls.whilePaused(system, { log: { subjectHash } });
+    if (paused) return paused;
     // A system without a cache lifetime answers every lookup afresh.
     const hit = cacheTtlSeconds === null ? undefined : await this.cache.get(adapter, subjectHash);
     if (hit) return fromAnswer(hit, true);

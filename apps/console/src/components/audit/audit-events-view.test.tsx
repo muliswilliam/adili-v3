@@ -3,9 +3,17 @@ import { ToastProvider, TooltipProvider } from '@adili/ui';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { mockAuditClient, resetAuditMock } from '../../server/audit/mock.server';
+import {
+  mockAuditClient,
+  mockAuditPersonsClient,
+  resetAuditMock,
+} from '../../server/audit/mock.server';
 import type { AuditEventPage } from '../../server/audit/types';
-import { getAuditEvent, listAuditEvents } from '../../server/audit-trail.server';
+import {
+  getAuditEvent,
+  getAuditPersonName,
+  listAuditEvents,
+} from '../../server/audit-trail.server';
 import type { ServiceResult } from '../../server/service-call';
 import { AuditEventsView } from './audit-events-view';
 
@@ -13,10 +21,15 @@ vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ invalidate: vi.fn() }),
 }));
 
-vi.mock('../../server/audit-trail', () => ({ getAuditEventDetail: vi.fn() }));
+vi.mock('../../server/audit-trail', () => ({
+  getAuditEventDetail: vi.fn(),
+  getAuditSubjectName: vi.fn(),
+}));
 
 const client = () => mockAuditClient(['auditor']);
 const loadEvent = (eventId: string) => getAuditEvent(client(), eventId);
+const loadPersonName = (personId: string) =>
+  getAuditPersonName(mockAuditPersonsClient(['auditor']), personId);
 
 async function page(): Promise<ServiceResult<AuditEventPage>> {
   return listAuditEvents(client(), {}, 50);
@@ -36,6 +49,7 @@ function renderView(
           onFiltersChange={onFiltersChange}
           firstPage
           loadEvent={loadEvent}
+          loadPersonName={loadPersonName}
         />
       </ToastProvider>
     </TooltipProvider>,
@@ -53,6 +67,13 @@ function only(elements: HTMLElement[]): HTMLElement {
   if (!element || elements.length !== 1)
     throw new Error(`Expected one element, got ${String(elements.length)}`);
   return element;
+}
+
+/** A drawer fact (term and value) by its term. */
+function factOf(term: HTMLElement): HTMLElement {
+  const fact = term.parentElement;
+  if (!fact) throw new Error('A term outside a fact');
+  return fact;
 }
 
 describe('AuditEventsView', () => {
@@ -111,6 +132,46 @@ describe('AuditEventsView', () => {
     expect(within(drawer).getByText('review-case · ', { exact: false })).toBeTruthy();
   });
 
+  it('names the person the event is about, and the app the reviewer read it through', async () => {
+    renderView(await page());
+    fireEvent.click(
+      only(screen.getAllByRole('button', { name: 'review.case.viewed' }).slice(0, 1)),
+    );
+    const drawer = await screen.findByRole('dialog');
+    const person = factOf(within(drawer).getByText('Person the data is about'));
+    expect(await within(person).findByText('Wanjiku Kamau')).toBeTruthy();
+    // The id stays, for the Person filter.
+    expect(within(person).getByText('7d3f9b2a-4c1e-4f8a-9b6d-2e5a1c3f7b90')).toBeTruthy();
+    const through = factOf(within(drawer).getByText('Through'));
+    expect(within(through).getByText('Console')).toBeTruthy();
+  });
+
+  it('shows the id alone when the person cannot be named', async () => {
+    render(
+      <TooltipProvider>
+        <ToastProvider>
+          <AuditEventsView
+            result={await page()}
+            filters={{}}
+            onFiltersChange={vi.fn()}
+            firstPage
+            loadEvent={loadEvent}
+            loadPersonName={() =>
+              Promise.resolve({ ok: false, error: { kind: 'unavailable', detail: null } })
+            }
+          />
+        </ToastProvider>
+      </TooltipProvider>,
+    );
+    fireEvent.click(
+      only(screen.getAllByRole('button', { name: 'review.case.viewed' }).slice(0, 1)),
+    );
+    const drawer = await screen.findByRole('dialog');
+    await within(drawer).findByText('Event data');
+    expect(within(drawer).queryByText('Wanjiku Kamau')).toBeNull();
+    expect(within(drawer).getByText('7d3f9b2a-4c1e-4f8a-9b6d-2e5a1c3f7b90')).toBeTruthy();
+  });
+
   it('loads an opened event once, however often it renders', async () => {
     const load = vi.fn(loadEvent);
     render(
@@ -122,6 +183,7 @@ describe('AuditEventsView', () => {
             onFiltersChange={vi.fn()}
             firstPage
             loadEvent={(eventId) => load(eventId)}
+            loadPersonName={loadPersonName}
           />
         </ToastProvider>
       </TooltipProvider>,

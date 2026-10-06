@@ -98,24 +98,28 @@ export class DeterminationsController {
     operationId: 'getDeterminationLetter',
     summary: 'Decision letter download; issued on first request for bulk closures',
     description:
-      "The Commission's reviewers and supervisors, and the declarant for their own approved determinations. A bulk closure's letter is issued the first time it is asked for, then served.",
+      "The Commission's reviewers and supervisors, and the declarant for their own approved determinations. A bulk closure's letter is issued the first time it is asked for, then served. Staff get a link valid for five minutes, which the documents service hands out for the Commission (internalGetDocumentDownload); their read is audited naming the declarant. The declarant gets the portal's download of their own letter, not audited.",
   })
   @ApiOkResponse({ description: 'Download link', schema: schemaRef('LetterDownload') })
   @ApiProblemResponse(404, NOT_VISIBLE)
   @ApiProblemResponse(409, 'Problem code `not-approved`')
   @ApiProblemResponse(502, 'The documents service refused the letter')
   @ApiProblemResponse(503, 'The documents service could not be reached')
-  letter(
+  async letter(
     @CurrentPrincipal() principal: Principal,
     @Req() request: AuthenticatedRequest,
     @Param('determinationId', new ZodValidationPipe(uuidParam)) determinationId: string,
     @CurrentReadAudit() audit: ReadAudit,
   ): Promise<LetterDownloadView> {
     const declarant = request.principal?.personId ?? null;
-    // Review staff read the Commission's letters, audited. Anyone else reads only their own letter
-    // as a declarant (anyone else's is 404): not an audited access. The service branches the same.
+    // Review staff read the Commission's letters, audited naming the declarant. Anyone else reads
+    // only their own letter as a declarant (anyone else's is 404): not an audited access. The
+    // service branches the same.
     if (reviewTenant(principal) === null && declarant !== null) audit.ownRecord();
-    return this.letters.letter(principal, declarant, determinationId);
+    const { letter, readOf } = await this.letters.letter(principal, declarant, determinationId);
+    if (readOf !== null)
+      audit.resource({ tenant: readOf.tenant, subjectPersonId: readOf.personId });
+    return letter;
   }
 
   @Post('determinations/:determinationId/approve')

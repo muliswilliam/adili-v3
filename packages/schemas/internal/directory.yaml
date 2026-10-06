@@ -3434,6 +3434,51 @@ paths:
       x-audited-read:
         action: person.looked-up
         resource: person
+  /v1/persons/{personId}/name:
+    get:
+      tags:
+        - persons
+      summary: The name of a person, by id (auditor)
+      description: 'Auditors only, audited: the audit trail names the person an event is about by id, and this names them. The name only, never contacts, identifiers or roster records. 404 when no person has this id.'
+      operationId: getPersonName
+      parameters:
+        - name: personId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The person's name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonName'
+        '400':
+          description: personId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Only auditors read a person by id
+
+            Requires one of the roles: auditor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No person has this id
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: person.name.read
+        resource: person
   /internal/v1/persons/{personId}/contacts:
     get:
       tags:
@@ -6443,6 +6488,18 @@ components:
         - commissions
         - contactsOnFile
         - createdAt
+    PersonName:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+          description: As confirmed at onboarding, or as entered by an applicant
+      required:
+        - personId
+        - fullName
     PersonContacts:
       type: object
       properties:

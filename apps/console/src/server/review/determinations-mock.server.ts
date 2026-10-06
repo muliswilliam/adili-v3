@@ -217,10 +217,11 @@ export async function determinationsRoute(
     if (found.status !== 'approved' || !found.letterDocumentId) {
       return coded(409, 'not-approved', 'Only an approved determination has a decision letter.');
     }
+    // Staff get the link documents hands review for the Commission: the placeholder file route.
     return json(200, {
       documentId: found.letterDocumentId,
       verificationId: `V${found.letterDocumentId.slice(0, 8).toUpperCase()}`,
-      downloadUrl: null,
+      downloadUrl: `/api/mock-files/${found.letterDocumentId}`,
     });
   }
 

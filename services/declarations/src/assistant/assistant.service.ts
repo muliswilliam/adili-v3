@@ -41,7 +41,7 @@ import { isUuid } from '../guards.js';
 import { retrieve, type RetrievalQuery, type RetrievedPassage } from '../help/retrieval.js';
 import { nairobiDate } from '../obligations/dates.js';
 import { filingObligations } from '../obligations/schema.js';
-import { checkAnswer, DECLINE_TEXT } from './answer.js';
+import { checkAnswer, citeKey, DECLINE_TEXT, resolveCiteKeys } from './answer.js';
 import { boostTagsOf, householdCountsOf, residualsOf } from './context.js';
 import { assistantFeedbackRecorded, assistantMessageAnswered } from './events.js';
 import { assistantUnavailable } from './problems.js';
@@ -244,7 +244,12 @@ export class AssistantService {
         sectionKey,
         residuals: declaration ? await this.residuals(declaration, asked.sections, sectionKey) : [],
       },
-      passages: passages.map(({ id, citation, text }) => ({ id, citation, text })),
+      // Cited by their place in this list, not by id (`citeKey`): put back when stored.
+      passages: passages.map(({ citation, text }, index) => ({
+        id: citeKey(index),
+        citation,
+        text,
+      })),
       history,
     };
     const upstream = new AbortController();
@@ -657,7 +662,14 @@ export class AssistantService {
   ): Promise<AssistantAnswer | null> {
     const byId = new Map(answered.passages.map((passage) => [passage.id, passage]));
     const checked = answered.output
-      ? checkAnswer(answered.output, new Set(byId.keys()), answered.liveKeys)
+      ? checkAnswer(
+          resolveCiteKeys(
+            answered.output,
+            answered.passages.map((passage) => passage.id),
+          ),
+          new Set(byId.keys()),
+          answered.liveKeys,
+        )
       : ({ declined: true } as const);
     const citations: StoredCitation[] = checked.declined
       ? []

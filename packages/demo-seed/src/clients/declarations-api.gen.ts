@@ -2086,7 +2086,7 @@ export interface components {
             attachmentId: string | null;
             /** @description A document's set: what the declarant said the document is */
             documentKind: ("title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other") | null;
-            /** @description Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back), `unavailable` (the reading service could not do it now: try again) or `not-a-draft` (the declaration was submitted while it was read). Null otherwise */
+            /** @description Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back), `unavailable` (the reading service could not do it now: try again) or `not-a-draft` (the declaration was submitted while it was read, or while a registry was looked up). Null otherwise */
             reason: ("document-unavailable" | "document-unreadable" | "not-read" | "unavailable" | "not-a-draft") | null;
             suggestions: components["schemas"]["Suggestion"][];
         };
@@ -4610,6 +4610,15 @@ export interface operations {
             };
             /** @description Idempotency-Key reused with a different request body */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The workflow engine could not start the lookups (`workflow-unavailable`): nothing was recorded, no consent and no set; ask again */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

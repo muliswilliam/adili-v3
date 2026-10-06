@@ -10,11 +10,13 @@ import {
   CurrentPrincipal,
   type Principal,
   InternalApi,
+  PLATFORM_TENANT,
   Roles,
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import {
+  AUDITOR,
   DECLARANT,
   DIRECTORY_INTERNAL_SCOPE,
   DIRECTORY_PERSON_CONTACTS_SCOPE,
@@ -31,6 +33,7 @@ import {
   type FindPersonQuery,
   findPersonQuery,
   type PersonContacts,
+  type PersonName,
   type PersonNationalId,
   type PersonPreferredLanguage,
   type PersonSummary,
@@ -68,6 +71,31 @@ export class PersonsController {
     @Query(new ZodValidationPipe(findPersonQuery)) query: FindPersonQuery,
   ): Promise<PersonSummary> {
     return this.persons.findByOfr(principal.subject, query.ofr);
+  }
+
+  @Get(':personId/name')
+  @Roles(AUDITOR)
+  @AuditedRead({ action: 'person.name.read', resource: 'person' })
+  @ApiParam({ name: 'personId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'getPersonName',
+    summary: 'The name of a person, by id (auditor)',
+    description:
+      'Auditors only, audited: the audit trail names the person an event is about by id, and this names them. The name only, never contacts, identifiers or roster records. 404 when no person has this id.',
+  })
+  @ApiOkResponse({ description: "The person's name", schema: schemaRef('PersonName') })
+  @ApiProblemResponse(400, 'personId is not a UUID')
+  @ApiProblemResponse(403, 'Only auditors read a person by id')
+  @ApiProblemResponse(404, 'No person has this id')
+  async name(
+    @CurrentPrincipal() principal: Principal,
+    @Param('personId', new ZodValidationPipe(z.uuid())) personId: string,
+    @CurrentReadAudit() audit: ReadAudit,
+  ): Promise<PersonName> {
+    const name = await this.persons.name(principal.subject, personId);
+    // Persons are platform-level: the read is filed under the platform, naming whom it is about.
+    audit.resource({ tenant: PLATFORM_TENANT, subjectPersonId: personId });
+    return name;
   }
 }
 

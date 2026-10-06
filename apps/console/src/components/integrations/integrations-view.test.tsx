@@ -175,7 +175,7 @@ describe('S15 Integrations page', () => {
     });
 
     expect(screen.getByRole('status').textContent).toMatch(
-      /^HR supplier lists are paused\. Paused by Juma Omondi since \d\d:\d\d\. Lookups are marked unavailable until they are resumed\. Cached answers still serve\.$/,
+      /^HR supplier lists are paused\. Paused by Juma Omondi since \d\d:\d\d\. Lookups are marked unavailable until they are resumed, cached answers included\.$/,
     );
     fireEvent.click(screen.getByRole('button', { name: 'HR supplier lists' }));
     within(row('hr-suppliers')).getByText(/Nothing is sent until they are resumed\.$/);

@@ -169,7 +169,8 @@ export const PROCESSING_LEGAL_BASIS = 'regs-r20-1-b';
 
 /**
  * Why the gateway gave no answer of its own. `gateway-unavailable`: it could not be reached (or
- * could not record the lookup), looked up again like a registry's `unavailable`.
+ * could not record the lookup), at the lookup or when its stored result was read back for
+ * matching; looked up again like a registry's `unavailable`, by the check or else by the sweep.
  * `gateway-rejected`: it refused the request (a missing scope, say), which needs fixing, not
  * waiting: that lookup (or stored-result read) is not tried again in the check, its system is
  * `unavailable` with this reason, and the rest of the check goes on.

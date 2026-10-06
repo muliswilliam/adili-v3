@@ -22,7 +22,14 @@ import { config, SYSTEM_SUBJECT } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
 import { MalwareScanner } from '../scanning/malware-scanner.js';
 import { S3, S3_PUBLIC } from '../storage/storage.module.js';
-import { uploadDeleted, uploadLinked, uploadUnlinked } from './events.js';
+import {
+  uploadCompleted,
+  uploadDeleted,
+  uploadExpired,
+  uploadLinked,
+  uploadReserved,
+  uploadUnlinked,
+} from './events.js';
 import { CSV, type DetectedType, LINKED_PURPOSES, policyOf, purposesFor } from './purposes.js';
 import type {
   CreateUploadBody,
@@ -112,8 +119,8 @@ export class UploadsService {
     const id = uuidv7();
     const key = `${body.purpose}/${id}`;
     const expiresAt = new Date(Date.now() + UPLOAD_URL_TTL_SECONDS * 1000);
-    await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
-      tx.insert(uploads).values({
+    await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
+      await tx.insert(uploads).values({
         id,
         tenant,
         purpose: body.purpose,
@@ -123,8 +130,16 @@ export class UploadsService {
         quarantineKey: key,
         createdBy: principal.subject,
         expiresAt,
-      }),
-    );
+      });
+      await this.events.record(
+        tx,
+        uploadReserved(tenant, {
+          uploadId: id,
+          purpose: body.purpose,
+          reservedBy: principal.subject,
+        }),
+      );
+    });
     // Content type and length are signed, so storage refuses any other body.
     const uploadUrl = await getSignedUrl(
       this.publicS3,
@@ -199,8 +214,8 @@ export class UploadsService {
       await this.deleteQuietly(config.S3_BUCKET_CLEAN, claimed.quarantineKey);
     }
 
-    const [settled] = await withTenant(this.db, context, (tx) =>
-      tx
+    const [settled] = await withTenant(this.db, context, async (tx) => {
+      const rows = await tx
         .update(uploads)
         .set({
           state: outcome.state,
@@ -214,8 +229,21 @@ export class UploadsService {
           completionStartedAt: null,
         })
         .where(eq(uploads.id, id))
-        .returning(),
-    );
+        .returning();
+      if (rows.length > 0) {
+        await this.events.record(
+          tx,
+          uploadCompleted(claimed.tenant, {
+            uploadId: id,
+            purpose: claimed.purpose,
+            outcome: outcome.state,
+            rejection: outcome.state === 'rejected' ? outcome.rejection : null,
+            completedBy: principal.subject,
+          }),
+        );
+      }
+      return rows;
+    });
     if (!settled) throw new Error(`upload ${id} vanished while completing`);
     return toUpload(settled);
   }
@@ -342,15 +370,16 @@ export class UploadsService {
   }
 
   /**
-   * Marks uploads still awaiting their bytes after the PUT expired as `expired` and deletes any
-   * quarantine object they left. Idempotent, so every replica may run it. Returns the count.
+   * Marks uploads still awaiting their bytes after the PUT expired as `expired`, each with its
+   * audit event in the same transaction, and deletes any quarantine object they left.
+   * Idempotent, so every replica may run it. Returns the count.
    */
   async expireStale(): Promise<number> {
     const expired = await withTenant(
       this.db,
       { tenant: PLATFORM_TENANT, subject: SYSTEM_SUBJECT },
-      (tx) =>
-        tx
+      async (tx) => {
+        const rows = await tx
           .update(uploads)
           .set({ state: 'expired' })
           .where(
@@ -363,7 +392,17 @@ export class UploadsService {
               ),
             ),
           )
-          .returning({ key: uploads.quarantineKey }),
+          .returning({
+            id: uploads.id,
+            tenant: uploads.tenant,
+            purpose: uploads.purpose,
+            key: uploads.quarantineKey,
+          });
+        for (const { id, tenant, purpose } of rows) {
+          await this.events.record(tx, uploadExpired(tenant, { uploadId: id, purpose }));
+        }
+        return rows;
+      },
     );
     for (const { key } of expired) {
       await this.deleteQuietly(config.S3_BUCKET_QUARANTINE, key);

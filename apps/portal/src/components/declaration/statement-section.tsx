@@ -95,6 +95,8 @@ import { sourceDetails } from '../../declaration/item-source';
 import { RegistriesPanel, type RegistryPerson } from './registries-panel';
 import { ItemEditor, itemFieldId, type RenderAttachments } from './statement-item-editor';
 import { ownerOf, personKeyOf } from '../../declaration/section-key';
+import { StatementChanges } from './changes-since-last';
+import { usePreviousDeclaration } from './use-previous-declaration';
 import { liveSections, relationLabel, stepLink } from './steps';
 import { categoryOfItem, withAcceptedItem } from '../../declaration/suggestions';
 import {
@@ -221,6 +223,7 @@ export function StatementSection({
   const { declaration } = useWorkspace();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const previous = usePreviousDeclaration(declaration.id, declaration.type);
   const {
     value: statement,
     update,
@@ -504,6 +507,8 @@ export function StatementSection({
           </TabsContent>
         ))}
       </Tabs>
+
+      <StatementChanges load={previous} statement={statement} personKey={ownerOf(key)} />
 
       {separated ? (
         <FormField

@@ -1,6 +1,6 @@
 import type { AssetItem, DeclarationV1, Statement } from '@adili/forms';
 
-import { normalise, statementSectionKey } from './match.js';
+import { normalise, statementSectionKey } from '@adili/forms/compare';
 import type { RuleId, Severity } from './registry.js';
 import { flag, type Flag, type ItemRef, ref } from './rules.js';
 

@@ -69,6 +69,14 @@ export const personSummarySchema = z.object({
 });
 export type PersonSummary = z.infer<typeof personSummarySchema>;
 
+export const personNameSchema = z.object({
+  personId: z.uuid(),
+  fullName: z
+    .string()
+    .meta({ description: 'As confirmed at onboarding, or as entered by an applicant' }),
+});
+export type PersonName = z.infer<typeof personNameSchema>;
+
 /** Query of `GET /v1/persons`. */
 export const findPersonQuery = z.object({
   ofr: ofrSchema.refine(hasValidCheckCharacter, {

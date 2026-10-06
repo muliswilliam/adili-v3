@@ -10,6 +10,7 @@ import { Clock } from '../clock.js';
 import { isEditable } from '../declaration/schema.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
+import { currentTransactionId, startOrRefuse } from '../db/workflow-transactions.js';
 import { isRecord, isUuid } from '../guards.js';
 import { personOf } from '../drafts/access.js';
 import { DraftsService } from '../drafts/drafts.service.js';
@@ -88,10 +89,36 @@ export class SuggestionsService {
     const planned = systems.map((system) => ({ setId: uuidv7(), system }));
 
     const recorded = await withPerson(this.db, person, async (tx) => {
+      // Checked unlocked first: the workflow is started before this transaction takes a lock
+      // others queue for (ADR-003 decision 7), with its id, so a request never commits without
+      // the workflow that answers its sets, and Temporal unreachable rolls it back (503
+      // `workflow-unavailable`; the declarant asks again).
+      const found = await liveDeclaration(tx, declarationId);
+      if (!found) return null;
+      if (!isEditable(found.status)) throw declarationNotDraft('edited');
+      const personKey = await this.checkPerson(tx, found, request.personKey);
+      const transactionId = await currentTransactionId(tx);
+      await startOrRefuse(
+        () =>
+          this.workflows.start({
+            tenant: found.tenant,
+            declarationId: found.id,
+            personId: person.personId,
+            subject: person.subject,
+            personKey,
+            consentId,
+            sets: planned,
+            transactionId,
+          }),
+        this.logger,
+        { declarationId: found.id, consentId },
+        'Registry lookups not started',
+      );
+      // Then locked, and checked again: a submission meanwhile refuses the request, and the
+      // workflow, finding nothing once this rolls back, looks nothing up.
       const declaration = await liveDeclaration(tx, declarationId, { lock: true });
       if (!declaration) return null;
       if (!isEditable(declaration.status)) throw declarationNotDraft('edited');
-      const personKey = await this.checkPerson(tx, declaration, request.personKey);
       await tx.insert(suggestionConsents).values({
         id: consentId,
         declarationId: declaration.id,
@@ -125,37 +152,9 @@ export class SuggestionsService {
           consentTextVersion: request.consent.textVersion,
         }),
       );
-      return { declaration, personKey, sets };
+      return sets;
     });
-    const { declaration, personKey, sets } = notFoundIfInvisible(recorded);
-
-    try {
-      await this.workflows.start({
-        tenant: declaration.tenant,
-        declarationId: declaration.id,
-        personId: person.personId,
-        subject: person.subject,
-        personKey,
-        consentId,
-        sets: planned,
-      });
-    } catch (error) {
-      // Nothing will answer these sets: say so now rather than leave them pending.
-      this.logger.warn(
-        {
-          declarationId: declaration.id,
-          consentId,
-          err: error instanceof Error ? error.name : typeof error,
-        },
-        'Registry lookups not started',
-      );
-      await this.markFailed(
-        person,
-        sets.map((set) => set.id),
-      );
-      return sets.map((set) => setView({ ...set, status: 'failed' }, []));
-    }
-    return sets.map((set) => setView(set, []));
+    return notFoundIfInvisible(recorded).map((set) => setView(set, []));
   }
 
   /**
@@ -431,22 +430,6 @@ export class SuggestionsService {
       });
     }
     return personKey;
-  }
-
-  private async markFailed(person: PersonContext, setIds: string[]): Promise<void> {
-    try {
-      await withPerson(this.db, person, (tx) =>
-        tx
-          .update(suggestionSets)
-          .set({ status: 'failed' })
-          .where(and(inArray(suggestionSets.id, setIds), eq(suggestionSets.status, 'pending'))),
-      );
-    } catch (error) {
-      this.logger.warn(
-        { err: error instanceof Error ? error.name : typeof error },
-        'Unstarted registry lookups not marked failed',
-      );
-    }
   }
 }
 

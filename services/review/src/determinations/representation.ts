@@ -49,9 +49,9 @@ export type DeterminationView = z.infer<typeof determinationSchema>;
 export const letterDownloadSchema = z.object({
   documentId: z.uuid(),
   verificationId: z.string(),
-  downloadUrl: z.url().nullable().meta({
+  downloadUrl: z.url().meta({
     description:
-      "The declarant's portal download of their own letter (the documents owner rule); null for staff, who download the document by id from the documents service",
+      "For staff, a link to the signed PDF valid for five minutes, handed out by the documents service for the Commission; for the declarant, the portal's download of their own letter (the documents owner rule)",
   }),
 });
 export type LetterDownloadView = z.infer<typeof letterDownloadSchema>;

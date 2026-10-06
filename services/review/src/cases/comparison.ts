@@ -1,7 +1,7 @@
 import type { DeclarationV1, PersonName } from '@adili/forms';
 import { z } from 'zod';
 
-import { CATEGORIES, match, type PlacedItem, valueOf } from '../rules/match.js';
+import { CATEGORIES, match, type PlacedItem, valueChange, valueOf } from '@adili/forms/compare';
 
 const categorySchema = z.enum(CATEGORIES as ['income', 'assets', 'liabilities']);
 
@@ -73,9 +73,10 @@ export function compareVersions(
       personKey,
       personName: fullName(personName),
       matched: of(matched, personKey).map(({ category, previous: before, current: after }) => {
-        const previousCents = valueOf(before);
-        const currentCents = valueOf(after);
-        const deltaCents = currentCents - previousCents;
+        const { previousCents, currentCents, deltaCents, changePercent } = valueChange(
+          valueOf(before),
+          valueOf(after),
+        );
         return {
           category,
           type: after.type,
@@ -83,7 +84,7 @@ export function compareVersions(
           previousCents,
           currentCents,
           deltaCents,
-          deltaPercent: previousCents === 0 ? null : Math.round((deltaCents / previousCents) * 100),
+          deltaPercent: changePercent,
           flaggedByDeclarant: after.change.changed,
         };
       }),

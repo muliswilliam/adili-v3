@@ -33,13 +33,18 @@ import {
 export const LOOKUP_RETRY_DELAYS = ['5 seconds', '10 seconds', '20 seconds'] as const;
 
 /**
- * Pulls from declarations and the directory, reads from the gateway and database work: retried
- * with backoff until they succeed, as the processing workflow's pulls are. A version that
- * disappeared fails at once (`version-missing`).
+ * Pulls from declarations and the directory, reads from the gateway and database work: each
+ * activity retried with backoff for half an hour at most, so no case waits on them for good
+ * (#478). The limit is per activity, not for the whole check, which also waits between its
+ * lookups. A check that still fails stores nothing: its registries stay not checked, the case
+ * goes on to its copilot, and only a reviewer's re-check runs it again (the sweep picks only
+ * cases with an `unavailable` registry, #724). The sweep's plan has the same limit; the next
+ * hourly sweep plans again. A version that disappeared fails at once (`version-missing`).
  */
 const { lookupRegistries, matchAndStoreRegistries, planRegistrySweep } =
   proxyActivities<RegistryCheckActivities>({
     startToCloseTimeout: '5 minutes',
+    scheduleToCloseTimeout: '30 minutes',
     retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumInterval: '5 minutes' },
   });
 

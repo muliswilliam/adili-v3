@@ -63,6 +63,7 @@ const { givenObligation, givenDraft, open, opened, ask, eventsOf } = assistantFi
 
 const VEHICLE_QUESTION = 'Do I declare a matatu I co-own with my brother?';
 const SALARY_QUESTION = "Do I declare my wife's salary?";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 describe('opening a conversation', () => {
   it('opens one conversation per draft and resumes it, kept for as long as the draft', async () => {
@@ -152,6 +153,52 @@ describe('asking a question (S1, S2)', () => {
       tenant: 'psc',
       subjectRef: `assistant-conversation:${conversation.id}`,
     });
+  });
+
+  it('has the AI cite passages by their place in the list, not by their alike uuids, and stores the passages cited (#622)', async () => {
+    const draft = await givenDraft();
+    const conversation = await opened(draft.id);
+    api.aiGateway.answer((input) => {
+      const s31 = input.passages.findIndex((passage) => passage.citation === 'Act s.31');
+      const para8 = input.passages.findIndex(
+        (passage) => passage.citation === 'Act First Schedule, para. 8',
+      );
+      if (s31 < 0 || para8 < 0) throw new Error('Act s.31 or First Schedule para. 8 not retrieved');
+      return {
+        kind: 'answer',
+        output: {
+          label: answerLabel(),
+          declined: false,
+          blocks: [
+            { text: 'Yes.', passageIds: [`p${String(s31 + 1)}`], sectionLink: null },
+            {
+              text: 'In her own statement.',
+              passageIds: [`p${String(para8 + 1)}`],
+              sectionLink: null,
+            },
+          ],
+          followUps: [],
+        },
+      };
+    });
+
+    const response = await ask(conversation.id, SALARY_QUESTION, 'statement:officer');
+
+    const [input] = api.aiGateway.inputs();
+    // Corpus ids are uuidv7s alike but for a few hex digits, which a model miscopies: the gateway
+    // and the model see each passage's place instead.
+    expect(input?.passages.map((passage) => passage.id)).toEqual(
+      input?.passages.map((_, index) => `p${String(index + 1)}`),
+    );
+    const { answer } = finalOf(response.body);
+    expect(answer).toMatchObject({ declined: false, text: 'Yes.\n\nIn her own statement.' });
+    expect(answer.citations.map((citation) => citation.citation)).toEqual([
+      'Act s.31',
+      'Act First Schedule, para. 8',
+    ]);
+    // Stored by the passages' own ids, which help search opens.
+    for (const citation of answer.citations) expect(citation.id).toMatch(UUID);
+    expect((await opened(draft.id)).messages[1]).toEqual(answer);
   });
 
   it('streams the answer, then stores it with its citations and section link and records an event', async () => {

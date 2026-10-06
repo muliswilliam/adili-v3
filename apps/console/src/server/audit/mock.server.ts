@@ -11,6 +11,7 @@ import { createHash } from 'node:crypto';
 import createClient from 'openapi-fetch';
 
 import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
+import type { paths as directoryPaths } from '../directory/api.gen';
 import type { paths } from './api.gen';
 import type {
   AuditChain,
@@ -411,5 +412,38 @@ export function mockAuditClient(roles: readonly string[]) {
     baseUrl: 'http://audit.mock',
     headers: { authorization: `Bearer ${token}` },
     fetch: mockAuditFetch,
+  });
+}
+
+/** The people the seeded events are about, by person id: the directory's names. */
+const PERSON_NAMES: Record<string, string> = { [WANJIKU]: 'Wanjiku Kamau' };
+
+/** In-memory stand-in for the directory's `GET /v1/persons/{personId}/name` (auditors only). */
+export function mockAuditPersonsFetch(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+  const match = /^\/v1\/persons\/([^/]+)\/name$/.exec(url.pathname);
+  if (request.method !== 'GET' || !match) return Promise.resolve(problem(404, 'Not Found'));
+  if (!mockCallerOf(request).roles.includes('auditor')) {
+    return Promise.resolve(problem(403, 'Forbidden'));
+  }
+  const personId = match[1] ?? '';
+  const fullName = PERSON_NAMES[personId];
+  return Promise.resolve(
+    fullName ? json(200, { personId, fullName }) : problem(404, 'No person has this id'),
+  );
+}
+
+/** A directory client of the person-name mock as a signed-in user with `roles` (tests). */
+export function mockAuditPersonsClient(roles: readonly string[]) {
+  const token = unsignedMockToken({
+    subject: AUDITOR,
+    name: 'Kariuki Muriithi',
+    roles,
+    tenant: 'eacc',
+  });
+  return createClient<directoryPaths>({
+    baseUrl: 'http://directory.mock',
+    headers: { authorization: `Bearer ${token}` },
+    fetch: mockAuditPersonsFetch,
   });
 }

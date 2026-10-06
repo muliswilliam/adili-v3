@@ -130,9 +130,12 @@ describe('answer-declarant-question', () => {
       expect(validate(answerInput, output)).toEqual([{ kind: 'unknown-passage', block: 1 }]);
     });
 
-    it("links a block to the declarant's section or a residual, never a place the model made up", () => {
-      const linked = (sectionLink: AnswerOutput['blocks'][number]['sectionLink']) =>
-        validate(answerInput, {
+    it("links a block to the declarant's section, a residual or a section every declaration has, never a place the model made up", () => {
+      const linked = (
+        sectionLink: AnswerOutput['blocks'][number]['sectionLink'],
+        input: AnswerInput = answerInput,
+      ) =>
+        validate(input, {
           declined: false,
           blocks: [{ ...cited(['p-31']), sectionLink }],
           followUps: [],
@@ -141,11 +144,26 @@ describe('answer-declarant-question', () => {
       // The section the declarant is on, or a residual's own section and field.
       expect(linked({ sectionKey: 'statement:officer', fieldPath: null })).toEqual([]);
       expect(linked({ sectionKey: 'statement:officer', fieldPath: '/assets/1/value' })).toEqual([]);
-      // Another section, or a field no residual names.
-      expect(linked({ sectionKey: 'household', fieldPath: null })).toEqual([
+      // A section every declaration has, as a whole: "add your spouse in the household section"
+      // (#622: a cited answer to "Do I declare my spouse's salary?" was declined for it).
+      expect(linked({ sectionKey: 'household', fieldPath: null })).toEqual([]);
+      expect(linked({ sectionKey: 'bio', fieldPath: null })).toEqual([]);
+      // A field there no residual names, a statement the context does not name, or any of them
+      // outside a declaration.
+      expect(linked({ sectionKey: 'household', fieldPath: '/spouses' })).toEqual([
+        { kind: 'unknown-link', block: 0 },
+      ]);
+      expect(linked({ sectionKey: 'statement:spouse-1', fieldPath: null })).toEqual([
         { kind: 'unknown-link', block: 0 },
       ]);
       expect(linked({ sectionKey: 'statement:officer', fieldPath: '/assets/7/value' })).toEqual([
+        { kind: 'unknown-link', block: 0 },
+      ]);
+      const dashboard: AnswerInput = {
+        ...answerInput,
+        context: { ...answerInput.context, declarationType: null, sectionKey: null, residuals: [] },
+      };
+      expect(linked({ sectionKey: 'household', fieldPath: null }, dashboard)).toEqual([
         { kind: 'unknown-link', block: 0 },
       ]);
     });

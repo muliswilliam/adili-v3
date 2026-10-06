@@ -532,7 +532,7 @@ export interface paths {
         };
         /**
          * Decision letter download; issued on first request for bulk closures
-         * @description The Commission's reviewers and supervisors, and the declarant for their own approved determinations. A bulk closure's letter is issued the first time it is asked for, then served.
+         * @description The Commission's reviewers and supervisors, and the declarant for their own approved determinations. A bulk closure's letter is issued the first time it is asked for, then served. Staff get a link valid for five minutes, which the documents service hands out for the Commission (internalGetDocumentDownload); their read is audited naming the declarant. The declarant gets the portal's download of their own letter, not audited.
          */
         get: operations["getDeterminationLetter"];
         put?: never;
@@ -839,7 +839,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One referral with its package manifest, or what its package will include */
+        /**
+         * One referral with its package manifest, or what its package will include
+         * @description A Confidential read, audited like a case view (ADR-008): every call records an audit.read.v1 `review.referral.viewed` with the viewer and the referral.
+         */
         get: operations["getReferral"];
         put?: never;
         post?: never;
@@ -1765,8 +1768,11 @@ export interface components {
             /** Format: uuid */
             documentId: string;
             verificationId: string;
-            /** @description The declarant's portal download of their own letter (the documents owner rule); null for staff, who download the document by id from the documents service */
-            downloadUrl: string | null;
+            /**
+             * Format: uri
+             * @description For staff, a link to the signed PDF valid for five minutes, handed out by the documents service for the Commission; for the declarant, the portal's download of their own letter (the documents owner rule)
+             */
+            downloadUrl: string;
         };
         /** @enum {string} */
         ApprovalKind: "determination" | "action" | "referral";

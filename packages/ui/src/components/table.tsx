@@ -1,5 +1,12 @@
 import { Slot } from '@radix-ui/react-slot';
-import type { ComponentProps, ReactNode } from 'react';
+import {
+  type ComponentProps,
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import { cn } from '../lib/cn';
 
@@ -16,7 +23,12 @@ export type TableProps = ComponentProps<'table'> & {
  * table; an explicit role keeps it one.
  */
 
+/** How far the scroller's content fades out at an edge it can still scroll past. */
+const EDGE_FADE = '28px';
+
 export function Table({ caption, showCaption = false, className, children, ...props }: TableProps) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const edges = useScrollEdges(scroller);
   return (
     <>
       {showCaption ? (
@@ -29,7 +41,15 @@ export function Table({ caption, showCaption = false, className, children, ...pr
           {caption}
         </div>
       ) : null}
-      <div className="relative w-full overflow-x-auto">
+      {/* A table wider than its column scrolls sideways; the content fades out at each edge it
+          can still scroll past, so a cut-off column reads as more to see, not as missing. */}
+      <div
+        ref={scroller}
+        data-scroll-start={edges.start ? '' : undefined}
+        data-scroll-end={edges.end ? '' : undefined}
+        style={fadeMask(edges)}
+        className="relative w-full overflow-x-auto"
+      >
         <table
           role="table"
           className={cn('w-full caption-bottom border-collapse text-sm', className)}
@@ -41,6 +61,49 @@ export function Table({ caption, showCaption = false, className, children, ...pr
       </div>
     </>
   );
+}
+
+interface ScrollEdges {
+  /** Scrolled away from the start: there is more to the left. */
+  start: boolean;
+  /** More to the right. */
+  end: boolean;
+}
+
+/**
+ * Which edges of a horizontal scroller have more content past them, kept up to date as it
+ * scrolls or either it or its content resizes. Neither until measured (the server render, and
+ * where ResizeObserver is missing).
+ */
+function useScrollEdges(scroller: { current: HTMLElement | null }): ScrollEdges {
+  const [edges, setEdges] = useState<ScrollEdges>({ start: false, end: false });
+  useEffect(() => {
+    const element = scroller.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const update = () => {
+      const start = element.scrollLeft > 1;
+      const end = element.scrollLeft + element.clientWidth < element.scrollWidth - 1;
+      setEdges((current) =>
+        current.start === start && current.end === end ? current : { start, end },
+      );
+    };
+    update();
+    element.addEventListener('scroll', update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    if (element.firstElementChild) observer.observe(element.firstElementChild);
+    return () => {
+      element.removeEventListener('scroll', update);
+      observer.disconnect();
+    };
+  }, [scroller]);
+  return edges;
+}
+
+function fadeMask({ start, end }: ScrollEdges): CSSProperties | undefined {
+  if (!start && !end) return undefined;
+  const mask = `linear-gradient(to right, ${start ? 'transparent' : '#000'}, #000 ${EDGE_FADE}, #000 calc(100% - ${EDGE_FADE}), ${end ? 'transparent' : '#000'})`;
+  return { maskImage: mask, WebkitMaskImage: mask };
 }
 
 export function TableHeader({ className, ...props }: ComponentProps<'thead'>) {

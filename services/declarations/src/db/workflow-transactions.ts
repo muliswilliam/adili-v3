@@ -1,6 +1,9 @@
+import { errorType } from '@adili/api-kit';
+import type { Logger } from '@nestjs/common';
 import { ApplicationFailure } from '@temporalio/common';
 import { sql } from 'drizzle-orm';
 
+import { workflowUnavailable } from '../drafts/problems.js';
 import type { Transaction } from './transaction.js';
 
 /**
@@ -38,5 +41,24 @@ export async function requireTransactionEnded(
       'The transaction that started the workflow is still open',
       TRANSACTION_OPEN,
     );
+  }
+}
+
+/**
+ * Starts a workflow from inside the transaction that records what it answers: Temporal not taking
+ * it is logged (`message`, with `fields`) and refused as 503 `workflow-unavailable`, which rolls
+ * that transaction back.
+ */
+export async function startOrRefuse(
+  start: () => Promise<unknown>,
+  logger: Logger,
+  fields: Record<string, string>,
+  message: string,
+): Promise<void> {
+  try {
+    await start();
+  } catch (error) {
+    logger.warn({ ...fields, err: errorType(error) }, message);
+    throw workflowUnavailable();
   }
 }

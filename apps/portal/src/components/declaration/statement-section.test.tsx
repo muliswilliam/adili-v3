@@ -12,10 +12,16 @@ import {
 } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getDeclarationSection, saveDeclarationSection } from '../../server/declarations';
+import {
+  getDeclarationSection,
+  getPreviousDeclaration,
+  saveDeclarationSection,
+} from '../../server/declarations';
 import type { LoadedSection } from '../../server/declarations.server';
 import type { DeclarationSection } from '../../server/declarations/types';
 import { resetExtractionAvailability, useExtractionEnabled } from './extraction-availability';
+import { resetPreviousDeclarations } from './use-previous-declaration';
+import type { AssetItem, Draft } from '../../declaration/contents';
 import { ITEM_MESSAGES } from '../../declaration/statement';
 import type { ItemAttachmentSlot } from './statement-item-editor';
 import {
@@ -95,7 +101,7 @@ const land = {
   location: { inKenya: true, county: '027' },
   joint: { isJoint: true, sharePercent: 50, coOwner: 'Spouse' },
   change: { changed: true, kind: 'acquisition', explanation: 'Bought in January 2026.' },
-};
+} satisfies Draft<AssetItem>;
 
 const shares = {
   id: 'a0000000-0000-4000-8000-000000000002',
@@ -106,7 +112,7 @@ const shares = {
   location: { inKenya: false, country: 'UG' },
   joint: { isJoint: false },
   change: { changed: false },
-};
+} satisfies Draft<AssetItem>;
 
 /** A vehicle just added: no county and no value yet. */
 const car = {
@@ -174,6 +180,7 @@ async function flushTimers() {
 
 beforeEach(() => {
   resetExtractionAvailability();
+  resetPreviousDeclarations();
   saveMock.mockReset();
   saveMock.mockReturnValue(new Promise(() => undefined));
   getSectionMock.mockReset();
@@ -996,5 +1003,54 @@ describe('fixing one item, then another, from the summary (#700, #701)', () => {
     view.rerender(screenAt({ ...loaded, draftVersion: 2 }, '/assets', '"2"'));
 
     expect(tab(/^Assets/).textContent).toMatch(/2 items/);
+  });
+});
+
+describe('StatementSection: changes since the previous declaration (ADR-006 point 10)', () => {
+  it("compares this person's items with their previous statement, marking material changes", async () => {
+    vi.mocked(getPreviousDeclaration).mockResolvedValueOnce({
+      status: 'ok',
+      previous: {
+        declarationId: '0199a8f0-0000-7000-8000-000000000999',
+        version: 1,
+        reference: 'DCB-TSC-2025-0000001-B',
+        type: 'biennial',
+        statementDate: '2025-11-01',
+        submittedAt: '2025-12-02T09:00:00Z',
+        statements: [
+          {
+            personKey: 'officer',
+            // The same parcel, worded differently and worth less then.
+            assets: [{ ...land, description: 'Plot at Kapsoya', value: { kesCents: 200_000_000 } }],
+          },
+          { personKey: `spouse:${SPOUSE_ID}`, assets: [shares] },
+        ],
+      },
+    });
+    renderStatement(statement({ assets: [land] }));
+
+    const changes = await screen.findByRole('region', {
+      name: 'Changes since your last declaration',
+    });
+    const rows = within(changes).getAllByRole('row').slice(1);
+    // The parcel is marked as acquired, but it was declared before: its value moved, so the
+    // marking is not the change it is.
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringMatching(
+        /^Quarter-acre residential plot, Kapsoya.*Up 75\.0%Material changeNot marked as changed$/,
+      ),
+    ]);
+    expect(within(changes).getByText('1 material change')).toBeTruthy();
+  });
+
+  it('shows nothing for a first declaration', async () => {
+    renderStatement();
+
+    await waitFor(() => {
+      expect(getPreviousDeclaration).toHaveBeenCalled();
+    });
+    expect(
+      screen.queryByRole('region', { name: 'Changes since your last declaration' }),
+    ).toBeNull();
   });
 });

@@ -20,7 +20,7 @@ import { statementKey } from '../drafts/sections.js';
 import { readingContents } from './document-reading.js';
 import { declarationSuggestionsReady } from './events.js';
 import {
-  type ExtractionFailure,
+  type SetFailure,
   type SuggestionSetStatus,
   suggestions,
   suggestionSets,
@@ -32,7 +32,7 @@ import { READING_TIMEOUT_MS, type ReadingOutcome, type ReadingRef } from './work
 /** How a job that ended without a reading reads to the declarant; null while it has not. */
 export function outcomeOf(job: ExtractionJob): {
   status: Exclude<SuggestionSetStatus, 'ready'>;
-  reason: ExtractionFailure | null;
+  reason: SetFailure | null;
 } | null {
   if (job.status === 'blocked' && job.reason === 'policy') {
     return { status: 'not-enabled', reason: null };
@@ -45,7 +45,7 @@ export function outcomeOf(job: ExtractionJob): {
   return null;
 }
 
-function failureOf(reason: AiJobReason | null): ExtractionFailure {
+function failureOf(reason: AiJobReason | null): SetFailure {
   switch (reason) {
     case 'document-unavailable':
     case 'document-unreadable':

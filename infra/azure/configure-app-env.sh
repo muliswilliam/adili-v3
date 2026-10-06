@@ -112,12 +112,15 @@ for env_file in "$ROOT"/services/*/.env; do
 done
 
 # `pnpm demo:seed` (packages/demo-seed) signs demo accounts in as a browser would, so it uses the
-# public Keycloak and the portal's public callback (the realm's redirect URIs are the public
-# ones), with this host's demo ticket secret. Mode 600; the secret is never printed.
+# public Keycloak and the apps' public callbacks (the realm's redirect URIs are the public ones):
+# declarants through the portal's, staff through the console's, so the audit trail records staff
+# reads as made through the console. With this host's demo ticket secret. Mode 600; the secret is
+# never printed.
 seed_env="$ROOT/packages/demo-seed/.env"
 (umask 077 && touch "$seed_env")
 set_env "$seed_env" KEYCLOAK_URL "${KC_HOSTNAME%/}"
 set_env "$seed_env" DEMO_SIGN_IN_REDIRECT_URI "${ADILI_PORTAL_URL%/}/auth/callback"
+set_env "$seed_env" DEMO_CONSOLE_SIGN_IN_REDIRECT_URI "${ADILI_CONSOLE_URL%/}/auth/callback"
 set_env_from_file "$seed_env" DEMO_TICKET_SECRET "$ADILI_DEMO_TICKET_SECRET_FILE"
 # Its admin calls (demo_key attributes, staff accounts) go to the loopback: Caddy keeps the admin
 # API off the public URL. With this host's admin password (deploy.sh sets it in Keycloak).

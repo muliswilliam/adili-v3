@@ -3,7 +3,11 @@ import { asc, eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { outbox } from '../../src/db/schema.js';
-import type { DeclarantProfile, PersonSummary } from '../../src/persons/representation.js';
+import type {
+  DeclarantProfile,
+  PersonName,
+  PersonSummary,
+} from '../../src/persons/representation.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type Caller, type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenCommissions } from '../support/fixtures.js';
@@ -254,6 +258,47 @@ describe('GET /v1/persons?ofr=', () => {
   it('is 403 for everyone else, declarants included', async () => {
     for (const caller of [TSC_OFFICER, EACC_ANALYST, declarant(wanjiru)]) {
       const response = await api.get(lookup(wanjiru.ofr), caller);
+      expect(response.statusCode, response.body).toBe(403);
+    }
+  });
+});
+
+describe('GET /v1/persons/{personId}/name', () => {
+  const AUDITOR: Caller = { sub: 'auditor-1', tenant: 'eacc', roles: ['auditor'] };
+  const nameOf = (personId: string) => `/v1/persons/${personId}/name`;
+
+  it('names the person for the auditor, nothing else, audited with the person it is about', async () => {
+    const response = await api.get(nameOf(wanjiru.personId), AUDITOR);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<PersonName>();
+    expect(contractErrors(okResponse('/v1/persons/{personId}/name', 'get'), body)).toEqual([]);
+    expect(body).toEqual({ personId: wanjiru.personId, fullName: 'Wanjiru Kamau' });
+    expect(response.body).not.toMatch(/OFR-|TSC\/100200|34567890|example\.go\.ke|254712345678/);
+
+    const audited = await api.db
+      .select({ envelope: outbox.envelope })
+      .from(outbox)
+      .where(eq(outbox.eventType, 'audit.read.v1'));
+    expect(audited.map(({ envelope }) => envelope.data)).toMatchObject([
+      {
+        action: 'person.name.read',
+        resource: { type: 'person', tenant: 'platform', subjectPersonId: wanjiru.personId },
+        actor: { subject: 'auditor-1' },
+      },
+    ]);
+  });
+
+  it('is 404 for an id no person has, 400 for one that is not a UUID', async () => {
+    const unknown = await api.get(nameOf('01a10c16-f860-758e-ad88-000000000000'), AUDITOR);
+    expect(unknown.statusCode, unknown.body).toBe(404);
+    const bad = await api.get(nameOf('not-a-uuid'), AUDITOR);
+    expect(bad.statusCode, bad.body).toBe(400);
+  });
+
+  it('is 403 for everyone but the auditor, helpdesk and declarants included', async () => {
+    for (const caller of [HELPDESK, PLATFORM_ADMIN, EACC_ANALYST, declarant(wanjiru)]) {
+      const response = await api.get(nameOf(wanjiru.personId), caller);
       expect(response.statusCode, response.body).toBe(403);
     }
   });
