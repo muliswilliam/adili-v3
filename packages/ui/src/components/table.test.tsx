@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   Table,
@@ -87,5 +87,60 @@ describe('Table', () => {
     const link = screen.getByRole('link', { name: 'Public Service Commission' });
     expect(link.getAttribute('href')).toBe('/commissions/psc');
     expect(link.hasAttribute('data-row-link')).toBe(true);
+  });
+});
+
+describe('Table scrolling sideways (#622)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** jsdom lays nothing out: give the scroller a width, its content one, and a scroll offset. */
+  function measure(scroller: HTMLElement, sizes: { client: number; scroll: number; left: number }) {
+    Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: sizes.client });
+    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: sizes.scroll });
+    scroller.scrollLeft = sizes.left;
+  }
+
+  function scrollerOf(table: HTMLElement): HTMLElement {
+    const scroller = table.parentElement;
+    if (!scroller) throw new Error('no scroller');
+    return scroller;
+  }
+
+  it('marks the edge it can still scroll past (the content fades out there), and neither when the table fits', () => {
+    const observers: (() => void)[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          observers.push(callback);
+        }
+        observe = vi.fn();
+        disconnect = vi.fn();
+      },
+    );
+    render(<CommissionsTable />);
+    const scroller = scrollerOf(screen.getByRole('table', { name: 'Commissions' }));
+    expect(scroller.className).toContain('overflow-x-auto');
+
+    measure(scroller, { client: 600, scroll: 900, left: 0 });
+    act(() => {
+      for (const resized of observers) resized();
+    });
+    expect(scroller.hasAttribute('data-scroll-end')).toBe(true);
+    expect(scroller.hasAttribute('data-scroll-start')).toBe(false);
+
+    measure(scroller, { client: 600, scroll: 900, left: 300 });
+    fireEvent.scroll(scroller);
+    expect(scroller.hasAttribute('data-scroll-start')).toBe(true);
+    expect(scroller.hasAttribute('data-scroll-end')).toBe(false);
+
+    measure(scroller, { client: 900, scroll: 900, left: 0 });
+    act(() => {
+      for (const resized of observers) resized();
+    });
+    expect(scroller.hasAttribute('data-scroll-start')).toBe(false);
+    expect(scroller.hasAttribute('data-scroll-end')).toBe(false);
   });
 });

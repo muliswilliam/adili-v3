@@ -294,40 +294,38 @@ function IntakeTable({
         />
       ) : (
         <>
-          <div className="overflow-x-auto">
-            <Table caption={m.caption(fyLabel)} className="min-w-[1040px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[22%]">{m.columnCommission}</TableHead>
-                  <TableHead className="w-[17%]">{m.columnStatus}</TableHead>
-                  <TableHead>{m.columnInitial}</TableHead>
-                  <TableHead>{m.columnBiennial}</TableHead>
-                  <TableHead>{m.columnFinal}</TableHead>
-                  <TableHead>
-                    <span className="inline-flex items-center gap-1">
-                      {m.columnOutliers}
-                      <InfoTip content={m.outliersHint} label={m.outliersHintLabel} />
-                    </span>
-                  </TableHead>
-                  <TableHead>
-                    <span className="sr-only">{m.columnActions}</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {page.rows.map((row) => (
-                  <IntakeLine
-                    key={row.commission.slug}
-                    row={row}
-                    reportLink={reportLink}
-                    onChases={() => {
-                      setChased(row);
-                    }}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <Table caption={m.caption(fyLabel)} className="min-w-[960px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[22%]">{m.columnCommission}</TableHead>
+                <TableHead className="w-[17%]">{m.columnStatus}</TableHead>
+                <TableHead>{m.columnInitial}</TableHead>
+                <TableHead>{m.columnBiennial}</TableHead>
+                <TableHead>{m.columnFinal}</TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">
+                    {m.columnOutliers}
+                    <InfoTip content={m.outliersHint} label={m.outliersHintLabel} />
+                  </span>
+                </TableHead>
+                <TableHead>
+                  <span className="sr-only">{m.columnActions}</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {page.rows.map((row) => (
+                <IntakeLine
+                  key={row.commission.slug}
+                  row={row}
+                  reportLink={reportLink}
+                  onChases={() => {
+                    setChased(row);
+                  }}
+                />
+              ))}
+            </TableBody>
+          </Table>
           {page.pages > 1 ? (
             <CursorPager
               labels={{
@@ -389,7 +387,7 @@ function IntakeLine({
       <TableHead scope="row" className="py-3.5 align-middle font-normal">
         <span className="block font-medium text-foreground">{row.commission.name}</span>
         {row.reference ? (
-          <span className="mt-0.5 block font-mono text-[12.5px] tracking-[0.02em] text-muted-foreground">
+          <span className="mt-0.5 block font-mono text-[12.5px] tracking-[0.02em] whitespace-nowrap text-muted-foreground">
             {row.reference}
           </span>
         ) : null}
