@@ -79,9 +79,10 @@ const logger = new Logger('RegistryChecks');
  * helpers out of this class); each is safe to retry. National IDs and records stay in the
  * activities; what they hand on is listed in contract.ts.
  *
- * A pull from declarations or the directory that fails propagates, so Temporal retries it. The
- * gateway not answering a lookup is not an error: it is that lookup's `unavailable`, which the
- * workflow looks up again with backoff.
+ * A pull from declarations or the directory that fails propagates, so Temporal retries it (for a
+ * bounded time, see workflows.ts). The gateway not answering a lookup, or the read-back of its
+ * result, is not an error: it is that lookup's `unavailable`, which the workflow looks up again
+ * with backoff and the sweep after it.
  */
 @Injectable()
 export class RegistryCheckActivities {
@@ -288,7 +289,8 @@ function outcomeOf(result: {
  * A lookup as the matching module takes it: a found one with its records read back from the
  * gateway, a not-found one with none, or `unavailable`. A result the gateway no longer has is
  * unavailable (`result-missing`), one it refuses to give `gateway-rejected`, as a refused lookup
- * is; the gateway not answering propagates, so the activity retries.
+ * is; the gateway not answering is `gateway-unavailable`, as an unanswered lookup is: the check is
+ * stored without it, and the sweep looks it up again (no case waits on the gateway).
  */
 async function recordsOf(
   gateway: IntegrationGatewayClient,
@@ -309,6 +311,9 @@ async function recordsOf(
         `The integration-gateway refused a ${system} result with ${String(error.status)}`,
       );
       return unavailable(GATEWAY_REJECTED, lookup.resultId);
+    }
+    if (error instanceof IntegrationGatewayUnavailable) {
+      return unavailable(GATEWAY_UNAVAILABLE, lookup.resultId);
     }
     throw error;
   }
