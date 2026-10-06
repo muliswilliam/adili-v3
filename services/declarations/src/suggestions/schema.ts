@@ -56,21 +56,22 @@ export const DOCUMENT_KINDS = [
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 
 /**
- * Why a document's set is `failed`, for the declarant: the link to the file ran out or the store
+ * Why a set is `failed`, for the declarant. A document's: the link to the file ran out or the store
  * did not answer (`document-unavailable`, try again), the file cannot be read (`document-unreadable`:
  * damaged, too long, or a type the reading does not take), nothing usable came back
  * (`not-read`: the reading did not fit the item, or the model declined), or the reading service
  * could not do it now (`unavailable`), or the declaration stopped being a draft while it was
- * read (`not-a-draft`: nothing more can be read into it).
+ * read (`not-a-draft`: nothing more can be read into it). A registry lookup's: only `not-a-draft`,
+ * the declaration submitted while a registry was looked up.
  */
-export const EXTRACTION_FAILURES = [
+export const SET_FAILURES = [
   'document-unavailable',
   'document-unreadable',
   'not-read',
   'unavailable',
   'not-a-draft',
 ] as const;
-export type ExtractionFailure = (typeof EXTRACTION_FAILURES)[number];
+export type SetFailure = (typeof SET_FAILURES)[number];
 
 /** The item lists of a statement, as a document's reading targets them. */
 export const STATEMENT_LISTS = ['assets', 'income', 'liabilities'] as const;
@@ -134,7 +135,7 @@ export const suggestionSets = pgTable(
     targetSection: text({ enum: STATEMENT_LISTS }),
     targetItemType: text(),
     /** Why a document's set is `failed`; null otherwise. */
-    reason: text({ enum: EXTRACTION_FAILURES }),
+    reason: text({ enum: SET_FAILURES }),
     requestedAt: timestamp({ withTimezone: true }).notNull(),
     /** When it became `ready`; null otherwise. */
     readyAt: timestamp({ withTimezone: true }),

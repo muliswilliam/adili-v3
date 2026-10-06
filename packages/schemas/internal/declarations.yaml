@@ -2345,6 +2345,12 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'The workflow engine could not start the lookups (`workflow-unavailable`): nothing was recorded, no consent and no set; ask again'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/declarations/{declarationId}/suggestions:
     get:
       tags:
@@ -5275,7 +5281,7 @@ components:
                 - unavailable
                 - not-a-draft
             - type: 'null'
-          description: "Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back), `unavailable` (the reading service could not do it now: try again) or `not-a-draft` (the declaration was submitted while it was read). Null otherwise"
+          description: "Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back), `unavailable` (the reading service could not do it now: try again) or `not-a-draft` (the declaration was submitted while it was read, or while a registry was looked up). Null otherwise"
         suggestions:
           type: array
           items:
