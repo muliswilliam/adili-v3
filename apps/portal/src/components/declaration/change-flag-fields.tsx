@@ -11,7 +11,6 @@ type ChangeField = 'kind' | 'explanation';
  */
 export function ChangeFlagFields({
   id,
-  className = 'grid gap-3',
   change,
   hint,
   options,
@@ -23,7 +22,6 @@ export function ChangeFlagFields({
 }: {
   /** The group's element id, for a link that focuses it. */
   id?: string;
-  className?: string;
   change: Draft<ChangeFlag> | undefined;
   /** What counts as a change, under the checkbox. */
   hint: string;
@@ -36,7 +34,7 @@ export function ChangeFlagFields({
   onChange: (next: Draft<ChangeFlag>) => void;
 }) {
   return (
-    <div id={id} className={className}>
+    <div id={id} className="grid gap-3">
       <CheckboxItem
         label={ITEM_FIELD_LABELS.change}
         hint={hint}

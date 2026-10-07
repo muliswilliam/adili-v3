@@ -5,46 +5,15 @@ import {
   type MaterialChangeEntry,
   type OtherInformation,
 } from '../../../declaration/contents';
-import type { Interests } from '../../../declaration/other';
+import { FLAGGED_INTERESTS, type Interests, interestChanges } from '../../../declaration/other';
 import type { CompletenessIssue } from '../types';
 import { issue, type RuleContext } from './context';
 
-/** A directorship or membership flagged as changed, where it sits and what names it. */
+/** A change flag set on a directorship or membership, and the JSON pointer it sits at. */
 interface FlaggedInterest {
   path: string;
-  kind: 'directorship' | 'membership';
-  name: string | undefined;
   change: Draft<ChangeFlag>;
 }
-
-/** An interest that can carry a change flag: the name an entry goes by, and its flag. */
-interface Flaggable {
-  name: string | undefined;
-  change?: Draft<ChangeFlag>;
-}
-
-/**
- * The registrable interests that carry a change flag, the material-change kind each lists as and
- * what names an entry: the declarations service's `FLAGGED_INTERESTS`.
- */
-const FLAGGED_INTERESTS: {
-  list: 'directorships' | 'memberships';
-  kind: FlaggedInterest['kind'];
-  entries: (interests: Interests) => Flaggable[];
-}[] = [
-  {
-    list: 'directorships',
-    kind: 'directorship',
-    entries: (interests) =>
-      (interests.directorships ?? []).map(({ company, change }) => ({ name: company, change })),
-  },
-  {
-    list: 'memberships',
-    kind: 'membership',
-    entries: (interests) =>
-      (interests.memberships ?? []).map(({ entity, change }) => ({ name: entity, change })),
-  },
-];
 
 /**
  * The declarant's directorships and memberships flagged as changed since the last declaration;
@@ -53,10 +22,10 @@ const FLAGGED_INTERESTS: {
 function flaggedInterests(other: Draft<OtherInformation>, context: RuleContext): FlaggedInterest[] {
   if (!followsEarlierDeclaration(context.type)) return [];
   const interests: Interests = other.registrableInterests ?? {};
-  return FLAGGED_INTERESTS.flatMap(({ list, kind, entries }) =>
-    entries(interests).flatMap(({ name, change }, index) =>
+  return FLAGGED_INTERESTS.flatMap(({ list }) =>
+    (interests[list] ?? []).flatMap(({ change }, index) =>
       change?.changed
-        ? [{ path: `/registrableInterests/${list}/${String(index)}/change`, kind, name, change }]
+        ? [{ path: `/registrableInterests/${list}/${String(index)}/change`, change }]
         : [],
     ),
   );
@@ -97,16 +66,40 @@ export function composeMaterialChanges(
       }
     }
   }
-  for (const { kind, name, change } of flaggedInterests(other, context)) {
-    if (!filled(change.kind) || !filled(change.explanation)) continue;
-    entries.push({
-      personKey: 'officer',
-      ...(name === undefined ? {} : { itemDescription: name }),
-      kind,
-      explanation: change.explanation,
-    });
+  if (followsEarlierDeclaration(context.type)) {
+    entries.push(...interestChanges(other.registrableInterests ?? {}).map(({ entry }) => entry));
   }
   return entries;
+}
+
+/** A change flag that is set says what kind of change it was and explains it. */
+function changeRules(
+  context: RuleContext,
+  at: string,
+  change: Draft<ChangeFlag>,
+): CompletenessIssue[] {
+  return [
+    ...(filled(change.kind)
+      ? []
+      : [
+          issue(
+            context,
+            `${at}/kind`,
+            'required',
+            'Choose what changed since your last declaration.',
+          ),
+        ]),
+    ...(filled(change.explanation)
+      ? []
+      : [
+          issue(
+            context,
+            `${at}/explanation`,
+            'required',
+            'Explain what changed since your last declaration.',
+          ),
+        ]),
+  ];
 }
 
 /**
@@ -123,26 +116,7 @@ export function otherCompleteness(
   // A flagged directorship or membership says what kind of change it was and explains it,
   // listed first as the service lists them.
   for (const { path, change } of flaggedInterests(other, context)) {
-    if (!filled(change.kind)) {
-      issues.push(
-        issue(
-          context,
-          `${path}/kind`,
-          'required',
-          'Choose what changed since your last declaration.',
-        ),
-      );
-    }
-    if (!filled(change.explanation)) {
-      issues.push(
-        issue(
-          context,
-          `${path}/explanation`,
-          'required',
-          'Explain what changed since your last declaration.',
-        ),
-      );
-    }
+    issues.push(...changeRules(context, path, change));
   }
   interests?.directorships?.forEach((entry, index) => {
     if (!entry.company?.trim() || !entry.role?.trim() || entry.remunerated === undefined) {

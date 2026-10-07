@@ -4,6 +4,8 @@ import {
   directorshipLine,
   dualCitizenshipLine,
   freeTextCounter,
+  interestChanges,
+  interestChangeTag,
   materialChangeLine,
   materialChangeStep,
   membershipLine,
@@ -81,10 +83,52 @@ describe('registrable interests', () => {
     ).toBe('Kapsoya Water Ltd, Director (paid) · Changed: ended');
     expect(
       membershipLine({ entity: 'Kapsoya Parents Welfare Group', change: { changed: true } }),
-    ).toBe('Kapsoya Parents Welfare Group (kind not answered) · Changed');
+    ).toBe('Kapsoya Parents Welfare Group (kind not answered) · Changed: kind not chosen');
     expect(
       membershipLine({ entity: 'Kapsoya Parents Welfare Group', change: { changed: false } }),
     ).toBe('Kapsoya Parents Welfare Group (kind not answered)');
+  });
+
+  it('words a changed role or terms without saying "changed" twice', () => {
+    const change = { changed: true, kind: 'value-change', explanation: 'Now paid.' } as const;
+    expect(interestChangeTag(change)).toBe('Changed: role or terms');
+    expect(
+      directorshipLine({ company: 'Kapsoya Water Ltd', role: 'Chair', remunerated: true, change }),
+    ).toBe('Kapsoya Water Ltd, Chair (paid) · Changed: role or terms');
+  });
+
+  it('composes the changes of flagged interests, each with the card it came from', () => {
+    expect(
+      interestChanges({
+        directorships: [
+          { company: 'Eldoret Mills', change: { changed: false } },
+          {
+            company: 'Kapsoya Water Ltd',
+            change: { changed: true, kind: 'acquisition', explanation: 'Appointed.' },
+          },
+        ],
+        memberships: [
+          { entity: 'Kapsoya Youth Group', change: { changed: true, kind: 'disposal' } },
+          { change: { changed: true, kind: 'disposal', explanation: 'Left.' } },
+        ],
+      }),
+    ).toEqual([
+      {
+        list: 'directorships',
+        index: 1,
+        entry: {
+          personKey: 'officer',
+          itemDescription: 'Kapsoya Water Ltd',
+          kind: 'directorship',
+          explanation: 'Appointed.',
+        },
+      },
+      {
+        list: 'memberships',
+        index: 1,
+        entry: { personKey: 'officer', kind: 'membership', explanation: 'Left.' },
+      },
+    ]);
   });
 
   it('words dual citizenship with the pending application', () => {

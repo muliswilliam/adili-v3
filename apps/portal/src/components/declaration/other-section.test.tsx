@@ -385,6 +385,60 @@ describe('OtherSection', () => {
     expect(document.activeElement).toBe(changed);
   });
 
+  it('lists an interest flagged on this screen among the material changes', () => {
+    renderOther(otherSection(COMPLETE, []));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Water Project Ltd' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Changed since last declaration/ }));
+    fireEvent.click(screen.getByRole('radio', { name: 'New' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Explanation' }), {
+      target: { value: 'Appointed in May 2026.' },
+    });
+
+    expect(
+      within(region('Material changes'))
+        .getAllByRole('listitem')
+        .map((item) => item.querySelector('p')?.textContent),
+    ).toEqual([
+      'You · Marital status: marital status changed · Married in April 2025.',
+      'Mary Wanjiru Kennedy · Plot in Kapsoya: acquired · Bought in March 2026.',
+      'You · Kapsoya Water Project Ltd: directorship changed · Appointed in May 2026.',
+    ]);
+  });
+
+  it('opens the very card a change came from when two interests share a name', () => {
+    const flagged = (explanation: string) => ({
+      entity: 'Kapsoya Parents Welfare Group',
+      kind: 'society',
+      change: { changed: true, kind: 'acquisition', explanation },
+    });
+    renderOther(
+      otherSection(
+        {
+          materialChanges: [],
+          registrableInterests: {
+            ...COMPLETE.registrableInterests,
+            memberships: [flagged('Joined in 2020.'), flagged('Rejoined in March 2026.')],
+          },
+        },
+        [],
+      ),
+    );
+
+    fireEvent.click(
+      within(region('Material changes')).getByRole('button', {
+        name: 'Edit You · Kapsoya Parents Welfare Group: membership changed · Rejoined in March 2026.',
+      }),
+    );
+
+    const membership = screen.getByRole('group', { name: 'Kapsoya Parents Welfare Group' });
+    expect(
+      within(membership).getByRole<HTMLTextAreaElement>('textbox', { name: 'Explanation' }).value,
+    ).toBe('Rejoined in March 2026.');
+    expect(document.activeElement).toBe(
+      within(membership).getByRole('checkbox', { name: /Changed since last declaration/ }),
+    );
+  });
+
   it('does not ask whether an interest changed on an initial declaration', () => {
     renderWorkspace(<OtherSection section={otherSection(COMPLETE, [])} etag={'"1"'} />, {
       step: 'other',

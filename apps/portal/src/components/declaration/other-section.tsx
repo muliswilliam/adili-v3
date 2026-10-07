@@ -30,7 +30,6 @@ import {
 import { blank } from '../../declaration/format';
 import {
   INTEREST_CHANGE_KIND_OPTIONS,
-  interestChangeWord,
   MEMBERSHIP_KIND_LABELS,
   optionsOf,
 } from '../../declaration/labels';
@@ -39,20 +38,30 @@ import {
   type DraftDualCitizenship,
   type DraftMembership,
   type DraftPendingCase,
+  type FlaggedList,
   FREE_TEXT_LIMIT,
   freeTextCounter,
+  type InterestChange,
+  interestChanges,
+  interestChangeTag,
   type Interests,
+  isInterestChange,
   materialChangeLine,
   materialChangeStep,
   NO_MATERIAL_CHANGES,
 } from '../../declaration/other';
 import { ChangeFlagFields } from './change-flag-fields';
 import { personLabel, stepLink } from './steps';
-import { useFocusFirstError, useFocusLinkedField, useShownErrors } from './section-errors';
+import {
+  focusControl,
+  useFocusFirstError,
+  useFocusLinkedField,
+  useShownErrors,
+} from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 type Other = Draft<OtherInformation>;
-type ListName = 'directorships' | 'memberships' | 'pendingCases';
+type ListName = FlaggedList | 'pendingCases';
 
 const YES_NO = [
   { value: 'yes', label: 'Yes' },
@@ -84,19 +93,19 @@ function cardAt(path: string | undefined): OpenCard | null {
   return match ? { list: match[1] as ListName, index: Number(match[2]) } : null;
 }
 
-/** Whether a material change was composed from a directorship or membership on this screen. */
-const isInterestChange = (entry: Draft<MaterialChangeEntry>) =>
-  entry.kind === 'directorship' || entry.kind === 'membership';
-
 function MaterialChanges({
-  entries,
+  loaded,
+  interests,
   declarationId,
   onEditInterest,
 }: {
-  entries: Draft<MaterialChangeEntry>[];
+  /** The changes composed elsewhere (marital status, statement items), as loaded. */
+  loaded: Draft<MaterialChangeEntry>[];
+  /** The changes of the directorships and memberships on this screen, as they stand. */
+  interests: InterestChange[];
   declarationId: string;
   /** Opens the interest a change came from, which is on this screen rather than a link away. */
-  onEditInterest: (entry: Draft<MaterialChangeEntry>) => void;
+  onEditInterest: (change: InterestChange) => void;
 }) {
   const { declaration } = useWorkspace();
   const label = (personKey: string) => personLabel(declaration.sections, `statement:${personKey}`);
@@ -120,39 +129,44 @@ function MaterialChanges({
             </p>
           </div>
         </div>
-        {entries.length === 0 ? (
+        {loaded.length + interests.length === 0 ? (
           <p className="rounded-lg bg-muted px-4 py-5 text-center text-sm text-muted-foreground">
             {NO_MATERIAL_CHANGES}
           </p>
         ) : (
           <ul className="divide-y divide-border">
-            {entries.map((entry, index) => (
+            {loaded.map((entry, index) => (
               <li
                 key={`${entry.itemId ?? entry.kind ?? ''}-${String(index)}`}
                 className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
               >
                 <p className="flex-1 text-sm">{materialChangeLine(entry, label)}</p>
-                {isInterestChange(entry) ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                <Button asChild variant="ghost" size="sm">
+                  <Link
+                    {...stepLink(declarationId, materialChangeStep(entry))}
                     aria-label={`Edit ${materialChangeLine(entry, label)}`}
-                    onClick={() => {
-                      onEditInterest(entry);
-                    }}
                   >
                     Edit
-                  </Button>
-                ) : (
-                  <Button asChild variant="ghost" size="sm">
-                    <Link
-                      {...stepLink(declarationId, materialChangeStep(entry))}
-                      aria-label={`Edit ${materialChangeLine(entry, label)}`}
-                    >
-                      Edit
-                    </Link>
-                  </Button>
-                )}
+                  </Link>
+                </Button>
+              </li>
+            ))}
+            {interests.map((change) => (
+              <li
+                key={`${change.list}-${String(change.index)}`}
+                className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
+              >
+                <p className="flex-1 text-sm">{materialChangeLine(change.entry, label)}</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Edit ${materialChangeLine(change.entry, label)}`}
+                  onClick={() => {
+                    onEditInterest(change);
+                  }}
+                >
+                  Edit
+                </Button>
               </li>
             ))}
           </ul>
@@ -283,13 +297,17 @@ export interface OtherSectionProps {
 
 /**
  * Other information (paragraph 9): the material changes the service composes from flagged
- * items and the marital status change (read-only), the registrable interests and free text.
+ * items, the marital status change and flagged interests (read-only), the registrable interests
+ * and free text. The interests' changes are composed here as they are edited, the rest as loaded.
  * Autosaves the section without the composed changes. Missing answers come from the service's
  * issues and show once a card or field has been left, or all at once with `showErrors`.
  */
 export function OtherSection({ section, etag, showErrors = false, focusField }: OtherSectionProps) {
   const { declaration } = useWorkspace();
-  const [composed] = useState(() => (section.contents as Other).materialChanges ?? []);
+  // Changes owned by other screens; this screen's interests compose their own as they change.
+  const [loadedChanges] = useState(() =>
+    ((section.contents as Other).materialChanges ?? []).filter((entry) => !isInterestChange(entry)),
+  );
   const [editable] = useState<LoadedSection>(() => {
     const contents = { ...section.contents };
     delete contents.materialChanges;
@@ -341,7 +359,7 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
     const path = focusOnOpen.current;
     if (!path) return;
     focusOnOpen.current = null;
-    document.getElementById(idFor(path))?.querySelector<HTMLElement>('input')?.focus();
+    focusControl(idFor(path));
   }, [editing]);
 
   useFocusFirstError(showErrors, () => {
@@ -443,34 +461,15 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
     }));
   }
 
-  /**
-   * Opens the card a directorship or membership change was composed from and focuses its flag.
-   * A composed change carries no index, so the card is the flagged one it names.
-   */
-  function editInterestChange(entry: Draft<MaterialChangeEntry>) {
-    const list = entry.kind === 'directorship' ? 'directorships' : 'memberships';
-    const names =
-      list === 'directorships'
-        ? directorships.map((item) => ({ name: item.company, change: item.change }))
-        : memberships.map((item) => ({ name: item.entity, change: item.change }));
-    const index = names.findIndex(
-      ({ name, change }) =>
-        change?.changed === true && name?.trim() === entry.itemDescription?.trim(),
-    );
-    if (index === -1) return;
+  /** Opens the card a directorship or membership change was composed from and focuses its flag. */
+  function editInterestChange({ list, index }: InterestChange) {
     focusOnOpen.current = `${itemPath(list, index)}/change`;
     openCard({ list, index });
   }
 
-  /** The closed card's word on a flagged directorship or membership: "Changed: new". */
-  const changeTag = (change: Draft<ChangeFlag> | undefined) => {
-    if (!change?.changed) return undefined;
-    return `Changed: ${change.kind ? interestChangeWord(change.kind) : 'kind not chosen'}`;
-  };
-
   /** A directorship's or membership's change flag, on a declaration that follows another. */
   function changeFields(
-    list: 'directorships' | 'memberships',
+    list: FlaggedList,
     index: number,
     change: Draft<ChangeFlag> | undefined,
     placeholder: string,
@@ -479,22 +478,23 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
     const path = `${itemPath(list, index)}/change`;
     const at = (field: 'kind' | 'explanation') => `${path}/${field}`;
     return (
-      <ChangeFlagFields
-        id={idFor(path)}
-        className="grid gap-3 sm:col-span-2"
-        change={change}
-        hint="Taken up, given up, or a new role or terms."
-        options={INTEREST_CHANGE_KIND_OPTIONS}
-        placeholder={placeholder}
-        ids={{ kind: idFor(at('kind')), explanation: idFor(at('explanation')) }}
-        errors={{ kind: error(at('kind')), explanation: error(at('explanation')) }}
-        onTouch={(field) => {
-          touch(at(field));
-        }}
-        onChange={(next) => {
-          editItem(list, index, { change: next });
-        }}
-      />
+      <div className="sm:col-span-2">
+        <ChangeFlagFields
+          id={idFor(path)}
+          change={change}
+          hint="Taken up, given up, or a new role or terms."
+          options={INTEREST_CHANGE_KIND_OPTIONS}
+          placeholder={placeholder}
+          ids={{ kind: idFor(at('kind')), explanation: idFor(at('explanation')) }}
+          errors={{ kind: error(at('kind')), explanation: error(at('explanation')) }}
+          onTouch={(field) => {
+            touch(at(field));
+          }}
+          onChange={(next) => {
+            editItem(list, index, { change: next });
+          }}
+        />
+      </div>
     );
   }
 
@@ -504,7 +504,8 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
   return (
     <div className="grid gap-6">
       <MaterialChanges
-        entries={composed}
+        loaded={loadedChanges}
+        interests={sinceLastDeclaration ? interestChanges(interests) : []}
         declarationId={declaration.id}
         onEditInterest={editInterestChange}
       />
@@ -524,7 +525,7 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
               [
                 entry.role?.trim(),
                 entry.remunerated === undefined ? undefined : entry.remunerated ? 'paid' : 'unpaid',
-                changeTag(entry.change),
+                interestChangeTag(entry.change),
               ]
                 .filter(Boolean)
                 .join(' · ')
@@ -591,7 +592,10 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
             addLabel="Add a membership"
             titleOf={(entry) => entry.entity}
             describe={(entry) =>
-              [entry.kind ? MEMBERSHIP_KIND_LABELS[entry.kind] : undefined, changeTag(entry.change)]
+              [
+                entry.kind ? MEMBERSHIP_KIND_LABELS[entry.kind] : undefined,
+                interestChangeTag(entry.change),
+              ]
                 .filter(Boolean)
                 .join(' · ')
             }
