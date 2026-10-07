@@ -14,12 +14,10 @@ const NATIONAL_ID_PATTERN = /\b\d{5,10}\b/;
  * An ADR-011 reference (`DCB-TSC-2027-0012345-A`, `OFR-0482913-L`). Hyphens are word boundaries,
  * so the sequence would otherwise match the national ID pattern.
  */
-const REFERENCE_PATTERN =
-  /[A-Z]{3}-(?:[A-Z][A-Z0-9]{1,19}-[0-9]{4}-)?[0-9]{5,10}-[0-9A-Z]/;
+const REFERENCE_PATTERN = /[A-Z]{3}-(?:[A-Z][A-Z0-9]{1,19}-[0-9]{4}-)?[0-9]{5,10}-[0-9A-Z]/;
 
 /** A UUID. An all-digit first segment is 8 digits and would otherwise match. */
-const UUID_PATTERN =
-  /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
+const UUID_PATTERN = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
 
 function nationalIdPattern(): RegExp {
   return new RegExp(NATIONAL_ID_PATTERN.source, 'g');
