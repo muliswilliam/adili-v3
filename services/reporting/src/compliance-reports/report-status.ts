@@ -62,11 +62,28 @@ export function requireEditable(report: { status: ReportStatus }): void {
 }
 
 /**
+ * Whether the report is a preview: a draft compiled before the year's final compile day. A
+ * submitted report never is, however early it was filed (a federated Commission files its own
+ * document, from 1 April).
+ */
+export function isPreviewReport(report: {
+  fy: number;
+  status: ReportStatus;
+  compiledAt: Date | null;
+}): boolean {
+  return !isSubmitted(report) && isPreview(report.fy, report.compiledAt);
+}
+
+/**
  * A report is signed off (marked reviewed, confirmed) only once it is the year's final draft:
  * 409 `report-preview` while it is a preview, which would file part-year data.
  */
-export function requireFinal(report: { fy: number; compiledAt: Date | null }): void {
-  if (!isPreview(report.fy, report.compiledAt)) return;
+export function requireFinal(report: {
+  fy: number;
+  status: ReportStatus;
+  compiledAt: Date | null;
+}): void {
+  if (!isPreviewReport(report)) return;
   throw problem(
     'report-preview',
     `This is a preview of Form M for ${fyLabel(report.fy)}: it can be marked reviewed and confirmed once compiled from ${finalCompileOf(report.fy)}.`,

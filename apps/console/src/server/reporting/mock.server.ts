@@ -179,13 +179,16 @@ const previewRefused = () =>
   problem(409, 'A preview can be signed off once compiled from 1 July', 'report-preview');
 
 /**
- * Whether a report compiled at `compiledAt` is a preview, as the service judges it: compiled
- * before the final compile on 1 July after its financial year (Nairobi time).
+ * Whether the report is a preview, as the service judges it (`isPreviewReport` in
+ * services/reporting/src/compliance-reports/report-status.ts, with `isPreview` in its
+ * financial-year.ts; keep them in step): a draft compiled before the final compile on 1 July after
+ * its financial year (Nairobi time). A submitted report never is.
  */
-function isPreview(fy: number, compiledAt: string | null): boolean {
+function isPreview(report: Pick<StoredReport, 'fy' | 'status' | 'compiledAt'>): boolean {
   return (
-    compiledAt !== null &&
-    Date.parse(compiledAt) < Date.parse(`${finalCompileOf(fy)}T00:00:00+03:00`)
+    report.status !== 'submitted' &&
+    report.compiledAt !== null &&
+    Date.parse(report.compiledAt) < Date.parse(`${finalCompileOf(report.fy)}T00:00:00+03:00`)
   );
 }
 
@@ -283,7 +286,7 @@ function periods(): ReportPeriod[] {
         submittedAt: stored?.submittedAt ?? null,
         late: stored?.late ?? null,
         previewAvailable: mockDay() >= previewFromOf(fy) && stored?.status !== 'submitted',
-        preview: stored !== undefined && isPreview(fy, stored.compiledAt),
+        preview: stored !== undefined && isPreview(stored),
       };
     });
 }
@@ -437,7 +440,7 @@ async function markReviewed(fy: number, input: Request, caller: MockCaller) {
       { path: 'designation', message: 'Required' },
     ]);
   }
-  if (isPreview(stored.fy, stored.compiledAt)) return previewRefused();
+  if (isPreview(stored)) return previewRefused();
   const officer = officerOf(caller);
   stored.status = 'reviewed';
   stored.reviewedBy = officer;
@@ -492,7 +495,7 @@ async function confirm(fy: number, input: Request, caller: MockCaller) {
   }
   const stored = editable(fy);
   if (stored instanceof Response) return stored;
-  if (isPreview(stored.fy, stored.compiledAt)) return previewRefused();
+  if (isPreview(stored)) return previewRefused();
   if (stored.status !== 'reviewed') {
     return problem(400, 'The draft must be reviewed before it is confirmed', 'not-reviewed');
   }
@@ -567,7 +570,7 @@ function view(stored: StoredReport): ComplianceReport {
     status: stored.status,
     source: stored.source,
     compiledAt: stored.compiledAt,
-    preview: isPreview(stored.fy, stored.compiledAt),
+    preview: isPreview(stored),
     reviewedBy: stored.reviewedBy,
     confirmedBy: stored.confirmedBy,
     submittedAt: stored.submittedAt,

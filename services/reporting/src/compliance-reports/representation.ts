@@ -2,8 +2,9 @@ import { FormMSchema, type FormMV1 } from '@adili/forms';
 import { z } from 'zod';
 
 import type { CommissionFacts } from '../directory/directory-client.js';
-import { dueDateOf, isPreview } from '../financial-year.js';
+import { dueDateOf } from '../financial-year.js';
 import { officerSchema, storedOfficer } from '../officer.js';
+import { isPreviewReport } from './report-status.js';
 import type { ReportRow } from './reports.js';
 import { REPORT_SOURCES, REPORT_STATUSES } from './schema.js';
 
@@ -144,7 +145,7 @@ export function reportSummary(
     submittedAt: report?.submittedAt?.toISOString() ?? null,
     late: report?.late ?? null,
     previewAvailable: previewAvailable && report?.status !== 'submitted',
-    preview: report !== undefined && isPreview(fy, report.compiledAt),
+    preview: report !== undefined && isPreviewReport(report),
   };
 }
 
@@ -160,7 +161,7 @@ export function reportView(
     status: report.status,
     source: report.source,
     compiledAt: report.compiledAt?.toISOString() ?? null,
-    preview: isPreview(report.fy, report.compiledAt),
+    preview: isPreviewReport(report),
     reviewedBy: storedOfficer(report.reviewedBy, report.reviewedByName),
     confirmedBy: storedOfficer(report.confirmedBy, report.confirmedByName),
     submittedAt: report.submittedAt?.toISOString() ?? null,

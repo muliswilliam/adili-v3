@@ -149,6 +149,23 @@ describe('Federated Form M submission (S8)', () => {
     );
   });
 
+  it('S8: a report filed before 1 July is submitted, never a preview (#556)', async () => {
+    // Filed in May: before the final compile day, which a filed report never waits for.
+    api.clock.set('2028-05-10T07:00:00.000Z');
+    const TSC_SUPERVISOR: Caller = { sub: 'supervisor-tsc', tenant: 'tsc', roles: ['supervisor'] };
+
+    const response = await submit(tscFormM());
+
+    expect(response.statusCode, response.body).toBe(201);
+    expect(response.json()).toMatchObject({ status: 'submitted', preview: false });
+    const read = await api.get('/v1/commissions/tsc/compliance-reports/2027', TSC_SUPERVISOR);
+    expect(read.json()).toMatchObject({ status: 'submitted', preview: false });
+    const listed = await api.get('/v1/commissions/tsc/compliance-reports', TSC_SUPERVISOR);
+    expect(listed.json<{ fy: number; preview: boolean }[]>()).toContainEqual(
+      expect.objectContaining({ fy: 2027, status: 'submitted', preview: false }),
+    );
+  });
+
   it('S8: the workflow issues the Form M PDF and the receipt with source federated and tells both officers', async () => {
     const body = (await submit(tscFormM())).json<ReportBody>();
     const reference = body.reference as string;
