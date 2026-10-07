@@ -173,6 +173,18 @@ export const CHANGE_KIND_OPTIONS: Record<Category, { value: ChangeKind; label: s
 };
 
 /**
+ * Change kinds offered on a directorship or membership. declaration.v1's ChangeFlag has no kinds
+ * of its own for them, so the item kinds stand in: taken up since the last declaration is
+ * `acquisition`, given up is `disposal`, and any other change (a new role, now paid) is
+ * `value-change`. Paragraph 9 lists the entry as a `directorship` or `membership` change.
+ */
+export const INTEREST_CHANGE_KIND_OPTIONS: { value: ChangeKind; label: string }[] = [
+  { value: 'acquisition', label: 'New' },
+  { value: 'value-change', label: 'Changed' },
+  { value: 'disposal', label: 'Ended' },
+];
+
+/**
  * A change kind in a sentence for an item of this category, e.g. "Changed: new" for a
  * liability. Uses the category's own label, so the summary says what the editor offered.
  */

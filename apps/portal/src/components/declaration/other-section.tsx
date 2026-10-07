@@ -1,6 +1,7 @@
 import {
   Button,
   Card,
+  CheckboxItem,
   CountrySelect,
   FieldError,
   FieldHint,
@@ -19,14 +20,22 @@ import { type ReactNode, useState } from 'react';
 
 import type { LoadedSection } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
-import type {
-  Draft,
-  MaterialChangeEntry,
-  MembershipKind,
-  OtherInformation,
+import {
+  type ChangeFlag,
+  type ChangeKind,
+  type Draft,
+  followsEarlierDeclaration,
+  type MaterialChangeEntry,
+  type MembershipKind,
+  type OtherInformation,
 } from '../../declaration/contents';
+import { ITEM_FIELD_LABELS } from '../../declaration/field-labels';
 import { blank } from '../../declaration/format';
-import { MEMBERSHIP_KIND_LABELS, optionsOf } from '../../declaration/labels';
+import {
+  INTEREST_CHANGE_KIND_OPTIONS,
+  MEMBERSHIP_KIND_LABELS,
+  optionsOf,
+} from '../../declaration/labels';
 import {
   type DraftDirectorship,
   type DraftDualCitizenship,
@@ -168,6 +177,7 @@ function InterestList<T>({
   titleOf,
   describe,
   error,
+  cardError,
   editing,
   onEditing,
   onAdd,
@@ -184,6 +194,8 @@ function InterestList<T>({
   titleOf: (item: T) => string | undefined;
   describe: (item: T) => string;
   error: (path: string) => string | undefined;
+  /** A closed card's first issue, its own or one of its fields'. */
+  cardError: (path: string) => string | undefined;
   editing: number | null;
   onEditing: (index: number | null) => void;
   onAdd: () => void;
@@ -205,7 +217,7 @@ function InterestList<T>({
         return `${noun} ${String(index + 1)}`;
       }}
       renderDescription={(item, index) => {
-        const problem = editing === index ? undefined : error(path(index));
+        const problem = editing === index ? undefined : cardError(path(index));
         return (
           <>
             {describe(item)}
@@ -236,6 +248,74 @@ function InterestList<T>({
       emptyText="None added."
       headingLevel={4}
     />
+  );
+}
+
+/**
+ * "Changed since last declaration" on a directorship or membership, as on a statement item: what
+ * changed and an explanation once it is ticked. Paragraph 9 lists it as a material change.
+ */
+function InterestChange({
+  path,
+  change,
+  error,
+  onTouch,
+  onChange,
+}: {
+  /** The card's JSON pointer, e.g. `/registrableInterests/directorships/0`. */
+  path: string;
+  change: Draft<ChangeFlag> | undefined;
+  error: (path: string) => string | undefined;
+  onTouch: (path: string) => void;
+  onChange: (next: Draft<ChangeFlag>) => void;
+}) {
+  const kindPath = `${path}/change/kind`;
+  const explanationPath = `${path}/change/explanation`;
+  return (
+    <div className="grid gap-3 sm:col-span-2">
+      <CheckboxItem
+        label={ITEM_FIELD_LABELS.change}
+        hint="Taken up, given up, or a new role or terms."
+        checked={change?.changed === true}
+        onChange={(event) => {
+          const changed = event.target.checked;
+          onChange(changed ? { ...change, changed } : { changed: false });
+        }}
+      />
+      {change?.changed ? (
+        <div className="ml-7 grid gap-4 rounded-lg bg-muted p-4">
+          <SegmentedChoice
+            id={idFor(kindPath)}
+            legend="What changed?"
+            options={INTEREST_CHANGE_KIND_OPTIONS}
+            value={change.kind ?? null}
+            error={error(kindPath)}
+            onValueChange={(kind) => {
+              onTouch(kindPath);
+              onChange({ ...change, changed: true, kind: kind as ChangeKind });
+            }}
+          />
+          <FormField
+            label={ITEM_FIELD_LABELS.explanation}
+            error={error(explanationPath)}
+            controlId={idFor(explanationPath)}
+          >
+            <Textarea
+              rows={3}
+              maxLength={1000}
+              placeholder="e.g. Appointed to the board in May 2026."
+              value={change.explanation ?? ''}
+              onBlur={() => {
+                onTouch(explanationPath);
+              }}
+              onChange={(event) => {
+                onChange({ ...change, changed: true, explanation: event.target.value });
+              }}
+            />
+          </FormField>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -280,10 +360,27 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
     return issues.find((candidate) => candidate.path === path);
   }
 
+  /** Whether a field's issue shows: once it or the card it is in has been left. */
+  function shownAt(path: string) {
+    const card = cardAt(path);
+    return shown(path) || (card !== null && shown(itemPath(card.list, card.index)));
+  }
+
   function error(path: string) {
     const found = issueAt(path);
+    return found && shownAt(path) ? found.message : undefined;
+  }
+
+  /** A closed card's first issue, its own or one of its fields'. */
+  function cardError(path: string) {
+    const found = issues.find(
+      (candidate) => candidate.path === path || candidate.path.startsWith(`${path}/`),
+    );
     return found && shown(path) ? found.message : undefined;
   }
+
+  // An initial declaration is the first: there is no last one to have changed since.
+  const sinceLastDeclaration = followsEarlierDeclaration(declaration.type);
 
   useFocusFirstError(showErrors, () => {
     const first = issues[0];
@@ -360,6 +457,7 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
     return {
       path: (index: number) => itemPath(list, index),
       error,
+      cardError,
       editing: editing?.list === list ? editing.index : null,
       onEditing: (index: number | null) => {
         openCard(index === null ? null : { list, index });
@@ -447,6 +545,17 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
                       editItem('directorships', index, { remunerated: choice === 'yes' });
                     }}
                   />
+                  {sinceLastDeclaration ? (
+                    <InterestChange
+                      path={path}
+                      change={entry.change}
+                      error={error}
+                      onTouch={touch}
+                      onChange={(change) => {
+                        editItem('directorships', index, { change });
+                      }}
+                    />
+                  ) : null}
                 </>
               );
             }}
@@ -496,6 +605,17 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
                       ))}
                     </Select>
                   </FormField>
+                  {sinceLastDeclaration ? (
+                    <InterestChange
+                      path={path}
+                      change={entry.change}
+                      error={error}
+                      onTouch={touch}
+                      onChange={(change) => {
+                        editItem('memberships', index, { change });
+                      }}
+                    />
+                  ) : null}
                 </>
               );
             }}

@@ -40,9 +40,11 @@ describe('material changes', () => {
     );
   });
 
-  it('edits an item change on the statement and the marital change on the bio', () => {
+  it('edits an item change on the statement, the marital change on the bio and an interest here', () => {
     expect(materialChangeStep({ personKey: SPOUSE, kind: 'disposal' })).toBe(`statement:${SPOUSE}`);
     expect(materialChangeStep({ kind: 'marital-status' })).toBe('bio');
+    expect(materialChangeStep({ personKey: 'officer', kind: 'directorship' })).toBe('other');
+    expect(materialChangeStep({ personKey: 'officer', kind: 'membership' })).toBe('other');
   });
 });
 

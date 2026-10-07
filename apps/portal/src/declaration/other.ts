@@ -66,9 +66,13 @@ export function materialChangeLine(
   return parts.explanation ? `${head} · ${parts.explanation}` : head;
 }
 
-/** The workspace step where a material change is edited: the person's statement, or the bio. */
+/**
+ * The workspace step where a material change is edited: the person's statement, the bio, or
+ * other information for a directorship or membership.
+ */
 export function materialChangeStep(entry: Draft<MaterialChangeEntry>): string {
   if (entry.kind === 'marital-status') return 'bio';
+  if (entry.kind === 'directorship' || entry.kind === 'membership') return 'other';
   return `statement:${entry.personKey ?? 'officer'}`;
 }
 
