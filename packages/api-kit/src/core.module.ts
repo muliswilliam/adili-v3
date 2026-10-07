@@ -9,7 +9,7 @@ import { TokenVerifier } from './auth/token-verifier.js';
 import { type BaseEnv, oidcRealmUrl } from './config.js';
 import { HEALTH_INFO, HealthController, READINESS_CHECKS } from './health/health.controller.js';
 import type { ReadinessCheck } from './health/readiness-check.js';
-import { serializeRequest } from './log-redaction.js';
+import { redactLogValue, serializeRequest } from './log-redaction.js';
 import { ProblemDetailsFilter } from './problem-details.filter.js';
 
 export interface CoreModuleOptions {
@@ -35,6 +35,12 @@ export function requestLoggerOptions(serviceName: string, config: BaseEnv): Opti
     // Request IDs come from Fastify (x-request-id or generated).
     genReqId: (request) => request.id,
     redact: ['req.headers.authorization', 'req.headers.cookie'],
+    // Field names and digit sequences the scanner rejects, removed before the line is written.
+    hooks: {
+      logMethod(args, method) {
+        method.apply(this, args.map((arg) => redactLogValue(arg)) as typeof args);
+      },
+    },
     serializers: {
       req: serializeRequest,
       res: (response: { statusCode: number }) => ({ statusCode: response.statusCode }),

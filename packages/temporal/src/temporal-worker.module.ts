@@ -12,6 +12,7 @@ import {
   type Type,
 } from '@nestjs/common';
 import { ReadinessCheck } from '@adili/api-kit';
+import { addCounter } from '@adili/telemetry/metrics';
 import {
   bundleWorkflowCode,
   type Logger as TemporalLogger,
@@ -144,6 +145,12 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
           this.logger.warn({ err: error }, 'Temporal worker gave up on in-flight activities');
         } else {
           this.logger.warn({ err: error }, 'Temporal worker failed; restarting');
+          addCounter(
+            'adili.temporal.worker.failures',
+            1,
+            { 'adili.temporal.task_queue': this.options.taskQueue },
+            'Worker runs that stopped and are restarting',
+          );
         }
       } finally {
         this.worker = undefined;
@@ -301,7 +308,19 @@ function installRuntimeLogger(): void {
     Runtime.install({
       logger: nestLogger(),
       // Native (Rust core) warnings, such as lost server connections, go the same way.
-      telemetryOptions: { logging: { filter: { core: 'WARN', other: 'WARN' }, forward: {} } },
+      telemetryOptions: {
+        logging: { filter: { core: 'WARN', other: 'WARN' }, forward: {} },
+        // Workflow metrics (temporal_workflow_failed and the rest) go to the same collector as
+        // the Node SDK. Unset in tests, where there is no collector: the SDK would export anyway
+        // once OTEL_EXPORTER_OTLP_ENDPOINT is set, and that variable overrides `url`.
+        ...(process.env.OTEL_EXPORTER_OTLP_ENDPOINT === undefined
+          ? {}
+          : {
+              metrics: {
+                otel: { url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT },
+              },
+            }),
+      },
       // Nest owns shutdown (beforeApplicationShutdown drains the worker in order); the runtime's
       // own signal handlers would stop workers out of band, or on signals Nest ignores.
       shutdownSignals: [],

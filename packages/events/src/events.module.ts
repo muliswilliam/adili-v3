@@ -11,6 +11,7 @@ import {
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ClientProxy, ClientsModule, Transport } from '@nestjs/microservices';
 import { ReadinessCheck } from '@adili/api-kit';
+import { recordGauge } from '@adili/telemetry/metrics';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import amqp from 'amqplib';
 import { eq, isNull, sql } from 'drizzle-orm';
@@ -53,6 +54,7 @@ export class OutboxRelay implements OnApplicationBootstrap, BeforeApplicationShu
   constructor(
     @InjectDatabase() private readonly db: Database,
     @Inject(EVENTS_CLIENT) private readonly client: ClientProxy,
+    @Inject(EVENTS_OPTIONS) private readonly options: EventsModuleOptions,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -86,36 +88,64 @@ export class OutboxRelay implements OnApplicationBootstrap, BeforeApplicationShu
   /** Returns true when the batch was full and more rows may be waiting. */
   private async relayBatch(): Promise<boolean> {
     return this.db.transaction(async (tx) => {
-      const rows = await tx
-        .select({ id: outbox.id, eventType: outbox.eventType, envelope: outbox.envelope })
-        .from(outbox)
-        .where(isNull(outbox.publishedAt))
-        .orderBy(outbox.id)
-        .limit(RELAY_BATCH_SIZE)
-        .for('update', { skipLocked: true });
-
-      for (const row of rows) {
-        // Shutting down: the rest of the batch stays for the next relay.
-        if (this.stopped) return false;
-        try {
-          await lastValueFrom(
-            this.client
-              .emit(row.eventType, row.envelope)
-              .pipe(timeout({ first: RELAY_PUBLISH_TIMEOUT_MS })),
-            { defaultValue: undefined },
-          );
-        } catch (error) {
-          // Stop at the first failure to keep per-service ordering.
-          await tx
-            .update(outbox)
-            .set({ attempts: sql`${outbox.attempts} + 1`, lastError: String(error) })
-            .where(eq(outbox.id, row.id));
-          return false;
-        }
-        await tx.update(outbox).set({ publishedAt: new Date() }).where(eq(outbox.id, row.id));
+      try {
+        return await this.publishBatch(tx);
+      } finally {
+        await this.recordDepth(tx).catch((error: unknown) => {
+          this.logger.warn({ err: error }, 'Outbox depth was not recorded');
+        });
       }
-      return rows.length === RELAY_BATCH_SIZE;
     });
+  }
+
+  private async publishBatch(
+    tx: Parameters<Parameters<Database['transaction']>[0]>[0],
+  ): Promise<boolean> {
+    const rows = await tx
+      .select({ id: outbox.id, eventType: outbox.eventType, envelope: outbox.envelope })
+      .from(outbox)
+      .where(isNull(outbox.publishedAt))
+      .orderBy(outbox.id)
+      .limit(RELAY_BATCH_SIZE)
+      .for('update', { skipLocked: true });
+
+    for (const row of rows) {
+      // Shutting down: the rest of the batch stays for the next relay.
+      if (this.stopped) return false;
+      try {
+        await lastValueFrom(
+          this.client
+            .emit(row.eventType, row.envelope)
+            .pipe(timeout({ first: RELAY_PUBLISH_TIMEOUT_MS })),
+          { defaultValue: undefined },
+        );
+      } catch (error) {
+        // Stop at the first failure to keep per-service ordering.
+        await tx
+          .update(outbox)
+          .set({ attempts: sql`${outbox.attempts} + 1`, lastError: String(error) })
+          .where(eq(outbox.id, row.id));
+        return false;
+      }
+      await tx.update(outbox).set({ publishedAt: new Date() }).where(eq(outbox.id, row.id));
+    }
+    return rows.length === RELAY_BATCH_SIZE;
+  }
+
+  /** Unpublished rows, including this batch until its updates commit. */
+  private async recordDepth(
+    tx: Parameters<Parameters<Database['transaction']>[0]>[0],
+  ): Promise<void> {
+    const [row] = await tx
+      .select({ depth: sql<number>`count(*)::int` })
+      .from(outbox)
+      .where(isNull(outbox.publishedAt));
+    recordGauge(
+      'adili.events.outbox.depth',
+      row?.depth ?? 0,
+      { 'adili.service': this.options.service },
+      'Unpublished outbox rows',
+    );
   }
 }
 
@@ -154,6 +184,15 @@ export class RabbitMqReadinessCheck
       await this.declareTopology();
     }
     const channel = await this.connection?.createChannel();
+    if (channel) {
+      const depth = await channel.checkQueue(deadLetterQueue(this.options.service));
+      recordGauge(
+        'adili.events.dlq.depth',
+        depth.messageCount,
+        { 'adili.service': this.options.service },
+        'Messages on the service dead-letter queue',
+      );
+    }
     await channel?.close();
   }
 

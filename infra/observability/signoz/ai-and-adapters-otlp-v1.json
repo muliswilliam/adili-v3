@@ -1,0 +1,314 @@
+{
+  "title": "Adili AI jobs and adapter breakers",
+  "description": "GenAI span attributes from the ai-gateway (spec 07c) and adapter circuit breakers. A provider call span carries gen_ai.operation.name, gen_ai.system, gen_ai.provider.name, gen_ai.request.model, gen_ai.request.max_tokens, gen_ai.response.model, gen_ai.response.finish_reasons, gen_ai.usage.input_tokens, gen_ai.usage.output_tokens, adili.ai.task, adili.ai.prompt_version, adili.ai.outcome and adili.tenant. No prompt or output is on the span.",
+  "tags": ["adili"],
+  "layout": [
+    {
+      "h": 6,
+      "i": "6f1a0c10-0005-4000-8000-000000000005",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "h": 6,
+      "i": "6f1a0c10-0006-4000-8000-000000000006",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 0
+    },
+    {
+      "h": 6,
+      "i": "6f1a0c10-0007-4000-8000-000000000007",
+      "moved": false,
+      "static": false,
+      "w": 12,
+      "x": 0,
+      "y": 6
+    },
+    {
+      "h": 8,
+      "i": "6f1a0c10-0008-4000-8000-000000000008",
+      "moved": false,
+      "static": false,
+      "w": 12,
+      "x": 0,
+      "y": 12
+    }
+  ],
+  "widgets": [
+    {
+      "id": "6f1a0c10-0005-4000-8000-000000000005",
+      "title": "AI tokens",
+      "description": "gen_ai.client.token.usage and gen_ai.usage.input_tokens, gen_ai.usage.output_tokens on each span.",
+      "panelTypes": "graph",
+      "nullZeroValues": "zero",
+      "yAxisUnit": "none",
+      "query": {
+        "queryType": "builder",
+        "builder": {
+          "queryData": [
+            {
+              "dataSource": "metrics",
+              "queryName": "A",
+              "expression": "A",
+              "disabled": false,
+              "aggregateOperator": "sum",
+              "aggregateAttribute": {
+                "key": "gen_ai.client.token.usage",
+                "dataType": "float64",
+                "type": "Histogram",
+                "isColumn": true,
+                "isJSON": false,
+                "id": "gen_ai.client.token.usage--float64--Histogram--true"
+              },
+              "timeAggregation": "sum",
+              "spaceAggregation": "sum",
+              "reduceTo": "sum",
+              "stepInterval": 60,
+              "legend": "{{gen_ai.token.type}}",
+              "filters": { "items": [], "op": "AND" },
+              "functions": [],
+              "having": [],
+              "limit": null,
+              "orderBy": [],
+              "groupBy": [
+                {
+                  "key": "gen_ai.token.type",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "gen_ai.token.type--string--tag--false"
+                }
+              ]
+            }
+          ],
+          "queryFormulas": []
+        }
+      }
+    },
+    {
+      "id": "6f1a0c10-0006-4000-8000-000000000006",
+      "title": "AI jobs blocked and failed",
+      "description": "adili.ai.jobs by adili.ai.outcome (blocked, failed) and adili.ai.reason.",
+      "panelTypes": "graph",
+      "nullZeroValues": "zero",
+      "yAxisUnit": "none",
+      "query": {
+        "queryType": "builder",
+        "builder": {
+          "queryData": [
+            {
+              "dataSource": "metrics",
+              "queryName": "A",
+              "expression": "A",
+              "disabled": false,
+              "aggregateOperator": "rate",
+              "aggregateAttribute": {
+                "key": "adili.ai.jobs",
+                "dataType": "float64",
+                "type": "Sum",
+                "isColumn": true,
+                "isJSON": false,
+                "id": "adili.ai.jobs--float64--Sum--true"
+              },
+              "timeAggregation": "rate",
+              "spaceAggregation": "sum",
+              "reduceTo": "sum",
+              "stepInterval": 60,
+              "legend": "{{adili.ai.outcome}} {{adili.tenant}}",
+              "filters": { "items": [], "op": "AND" },
+              "functions": [],
+              "having": [],
+              "limit": null,
+              "orderBy": [],
+              "groupBy": [
+                {
+                  "key": "adili.ai.outcome",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "adili.ai.outcome--string--tag--false"
+                },
+                {
+                  "key": "adili.tenant",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "adili.tenant--string--tag--false"
+                }
+              ]
+            }
+          ],
+          "queryFormulas": []
+        }
+      }
+    },
+    {
+      "id": "6f1a0c10-0007-4000-8000-000000000007",
+      "title": "Integration adapter breakers",
+      "description": "adili.integration.breaker is 1 while that system's circuit is open.",
+      "panelTypes": "graph",
+      "nullZeroValues": "zero",
+      "yAxisUnit": "none",
+      "query": {
+        "queryType": "builder",
+        "builder": {
+          "queryData": [
+            {
+              "dataSource": "metrics",
+              "queryName": "A",
+              "expression": "A",
+              "disabled": false,
+              "aggregateOperator": "max",
+              "aggregateAttribute": {
+                "key": "adili.integration.breaker",
+                "dataType": "float64",
+                "type": "Gauge",
+                "isColumn": true,
+                "isJSON": false,
+                "id": "adili.integration.breaker--float64--Gauge--true"
+              },
+              "timeAggregation": "max",
+              "spaceAggregation": "max",
+              "reduceTo": "max",
+              "stepInterval": 60,
+              "legend": "{{adili.integration.system}}",
+              "filters": { "items": [], "op": "AND" },
+              "functions": [],
+              "having": [],
+              "limit": null,
+              "orderBy": [],
+              "groupBy": [
+                {
+                  "key": "adili.integration.system",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "adili.integration.system--string--tag--false"
+                }
+              ]
+            }
+          ],
+          "queryFormulas": []
+        }
+      }
+    },
+    {
+      "id": "6f1a0c10-0008-4000-8000-000000000008",
+      "title": "GenAI spans",
+      "description": "Provider-call spans. Attributes: gen_ai.operation.name, gen_ai.system, gen_ai.provider.name, gen_ai.request.model, gen_ai.request.max_tokens, gen_ai.response.model, gen_ai.response.finish_reasons, gen_ai.usage.input_tokens, gen_ai.usage.output_tokens, adili.ai.task, adili.ai.prompt_version, adili.ai.outcome, adili.tenant.",
+      "panelTypes": "table",
+      "nullZeroValues": "zero",
+      "query": {
+        "queryType": "builder",
+        "builder": {
+          "queryData": [
+            {
+              "dataSource": "traces",
+              "queryName": "A",
+              "expression": "A",
+              "disabled": false,
+              "aggregateOperator": "count",
+              "aggregateAttribute": {
+                "key": "",
+                "dataType": "",
+                "type": "",
+                "isColumn": false,
+                "isJSON": false,
+                "id": "------false"
+              },
+              "timeAggregation": "rate",
+              "spaceAggregation": "sum",
+              "reduceTo": "sum",
+              "stepInterval": 60,
+              "legend": "{{gen_ai.request.model}}",
+              "filters": {
+                "op": "AND",
+                "items": [
+                  {
+                    "id": "gen-ai-operation",
+                    "op": "exists",
+                    "value": "",
+                    "key": {
+                      "key": "gen_ai.operation.name",
+                      "dataType": "string",
+                      "type": "tag",
+                      "isColumn": false,
+                      "isJSON": false,
+                      "id": "gen_ai.operation.name--string--tag--false"
+                    }
+                  }
+                ]
+              },
+              "functions": [],
+              "having": [],
+              "limit": null,
+              "orderBy": [{ "columnName": "#SIGNOZ_VALUE", "order": "desc" }],
+              "groupBy": [
+                {
+                  "key": "gen_ai.request.model",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "gen_ai.request.model--string--tag--false"
+                },
+                {
+                  "key": "gen_ai.provider.name",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "gen_ai.provider.name--string--tag--false"
+                },
+                {
+                  "key": "gen_ai.system",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "gen_ai.system--string--tag--false"
+                },
+                {
+                  "key": "adili.ai.task",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "adili.ai.task--string--tag--false"
+                },
+                {
+                  "key": "adili.ai.outcome",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "adili.ai.outcome--string--tag--false"
+                },
+                {
+                  "key": "adili.tenant",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "adili.tenant--string--tag--false"
+                }
+              ]
+            }
+          ],
+          "queryFormulas": []
+        }
+      }
+    }
+  ],
+  "variables": {}
+}

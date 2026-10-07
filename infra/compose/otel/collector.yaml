@@ -1,5 +1,6 @@
-# Local collector: receives OTLP from every service. Point OTEL_EXPORT_ENDPOINT
-# at a SigNoz collector to forward telemetry; otherwise it is only logged.
+# Local collector: receives OTLP from every service. Dashboards that read it are in
+# infra/observability/signoz. This pipeline only logs. To forward to SigNoz, add an otlp
+# exporter whose endpoint is the SigNoz collector and list it next to debug.
 receivers:
   otlp:
     protocols:

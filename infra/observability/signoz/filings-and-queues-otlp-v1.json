@@ -1,0 +1,276 @@
+{
+  "title": "Adili filings and queues",
+  "description": "Filings per Commission, outbox and dead-letter depth, and Temporal workflow failures. Import into SigNoz. Metrics are adili.filings, adili.events.outbox.depth, adili.events.dlq.depth, temporal_workflow_failed and adili.temporal.worker.failures.",
+  "tags": ["adili"],
+  "layout": [
+    {
+      "h": 6,
+      "i": "6f1a0c10-0001-4000-8000-000000000001",
+      "moved": false,
+      "static": false,
+      "w": 12,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "h": 6,
+      "i": "6f1a0c10-0002-4000-8000-000000000002",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 0,
+      "y": 6
+    },
+    {
+      "h": 6,
+      "i": "6f1a0c10-0003-4000-8000-000000000003",
+      "moved": false,
+      "static": false,
+      "w": 6,
+      "x": 6,
+      "y": 6
+    },
+    {
+      "h": 6,
+      "i": "6f1a0c10-0004-4000-8000-000000000004",
+      "moved": false,
+      "static": false,
+      "w": 12,
+      "x": 0,
+      "y": 12
+    }
+  ],
+  "widgets": [
+    {
+      "id": "6f1a0c10-0001-4000-8000-000000000001",
+      "title": "Filings per hour per Commission",
+      "description": "adili.filings, one count per submitted declaration, grouped by adili.tenant.",
+      "panelTypes": "graph",
+      "nullZeroValues": "zero",
+      "yAxisUnit": "none",
+      "query": {
+        "queryType": "builder",
+        "builder": {
+          "queryData": [
+            {
+              "dataSource": "metrics",
+              "queryName": "A",
+              "expression": "A",
+              "disabled": false,
+              "aggregateOperator": "rate",
+              "aggregateAttribute": {
+                "key": "adili.filings",
+                "dataType": "float64",
+                "type": "Sum",
+                "isColumn": true,
+                "isJSON": false,
+                "id": "adili.filings--float64--Sum--true"
+              },
+              "timeAggregation": "rate",
+              "spaceAggregation": "sum",
+              "reduceTo": "sum",
+              "stepInterval": 60,
+              "legend": "{{adili.tenant}}",
+              "filters": { "items": [], "op": "AND" },
+              "functions": [],
+              "having": [],
+              "limit": null,
+              "orderBy": [],
+              "groupBy": [
+                {
+                  "key": "adili.tenant",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "adili.tenant--string--tag--false"
+                }
+              ]
+            }
+          ],
+          "queryFormulas": []
+        }
+      }
+    },
+    {
+      "id": "6f1a0c10-0002-4000-8000-000000000002",
+      "title": "Outbox depth",
+      "description": "adili.events.outbox.depth, unpublished rows per service.",
+      "panelTypes": "graph",
+      "nullZeroValues": "zero",
+      "yAxisUnit": "none",
+      "query": {
+        "queryType": "builder",
+        "builder": {
+          "queryData": [
+            {
+              "dataSource": "metrics",
+              "queryName": "A",
+              "expression": "A",
+              "disabled": false,
+              "aggregateOperator": "avg",
+              "aggregateAttribute": {
+                "key": "adili.events.outbox.depth",
+                "dataType": "float64",
+                "type": "Gauge",
+                "isColumn": true,
+                "isJSON": false,
+                "id": "adili.events.outbox.depth--float64--Gauge--true"
+              },
+              "timeAggregation": "avg",
+              "spaceAggregation": "max",
+              "reduceTo": "max",
+              "stepInterval": 60,
+              "legend": "{{adili.service}}",
+              "filters": { "items": [], "op": "AND" },
+              "functions": [],
+              "having": [],
+              "limit": null,
+              "orderBy": [],
+              "groupBy": [
+                {
+                  "key": "adili.service",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "adili.service--string--tag--false"
+                }
+              ]
+            }
+          ],
+          "queryFormulas": []
+        }
+      }
+    },
+    {
+      "id": "6f1a0c10-0003-4000-8000-000000000003",
+      "title": "Dead-letter depth",
+      "description": "adili.events.dlq.depth, messages on each service dead-letter queue.",
+      "panelTypes": "graph",
+      "nullZeroValues": "zero",
+      "yAxisUnit": "none",
+      "query": {
+        "queryType": "builder",
+        "builder": {
+          "queryData": [
+            {
+              "dataSource": "metrics",
+              "queryName": "A",
+              "expression": "A",
+              "disabled": false,
+              "aggregateOperator": "avg",
+              "aggregateAttribute": {
+                "key": "adili.events.dlq.depth",
+                "dataType": "float64",
+                "type": "Gauge",
+                "isColumn": true,
+                "isJSON": false,
+                "id": "adili.events.dlq.depth--float64--Gauge--true"
+              },
+              "timeAggregation": "avg",
+              "spaceAggregation": "max",
+              "reduceTo": "max",
+              "stepInterval": 60,
+              "legend": "{{adili.service}}",
+              "filters": { "items": [], "op": "AND" },
+              "functions": [],
+              "having": [],
+              "limit": null,
+              "orderBy": [],
+              "groupBy": [
+                {
+                  "key": "adili.service",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "adili.service--string--tag--false"
+                }
+              ]
+            }
+          ],
+          "queryFormulas": []
+        }
+      }
+    },
+    {
+      "id": "6f1a0c10-0004-4000-8000-000000000004",
+      "title": "Temporal workflow failures",
+      "description": "temporal_workflow_failed from the worker SDK, and adili.temporal.worker.failures when a worker run stops.",
+      "panelTypes": "graph",
+      "nullZeroValues": "zero",
+      "yAxisUnit": "none",
+      "query": {
+        "queryType": "builder",
+        "builder": {
+          "queryData": [
+            {
+              "dataSource": "metrics",
+              "queryName": "A",
+              "expression": "A",
+              "disabled": false,
+              "aggregateOperator": "rate",
+              "aggregateAttribute": {
+                "key": "temporal_workflow_failed",
+                "dataType": "float64",
+                "type": "Sum",
+                "isColumn": true,
+                "isJSON": false,
+                "id": "temporal_workflow_failed--float64--Sum--true"
+              },
+              "timeAggregation": "rate",
+              "spaceAggregation": "sum",
+              "reduceTo": "sum",
+              "stepInterval": 60,
+              "legend": "workflow failed",
+              "filters": { "items": [], "op": "AND" },
+              "functions": [],
+              "having": [],
+              "limit": null,
+              "orderBy": [],
+              "groupBy": []
+            },
+            {
+              "dataSource": "metrics",
+              "queryName": "B",
+              "expression": "B",
+              "disabled": false,
+              "aggregateOperator": "rate",
+              "aggregateAttribute": {
+                "key": "adili.temporal.worker.failures",
+                "dataType": "float64",
+                "type": "Sum",
+                "isColumn": true,
+                "isJSON": false,
+                "id": "adili.temporal.worker.failures--float64--Sum--true"
+              },
+              "timeAggregation": "rate",
+              "spaceAggregation": "sum",
+              "reduceTo": "sum",
+              "stepInterval": 60,
+              "legend": "worker restart {{adili.temporal.task_queue}}",
+              "filters": { "items": [], "op": "AND" },
+              "functions": [],
+              "having": [],
+              "limit": null,
+              "orderBy": [],
+              "groupBy": [
+                {
+                  "key": "adili.temporal.task_queue",
+                  "dataType": "string",
+                  "type": "tag",
+                  "isColumn": false,
+                  "isJSON": false,
+                  "id": "adili.temporal.task_queue--string--tag--false"
+                }
+              ]
+            }
+          ],
+          "queryFormulas": []
+        }
+      }
+    }
+  ],
+  "variables": {}
+}

@@ -63,6 +63,10 @@ jobs:
       # fire on tests that take milliseconds locally.
       # `eval` replays each AI task's golden set against its recorded outputs (ai-gateway evals/).
       - run: pnpm turbo run lint typecheck test eval build --filter='!@adili/mocks' --cache-dir=.turbo --concurrency=2
+      # Structured logs must not carry a national ID or an amount (#369). The suite fails on a
+      # line that contains the national ID pattern.
+      - name: Check log redaction
+        run: pnpm --filter @adili/api-kit exec vitest run test/log-redaction.test.ts
       - run: pnpm deps:check
       # Typecheck and build regenerate these (route trees, clients generated from the committed
       # contracts), so a stale committed copy shows up as a diff.
