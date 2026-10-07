@@ -134,6 +134,30 @@ describe('other information rules (S11)', () => {
       },
     ]);
   });
+  it('leaves out a marital change or flagged item explained only in spaces', () => {
+    const entries = composeMaterialChanges(
+      context({
+        officer: { maritalStatusChange: { changed: true, explanation: '   ' } },
+        statements: new Map([
+          [
+            'statement:officer',
+            {
+              personKey: 'officer',
+              assets: [
+                {
+                  id: 'a1',
+                  description: 'Plot',
+                  change: { changed: true, kind: 'acquisition', explanation: ' ' },
+                },
+              ],
+            },
+          ],
+        ]),
+      }),
+      {},
+    );
+    expect(entries).toEqual([]);
+  });
 });
 
 describe('changes to directorships and memberships (S9)', () => {

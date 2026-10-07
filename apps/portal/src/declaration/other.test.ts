@@ -70,6 +70,23 @@ describe('registrable interests', () => {
     ).toBe('Eldoret CMC, ELC 45 of 2025: Boundary');
   });
 
+  it('words a flagged interest with what changed', () => {
+    expect(
+      directorshipLine({
+        company: 'Kapsoya Water Ltd',
+        role: 'Director',
+        remunerated: true,
+        change: { changed: true, kind: 'disposal', explanation: 'Resigned.' },
+      }),
+    ).toBe('Kapsoya Water Ltd, Director (paid) · Changed: ended');
+    expect(
+      membershipLine({ entity: 'Kapsoya Parents Welfare Group', change: { changed: true } }),
+    ).toBe('Kapsoya Parents Welfare Group (kind not answered) · Changed');
+    expect(
+      membershipLine({ entity: 'Kapsoya Parents Welfare Group', change: { changed: false } }),
+    ).toBe('Kapsoya Parents Welfare Group (kind not answered)');
+  });
+
   it('words dual citizenship with the pending application', () => {
     expect(dualCitizenshipLine({ holds: true, country: 'UG', pendingApplication: false })).toBe(
       'Yes, Uganda · pending application: no',

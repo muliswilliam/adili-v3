@@ -1,7 +1,6 @@
 import {
   Button,
   Card,
-  CheckboxItem,
   CountrySelect,
   FieldError,
   FieldHint,
@@ -16,23 +15,22 @@ import {
 } from '@adili/ui';
 import { RepeatIcon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import type { LoadedSection } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
 import {
   type ChangeFlag,
-  type ChangeKind,
   type Draft,
   followsEarlierDeclaration,
   type MaterialChangeEntry,
   type MembershipKind,
   type OtherInformation,
 } from '../../declaration/contents';
-import { ITEM_FIELD_LABELS } from '../../declaration/field-labels';
 import { blank } from '../../declaration/format';
 import {
   INTEREST_CHANGE_KIND_OPTIONS,
+  interestChangeWord,
   MEMBERSHIP_KIND_LABELS,
   optionsOf,
 } from '../../declaration/labels';
@@ -43,16 +41,17 @@ import {
   type DraftPendingCase,
   FREE_TEXT_LIMIT,
   freeTextCounter,
+  type Interests,
   materialChangeLine,
   materialChangeStep,
   NO_MATERIAL_CHANGES,
 } from '../../declaration/other';
+import { ChangeFlagFields } from './change-flag-fields';
 import { personLabel, stepLink } from './steps';
 import { useFocusFirstError, useFocusLinkedField, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 type Other = Draft<OtherInformation>;
-type Interests = NonNullable<Other['registrableInterests']>;
 type ListName = 'directorships' | 'memberships' | 'pendingCases';
 
 const YES_NO = [
@@ -85,12 +84,19 @@ function cardAt(path: string | undefined): OpenCard | null {
   return match ? { list: match[1] as ListName, index: Number(match[2]) } : null;
 }
 
+/** Whether a material change was composed from a directorship or membership on this screen. */
+const isInterestChange = (entry: Draft<MaterialChangeEntry>) =>
+  entry.kind === 'directorship' || entry.kind === 'membership';
+
 function MaterialChanges({
   entries,
   declarationId,
+  onEditInterest,
 }: {
   entries: Draft<MaterialChangeEntry>[];
   declarationId: string;
+  /** Opens the interest a change came from, which is on this screen rather than a link away. */
+  onEditInterest: (entry: Draft<MaterialChangeEntry>) => void;
 }) {
   const { declaration } = useWorkspace();
   const label = (personKey: string) => personLabel(declaration.sections, `statement:${personKey}`);
@@ -109,7 +115,9 @@ function MaterialChanges({
             <h2 id="material-changes-heading" className="text-base font-semibold">
               Material changes
             </h2>
-            <p className="text-[13px] text-muted-foreground">From items and interests marked as changed</p>
+            <p className="text-[13px] text-muted-foreground">
+              From items and interests marked as changed
+            </p>
           </div>
         </div>
         {entries.length === 0 ? (
@@ -124,14 +132,27 @@ function MaterialChanges({
                 className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
               >
                 <p className="flex-1 text-sm">{materialChangeLine(entry, label)}</p>
-                <Button asChild variant="ghost" size="sm">
-                  <Link
-                    {...stepLink(declarationId, materialChangeStep(entry))}
+                {isInterestChange(entry) ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     aria-label={`Edit ${materialChangeLine(entry, label)}`}
+                    onClick={() => {
+                      onEditInterest(entry);
+                    }}
                   >
                     Edit
-                  </Link>
-                </Button>
+                  </Button>
+                ) : (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link
+                      {...stepLink(declarationId, materialChangeStep(entry))}
+                      aria-label={`Edit ${materialChangeLine(entry, label)}`}
+                    >
+                      Edit
+                    </Link>
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
@@ -251,74 +272,6 @@ function InterestList<T>({
   );
 }
 
-/**
- * "Changed since last declaration" on a directorship or membership, as on a statement item: what
- * changed and an explanation once it is ticked. Paragraph 9 lists it as a material change.
- */
-function InterestChange({
-  path,
-  change,
-  error,
-  onTouch,
-  onChange,
-}: {
-  /** The card's JSON pointer, e.g. `/registrableInterests/directorships/0`. */
-  path: string;
-  change: Draft<ChangeFlag> | undefined;
-  error: (path: string) => string | undefined;
-  onTouch: (path: string) => void;
-  onChange: (next: Draft<ChangeFlag>) => void;
-}) {
-  const kindPath = `${path}/change/kind`;
-  const explanationPath = `${path}/change/explanation`;
-  return (
-    <div className="grid gap-3 sm:col-span-2">
-      <CheckboxItem
-        label={ITEM_FIELD_LABELS.change}
-        hint="Taken up, given up, or a new role or terms."
-        checked={change?.changed === true}
-        onChange={(event) => {
-          const changed = event.target.checked;
-          onChange(changed ? { ...change, changed } : { changed: false });
-        }}
-      />
-      {change?.changed ? (
-        <div className="ml-7 grid gap-4 rounded-lg bg-muted p-4">
-          <SegmentedChoice
-            id={idFor(kindPath)}
-            legend="What changed?"
-            options={INTEREST_CHANGE_KIND_OPTIONS}
-            value={change.kind ?? null}
-            error={error(kindPath)}
-            onValueChange={(kind) => {
-              onTouch(kindPath);
-              onChange({ ...change, changed: true, kind: kind as ChangeKind });
-            }}
-          />
-          <FormField
-            label={ITEM_FIELD_LABELS.explanation}
-            error={error(explanationPath)}
-            controlId={idFor(explanationPath)}
-          >
-            <Textarea
-              rows={3}
-              maxLength={1000}
-              placeholder="e.g. Appointed to the board in May 2026."
-              value={change.explanation ?? ''}
-              onBlur={() => {
-                onTouch(explanationPath);
-              }}
-              onChange={(event) => {
-                onChange({ ...change, changed: true, explanation: event.target.value });
-              }}
-            />
-          </FormField>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export interface OtherSectionProps {
   section: LoadedSection;
   etag: string;
@@ -381,6 +334,15 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
 
   // An initial declaration is the first: there is no last one to have changed since.
   const sinceLastDeclaration = followsEarlierDeclaration(declaration.type);
+
+  // A change flag to focus once its card has opened.
+  const focusOnOpen = useRef<string | null>(null);
+  useEffect(() => {
+    const path = focusOnOpen.current;
+    if (!path) return;
+    focusOnOpen.current = null;
+    document.getElementById(idFor(path))?.querySelector<HTMLElement>('input')?.focus();
+  }, [editing]);
 
   useFocusFirstError(showErrors, () => {
     const first = issues[0];
@@ -481,12 +443,71 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
     }));
   }
 
+  /**
+   * Opens the card a directorship or membership change was composed from and focuses its flag.
+   * A composed change carries no index, so the card is the flagged one it names.
+   */
+  function editInterestChange(entry: Draft<MaterialChangeEntry>) {
+    const list = entry.kind === 'directorship' ? 'directorships' : 'memberships';
+    const names =
+      list === 'directorships'
+        ? directorships.map((item) => ({ name: item.company, change: item.change }))
+        : memberships.map((item) => ({ name: item.entity, change: item.change }));
+    const index = names.findIndex(
+      ({ name, change }) =>
+        change?.changed === true && name?.trim() === entry.itemDescription?.trim(),
+    );
+    if (index === -1) return;
+    focusOnOpen.current = `${itemPath(list, index)}/change`;
+    openCard({ list, index });
+  }
+
+  /** The closed card's word on a flagged directorship or membership: "Changed: new". */
+  const changeTag = (change: Draft<ChangeFlag> | undefined) => {
+    if (!change?.changed) return undefined;
+    return `Changed: ${change.kind ? interestChangeWord(change.kind) : 'kind not chosen'}`;
+  };
+
+  /** A directorship's or membership's change flag, on a declaration that follows another. */
+  function changeFields(
+    list: 'directorships' | 'memberships',
+    index: number,
+    change: Draft<ChangeFlag> | undefined,
+    placeholder: string,
+  ) {
+    if (!sinceLastDeclaration) return null;
+    const path = `${itemPath(list, index)}/change`;
+    const at = (field: 'kind' | 'explanation') => `${path}/${field}`;
+    return (
+      <ChangeFlagFields
+        id={idFor(path)}
+        className="grid gap-3 sm:col-span-2"
+        change={change}
+        hint="Taken up, given up, or a new role or terms."
+        options={INTEREST_CHANGE_KIND_OPTIONS}
+        placeholder={placeholder}
+        ids={{ kind: idFor(at('kind')), explanation: idFor(at('explanation')) }}
+        errors={{ kind: error(at('kind')), explanation: error(at('explanation')) }}
+        onTouch={(field) => {
+          touch(at(field));
+        }}
+        onChange={(next) => {
+          editItem(list, index, { change: next });
+        }}
+      />
+    );
+  }
+
   const invalid = (path: string, missing: boolean) =>
     missing && error(path) !== undefined ? true : undefined;
 
   return (
     <div className="grid gap-6">
-      <MaterialChanges entries={composed} declarationId={declaration.id} />
+      <MaterialChanges
+        entries={composed}
+        declarationId={declaration.id}
+        onEditInterest={editInterestChange}
+      />
 
       <Card className="grid gap-5 p-5">
         <h2 className="text-base font-semibold">Registrable interests</h2>
@@ -503,6 +524,7 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
               [
                 entry.role?.trim(),
                 entry.remunerated === undefined ? undefined : entry.remunerated ? 'paid' : 'unpaid',
+                changeTag(entry.change),
               ]
                 .filter(Boolean)
                 .join(' · ')
@@ -545,17 +567,12 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
                       editItem('directorships', index, { remunerated: choice === 'yes' });
                     }}
                   />
-                  {sinceLastDeclaration ? (
-                    <InterestChange
-                      path={path}
-                      change={entry.change}
-                      error={error}
-                      onTouch={touch}
-                      onChange={(change) => {
-                        editItem('directorships', index, { change });
-                      }}
-                    />
-                  ) : null}
+                  {changeFields(
+                    'directorships',
+                    index,
+                    entry.change,
+                    'Appointed to the board in May 2026.',
+                  )}
                 </>
               );
             }}
@@ -573,7 +590,11 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
             noun="Membership"
             addLabel="Add a membership"
             titleOf={(entry) => entry.entity}
-            describe={(entry) => (entry.kind ? MEMBERSHIP_KIND_LABELS[entry.kind] : '')}
+            describe={(entry) =>
+              [entry.kind ? MEMBERSHIP_KIND_LABELS[entry.kind] : undefined, changeTag(entry.change)]
+                .filter(Boolean)
+                .join(' · ')
+            }
             renderFields={(entry, index) => {
               const path = itemPath('memberships', index);
               return (
@@ -605,17 +626,12 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
                       ))}
                     </Select>
                   </FormField>
-                  {sinceLastDeclaration ? (
-                    <InterestChange
-                      path={path}
-                      change={entry.change}
-                      error={error}
-                      onTouch={touch}
-                      onChange={(change) => {
-                        editItem('memberships', index, { change });
-                      }}
-                    />
-                  ) : null}
+                  {changeFields(
+                    'memberships',
+                    index,
+                    entry.change,
+                    'Joined the group in March 2026.',
+                  )}
                 </>
               );
             }}

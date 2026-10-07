@@ -5,6 +5,7 @@ import {
   type MaterialChangeEntry,
   type OtherInformation,
 } from '../../../declaration/contents';
+import type { Interests } from '../../../declaration/other';
 import type { CompletenessIssue } from '../types';
 import { issue, type RuleContext } from './context';
 
@@ -16,16 +17,34 @@ interface FlaggedInterest {
   change: Draft<ChangeFlag>;
 }
 
-type Interests = NonNullable<Draft<OtherInformation>['registrableInterests']>;
+/** An interest that can carry a change flag: the name an entry goes by, and its flag. */
+interface Flaggable {
+  name: string | undefined;
+  change?: Draft<ChangeFlag>;
+}
 
 /**
  * The registrable interests that carry a change flag, the material-change kind each lists as and
  * what names an entry: the declarations service's `FLAGGED_INTERESTS`.
  */
-const FLAGGED_INTERESTS = [
-  { list: 'directorships', kind: 'directorship', name: 'company' },
-  { list: 'memberships', kind: 'membership', name: 'entity' },
-] as const;
+const FLAGGED_INTERESTS: {
+  list: 'directorships' | 'memberships';
+  kind: FlaggedInterest['kind'];
+  entries: (interests: Interests) => Flaggable[];
+}[] = [
+  {
+    list: 'directorships',
+    kind: 'directorship',
+    entries: (interests) =>
+      (interests.directorships ?? []).map(({ company, change }) => ({ name: company, change })),
+  },
+  {
+    list: 'memberships',
+    kind: 'membership',
+    entries: (interests) =>
+      (interests.memberships ?? []).map(({ entity, change }) => ({ name: entity, change })),
+  },
+];
 
 /**
  * The declarant's directorships and memberships flagged as changed since the last declaration;
@@ -34,22 +53,13 @@ const FLAGGED_INTERESTS = [
 function flaggedInterests(other: Draft<OtherInformation>, context: RuleContext): FlaggedInterest[] {
   if (!followsEarlierDeclaration(context.type)) return [];
   const interests: Interests = other.registrableInterests ?? {};
-  return FLAGGED_INTERESTS.flatMap(({ list, kind, name }) => {
-    const entries: (Partial<Record<typeof name, string>> & { change?: Draft<ChangeFlag> })[] =
-      interests[list] ?? [];
-    return entries.flatMap(({ change, [name]: named }, index) =>
+  return FLAGGED_INTERESTS.flatMap(({ list, kind, entries }) =>
+    entries(interests).flatMap(({ name, change }, index) =>
       change?.changed
-        ? [
-            {
-              path: `/registrableInterests/${list}/${String(index)}/change`,
-              kind,
-              name: named,
-              change,
-            },
-          ]
+        ? [{ path: `/registrableInterests/${list}/${String(index)}/change`, kind, name, change }]
         : [],
-    );
-  });
+    ),
+  );
 }
 
 /** A string with something in it besides spaces. */
@@ -65,7 +75,7 @@ export function composeMaterialChanges(
 ): MaterialChangeEntry[] {
   const entries: MaterialChangeEntry[] = [];
   const marital = context.officer.maritalStatusChange;
-  if (marital?.changed && marital.explanation) {
+  if (marital?.changed && filled(marital.explanation)) {
     entries.push({
       personKey: 'officer',
       kind: 'marital-status',
@@ -75,7 +85,7 @@ export function composeMaterialChanges(
   for (const statement of context.statements.values()) {
     for (const items of [statement.income, statement.assets, statement.liabilities]) {
       for (const item of items ?? []) {
-        if (item.change?.changed && item.change.kind && item.change.explanation) {
+        if (item.change?.changed && filled(item.change.kind) && filled(item.change.explanation)) {
           entries.push({
             ...(statement.personKey ? { personKey: statement.personKey } : {}),
             ...(item.id ? { itemId: item.id } : {}),

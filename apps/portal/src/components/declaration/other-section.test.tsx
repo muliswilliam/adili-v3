@@ -286,6 +286,105 @@ describe('OtherSection', () => {
     ).toBeTruthy();
   });
 
+  it('gives a membership its own example explanation', () => {
+    renderOther(otherSection(COMPLETE, []));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Water Project Ltd' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Changed since last declaration/ }));
+    expect(screen.getByRole('textbox', { name: 'Explanation' }).getAttribute('placeholder')).toBe(
+      'e.g. Appointed to the board in May 2026.',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Parents Welfare Group' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Changed since last declaration/ }));
+    expect(screen.getByRole('textbox', { name: 'Explanation' }).getAttribute('placeholder')).toBe(
+      'e.g. Joined the group in March 2026.',
+    );
+  });
+
+  it('shows the change on a closed directorship or membership card', () => {
+    renderOther(
+      otherSection(
+        {
+          registrableInterests: {
+            ...COMPLETE.registrableInterests,
+            directorships: [
+              {
+                company: 'Kapsoya Water Project Ltd',
+                role: 'Director',
+                remunerated: false,
+                change: { changed: true, kind: 'acquisition', explanation: 'Appointed.' },
+              },
+            ],
+            memberships: [
+              {
+                entity: 'Kapsoya Parents Welfare Group',
+                kind: 'society',
+                change: { changed: true },
+              },
+            ],
+          },
+        },
+        [],
+      ),
+    );
+
+    expect(
+      within(cardOf('Kapsoya Water Project Ltd')).getByText('Director · unpaid · Changed: new'),
+    ).toBeTruthy();
+    expect(
+      within(cardOf('Kapsoya Parents Welfare Group')).getByText(
+        'Society · Changed: kind not chosen',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('opens the flagged interest from its material change', () => {
+    renderOther(
+      otherSection(
+        {
+          materialChanges: [
+            {
+              personKey: 'officer',
+              itemDescription: 'Kapsoya Parents Welfare Group',
+              kind: 'membership',
+              explanation: 'Joined in March 2026.',
+            },
+          ],
+          registrableInterests: {
+            ...COMPLETE.registrableInterests,
+            memberships: [
+              { entity: 'Kapsoya Youth Group', kind: 'society' },
+              {
+                entity: 'Kapsoya Parents Welfare Group',
+                kind: 'society',
+                change: {
+                  changed: true,
+                  kind: 'acquisition',
+                  explanation: 'Joined in March 2026.',
+                },
+              },
+            ],
+          },
+        },
+        [],
+      ),
+    );
+
+    expect(within(region('Material changes')).queryAllByRole('link')).toHaveLength(0);
+    fireEvent.click(
+      within(region('Material changes')).getByRole('button', {
+        name: 'Edit You · Kapsoya Parents Welfare Group: membership changed · Joined in March 2026.',
+      }),
+    );
+
+    const membership = screen.getByRole('group', { name: 'Kapsoya Parents Welfare Group' });
+    const changed = within(membership).getByRole('checkbox', {
+      name: /Changed since last declaration/,
+    });
+    expect(document.activeElement).toBe(changed);
+  });
+
   it('does not ask whether an interest changed on an initial declaration', () => {
     renderWorkspace(<OtherSection section={otherSection(COMPLETE, [])} etag={'"1"'} />, {
       step: 'other',

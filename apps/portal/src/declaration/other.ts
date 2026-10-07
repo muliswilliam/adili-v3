@@ -2,7 +2,7 @@ import { countryName, formatNumber } from '@adili/ui';
 
 import type { Draft, MaterialChangeEntry, OtherInformation } from './contents';
 import { UNANSWERED } from './format';
-import { CHANGE_KIND_WORDS, MEMBERSHIP_KIND_LABELS } from './labels';
+import { CHANGE_KIND_WORDS, interestChangeWord, MEMBERSHIP_KIND_LABELS } from './labels';
 
 /**
  * Paragraph 9 (other information) as words: the auto-composed material changes and the
@@ -12,7 +12,8 @@ import { CHANGE_KIND_WORDS, MEMBERSHIP_KIND_LABELS } from './labels';
 export const NO_MATERIAL_CHANGES = 'No changes flagged on your items or interests.';
 export const FREE_TEXT_LIMIT = 4000;
 
-type Interests = NonNullable<Draft<OtherInformation>['registrableInterests']>;
+/** Paragraph 9's registrable interests, as drafted. */
+export type Interests = NonNullable<Draft<OtherInformation>['registrableInterests']>;
 export type DraftDirectorship = NonNullable<Interests['directorships']>[number];
 export type DraftMembership = NonNullable<Interests['memberships']>[number];
 export type DraftPendingCase = NonNullable<Interests['pendingCases']>[number];
@@ -87,17 +88,23 @@ function yesNo(value: boolean | undefined) {
   return value ? 'yes' : 'no';
 }
 
-/** "{company}, {role} (paid|unpaid)", naming any part not answered. */
+/** " · Changed: {kind}" for an interest flagged as changed, as a statement item's flags say. */
+function changedSuffix(entry: DraftDirectorship | DraftMembership): string {
+  if (!entry.change?.changed) return '';
+  return entry.change.kind ? ` · Changed: ${interestChangeWord(entry.change.kind)}` : ' · Changed';
+}
+
+/** "{company}, {role} (paid|unpaid)", naming any part not answered, then any change. */
 export function directorshipLine(entry: DraftDirectorship): string {
   const paid =
     entry.remunerated === undefined ? 'pay not answered' : entry.remunerated ? 'paid' : 'unpaid';
-  return `${part(entry.company, null)}, ${part(entry.role, 'role')} (${paid})`;
+  return `${part(entry.company, null)}, ${part(entry.role, 'role')} (${paid})${changedSuffix(entry)}`;
 }
 
-/** "{entity} ({Kind})". */
+/** "{entity} ({Kind})", then any change. */
 export function membershipLine(entry: DraftMembership): string {
   const kind = entry.kind ? MEMBERSHIP_KIND_LABELS[entry.kind] : 'kind not answered';
-  return `${part(entry.entity, null)} (${kind})`;
+  return `${part(entry.entity, null)} (${kind})${changedSuffix(entry)}`;
 }
 
 /** "{court}, {reference}: {nature}". */

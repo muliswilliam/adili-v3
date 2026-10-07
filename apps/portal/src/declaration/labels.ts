@@ -184,6 +184,12 @@ export const INTEREST_CHANGE_KIND_OPTIONS: { value: ChangeKind; label: string }[
   { value: 'disposal', label: 'Ended' },
 ];
 
+/** A directorship's or membership's change kind in a sentence, e.g. "Changed: ended". */
+export function interestChangeWord(kind: ChangeKind): string {
+  const label = INTEREST_CHANGE_KIND_OPTIONS.find((option) => option.value === kind)?.label;
+  return label ? label.toLowerCase() : CHANGE_KIND_WORDS[kind];
+}
+
 /**
  * A change kind in a sentence for an item of this category, e.g. "Changed: new" for a
  * liability. Uses the category's own label, so the summary says what the editor offered.
