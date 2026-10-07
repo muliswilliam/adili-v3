@@ -9,7 +9,7 @@ import { CHANGE_KIND_WORDS, MEMBERSHIP_KIND_LABELS } from './labels';
  * registrable interests, shared by the Other information screen and the summary.
  */
 
-export const NO_MATERIAL_CHANGES = 'No changes flagged on your items.';
+export const NO_MATERIAL_CHANGES = 'No changes flagged on your items or interests.';
 export const FREE_TEXT_LIMIT = 4000;
 
 type Interests = NonNullable<Draft<OtherInformation>['registrableInterests']>;

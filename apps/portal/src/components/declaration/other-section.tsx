@@ -109,7 +109,7 @@ function MaterialChanges({
             <h2 id="material-changes-heading" className="text-base font-semibold">
               Material changes
             </h2>
-            <p className="text-[13px] text-muted-foreground">From items marked as changed</p>
+            <p className="text-[13px] text-muted-foreground">From items and interests marked as changed</p>
           </div>
         </div>
         {entries.length === 0 ? (

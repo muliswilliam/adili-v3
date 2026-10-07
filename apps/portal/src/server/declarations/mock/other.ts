@@ -16,38 +16,40 @@ interface FlaggedInterest {
   change: Draft<ChangeFlag>;
 }
 
+type Interests = NonNullable<Draft<OtherInformation>['registrableInterests']>;
+
 /**
- * The declarant's directorships and memberships flagged as changed since the last declaration,
- * as the declarations service's `FLAGGED_INTERESTS` reads them; none on an initial declaration.
+ * The registrable interests that carry a change flag, the material-change kind each lists as and
+ * what names an entry: the declarations service's `FLAGGED_INTERESTS`.
+ */
+const FLAGGED_INTERESTS = [
+  { list: 'directorships', kind: 'directorship', name: 'company' },
+  { list: 'memberships', kind: 'membership', name: 'entity' },
+] as const;
+
+/**
+ * The declarant's directorships and memberships flagged as changed since the last declaration;
+ * none on an initial declaration.
  */
 function flaggedInterests(other: Draft<OtherInformation>, context: RuleContext): FlaggedInterest[] {
   if (!followsEarlierDeclaration(context.type)) return [];
-  const interests = other.registrableInterests;
-  const flagged = (
-    list: 'directorships' | 'memberships',
-    kind: FlaggedInterest['kind'],
-    entries: { change?: Draft<ChangeFlag>; name: string | undefined }[],
-  ) =>
-    entries.flatMap(({ change, name }, index) =>
+  const interests: Interests = other.registrableInterests ?? {};
+  return FLAGGED_INTERESTS.flatMap(({ list, kind, name }) => {
+    const entries: (Partial<Record<typeof name, string>> & { change?: Draft<ChangeFlag> })[] =
+      interests[list] ?? [];
+    return entries.flatMap(({ change, [name]: named }, index) =>
       change?.changed
-        ? [{ path: `/registrableInterests/${list}/${String(index)}/change`, kind, name, change }]
+        ? [
+            {
+              path: `/registrableInterests/${list}/${String(index)}/change`,
+              kind,
+              name: named,
+              change,
+            },
+          ]
         : [],
     );
-  return [
-    ...flagged(
-      'directorships',
-      'directorship',
-      (interests?.directorships ?? []).map((entry) => ({
-        change: entry.change,
-        name: entry.company,
-      })),
-    ),
-    ...flagged(
-      'memberships',
-      'membership',
-      (interests?.memberships ?? []).map((entry) => ({ change: entry.change, name: entry.entity })),
-    ),
-  ];
+  });
 }
 
 /** A string with something in it besides spaces. */
@@ -89,7 +91,7 @@ export function composeMaterialChanges(
     if (!filled(change.kind) || !filled(change.explanation)) continue;
     entries.push({
       personKey: 'officer',
-      ...(name ? { itemDescription: name } : {}),
+      ...(name === undefined ? {} : { itemDescription: name }),
       kind,
       explanation: change.explanation,
     });
@@ -108,6 +110,30 @@ export function otherCompleteness(
 ): CompletenessIssue[] {
   const issues: CompletenessIssue[] = [];
   const interests = other.registrableInterests;
+  // A flagged directorship or membership says what kind of change it was and explains it,
+  // listed first as the service lists them.
+  for (const { path, change } of flaggedInterests(other, context)) {
+    if (!filled(change.kind)) {
+      issues.push(
+        issue(
+          context,
+          `${path}/kind`,
+          'required',
+          'Choose what changed since your last declaration.',
+        ),
+      );
+    }
+    if (!filled(change.explanation)) {
+      issues.push(
+        issue(
+          context,
+          `${path}/explanation`,
+          'required',
+          'Explain what changed since your last declaration.',
+        ),
+      );
+    }
+  }
   interests?.directorships?.forEach((entry, index) => {
     if (!entry.company?.trim() || !entry.role?.trim() || entry.remunerated === undefined) {
       issues.push(
@@ -132,29 +158,6 @@ export function otherCompleteness(
       );
     }
   });
-  // A flagged directorship or membership says what kind of change it was and explains it.
-  for (const { path, change } of flaggedInterests(other, context)) {
-    if (!filled(change.kind)) {
-      issues.push(
-        issue(
-          context,
-          `${path}/kind`,
-          'required',
-          'Choose what changed since your last declaration.',
-        ),
-      );
-    }
-    if (!filled(change.explanation)) {
-      issues.push(
-        issue(
-          context,
-          `${path}/explanation`,
-          'required',
-          'Explain what changed since your last declaration.',
-        ),
-      );
-    }
-  }
   const dual = interests?.dualCitizenship;
   if (dual?.holds === undefined) {
     issues.push(
