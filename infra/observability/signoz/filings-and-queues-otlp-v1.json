@@ -44,7 +44,7 @@
     {
       "id": "6f1a0c10-0001-4000-8000-000000000001",
       "title": "Filings per hour per Commission",
-      "description": "adili.filings, one count per submitted declaration, grouped by adili.tenant.",
+      "description": "adili.filings in each hour, one count per submitted declaration, grouped by adili.tenant.",
       "panelTypes": "graph",
       "nullZeroValues": "zero",
       "yAxisUnit": "none",
@@ -57,7 +57,7 @@
               "queryName": "A",
               "expression": "A",
               "disabled": false,
-              "aggregateOperator": "rate",
+              "aggregateOperator": "increase",
               "aggregateAttribute": {
                 "key": "adili.filings",
                 "dataType": "float64",
@@ -66,10 +66,10 @@
                 "isJSON": false,
                 "id": "adili.filings--float64--Sum--true"
               },
-              "timeAggregation": "rate",
+              "timeAggregation": "increase",
               "spaceAggregation": "sum",
               "reduceTo": "sum",
-              "stepInterval": 60,
+              "stepInterval": 3600,
               "legend": "{{adili.tenant}}",
               "filters": { "items": [], "op": "AND" },
               "functions": [],

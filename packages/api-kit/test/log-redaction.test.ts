@@ -74,6 +74,13 @@ describe('request log redaction', () => {
       ]);
     });
 
+    it('keeps a declaration reference and a UUID', () => {
+      const line =
+        '{"msg":"filed DCB-TSC-2027-0012345-A and OFR-0482913-L as 01234567-89ab-4def-8123-456789abcdef","url":"/v1/declarations/DCB-TSC-2027-0012345-A"}';
+      expect(scanLogLine(line)).toEqual([]);
+      expect(redactLogValue(JSON.parse(line))).toEqual(JSON.parse(line));
+    });
+
     it('keeps a process log that only carries a pid, a time and a status', () => {
       expect(
         scanLogLine(
