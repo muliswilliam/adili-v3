@@ -4,6 +4,8 @@ import {
   directorshipLine,
   dualCitizenshipLine,
   freeTextCounter,
+  interestChanges,
+  interestChangeTag,
   materialChangeLine,
   materialChangeStep,
   membershipLine,
@@ -40,9 +42,11 @@ describe('material changes', () => {
     );
   });
 
-  it('edits an item change on the statement and the marital change on the bio', () => {
+  it('edits an item change on the statement, the marital change on the bio and an interest here', () => {
     expect(materialChangeStep({ personKey: SPOUSE, kind: 'disposal' })).toBe(`statement:${SPOUSE}`);
     expect(materialChangeStep({ kind: 'marital-status' })).toBe('bio');
+    expect(materialChangeStep({ personKey: 'officer', kind: 'directorship' })).toBe('other');
+    expect(materialChangeStep({ personKey: 'officer', kind: 'membership' })).toBe('other');
   });
 });
 
@@ -66,6 +70,65 @@ describe('registrable interests', () => {
     expect(
       pendingCaseLine({ forum: 'Eldoret CMC', reference: 'ELC 45 of 2025', nature: 'Boundary' }),
     ).toBe('Eldoret CMC, ELC 45 of 2025: Boundary');
+  });
+
+  it('words a flagged interest with what changed', () => {
+    expect(
+      directorshipLine({
+        company: 'Kapsoya Water Ltd',
+        role: 'Director',
+        remunerated: true,
+        change: { changed: true, kind: 'disposal', explanation: 'Resigned.' },
+      }),
+    ).toBe('Kapsoya Water Ltd, Director (paid) · Changed: ended');
+    expect(
+      membershipLine({ entity: 'Kapsoya Parents Welfare Group', change: { changed: true } }),
+    ).toBe('Kapsoya Parents Welfare Group (kind not answered) · Changed: kind not chosen');
+    expect(
+      membershipLine({ entity: 'Kapsoya Parents Welfare Group', change: { changed: false } }),
+    ).toBe('Kapsoya Parents Welfare Group (kind not answered)');
+  });
+
+  it('words a changed role or terms without saying "changed" twice', () => {
+    const change = { changed: true, kind: 'value-change', explanation: 'Now paid.' } as const;
+    expect(interestChangeTag(change)).toBe('Changed: role or terms');
+    expect(
+      directorshipLine({ company: 'Kapsoya Water Ltd', role: 'Chair', remunerated: true, change }),
+    ).toBe('Kapsoya Water Ltd, Chair (paid) · Changed: role or terms');
+  });
+
+  it('composes the changes of flagged interests, each with the card it came from', () => {
+    expect(
+      interestChanges({
+        directorships: [
+          { company: 'Eldoret Mills', change: { changed: false } },
+          {
+            company: 'Kapsoya Water Ltd',
+            change: { changed: true, kind: 'acquisition', explanation: 'Appointed.' },
+          },
+        ],
+        memberships: [
+          { entity: 'Kapsoya Youth Group', change: { changed: true, kind: 'disposal' } },
+          { change: { changed: true, kind: 'disposal', explanation: 'Left.' } },
+        ],
+      }),
+    ).toEqual([
+      {
+        list: 'directorships',
+        index: 1,
+        entry: {
+          personKey: 'officer',
+          itemDescription: 'Kapsoya Water Ltd',
+          kind: 'directorship',
+          explanation: 'Appointed.',
+        },
+      },
+      {
+        list: 'memberships',
+        index: 1,
+        entry: { personKey: 'officer', kind: 'membership', explanation: 'Left.' },
+      },
+    ]);
   });
 
   it('words dual citizenship with the pending application', () => {

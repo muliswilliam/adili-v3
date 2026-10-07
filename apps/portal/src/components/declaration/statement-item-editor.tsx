@@ -11,7 +11,6 @@ import {
   SegmentedChoice,
   Select,
   SelectItem,
-  Textarea,
 } from '@adili/ui';
 import { LockIcon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
@@ -32,6 +31,7 @@ import {
 } from '../../declaration/statement';
 import { DETAIL_FIELD_LABELS, ITEM_FIELD_LABELS } from '../../declaration/field-labels';
 import { CATEGORY_WORDS, CHANGE_KIND_OPTIONS, TYPE_LABELS } from '../../declaration/labels';
+import { ChangeFlagFields } from './change-flag-fields';
 import { optionalLabel } from './optional-label';
 
 /**
@@ -576,64 +576,20 @@ export function ItemEditor({
       ) : null}
 
       {sinceLastDeclaration ? (
-        <div className="grid gap-3">
-          <CheckboxItem
-            label={ITEM_FIELD_LABELS.change}
-            hint="Value up or down 25% or more, acquired, disposed of or settled."
-            checked={anyItem.change?.changed === true}
-            onChange={(event) => {
-              const changed = event.target.checked;
-              set((current) => ({
-                ...current,
-                change: changed ? { ...current.change, changed } : { changed: false },
-              }));
-            }}
-          />
-          {anyItem.change?.changed ? (
-            <div className="ml-7 grid gap-4 rounded-lg bg-muted p-4">
-              <SegmentedChoice
-                id={fid('changeKind')}
-                legend="What changed?"
-                options={CHANGE_KIND_OPTIONS[category]}
-                value={anyItem.change.kind ?? null}
-                error={errorFor('changeKind')}
-                onValueChange={(kind) => {
-                  onTouch('changeKind');
-                  set((current) => ({
-                    ...current,
-                    change: {
-                      ...current.change,
-                      changed: true,
-                      kind: kind as NonNullable<AnyItem['change']>['kind'],
-                    },
-                  }));
-                }}
-              />
-              <FormField
-                label={ITEM_FIELD_LABELS.explanation}
-                error={errorFor('explanation')}
-                controlId={fid('explanation')}
-              >
-                <Textarea
-                  rows={3}
-                  maxLength={1000}
-                  placeholder="e.g. Bought in January 2026 with savings and a SACCO loan."
-                  value={anyItem.change.explanation ?? ''}
-                  onBlur={() => {
-                    onTouch('explanation');
-                  }}
-                  onChange={(event) => {
-                    const explanation = event.target.value;
-                    set((current) => ({
-                      ...current,
-                      change: { ...current.change, changed: true, explanation },
-                    }));
-                  }}
-                />
-              </FormField>
-            </div>
-          ) : null}
-        </div>
+        <ChangeFlagFields
+          change={anyItem.change}
+          hint="Value up or down 25% or more, acquired, disposed of or settled."
+          options={CHANGE_KIND_OPTIONS[category]}
+          placeholder="Bought in January 2026 with savings and a SACCO loan."
+          ids={{ kind: fid('changeKind'), explanation: fid('explanation') }}
+          errors={{ kind: errorFor('changeKind'), explanation: errorFor('explanation') }}
+          onTouch={(field) => {
+            onTouch(field === 'kind' ? 'changeKind' : 'explanation');
+          }}
+          onChange={(change) => {
+            set((current) => ({ ...current, change }));
+          }}
+        />
       ) : null}
 
       {renderAttachments

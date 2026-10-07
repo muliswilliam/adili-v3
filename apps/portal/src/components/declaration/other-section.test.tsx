@@ -254,6 +254,248 @@ describe('OtherSection', () => {
     ).toBeTruthy();
   });
 
+  it('asks whether a directorship or membership changed since the last declaration', () => {
+    renderOther(otherSection(COMPLETE, []));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Water Project Ltd' }));
+    const directorship = screen.getByRole('group', { name: 'Kapsoya Water Project Ltd' });
+
+    const changed = within(directorship).getByRole<HTMLInputElement>('checkbox', {
+      name: /Changed since last declaration/,
+    });
+    expect(changed.checked).toBe(false);
+    expect(within(directorship).queryByRole('group', { name: 'What changed?' })).toBeNull();
+
+    fireEvent.click(changed);
+    const kinds = within(directorship).getByRole('group', { name: 'What changed?' });
+    expect(
+      within(kinds)
+        .getAllByRole('radio')
+        .map((radio) => radio.closest('label')?.textContent),
+    ).toEqual(['New', 'Changed', 'Ended']);
+    fireEvent.click(within(kinds).getByRole('radio', { name: 'New' }));
+    fireEvent.change(within(directorship).getByRole('textbox', { name: 'Explanation' }), {
+      target: { value: 'Appointed in May 2026.' },
+    });
+    expect(within(kinds).getByRole<HTMLInputElement>('radio', { name: 'New' }).checked).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Parents Welfare Group' }));
+    const membership = screen.getByRole('group', { name: 'Kapsoya Parents Welfare Group' });
+    expect(
+      within(membership).getByRole('checkbox', { name: /Changed since last declaration/ }),
+    ).toBeTruthy();
+  });
+
+  it('gives a membership its own example explanation', () => {
+    renderOther(otherSection(COMPLETE, []));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Water Project Ltd' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Changed since last declaration/ }));
+    expect(screen.getByRole('textbox', { name: 'Explanation' }).getAttribute('placeholder')).toBe(
+      'e.g. Appointed to the board in May 2026.',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Parents Welfare Group' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Changed since last declaration/ }));
+    expect(screen.getByRole('textbox', { name: 'Explanation' }).getAttribute('placeholder')).toBe(
+      'e.g. Joined the group in March 2026.',
+    );
+  });
+
+  it('shows the change on a closed directorship or membership card', () => {
+    renderOther(
+      otherSection(
+        {
+          registrableInterests: {
+            ...COMPLETE.registrableInterests,
+            directorships: [
+              {
+                company: 'Kapsoya Water Project Ltd',
+                role: 'Director',
+                remunerated: false,
+                change: { changed: true, kind: 'acquisition', explanation: 'Appointed.' },
+              },
+            ],
+            memberships: [
+              {
+                entity: 'Kapsoya Parents Welfare Group',
+                kind: 'society',
+                change: { changed: true },
+              },
+            ],
+          },
+        },
+        [],
+      ),
+    );
+
+    expect(
+      within(cardOf('Kapsoya Water Project Ltd')).getByText('Director · unpaid · Changed: new'),
+    ).toBeTruthy();
+    expect(
+      within(cardOf('Kapsoya Parents Welfare Group')).getByText(
+        'Society · Changed: kind not chosen',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('opens the flagged interest from its material change', () => {
+    renderOther(
+      otherSection(
+        {
+          materialChanges: [
+            {
+              personKey: 'officer',
+              itemDescription: 'Kapsoya Parents Welfare Group',
+              kind: 'membership',
+              explanation: 'Joined in March 2026.',
+            },
+          ],
+          registrableInterests: {
+            ...COMPLETE.registrableInterests,
+            memberships: [
+              { entity: 'Kapsoya Youth Group', kind: 'society' },
+              {
+                entity: 'Kapsoya Parents Welfare Group',
+                kind: 'society',
+                change: {
+                  changed: true,
+                  kind: 'acquisition',
+                  explanation: 'Joined in March 2026.',
+                },
+              },
+            ],
+          },
+        },
+        [],
+      ),
+    );
+
+    expect(within(region('Material changes')).queryAllByRole('link')).toHaveLength(0);
+    fireEvent.click(
+      within(region('Material changes')).getByRole('button', {
+        name: 'Edit You · Kapsoya Parents Welfare Group: membership changed · Joined in March 2026.',
+      }),
+    );
+
+    const membership = screen.getByRole('group', { name: 'Kapsoya Parents Welfare Group' });
+    const changed = within(membership).getByRole('checkbox', {
+      name: /Changed since last declaration/,
+    });
+    expect(document.activeElement).toBe(changed);
+  });
+
+  it('lists an interest flagged on this screen among the material changes', () => {
+    renderOther(otherSection(COMPLETE, []));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Water Project Ltd' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Changed since last declaration/ }));
+    fireEvent.click(screen.getByRole('radio', { name: 'New' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Explanation' }), {
+      target: { value: 'Appointed in May 2026.' },
+    });
+
+    expect(
+      within(region('Material changes'))
+        .getAllByRole('listitem')
+        .map((item) => item.querySelector('p')?.textContent),
+    ).toEqual([
+      'You · Marital status: marital status changed · Married in April 2025.',
+      'Mary Wanjiru Kennedy · Plot in Kapsoya: acquired · Bought in March 2026.',
+      'You · Kapsoya Water Project Ltd: directorship changed · Appointed in May 2026.',
+    ]);
+  });
+
+  it('opens the very card a change came from when two interests share a name', () => {
+    const flagged = (explanation: string) => ({
+      entity: 'Kapsoya Parents Welfare Group',
+      kind: 'society',
+      change: { changed: true, kind: 'acquisition', explanation },
+    });
+    renderOther(
+      otherSection(
+        {
+          materialChanges: [],
+          registrableInterests: {
+            ...COMPLETE.registrableInterests,
+            memberships: [flagged('Joined in 2020.'), flagged('Rejoined in March 2026.')],
+          },
+        },
+        [],
+      ),
+    );
+
+    fireEvent.click(
+      within(region('Material changes')).getByRole('button', {
+        name: 'Edit You · Kapsoya Parents Welfare Group: membership changed · Rejoined in March 2026.',
+      }),
+    );
+
+    const membership = screen.getByRole('group', { name: 'Kapsoya Parents Welfare Group' });
+    expect(
+      within(membership).getByRole<HTMLTextAreaElement>('textbox', { name: 'Explanation' }).value,
+    ).toBe('Rejoined in March 2026.');
+    expect(document.activeElement).toBe(
+      within(membership).getByRole('checkbox', { name: /Changed since last declaration/ }),
+    );
+  });
+
+  it('does not ask whether an interest changed on an initial declaration', () => {
+    renderWorkspace(<OtherSection section={otherSection(COMPLETE, [])} etag={'"1"'} />, {
+      step: 'other',
+      declaration: sampleDeclaration({ type: 'initial' }),
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Water Project Ltd' }));
+
+    expect(screen.getByRole('textbox', { name: 'Company' })).toBeTruthy();
+    expect(screen.queryByRole('checkbox', { name: /Changed since last declaration/ })).toBeNull();
+  });
+
+  it('shows what a flagged interest is missing once its card has been left', () => {
+    renderOther(
+      otherSection(
+        {
+          registrableInterests: {
+            ...COMPLETE.registrableInterests,
+            directorships: [
+              {
+                company: 'Kapsoya Water Project Ltd',
+                role: 'Director',
+                remunerated: false,
+                change: { changed: true },
+              },
+            ],
+          },
+        },
+        [
+          issue(
+            '/registrableInterests/directorships/0/change/kind',
+            'Choose what changed since your last declaration.',
+          ),
+          issue(
+            '/registrableInterests/directorships/0/change/explanation',
+            'Explain what changed since your last declaration.',
+          ),
+        ],
+      ),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Water Project Ltd' }));
+    expect(screen.queryByText('Choose what changed since your last declaration.')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(
+      within(cardOf('Kapsoya Water Project Ltd')).getByText(
+        'Choose what changed since your last declaration.',
+      ),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Kapsoya Water Project Ltd' }));
+    expect(screen.getByText('Choose what changed since your last declaration.')).toBeTruthy();
+    expect(screen.getByText('Explain what changed since your last declaration.')).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Explanation' }).getAttribute('aria-invalid')).toBe(
+      'true',
+    );
+  });
+
   it('autosaves the section without the composed material changes', async () => {
     vi.useFakeTimers();
     try {

@@ -15,36 +15,53 @@ import {
 } from '@adili/ui';
 import { RepeatIcon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import type { LoadedSection } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
-import type {
-  Draft,
-  MaterialChangeEntry,
-  MembershipKind,
-  OtherInformation,
+import {
+  type ChangeFlag,
+  type Draft,
+  followsEarlierDeclaration,
+  type MaterialChangeEntry,
+  type MembershipKind,
+  type OtherInformation,
 } from '../../declaration/contents';
 import { blank } from '../../declaration/format';
-import { MEMBERSHIP_KIND_LABELS, optionsOf } from '../../declaration/labels';
+import {
+  INTEREST_CHANGE_KIND_OPTIONS,
+  MEMBERSHIP_KIND_LABELS,
+  optionsOf,
+} from '../../declaration/labels';
 import {
   type DraftDirectorship,
   type DraftDualCitizenship,
   type DraftMembership,
   type DraftPendingCase,
+  type FlaggedList,
   FREE_TEXT_LIMIT,
   freeTextCounter,
+  type InterestChange,
+  interestChanges,
+  interestChangeTag,
+  type Interests,
+  isInterestChange,
   materialChangeLine,
   materialChangeStep,
   NO_MATERIAL_CHANGES,
 } from '../../declaration/other';
+import { ChangeFlagFields } from './change-flag-fields';
 import { personLabel, stepLink } from './steps';
-import { useFocusFirstError, useFocusLinkedField, useShownErrors } from './section-errors';
+import {
+  focusControl,
+  useFocusFirstError,
+  useFocusLinkedField,
+  useShownErrors,
+} from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 type Other = Draft<OtherInformation>;
-type Interests = NonNullable<Other['registrableInterests']>;
-type ListName = 'directorships' | 'memberships' | 'pendingCases';
+type ListName = FlaggedList | 'pendingCases';
 
 const YES_NO = [
   { value: 'yes', label: 'Yes' },
@@ -77,11 +94,18 @@ function cardAt(path: string | undefined): OpenCard | null {
 }
 
 function MaterialChanges({
-  entries,
+  loaded,
+  interests,
   declarationId,
+  onEditInterest,
 }: {
-  entries: Draft<MaterialChangeEntry>[];
+  /** The changes composed elsewhere (marital status, statement items), as loaded. */
+  loaded: Draft<MaterialChangeEntry>[];
+  /** The changes of the directorships and memberships on this screen, as they stand. */
+  interests: InterestChange[];
   declarationId: string;
+  /** Opens the interest a change came from, which is on this screen rather than a link away. */
+  onEditInterest: (change: InterestChange) => void;
 }) {
   const { declaration } = useWorkspace();
   const label = (personKey: string) => personLabel(declaration.sections, `statement:${personKey}`);
@@ -100,16 +124,18 @@ function MaterialChanges({
             <h2 id="material-changes-heading" className="text-base font-semibold">
               Material changes
             </h2>
-            <p className="text-[13px] text-muted-foreground">From items marked as changed</p>
+            <p className="text-[13px] text-muted-foreground">
+              From items and interests marked as changed
+            </p>
           </div>
         </div>
-        {entries.length === 0 ? (
+        {loaded.length + interests.length === 0 ? (
           <p className="rounded-lg bg-muted px-4 py-5 text-center text-sm text-muted-foreground">
             {NO_MATERIAL_CHANGES}
           </p>
         ) : (
           <ul className="divide-y divide-border">
-            {entries.map((entry, index) => (
+            {loaded.map((entry, index) => (
               <li
                 key={`${entry.itemId ?? entry.kind ?? ''}-${String(index)}`}
                 className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
@@ -122,6 +148,24 @@ function MaterialChanges({
                   >
                     Edit
                   </Link>
+                </Button>
+              </li>
+            ))}
+            {interests.map((change) => (
+              <li
+                key={`${change.list}-${String(change.index)}`}
+                className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0"
+              >
+                <p className="flex-1 text-sm">{materialChangeLine(change.entry, label)}</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Edit ${materialChangeLine(change.entry, label)}`}
+                  onClick={() => {
+                    onEditInterest(change);
+                  }}
+                >
+                  Edit
                 </Button>
               </li>
             ))}
@@ -168,6 +212,7 @@ function InterestList<T>({
   titleOf,
   describe,
   error,
+  cardError,
   editing,
   onEditing,
   onAdd,
@@ -184,6 +229,8 @@ function InterestList<T>({
   titleOf: (item: T) => string | undefined;
   describe: (item: T) => string;
   error: (path: string) => string | undefined;
+  /** A closed card's first issue, its own or one of its fields'. */
+  cardError: (path: string) => string | undefined;
   editing: number | null;
   onEditing: (index: number | null) => void;
   onAdd: () => void;
@@ -205,7 +252,7 @@ function InterestList<T>({
         return `${noun} ${String(index + 1)}`;
       }}
       renderDescription={(item, index) => {
-        const problem = editing === index ? undefined : error(path(index));
+        const problem = editing === index ? undefined : cardError(path(index));
         return (
           <>
             {describe(item)}
@@ -250,13 +297,17 @@ export interface OtherSectionProps {
 
 /**
  * Other information (paragraph 9): the material changes the service composes from flagged
- * items and the marital status change (read-only), the registrable interests and free text.
+ * items, the marital status change and flagged interests (read-only), the registrable interests
+ * and free text. The interests' changes are composed here as they are edited, the rest as loaded.
  * Autosaves the section without the composed changes. Missing answers come from the service's
  * issues and show once a card or field has been left, or all at once with `showErrors`.
  */
 export function OtherSection({ section, etag, showErrors = false, focusField }: OtherSectionProps) {
   const { declaration } = useWorkspace();
-  const [composed] = useState(() => (section.contents as Other).materialChanges ?? []);
+  // Changes owned by other screens; this screen's interests compose their own as they change.
+  const [loadedChanges] = useState(() =>
+    ((section.contents as Other).materialChanges ?? []).filter((entry) => !isInterestChange(entry)),
+  );
   const [editable] = useState<LoadedSection>(() => {
     const contents = { ...section.contents };
     delete contents.materialChanges;
@@ -280,10 +331,36 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
     return issues.find((candidate) => candidate.path === path);
   }
 
+  /** Whether a field's issue shows: once it or the card it is in has been left. */
+  function shownAt(path: string) {
+    const card = cardAt(path);
+    return shown(path) || (card !== null && shown(itemPath(card.list, card.index)));
+  }
+
   function error(path: string) {
     const found = issueAt(path);
+    return found && shownAt(path) ? found.message : undefined;
+  }
+
+  /** A closed card's first issue, its own or one of its fields'. */
+  function cardError(path: string) {
+    const found = issues.find(
+      (candidate) => candidate.path === path || candidate.path.startsWith(`${path}/`),
+    );
     return found && shown(path) ? found.message : undefined;
   }
+
+  // An initial declaration is the first: there is no last one to have changed since.
+  const sinceLastDeclaration = followsEarlierDeclaration(declaration.type);
+
+  // A change flag to focus once its card has opened.
+  const focusOnOpen = useRef<string | null>(null);
+  useEffect(() => {
+    const path = focusOnOpen.current;
+    if (!path) return;
+    focusOnOpen.current = null;
+    focusControl(idFor(path));
+  }, [editing]);
 
   useFocusFirstError(showErrors, () => {
     const first = issues[0];
@@ -360,6 +437,7 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
     return {
       path: (index: number) => itemPath(list, index),
       error,
+      cardError,
       editing: editing?.list === list ? editing.index : null,
       onEditing: (index: number | null) => {
         openCard(index === null ? null : { list, index });
@@ -383,12 +461,54 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
     }));
   }
 
+  /** Opens the card a directorship or membership change was composed from and focuses its flag. */
+  function editInterestChange({ list, index }: InterestChange) {
+    focusOnOpen.current = `${itemPath(list, index)}/change`;
+    openCard({ list, index });
+  }
+
+  /** A directorship's or membership's change flag, on a declaration that follows another. */
+  function changeFields(
+    list: FlaggedList,
+    index: number,
+    change: Draft<ChangeFlag> | undefined,
+    placeholder: string,
+  ) {
+    if (!sinceLastDeclaration) return null;
+    const path = `${itemPath(list, index)}/change`;
+    const at = (field: 'kind' | 'explanation') => `${path}/${field}`;
+    return (
+      <div className="sm:col-span-2">
+        <ChangeFlagFields
+          id={idFor(path)}
+          change={change}
+          hint="Taken up, given up, or a new role or terms."
+          options={INTEREST_CHANGE_KIND_OPTIONS}
+          placeholder={placeholder}
+          ids={{ kind: idFor(at('kind')), explanation: idFor(at('explanation')) }}
+          errors={{ kind: error(at('kind')), explanation: error(at('explanation')) }}
+          onTouch={(field) => {
+            touch(at(field));
+          }}
+          onChange={(next) => {
+            editItem(list, index, { change: next });
+          }}
+        />
+      </div>
+    );
+  }
+
   const invalid = (path: string, missing: boolean) =>
     missing && error(path) !== undefined ? true : undefined;
 
   return (
     <div className="grid gap-6">
-      <MaterialChanges entries={composed} declarationId={declaration.id} />
+      <MaterialChanges
+        loaded={loadedChanges}
+        interests={sinceLastDeclaration ? interestChanges(interests) : []}
+        declarationId={declaration.id}
+        onEditInterest={editInterestChange}
+      />
 
       <Card className="grid gap-5 p-5">
         <h2 className="text-base font-semibold">Registrable interests</h2>
@@ -405,6 +525,7 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
               [
                 entry.role?.trim(),
                 entry.remunerated === undefined ? undefined : entry.remunerated ? 'paid' : 'unpaid',
+                interestChangeTag(entry.change),
               ]
                 .filter(Boolean)
                 .join(' · ')
@@ -447,6 +568,12 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
                       editItem('directorships', index, { remunerated: choice === 'yes' });
                     }}
                   />
+                  {changeFields(
+                    'directorships',
+                    index,
+                    entry.change,
+                    'Appointed to the board in May 2026.',
+                  )}
                 </>
               );
             }}
@@ -464,7 +591,14 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
             noun="Membership"
             addLabel="Add a membership"
             titleOf={(entry) => entry.entity}
-            describe={(entry) => (entry.kind ? MEMBERSHIP_KIND_LABELS[entry.kind] : '')}
+            describe={(entry) =>
+              [
+                entry.kind ? MEMBERSHIP_KIND_LABELS[entry.kind] : undefined,
+                interestChangeTag(entry.change),
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            }
             renderFields={(entry, index) => {
               const path = itemPath('memberships', index);
               return (
@@ -496,6 +630,12 @@ export function OtherSection({ section, etag, showErrors = false, focusField }: 
                       ))}
                     </Select>
                   </FormField>
+                  {changeFields(
+                    'memberships',
+                    index,
+                    entry.change,
+                    'Joined the group in March 2026.',
+                  )}
                 </>
               );
             }}

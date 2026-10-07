@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadSection, loadSummary, saveSection, startDeclaration } from '../../declarations.server';
 import { MOCK_OBLIGATIONS, mockDeclarationsFetch, resetDeclarationsMock } from '../mock.server';
+import type { Draft, OtherInformation } from '../../../declaration/contents';
 import type { paths } from '../schema.gen';
 import type { RuleContext } from './context';
 import { composeMaterialChanges, otherCompleteness } from './other';
@@ -23,6 +24,7 @@ function context(overrides: Partial<RuleContext> = {}): RuleContext {
 }
 
 const ANSWERED = { dualCitizenship: { holds: false, pendingApplication: false } };
+const ANSWERED_INTERESTS = { registrableInterests: ANSWERED };
 
 // The mock's obligations are fixed dates (the biennial's statement date is 2027-11-01), so the
 // round trip runs on a clock pinned before them, as the other declarations tests do.
@@ -119,6 +121,7 @@ describe('other information rules (S11)', () => {
           ],
         ]),
       }),
+      {},
     );
     expect(entries).toEqual([
       { personKey: 'officer', kind: 'marital-status', explanation: 'Married.' },
@@ -130,6 +133,130 @@ describe('other information rules (S11)', () => {
         explanation: 'Bought.',
       },
     ]);
+  });
+  it('leaves out a marital change or flagged item explained only in spaces', () => {
+    const entries = composeMaterialChanges(
+      context({
+        officer: { maritalStatusChange: { changed: true, explanation: '   ' } },
+        statements: new Map([
+          [
+            'statement:officer',
+            {
+              personKey: 'officer',
+              assets: [
+                {
+                  id: 'a1',
+                  description: 'Plot',
+                  change: { changed: true, kind: 'acquisition', explanation: ' ' },
+                },
+              ],
+            },
+          ],
+        ]),
+      }),
+      {},
+    );
+    expect(entries).toEqual([]);
+  });
+});
+
+describe('changes to directorships and memberships (S9)', () => {
+  const flagged: Draft<OtherInformation> = {
+    registrableInterests: {
+      directorships: [
+        {
+          company: 'Kapsoya Water Ltd',
+          role: 'Director',
+          remunerated: true,
+          change: { changed: true, kind: 'acquisition', explanation: 'Appointed in May 2026.' },
+        },
+        { company: 'Eldoret Mills', role: 'Chair', remunerated: false, change: { changed: false } },
+      ],
+      memberships: [
+        {
+          entity: 'Kapsoya Parents Welfare Group',
+          kind: 'society',
+          change: { changed: true, kind: 'disposal', explanation: 'Left in June 2026.' },
+        },
+      ],
+    },
+  };
+
+  it('composes a flagged directorship or membership after the flagged items', () => {
+    expect(composeMaterialChanges(context(), flagged)).toEqual([
+      {
+        personKey: 'officer',
+        itemDescription: 'Kapsoya Water Ltd',
+        kind: 'directorship',
+        explanation: 'Appointed in May 2026.',
+      },
+      {
+        personKey: 'officer',
+        itemDescription: 'Kapsoya Parents Welfare Group',
+        kind: 'membership',
+        explanation: 'Left in June 2026.',
+      },
+    ]);
+  });
+
+  it('leaves out a flag still missing its kind or explanation, and asks for them', () => {
+    const other: Draft<OtherInformation> = {
+      ...ANSWERED_INTERESTS,
+      registrableInterests: {
+        ...ANSWERED_INTERESTS.registrableInterests,
+        directorships: [
+          {
+            company: 'Kapsoya Water Ltd',
+            role: 'Director',
+            remunerated: true,
+            change: { changed: true },
+          },
+        ],
+        memberships: [
+          {
+            entity: 'Kapsoya Parents Welfare Group',
+            kind: 'society',
+            change: { changed: true, kind: 'disposal', explanation: ' ' },
+          },
+        ],
+      },
+    };
+
+    expect(composeMaterialChanges(context(), other)).toEqual([]);
+    expect(otherCompleteness(other, context()).map(({ path, message }) => [path, message])).toEqual(
+      [
+        [
+          '/registrableInterests/directorships/0/change/kind',
+          'Choose what changed since your last declaration.',
+        ],
+        [
+          '/registrableInterests/directorships/0/change/explanation',
+          'Explain what changed since your last declaration.',
+        ],
+        [
+          '/registrableInterests/memberships/0/change/explanation',
+          'Explain what changed since your last declaration.',
+        ],
+      ],
+    );
+  });
+
+  it('has no changes on an initial declaration, which follows none', () => {
+    const initial = context({ type: 'initial' });
+    expect(composeMaterialChanges(initial, flagged)).toEqual([]);
+    expect(
+      otherCompleteness(
+        {
+          registrableInterests: {
+            ...ANSWERED,
+            directorships: [
+              { company: 'K', role: 'D', remunerated: true, change: { changed: true } },
+            ],
+          },
+        },
+        initial,
+      ),
+    ).toEqual([]);
   });
 });
 

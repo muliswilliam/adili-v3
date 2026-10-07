@@ -161,5 +161,5 @@ export function documentOf(stored: Stored): Record<string, unknown> {
 export function sectionContents(stored: Stored, key: string) {
   const contents = stored.contents.get(key) ?? {};
   if (key !== 'other') return contents;
-  return { ...contents, materialChanges: composeMaterialChanges(context(stored, key)) };
+  return { ...contents, materialChanges: composeMaterialChanges(context(stored, key), contents) };
 }

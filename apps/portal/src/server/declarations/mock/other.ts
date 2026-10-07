@@ -1,12 +1,50 @@
-import type { Draft, MaterialChangeEntry, OtherInformation } from '../../../declaration/contents';
+import {
+  type ChangeFlag,
+  type Draft,
+  followsEarlierDeclaration,
+  type MaterialChangeEntry,
+  type OtherInformation,
+} from '../../../declaration/contents';
+import { FLAGGED_INTERESTS, type Interests, interestChanges } from '../../../declaration/other';
 import type { CompletenessIssue } from '../types';
 import { issue, type RuleContext } from './context';
 
-/** Paragraph 9's material changes, composed from flagged items and the marital status change. */
-export function composeMaterialChanges(context: RuleContext): MaterialChangeEntry[] {
+/** A change flag set on a directorship or membership, and the JSON pointer it sits at. */
+interface FlaggedInterest {
+  path: string;
+  change: Draft<ChangeFlag>;
+}
+
+/**
+ * The declarant's directorships and memberships flagged as changed since the last declaration;
+ * none on an initial declaration.
+ */
+function flaggedInterests(other: Draft<OtherInformation>, context: RuleContext): FlaggedInterest[] {
+  if (!followsEarlierDeclaration(context.type)) return [];
+  const interests: Interests = other.registrableInterests ?? {};
+  return FLAGGED_INTERESTS.flatMap(({ list }) =>
+    (interests[list] ?? []).flatMap(({ change }, index) =>
+      change?.changed
+        ? [{ path: `/registrableInterests/${list}/${String(index)}/change`, change }]
+        : [],
+    ),
+  );
+}
+
+/** A string with something in it besides spaces. */
+const filled = (value: string | undefined): value is string => Boolean(value?.trim());
+
+/**
+ * Paragraph 9's material changes, composed from the marital status change, flagged items and
+ * the declarant's flagged directorships and memberships, in that order.
+ */
+export function composeMaterialChanges(
+  context: RuleContext,
+  other: Draft<OtherInformation>,
+): MaterialChangeEntry[] {
   const entries: MaterialChangeEntry[] = [];
   const marital = context.officer.maritalStatusChange;
-  if (marital?.changed && marital.explanation) {
+  if (marital?.changed && filled(marital.explanation)) {
     entries.push({
       personKey: 'officer',
       kind: 'marital-status',
@@ -16,7 +54,7 @@ export function composeMaterialChanges(context: RuleContext): MaterialChangeEntr
   for (const statement of context.statements.values()) {
     for (const items of [statement.income, statement.assets, statement.liabilities]) {
       for (const item of items ?? []) {
-        if (item.change?.changed && item.change.kind && item.change.explanation) {
+        if (item.change?.changed && filled(item.change.kind) && filled(item.change.explanation)) {
           entries.push({
             ...(statement.personKey ? { personKey: statement.personKey } : {}),
             ...(item.id ? { itemId: item.id } : {}),
@@ -28,7 +66,40 @@ export function composeMaterialChanges(context: RuleContext): MaterialChangeEntr
       }
     }
   }
+  if (followsEarlierDeclaration(context.type)) {
+    entries.push(...interestChanges(other.registrableInterests ?? {}).map(({ entry }) => entry));
+  }
   return entries;
+}
+
+/** A change flag that is set says what kind of change it was and explains it. */
+function changeRules(
+  context: RuleContext,
+  at: string,
+  change: Draft<ChangeFlag>,
+): CompletenessIssue[] {
+  return [
+    ...(filled(change.kind)
+      ? []
+      : [
+          issue(
+            context,
+            `${at}/kind`,
+            'required',
+            'Choose what changed since your last declaration.',
+          ),
+        ]),
+    ...(filled(change.explanation)
+      ? []
+      : [
+          issue(
+            context,
+            `${at}/explanation`,
+            'required',
+            'Explain what changed since your last declaration.',
+          ),
+        ]),
+  ];
 }
 
 /**
@@ -42,6 +113,11 @@ export function otherCompleteness(
 ): CompletenessIssue[] {
   const issues: CompletenessIssue[] = [];
   const interests = other.registrableInterests;
+  // A flagged directorship or membership says what kind of change it was and explains it,
+  // listed first as the service lists them.
+  for (const { path, change } of flaggedInterests(other, context)) {
+    issues.push(...changeRules(context, path, change));
+  }
   interests?.directorships?.forEach((entry, index) => {
     if (!entry.company?.trim() || !entry.role?.trim() || entry.remunerated === undefined) {
       issues.push(
