@@ -93,6 +93,8 @@ export type ConfirmOutcome =
   | { status: 'already-submitted' }
   /** 409 `report-compiling`: a recompile started meanwhile. */
   | { status: 'compiling' }
+  /** 409 `report-preview`: the report is a preview, filed only once compiled from 1 July. */
+  | { status: 'preview' }
   /** 422: the key was sent before with another request; this one was not taken. */
   | { status: 'key-reused' }
   /** 404: the report is gone, or no longer the officer's to see. */

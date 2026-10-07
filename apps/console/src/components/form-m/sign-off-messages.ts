@@ -65,6 +65,8 @@ export const en = {
   reviewedRefused: 'The draft changed meanwhile. Close this and look again.',
   reviewedForbidden: 'Only a supervisor of your Commission can mark Form M reviewed.',
   reviewedCompiling: 'The draft is being recompiled. Try again once it is ready.',
+  reviewedPreview:
+    'This is a preview. Mark the final draft reviewed once it is compiled from 1 July.',
   reviewedSubmitted: 'This report was already submitted.',
   reviewedInvalid: 'Check the designation and try again.',
   reviewedNotFound: 'This report is no longer available. Reload the page to see how it stands.',
@@ -115,6 +117,10 @@ export const en = {
     compiling: {
       title: 'Form M was not submitted.',
       text: 'The draft is being recompiled. Try again once it is ready.',
+    },
+    preview: {
+      title: 'Form M was not submitted.',
+      text: 'This is a preview. Confirm the final draft once it is compiled from 1 July.',
     },
     forbidden: {
       title: 'Form M was not submitted.',

@@ -575,6 +575,45 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
       }
     });
 
+    it('a preview can be neither marked reviewed nor confirmed (409 report-preview); the final draft can', async () => {
+      await givenFy2027Facts(api);
+      // Compiled in May, before the year's final compile on 1 July: a preview.
+      api.clock.set('2028-05-10T06:00:00.000Z');
+      expect((await api.send('POST', `${path()}/compile`, SUPERVISOR)).statusCode).toBe(202);
+      const preview = await compiledReport(api, 2027);
+      expect(preview.preview).toBe(true);
+      const listed = await api.get('/v1/commissions/psc/compliance-reports', SUPERVISOR);
+      expect(listed.json<{ fy: number; preview: boolean }[]>()).toEqual(
+        expect.arrayContaining([expect.objectContaining({ fy: 2027, preview: true })]),
+      );
+      await api.send('PATCH', `${path()}/manual`, COMMISSION_ADMIN, CONTACTS);
+
+      const reviewed = await api.send('POST', `${path()}/reviewed`, SUPERVISOR, {
+        designation: 'Director',
+      });
+      expect(reviewed.statusCode).toBe(409);
+      expect(reviewed.json()).toMatchObject({ type: 'report-preview', code: 'report-preview' });
+      // Even a preview recorded as reviewed (before this rule) is not filed.
+      await api.asPlatform((tx) =>
+        tx
+          .update(complianceReports)
+          .set({ status: 'reviewed' })
+          .where(eq(complianceReports.fy, 2027)),
+      );
+      const confirmed = await confirm(adminAt('2028-05-20T07:00:00.000Z'));
+      expect(confirmed.statusCode).toBe(409);
+      expect(confirmed.json()).toMatchObject({ code: 'report-preview' });
+      expect(await api.asPlatform((tx) => tx.select().from(reportReceipts))).toEqual([]);
+
+      // The final compile on 1 July makes the draft that can be signed off.
+      api.clock.set(COMPILED_AT);
+      expect((await api.send('POST', `${path()}/compile`, SUPERVISOR)).statusCode).toBe(202);
+      const final = await compiledReport(api, 2027, new Date(preview.compiledAt ?? 0));
+      expect(final.preview).toBe(false);
+      await reviewedDraft();
+      expect((await confirm(adminAt(CONFIRMED_AT))).statusCode).toBe(200);
+    });
+
     it('S6: confirming starts the workflow again when it is not running, and the documents are still issued', async () => {
       await draft();
       await reviewedDraft();

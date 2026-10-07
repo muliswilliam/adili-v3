@@ -141,6 +141,11 @@ export const PROBLEM_CODES = {
   'report-compiling': { status: HttpStatus.CONFLICT, title: 'Report compiling' },
   /** Form M: a preview of the year cannot be compiled before 1 April of its last half. */
   'preview-not-available': { status: HttpStatus.CONFLICT, title: 'Preview not available yet' },
+  /**
+   * Form M: the report is a preview (compiled before the year's final compile on 1 July), so it
+   * can be neither marked reviewed nor confirmed: confirming would file part-year data.
+   */
+  'report-preview': { status: HttpStatus.CONFLICT, title: 'Report is a preview' },
   /** Form M: the draft must be marked reviewed by a supervisor before it is confirmed. */
   'not-reviewed': { status: HttpStatus.BAD_REQUEST, title: 'Report not reviewed' },
   /** Form M: a remark names an obligation the draft does not list; `errors` say which. */

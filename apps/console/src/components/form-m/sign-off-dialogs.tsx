@@ -143,6 +143,8 @@ function reviewFailure(outcome: Extract<FormMResult<null>, { ok: false }>): stri
       return m.reviewedForbidden;
     case 'compiling':
       return m.reviewedCompiling;
+    case 'preview':
+      return m.reviewedPreview;
     case 'already-submitted':
       return m.reviewedSubmitted;
     case 'not-found':

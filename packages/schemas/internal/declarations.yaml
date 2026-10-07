@@ -5490,6 +5490,7 @@ components:
             - report-submitted
             - report-compiling
             - preview-not-available
+            - report-preview
             - not-reviewed
             - invalid-remarks
             - invalid-document

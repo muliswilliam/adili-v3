@@ -12,6 +12,7 @@ import type { ConfirmOutcome } from '../../server/form-m-sign-off.server';
 /** Why the service did not take the confirmation, shown as a banner over the report. */
 export type ConfirmRefusal =
   | 'not-reviewed'
+  | 'preview'
   | 'incomplete'
   | 'already-submitted'
   | 'compiling'
@@ -93,6 +94,7 @@ function answered(key: string, answer: ConfirmOutcome): ConfirmState {
       return { step: 'refused', reason: 'incomplete', paths: answer.paths };
     // Not the commission-admin any more (a role changed meanwhile) is as final as the others.
     case 'not-reviewed':
+    case 'preview':
     case 'already-submitted':
     case 'compiling':
     case 'forbidden':

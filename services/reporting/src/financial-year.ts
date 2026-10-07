@@ -6,6 +6,9 @@ import { nairobiDate } from './clock.js';
  * 1 April 2028 and the final draft on 1 July 2028.
  */
 
+/** Midnight in Nairobi (UTC+3, no daylight saving) at the start of a date (`YYYY-MM-DD`). */
+const nairobiMidnight = (date: string) => new Date(`${date}T00:00:00+03:00`);
+
 /** The financial year a calendar date (`YYYY-MM-DD`) falls in. */
 export function financialYearOf(date: string): number {
   const year = Number(date.slice(0, 4));
@@ -44,6 +47,20 @@ export function dueDateOf(fy: number): string {
 /** The first day a supervisor may compile a preview of the year's report. */
 export function previewFromOf(fy: number): string {
   return `${String(fy + 1)}-04-01`;
+}
+
+/** The day the year's final draft is compiled (the scheduled compile): 1 July after it ends. */
+export function finalCompileOf(fy: number): string {
+  return `${String(fy + 1)}-07-01`;
+}
+
+/**
+ * Whether a report compiled at `compiledAt` is a preview: compiled from the data as it stood
+ * before its financial year ended, before the final compile's day (Nairobi time). Such a report
+ * can be neither marked reviewed nor confirmed. A report never compiled is no preview.
+ */
+export function isPreview(fy: number, compiledAt: Date | null): boolean {
+  return compiledAt !== null && compiledAt < nairobiMidnight(finalCompileOf(fy));
 }
 
 /** The first financial year reports exist for (reporting.yaml `FinancialYear` minimum). */

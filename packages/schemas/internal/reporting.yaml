@@ -365,7 +365,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Problem code `report-compiling` while a compile runs, or `report-submitted`
+          description: Problem code `report-compiling` while a compile runs, or `report-submitted`, or `report-preview` while the report is a preview (compiled before the final compile on 1 July after the year)
           content:
             application/problem+json:
               schema:
@@ -430,7 +430,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Problem code `report-compiling` while a compile runs, or `report-submitted`
+          description: Problem code `report-compiling` while a compile runs, or `report-submitted`, or `report-preview` while the report is a preview (compiled before the final compile on 1 July after the year)
           content:
             application/problem+json:
               schema:
@@ -2170,6 +2170,9 @@ components:
         previewAvailable:
           type: boolean
           description: A supervisor may compile the year now (from 1 April of its last half)
+        preview:
+          type: boolean
+          description: 'The report is a preview: compiled before the final compile on 1 July after its financial year (Nairobi time), from part-year data. It can be neither marked reviewed nor confirmed (409 `report-preview`); the final compile, or a recompile from 1 July, makes the draft to sign off'
       required:
         - fy
         - status
@@ -2178,6 +2181,7 @@ components:
         - submittedAt
         - late
         - previewAvailable
+        - preview
     ComplianceReport:
       type: object
       properties:
@@ -2209,6 +2213,9 @@ components:
             - type: string
               format: date-time
             - type: 'null'
+        preview:
+          type: boolean
+          description: 'The report is a preview: compiled before the final compile on 1 July after its financial year (Nairobi time), from part-year data. It can be neither marked reviewed nor confirmed (409 `report-preview`); the final compile, or a recompile from 1 July, makes the draft to sign off'
         reviewedBy:
           anyOf:
             - $ref: '#/components/schemas/Officer'
@@ -2268,6 +2275,7 @@ components:
         - status
         - source
         - compiledAt
+        - preview
         - reviewedBy
         - confirmedBy
         - submittedAt
@@ -2310,6 +2318,9 @@ components:
             - type: string
               format: date-time
             - type: 'null'
+        preview:
+          type: boolean
+          description: 'The report is a preview: compiled before the final compile on 1 July after its financial year (Nairobi time), from part-year data. It can be neither marked reviewed nor confirmed (409 `report-preview`); the final compile, or a recompile from 1 July, makes the draft to sign off'
         reviewedBy:
           anyOf:
             - $ref: '#/components/schemas/Officer'
@@ -2367,6 +2378,7 @@ components:
         - status
         - source
         - compiledAt
+        - preview
         - reviewedBy
         - confirmedBy
         - submittedAt
@@ -4172,6 +4184,7 @@ components:
             - report-submitted
             - report-compiling
             - preview-not-available
+            - report-preview
             - not-reviewed
             - invalid-remarks
             - invalid-document

@@ -1,11 +1,5 @@
 import type { FormMV1 } from '@adili/forms';
-import {
-  calendarDaysUntil,
-  daysBetween,
-  formatDate,
-  formatDateTime,
-  formatLongDate,
-} from '@adili/ui';
+import { calendarDaysUntil, formatDate, formatDateTime, formatLongDate } from '@adili/ui';
 
 import type { ComplianceReport, ReportPeriod } from '../../server/reporting/types';
 import { finalCompileOf, previewFromOf } from './financial-year';
@@ -59,15 +53,6 @@ export function dueLine(dueDate: string, today: string): { text: string; tone: D
   };
 }
 
-/**
- * Whether the report is a preview: compiled from the data as it stood before its financial year
- * ended (30 June, Nairobi time). The scheduled compile on 1 July makes the final draft.
- */
-export function isPreview(report: Pick<ComplianceReport, 'fy' | 'compiledAt'>): boolean {
-  if (!report.compiledAt) return false;
-  return daysBetween(report.compiledAt, `${finalCompileOf(report.fy)}T00:00:00+03:00`) > 0;
-}
-
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 /**
@@ -118,7 +103,14 @@ export interface SignOffStep {
 export function signOffSteps(
   report: Pick<
     ComplianceReport,
-    'fy' | 'status' | 'compiledAt' | 'reviewedBy' | 'confirmedBy' | 'submittedAt' | 'document'
+    | 'fy'
+    | 'status'
+    | 'compiledAt'
+    | 'preview'
+    | 'reviewedBy'
+    | 'confirmedBy'
+    | 'submittedAt'
+    | 'document'
   >,
   missing: readonly string[],
 ): SignOffStep[] {
@@ -131,7 +123,7 @@ export function signOffSteps(
   return [
     {
       id: 'compiled',
-      label: isPreview(report) ? m.steps.previewCompiled : m.steps.compiled,
+      label: report.preview ? m.steps.previewCompiled : m.steps.compiled,
       detail: report.compiledAt ? formatDateTime(report.compiledAt) : null,
       state: 'done',
     },

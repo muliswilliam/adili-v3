@@ -49,7 +49,6 @@ import {
 import {
   daysToDue,
   dueLine,
-  isPreview,
   manualMissing,
   periodLine,
   reviewedOn,
@@ -221,7 +220,7 @@ function Workspace({
     setCompiling(false);
   };
 
-  const preview = report !== null && isPreview(report);
+  const preview = report?.preview ?? false;
 
   return (
     <div className="grid gap-4">
