@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@adili/api-kit": "workspace:*",
+    "@adili/telemetry": "workspace:*",
     "@adili/data-access": "workspace:*",
     "@adili/numbering": "workspace:*",
     "amqp-connection-manager": "^5.0.0",

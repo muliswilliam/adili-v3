@@ -22,6 +22,10 @@
     "./url-redaction": {
       "types": "./dist/url-redaction.d.ts",
       "default": "./dist/url-redaction.js"
+    },
+    "./metrics": {
+      "types": "./dist/metrics.d.ts",
+      "default": "./dist/metrics.js"
     }
   },
   "scripts": {

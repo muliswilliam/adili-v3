@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@adili/api-kit": "workspace:*",
+    "@adili/telemetry": "workspace:*",
     "@temporalio/client": "^1.24.0",
     "@temporalio/common": "^1.24.0",
     "@temporalio/proto": "^1.24.0",

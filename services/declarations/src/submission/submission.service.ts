@@ -19,6 +19,7 @@ import {
 import { EventPublisher } from '@adili/events';
 import type { DeclarationV1 } from '@adili/forms';
 import { allocateReference, declarationSchemes, issuerCode } from '@adili/numbering';
+import { addCounter } from '@adili/telemetry/metrics';
 import { and, eq, isNull } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -393,6 +394,12 @@ export class SubmissionService {
         }),
       );
     }
+    addCounter(
+      'adili.filings',
+      1,
+      { 'adili.tenant': tenant },
+      'Declarations submitted, per Commission',
+    );
     return {
       declarationId: declaration.id,
       tenant,

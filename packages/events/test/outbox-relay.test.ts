@@ -32,6 +32,9 @@ function fakeDatabase(rows: Row[]) {
               },
             }),
           }),
+          // The depth count is `await select().from().where()`, so this query is thenable too.
+          then: (onFulfilled: (value: { depth: number }[]) => unknown) =>
+            Promise.resolve([{ depth: rows.length }]).then(onFulfilled),
         }),
       }),
     }),
@@ -77,6 +80,10 @@ describe('OutboxRelay', () => {
     const relay = new OutboxRelay(
       db,
       client(() => NEVER),
+      {
+        service: 'test',
+        rabbitmqUrl: 'amqp://localhost',
+      },
     );
 
     relay.onApplicationBootstrap();
@@ -111,6 +118,7 @@ describe('OutboxRelay', () => {
         emitted.push(eventType);
         return emitted.length === 1 ? from(confirmed) : of(undefined);
       }),
+      { service: 'test', rabbitmqUrl: 'amqp://localhost' },
     );
 
     relay.onApplicationBootstrap();

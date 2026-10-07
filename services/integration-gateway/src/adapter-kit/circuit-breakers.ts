@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { metrics } from '@opentelemetry/api';
 import {
   circuitBreaker,
   type CircuitBreakerPolicy,
@@ -7,7 +8,7 @@ import {
   handleAll,
 } from 'cockatiel';
 
-import type { System } from '../db/schema.js';
+import { SYSTEMS, type System } from '../db/schema.js';
 
 export const BREAKER_OPTIONS = Symbol('BREAKER_OPTIONS');
 
@@ -36,7 +37,22 @@ interface Breaker {
 export class CircuitBreakers {
   private readonly breakers = new Map<System, Breaker>();
 
-  constructor(@Inject(BREAKER_OPTIONS) private readonly options: BreakerOptions) {}
+  constructor(@Inject(BREAKER_OPTIONS) private readonly options: BreakerOptions) {
+    metrics
+      .getMeter('adili.integration')
+      .createObservableGauge('adili.integration.breaker', {
+        description: '1 while the adapter circuit is open, 0 otherwise',
+      })
+      .addCallback((result) => {
+        for (const system of SYSTEMS) {
+          const state = this.stateOf(system);
+          result.observe(state === 'open' ? 1 : 0, {
+            'adili.integration.system': system,
+            'adili.integration.breaker': state,
+          });
+        }
+      });
+  }
 
   of(system: System): CircuitBreakerPolicy {
     return this.breaker(system).policy;
