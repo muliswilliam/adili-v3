@@ -91,6 +91,11 @@ for app in portal console; do
   set_env "$ROOT/apps/$app/.env" DEMO_MODE true
   set_env_from_file "$ROOT/apps/$app/.env" DEMO_TICKET_SECRET "$ADILI_DEMO_TICKET_SECRET_FILE"
 done
+# The presentation deck at the portal's /deck/ embeds app views (feat: demo stage): only that
+# origin may frame the apps. Keycloak's realm gets the same allowance (keycloak-demo-sign-in.mjs).
+for app in portal console verify; do
+  set_env "$ROOT/apps/$app/.env" DEMO_FRAME_ANCESTORS "${ADILI_PORTAL_URL}"
+done
 # The console's demo panel resets to a checkpoint through the systemd restart (#621).
 set_env "$ROOT/apps/console/.env" DEMO_RESET_SCRIPT "$ROOT/infra/azure/demo-reset.sh"
 # Its verify codes read what `pnpm demo:seed --only verify` writes to the host's .demo/.

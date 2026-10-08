@@ -29,6 +29,14 @@ https://__HOST__ {
     root * /opt/adili/dist/api-docs
     file_server
   }
+  # The presentation deck (apps/deck): static, on the portal's origin so its embedded app views
+  # share the apps' sign-in. The apps and Keycloak let only this origin frame them.
+  redir /deck /deck/
+  handle_path /deck/* {
+    root * /opt/adili/apps/deck
+    header Cache-Control no-store
+    file_server
+  }
   handle {
     reverse_proxy 127.0.0.1:13010
   }
