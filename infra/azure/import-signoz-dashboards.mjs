@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Creates the demo's SigNoz admin once, then imports infra/observability/signoz/*.json.
+// Creates the demo's SigNoz admin once, then imports infra/observability/signoz/*.json
+// and the error alerts in infra/observability/signoz/alerts/*.json.
 // Idempotent: a second run logs in and skips a dashboard whose title is already there.
 // The password is this host's, mode 600, and is never printed.
 //
@@ -22,6 +23,7 @@ const passwordFile =
   process.env.SIGNOZ_ADMIN_PASSWORD_FILE ??
   join(process.env.HOME ?? '/home/adili', '.config/adili/signoz-admin-password');
 const dashboardsDir = join(root, 'infra/observability/signoz');
+const alertsDir = join(dashboardsDir, 'alerts');
 
 /** SigNoz rejects a password without each of these. base64url can miss one of them. */
 function acceptablePassword(value) {
@@ -175,4 +177,75 @@ for (const name of files) {
     process.exit(1);
   }
   console.log(`Imported ${dashboard.title}`);
+}
+
+function alertNames(body) {
+  const found = [];
+  const walk = (value) => {
+    if (!value || typeof value !== 'object') return;
+    if (typeof value.alert === 'string') found.push(value.alert);
+    for (const item of Object.values(value)) walk(item);
+  };
+  walk(body);
+  return found;
+}
+
+// SigNoz will not store a rule that names no channel. This webhook stays on the VM.
+// The Alerts page is where a firing rule shows; nothing is emailed.
+const channelName = 'Adili alerts';
+const channels = await api('/api/v1/channels', token);
+if (!channels.ok) {
+  console.error(`SigNoz channel list failed: ${channels.status} ${await channels.text()}`);
+  process.exit(1);
+}
+const channelBody = await channels.json();
+const channelList = channelBody?.data ?? channelBody?.channels ?? [];
+const hasChannel =
+  Array.isArray(channelList) &&
+  channelList.some(
+    (channel) => channel?.name === channelName || channel?.displayName === channelName,
+  );
+if (!hasChannel) {
+  const createdChannel = await api('/api/v1/channels', token, {
+    method: 'POST',
+    body: JSON.stringify({
+      name: channelName,
+      webhook_configs: [{ send_resolved: false, url: 'http://127.0.0.1:18088/api/v1/health' }],
+    }),
+  });
+  if (!createdChannel.ok) {
+    console.error(
+      `SigNoz channel create failed: ${createdChannel.status} ${await createdChannel.text()}`,
+    );
+    process.exit(1);
+  }
+  console.log(`Created SigNoz channel ${channelName}`);
+}
+
+const rules = await api('/api/v1/rules', token);
+if (!rules.ok) {
+  console.error(`SigNoz alert list failed: ${rules.status} ${await rules.text()}`);
+  process.exit(1);
+}
+const existingAlerts = alertNames(await rules.json());
+const alertFiles = existsSync(alertsDir)
+  ? readdirSync(alertsDir)
+      .filter((name) => name.endsWith('.json'))
+      .sort()
+  : [];
+for (const name of alertFiles) {
+  const rule = JSON.parse(readFileSync(join(alertsDir, name), 'utf8'));
+  if (existingAlerts.includes(rule.alert)) {
+    console.log(`SigNoz already has ${rule.alert}`);
+    continue;
+  }
+  const created = await api('/api/v1/rules', token, {
+    method: 'POST',
+    body: JSON.stringify(rule),
+  });
+  if (!created.ok) {
+    console.error(`Import of ${name} failed: ${created.status} ${await created.text()}`);
+    process.exit(1);
+  }
+  console.log(`Imported ${rule.alert}`);
 }

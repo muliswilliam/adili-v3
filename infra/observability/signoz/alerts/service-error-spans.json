@@ -1,0 +1,53 @@
+{
+  "alert": "Adili service error spans",
+  "alertType": "TRACES_BASED_ALERT",
+  "ruleType": "threshold_rule",
+  "schemaVersion": "v2alpha1",
+  "version": "v5",
+  "description": "A service recorded at least one error span in the last 5 minutes.",
+  "labels": { "severity": "critical" },
+  "annotations": {
+    "summary": "A service recorded error spans",
+    "description": "Error spans in the last 5 minutes, one series per service."
+  },
+  "condition": {
+    "selectedQueryName": "A",
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "traces",
+            "stepInterval": 60,
+            "aggregations": [{ "expression": "count()" }],
+            "filter": { "expression": "hasError = true" },
+            "groupBy": [
+              { "name": "service.name", "fieldContext": "resource", "fieldDataType": "string" }
+            ],
+            "legend": "{{service.name}}"
+          }
+        }
+      ]
+    },
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "critical",
+          "op": "above",
+          "target": 0,
+          "matchType": "at_least_once",
+          "channels": ["Adili alerts"]
+        }
+      ]
+    }
+  },
+  "evaluation": { "kind": "rolling", "spec": { "evalWindow": "5m", "frequency": "1m" } },
+  "notificationSettings": {
+    "groupBy": ["service.name"],
+    "renotify": { "enabled": true, "interval": "30m", "alertStates": ["firing"] }
+  }
+}

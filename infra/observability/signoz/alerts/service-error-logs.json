@@ -1,0 +1,53 @@
+{
+  "alert": "Adili service error logs",
+  "alertType": "LOGS_BASED_ALERT",
+  "ruleType": "threshold_rule",
+  "schemaVersion": "v2alpha1",
+  "version": "v5",
+  "description": "A service wrote an ERROR or FATAL log line in the last 5 minutes.",
+  "labels": { "severity": "warning" },
+  "annotations": {
+    "summary": "A service wrote an error log",
+    "description": "ERROR and FATAL lines in the last 5 minutes, one series per service."
+  },
+  "condition": {
+    "selectedQueryName": "A",
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "logs",
+            "stepInterval": 60,
+            "aggregations": [{ "expression": "count()" }],
+            "filter": { "expression": "severity_text IN ['ERROR', 'FATAL']" },
+            "groupBy": [
+              { "name": "service.name", "fieldContext": "resource", "fieldDataType": "string" }
+            ],
+            "legend": "{{service.name}}"
+          }
+        }
+      ]
+    },
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "warning",
+          "op": "above",
+          "target": 0,
+          "matchType": "at_least_once",
+          "channels": ["Adili alerts"]
+        }
+      ]
+    }
+  },
+  "evaluation": { "kind": "rolling", "spec": { "evalWindow": "5m", "frequency": "1m" } },
+  "notificationSettings": {
+    "groupBy": ["service.name"],
+    "renotify": { "enabled": true, "interval": "30m", "alertStates": ["firing"] }
+  }
+}
