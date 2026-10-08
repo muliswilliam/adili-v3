@@ -49,6 +49,14 @@ if [ "$(cat "$keycloak_stamp" 2>/dev/null || true)" != "$keycloak_inputs" ]; the
   printf '%s\n' "$keycloak_inputs" >"$keycloak_stamp"
 fi
 
+echo "SigNoz images (pulled while the apps are still up)"
+docker compose -f "$COMPOSE" -f "$OVERLAY" pull \
+  ingester signoz-signoz-0 signoz-telemetrystore-clickhouse-0-0 \
+  signoz-telemetrykeeper-clickhousekeeper-0 signoz-metastore-postgres-0 \
+  signoz-telemetrystore-clickhouse-user-scripts signoz-telemetrystore-migrator \
+  journal-logs \
+  || echo "WARNING: SigNoz image pull failed; compose up will retry." >&2
+
 sudo -n "$ROOT_HELPER" stop-apps
 
 echo "Compose stack"
@@ -90,5 +98,9 @@ sudo -n "$ROOT_HELPER" restart-apps
 
 echo "Nightly database backup"
 "$ROOT/infra/azure/install-backup-cron.sh"
+
+echo "SigNoz dashboards"
+node "$ROOT/infra/azure/import-signoz-dashboards.mjs" \
+  || echo "WARNING: SigNoz dashboards were not imported." >&2
 
 echo "Deployed $ROOT. Apps restart under adili-apps; demo data is left as-is."

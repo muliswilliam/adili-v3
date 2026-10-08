@@ -4,6 +4,11 @@
 #
 # Public URLs come from /etc/adili/public.env (written by cloud-init / enable-https.sh).
 # Caddy terminates TLS on 443/3020/3030/8080; Keycloak is only on loopback.
+# SigNoz (ClickHouse, its UI, the ingester, journal shipping) is included here and is not
+# part of the local stack.
+
+include:
+  - path: ./signoz/compose.yaml
 
 services:
   keycloak:
@@ -48,3 +53,12 @@ services:
   mailpit:
     env_file:
       - ${ADILI_MAILPIT_RELAY_ENV:?source infra/azure/demo-vault.sh}
+
+  # Forward traces and metrics to SigNoz. The collector stays on the compose network so
+  # services on the host can still reach localhost:4317, and joins signoz-network for the ingester.
+  otel-collector:
+    volumes: !override
+      - ./otel/collector.azure.yaml:/etc/otelcol/collector.yaml:ro
+    networks:
+      - default
+      - signoz-network
