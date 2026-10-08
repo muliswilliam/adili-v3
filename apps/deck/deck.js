@@ -234,6 +234,8 @@
     }
 
     function target(spec) {
+      // No account: a public page such as onboarding, opened as is.
+      if (!spec.as) return new URL(spec.path ?? '/', appOrigin(spec.app)).toString();
       const url = new URL('/auth/demo-enter', appOrigin(spec.app));
       url.searchParams.set('as', spec.as);
       url.searchParams.set('next', spec.path ?? '/');
@@ -249,7 +251,9 @@
         host.classList.add('offline');
         return;
       }
-      const fresh = view.loadedAs === spec.as && signedIn[spec.app] === spec.as;
+      const fresh = spec.as
+        ? view.loadedAs === spec.as && signedIn[spec.app] === spec.as
+        : view.loadedAs === 'public';
       if (fresh && !force) return;
       host.classList.remove('offline');
       host.classList.add('loading');
@@ -258,8 +262,8 @@
         host.classList.remove('loading');
         if (spec.fallback) host.classList.add('offline');
       }, CONFIG.embedTimeoutSeconds * 1000);
-      signedIn[spec.app] = spec.as;
-      view.loadedAs = spec.as;
+      if (spec.as) signedIn[spec.app] = spec.as;
+      view.loadedAs = spec.as || 'public';
       iframe.src = target(spec);
     }
 
@@ -287,6 +291,8 @@
         if (!following) return;
         const sameAppOtherAccount =
           current &&
+          current.spec.as &&
+          following.spec.as &&
           current.spec.app === following.spec.app &&
           current.spec.as !== following.spec.as;
         // One browser holds one session per app: preloading another account would sign the

@@ -7,34 +7,48 @@
  * the presenter view says so.
  *
  * Live app slides: `embeds` maps a slide's `data-embed` to the app, the demo account to sign in as
- * (a demo key from packages/demo-auth/src/accounts.ts) and the path to open. `fallback` is the
- * screenshot shown if the app does not load in time.
+ * (a demo key from packages/demo-auth/src/accounts.ts; null for a public page) and the path to
+ * open. `fallback` is the screenshot shown if the app does not load in time.
  */
 window.DECK_CONFIG = {
   defaultTalk: '15',
 
   talks: {
     15: {
-      title: 0.5,
-      problem: 1.5,
-      solution: 1,
-      'demo-declarant': 3,
-      'demo-commission': 3,
-      'demo-eacc': 2.5,
-      impact: 1.5,
+      title: 0.25,
+      why: 2,
+      how: 2.5,
+      'demo-onboarding': 0.5,
+      'demo-declaration': 2.5,
+      'demo-clarifications': 0.75,
+      'demo-actions': 0.5,
+      'demo-form-m': 0.5,
+      'demo-form-k-apply': 0.5,
+      'demo-form-k-notify': 0.5,
+      'demo-form-k-represent': 0.5,
+      'demo-form-k-decide': 0.5,
+      'demo-lea': 0.75,
       architecture: 1,
       'built-to-last': 1,
+      closing: 0.75,
     },
     25: {
       title: 0.5,
-      problem: 2.5,
-      solution: 2,
-      'demo-declarant': 5,
-      'demo-commission': 5,
-      'demo-eacc': 4.5,
-      impact: 2.5,
+      why: 4,
+      how: 4.5,
+      'demo-onboarding': 0.5,
+      'demo-declaration': 4.5,
+      'demo-clarifications': 1,
+      'demo-actions': 0.5,
+      'demo-form-m': 1,
+      'demo-form-k-apply': 0.75,
+      'demo-form-k-notify': 0.75,
+      'demo-form-k-represent': 0.75,
+      'demo-form-k-decide': 0.75,
+      'demo-lea': 1,
       architecture: 1.5,
       'built-to-last': 1.5,
+      closing: 1.5,
     },
   },
 
@@ -46,26 +60,65 @@ window.DECK_CONFIG = {
   apps: { portal: null, console: null, verify: null },
 
   embeds: {
-    'demo-declarant': {
+    'demo-onboarding': {
       app: 'portal',
-      as: 'otieno',
-      label: 'Otieno Odhiambo · Declarant',
-      path: '/access/history',
-      fallback: 'shots/portal-access-history.jpg',
+      as: null,
+      label: 'A new officer · signed out',
+      path: '/get-started',
     },
-    'demo-commission': {
-      app: 'console',
-      as: 'auditor',
-      label: 'Kariuki Muriithi · Auditor, EACC',
-      path: '/audit/integrity',
-      fallback: 'shots/console-audit-integrity.jpg',
+    'demo-declaration': {
+      app: 'portal',
+      as: 'wanjiku',
+      label: 'Wanjiku Kamau · Declarant, KEMSA',
+      path: '/declarations',
     },
-    'demo-eacc': {
+    'demo-clarifications': {
       app: 'console',
-      as: 'platform-admin',
-      label: 'Juma Omondi · Platform admin',
-      path: '/ai-policy',
-      fallback: 'shots/console-ai-policy.jpg',
+      as: 'reviewer',
+      label: 'Achieng Njeri · Reviewer, PSC',
+      path: '/review',
+    },
+    'demo-actions': {
+      app: 'console',
+      as: 'reviewer',
+      label: 'Achieng Njeri · Reviewer, PSC',
+      path: '/actions',
+    },
+    'demo-form-m': {
+      app: 'console',
+      as: 'commission-admin',
+      label: 'Mwangi Wairimu · Commission admin, PSC',
+      path: '/form-m',
+    },
+    'demo-form-k-apply': {
+      app: 'portal',
+      as: 'applicant',
+      label: 'Njoki Wambua · Applicant',
+      path: '/access/requests',
+    },
+    'demo-form-k-notify': {
+      app: 'console',
+      as: 'access-officer',
+      label: 'Halima Yusuf · Access officer, PSC',
+      path: '/access/requests',
+    },
+    'demo-form-k-represent': {
+      app: 'portal',
+      as: 'wanjiku',
+      label: 'Wanjiku Kamau · Declarant, KEMSA',
+      path: '/access/notices',
+    },
+    'demo-form-k-decide': {
+      app: 'console',
+      as: 'access-officer',
+      label: 'Halima Yusuf · Access officer, PSC',
+      path: '/access/requests',
+    },
+    'demo-lea': {
+      app: 'console',
+      as: 'law-enforcement',
+      label: 'Suleiman Ali · Law enforcement, DCI',
+      path: '/lea/requests',
     },
   },
 

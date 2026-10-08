@@ -17,14 +17,14 @@ Each slide counts down its own minutes. The last slide counts down the rest of t
 ## Live app slides
 
 ```html
-<div data-embed="demo-declarant"></div>
+<div data-embed="demo-declaration"></div>
 ```
 
 ```js
-'demo-declarant': { app: 'portal', as: 'otieno', label: 'Otieno Odhiambo · Declarant', path: '/access/history', fallback: 'shots/portal-access-history.jpg' },
+'demo-declaration': { app: 'portal', as: 'wanjiku', label: 'Wanjiku Kamau · Declarant, KEMSA', path: '/declarations', fallback: 'shots/declarations.jpg' },
 ```
 
-The frame opens `<app>/auth/demo-enter?as=<demo key>&next=<path>`, which signs in as that demo account (recorded in the audit trail like any demo switch) and lands on the view. A browser holds one session per app, so the deck preloads the next slide's view only when that cannot sign out the one on screen. If the app does not load within `embedTimeoutSeconds`, the fallback screenshot shows. `?offline` shows every fallback without loading anything: the backup when the venue cannot reach the demo host.
+`as: null` opens a public page (onboarding) as is. Otherwise the frame opens `<app>/auth/demo-enter?as=<demo key>&next=<path>`, which signs in as that demo account (recorded in the audit trail like any demo switch) and lands on the view. A browser holds one session per app, so the deck preloads the next slide's view only when that cannot sign out the one on screen. If the app does not load within `embedTimeoutSeconds`, the fallback screenshot shows. `?offline` shows every fallback without loading anything: the backup when the venue cannot reach the demo host.
 
 On stage: E (or the button) puts the app full screen. After clicking into an app, move the pointer off it before using a clicker: the deck takes focus back when the pointer leaves the app.
 
