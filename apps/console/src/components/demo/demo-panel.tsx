@@ -20,6 +20,7 @@ import {
   Icon,
   Spinner,
   Switch,
+  useInFrame,
 } from '@adili/ui';
 import { useContext, useEffect, useState } from 'react';
 
@@ -54,8 +55,10 @@ export function DemoPanel() {
   const [open, setOpen] = useState(false);
   // Kept here, not in the drawer: the reset carries on, and says so, if the drawer is closed.
   const [resetting, setResetting] = useState<string | null>(null);
+  // Not on the presentation deck's live app slides: the presenter resets the demo beforehand.
+  const framed = useInFrame();
   if (resetting) return <DemoResetting checkpoint={resetting} />;
-  if (!demo?.current) return null;
+  if (!demo?.current || framed) return null;
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>

@@ -3,6 +3,7 @@ import { useRef } from 'react';
 
 import { cn } from '../lib/cn';
 import { focusRing } from '../lib/focus';
+import { useInFrame } from '../lib/use-in-frame';
 import { Icon } from './icon';
 import { Menu, MenuContent, MenuItem, MenuTrigger } from './menu';
 
@@ -31,7 +32,8 @@ export interface DemoBarProps {
 /**
  * The hackathon demo's banner and role switcher (#616), shown only in demo mode: a pill that marks
  * the app as the demo and switches the signed-in account in one click. Picking an account
- * posts the switch form: the server records the switch and signs the account in afresh.
+ * posts the switch form: the server records the switch and signs the account in afresh. Hidden
+ * inside a frame: the presentation deck's live app slides pick the account themselves.
  */
 export function DemoBar({
   accounts,
@@ -41,7 +43,9 @@ export function DemoBar({
 }: DemoBarProps) {
   const form = useRef<HTMLFormElement>(null);
   const input = useRef<HTMLInputElement>(null);
+  const framed = useInFrame();
   const acting = accounts.find((account) => account.demoKey === current);
+  if (framed) return null;
 
   return (
     <div
