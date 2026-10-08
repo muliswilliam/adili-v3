@@ -1,5 +1,7 @@
 #!/bin/sh
-# Confirm portal, console and verify send CSP framing rules, HSTS and X-Frame-Options.
+# Confirm portal, console and verify send CSP framing rules and HSTS. Framing: nothing may frame
+# an app (frame-ancestors 'none' plus X-Frame-Options DENY), except the demo host's presentation
+# deck at <host>/deck/ (frame-ancestors 'self' <host>, DEMO_FRAME_ANCESTORS), and nothing else.
 # The hosted demo serves portal on 443, console on 3020 and verify on 3030.
 #
 #   ./infra/azure/check-security-headers.sh https://adili-demo.southafricanorth.cloudapp.azure.com
@@ -36,10 +38,21 @@ check() {
   csp="$(header_value content-security-policy)"
   hsts="$(header_value strict-transport-security)"
   frame="$(header_value x-frame-options)"
-  case "$csp" in
-    *frame-ancestors*none*) ;;
+  # The frame-ancestors directive alone: other directives also say 'none'.
+  ancestors="$(printf '%s\n' "$csp" | tr ';' '\n' | sed -n 's/^[[:space:]]*frame-ancestors[[:space:]]*//p' | head -n 1)"
+  case "$ancestors" in
+    "'none'")
+      case "$frame" in
+        *DENY*|*deny*) ;;
+        *)
+          echo "$name: x-frame-options is not DENY" >&2
+          fail=1
+          ;;
+      esac
+      ;;
+    "'self' $BASE") ;;
     *)
-      echo "$name: content-security-policy is missing frame-ancestors 'none'" >&2
+      echo "$name: frame-ancestors is '$ancestors', not 'none' or the demo host's deck ('self' $BASE)" >&2
       fail=1
       ;;
   esac
@@ -54,13 +67,6 @@ check() {
     *max-age=*) ;;
     *)
       echo "$name: strict-transport-security is missing" >&2
-      fail=1
-      ;;
-  esac
-  case "$frame" in
-    *DENY*|*deny*) ;;
-    *)
-      echo "$name: x-frame-options is not DENY" >&2
       fail=1
       ;;
   esac
