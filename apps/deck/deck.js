@@ -99,7 +99,13 @@
     const bar = document.getElementById('timerBar');
     const text = document.getElementById('timerText');
     bar.style.width = `${(state.running || t.fraction > 0 ? t.fraction : 0) * 100}%`;
-    text.textContent = state.running || state.spent[ids[state.index]] ? fmt(t.remaining) : '';
+    // Before the talk starts the slide's planned time shows; the last slide adds what was saved.
+    const shown = state.running || state.spent[ids[state.index]] !== undefined;
+    const saved =
+      t.last && shown && Math.abs(t.bank) >= 1000
+        ? `<small>${signed(t.bank)} carried over</small>`
+        : '';
+    text.innerHTML = `${fmt(shown ? t.remaining : t.budget)}${saved}`;
     document.body.classList.toggle(
       'warn',
       t.remaining <= CONFIG.warnSeconds * 1000 && t.remaining > 0 && state.running,

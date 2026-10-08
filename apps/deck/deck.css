@@ -535,15 +535,15 @@ body {
   flex-wrap: wrap;
 }
 
-/* ---------- Audience timer: deliberately quiet ---------- */
+/* ---------- On-slide timer: readable from the stage, quiet for the audience ---------- */
 
 .timer-bar {
   position: fixed;
   left: 0;
   bottom: 0;
-  height: 3px;
+  height: clamp(3px, 0.35vw, 6px);
   width: 0;
-  background: rgb(26 26 26 / 0.14);
+  background: rgb(26 26 26 / 0.16);
   z-index: 5;
   transition:
     width 0.25s linear,
@@ -552,13 +552,23 @@ body {
 
 .timer-text {
   position: fixed;
-  right: 14px;
-  bottom: 10px;
-  font: 500 12px/1 var(--mono);
-  color: rgb(26 26 26 / 0.32);
+  right: clamp(12px, 1.3vw, 28px);
+  bottom: clamp(10px, 1.1vw, 22px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font: 600 clamp(18px, 1.9vw, 40px) / 1 var(--mono);
+  letter-spacing: -0.02em;
+  color: rgb(26 26 26 / 0.42);
   z-index: 5;
   font-variant-numeric: tabular-nums;
   transition: color 0.4s;
+}
+
+.timer-text small {
+  font: 500 0.42em/1 var(--sans);
+  letter-spacing: 0.02em;
 }
 
 body.warn .timer-bar {
