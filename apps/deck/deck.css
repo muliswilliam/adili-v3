@@ -65,7 +65,8 @@ body {
   position: absolute;
   inset: 0;
   background: var(--bg);
-  padding: 72px 112px 64px;
+  /* The bottom 88px is the timer's strip: no content reaches it. */
+  padding: 72px 112px 88px;
   display: none;
   flex-direction: column;
   overflow: hidden;
@@ -219,7 +220,7 @@ body {
 
 .slide.embed-slide {
   padding-top: 52px;
-  padding-bottom: 48px;
+  padding-bottom: 88px;
 }
 
 .slide.embed-slide h1 {
@@ -554,12 +555,12 @@ body {
 .timer-text {
   position: absolute;
   right: 32px;
-  bottom: 20px;
+  bottom: 24px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 3px;
-  font: 600 36px/1 var(--mono);
+  font: 600 32px/1 var(--mono);
   letter-spacing: -0.02em;
   color: rgb(26 26 26 / 0.42);
   z-index: 5;
