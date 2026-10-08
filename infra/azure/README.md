@@ -95,7 +95,7 @@ Caddy terminates TLS with Let's Encrypt. Set `letsencrypt_email` in `terraform.t
 `.github/workflows/azure-demo.yml` deploys when the CI workflow succeeds on `main` (`workflow_run`) and on `workflow_dispatch`:
 
 1. rsync the checkout to `/opt/adili` (keeps `.env`, `node_modules`, `.venv`)
-2. `/opt/adili/infra/azure/deploy.sh` as `adili` - Compose `up`, Caddy reload, `pnpm bootstrap`, migrate, build portal, console and verify, restart `adili-apps`, install the nightly backup cron
+2. `/opt/adili/infra/azure/deploy.sh` as `adili` - Compose `up` (including SigNoz), Caddy reload, `pnpm bootstrap`, migrate, build portal, console and verify, restart `adili-apps`, install the nightly backup cron, import the SigNoz dashboards
 3. curl the HTTPS portal, console and Keycloak issuer until they return 200
 4. check the security headers on portal, console and verify
 
@@ -114,6 +114,14 @@ The Azure demo workflow runs that check after each deploy.
 Every deploy also puts the stack on the real backend (#615): all app mocks off and the ai-gateway on Anthropic, then checks it with `pnpm demo:check` (a warning, not a failed deploy). The provider credentials (an Anthropic API key, or a self-hosted LLM Gateway's token and URL) come from `/etc/adili/secrets.env` or, when the repo secrets are set, from `~adili/.config/adili/secrets.env`, which the workflow writes over SSH stdin. See [docs/demo](../../docs/demo/README.md#real-backend-and-ai-provider).
 
 The **Azure demo command** workflow (`.github/workflows/azure-demo-command.yml`, run by hand) runs one allow-listed command on the VM through `infra/azure/demo-command.sh`: `check`, `health`, `diagnose`, `seed`, `checkpoints [<from>]` (play the beats and capture every checkpoint, or from one on), `checkpoint [<name>]` (capture the stack as it is under a name; without one, list the checkpoints), `reset <checkpoint>`, `ai anthropic|record|replay` or `e2e-accounts [resend]` (the real end-to-end test accounts, below). Its log is public, so every line goes through a redactor (API keys, bearer tokens, JWTs, demo tickets, secret- and password-named values). `diagnose` prints health, whether the stack is on the real backend, Keycloak discovery on loopback and on the public URL, the containers, and the last log lines of whatever is down.
+
+## SigNoz
+
+The demo runs SigNoz beside the other Compose services (`infra/compose/signoz`, included from `docker-compose.azure.yml`). The UI is `https://<demo-host>/signoz`. Caddy proxies that path to loopback `:18088` and does not strip the prefix, which is the path SigNoz was given (`SIGNOZ_GLOBAL_EXTERNAL__URL`).
+
+Services already export traces and metrics to `localhost:4317`. The demo collector forwards those to the SigNoz ingester. App logs are the `adili-apps` journal (portal, console, verify and every service share that unit); Fluent Bit tails it into the SigNoz log store. Each deploy imports `infra/observability/signoz/*.json`.
+
+The first deploy creates an admin and writes the password to `~/.config/adili/signoz-admin-password` (mode 600). It is not printed. Sign in as `signoz-admin@example.com` with that password. ClickHouse is capped at 4 GB so it does not crowd Postgres, Keycloak and Temporal.
 
 ## Backups
 

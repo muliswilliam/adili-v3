@@ -24,6 +24,10 @@ http://__HOST__ {
 
 https://__HOST__ {
   # The API reference (Redoc), built by deploy.sh from packages/schemas (`pnpm api:docs`).
+  # SigNoz keeps the /signoz prefix (SIGNOZ_GLOBAL_EXTERNAL__URL). Do not strip it.
+  handle /signoz /signoz/* {
+    reverse_proxy 127.0.0.1:18088
+  }
   redir /api-docs /api-docs/
   handle_path /api-docs/* {
     root * /opt/adili/dist/api-docs

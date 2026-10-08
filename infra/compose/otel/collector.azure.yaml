@@ -1,0 +1,40 @@
+# Azure demo collector. Same intake as collector.yaml. Forwards to the SigNoz ingester
+# on signoz-network (infra/compose/signoz). debug stays so `docker logs` still shows a copy.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+exporters:
+  debug:
+    verbosity: basic
+  otlp/signoz:
+    endpoint: signoz-ingester:4317
+    tls:
+      insecure: true
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/signoz, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/signoz, debug]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/signoz, debug]
