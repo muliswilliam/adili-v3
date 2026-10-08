@@ -98,6 +98,44 @@ resource "azurerm_network_security_group" "demo" {
       destination_address_prefix = "*"
     }
   }
+
+  # Outbound to the public internet is these ports only (#372). Virtual network and Azure
+  # platform addresses are not the Internet tag, so they stay on the default allow rules.
+  # 53 DNS, 80 HTTP (Let's Encrypt, apt), 443 HTTPS (registries, Anthropic, package mirrors),
+  # 587 SMTP submission (Mailpit's relay), 123 NTP.
+  dynamic "security_rule" {
+    for_each = {
+      dns-udp = { protocol = "Udp", port = "53", priority = 1000 }
+      dns-tcp = { protocol = "Tcp", port = "53", priority = 1001 }
+      http    = { protocol = "Tcp", port = "80", priority = 1010 }
+      https   = { protocol = "Tcp", port = "443", priority = 1020 }
+      smtp    = { protocol = "Tcp", port = "587", priority = 1030 }
+      ntp     = { protocol = "Udp", port = "123", priority = 1040 }
+    }
+    content {
+      name                       = "egress-${security_rule.key}"
+      priority                   = security_rule.value.priority
+      direction                  = "Outbound"
+      access                     = "Allow"
+      protocol                   = security_rule.value.protocol
+      source_port_range          = "*"
+      destination_port_range     = security_rule.value.port
+      source_address_prefix      = "*"
+      destination_address_prefix = "Internet"
+    }
+  }
+
+  security_rule {
+    name                       = "egress-deny-other-internet"
+    priority                   = 4000
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "Internet"
+  }
 }
 
 resource "azurerm_public_ip" "demo" {

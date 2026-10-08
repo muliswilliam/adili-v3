@@ -58,7 +58,13 @@ jobs:
             turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
             turbo-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
+      # High and critical advisories fail unless their id is in the allow-list (#372).
+      - name: Dependency audit
+        run: node scripts/dependency-audit.mjs
       - run: pnpm format:check
+      # Data services have no route off the host. Only the allow-listed services join egress.
+      - name: Compose egress policy
+        run: node scripts/check-egress-policy.mjs
       # One task per vCPU (2 on this runner): more starves the test suites, whose timeouts then
       # fire on tests that take milliseconds locally.
       # `eval` replays each AI task's golden set against its recorded outputs (ai-gateway evals/).
