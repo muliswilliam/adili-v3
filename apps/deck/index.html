@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Adili DIALs</title>
+    <link rel="stylesheet" href="deck.css" />
+  </head>
+  <body>
+    <!--
+      One <section class="slide"> per slide. data-id ties it to its minutes in deck.config.js;
+      data-title is what the presenter view shows. A live app slide holds
+      <div data-embed="<name>"></div>, configured under `embeds` in deck.config.js.
+      <aside class="notes"> is shown only in the presenter view (S).
+    -->
+    <div class="stage" id="stage">
+      <!-- ======================================================== Title -->
+      <section class="slide title" data-id="title" data-title="Title">
+        <div class="brand">
+          <svg viewBox="4 4 172 172" aria-hidden="true">
+            <g transform="matrix(0 -1 -1 0 180 180)">
+              <path
+                d="M89.9998 4C137.498 4 176 42.5021 176 90V153C176 159.1 173.577 164.95 169.263 169.264C164.95 173.577 159.1 176 153 176H98.4998V140.517C98.4998 131.5 99.1055 123.217 103.18 116.605C106.263 111.597 110.386 107.312 115.269 104.039C120.152 100.766 125.681 98.5818 131.481 97.6338L133.205 97.3555C135.359 96.6787 136.661 95.7102 137.583 94.4219C138.505 93.1308 139.002 91.5854 139.002 90C139.002 88.4146 138.505 86.8692 137.584 85.5801C136.661 84.2898 135.359 83.3213 133.86 82.8086L131.481 82.3662C123.006 80.9804 115.179 76.9672 109.106 70.8945C103.221 65.0097 99.2706 57.4785 97.7703 49.3057L97.3553 46.7949C96.5927 44.572 95.7513 43.4408 94.657 42.5928C93.2095 41.5515 91.776 41.0626 89.9998 40.999C88.4164 40.9991 86.8716 41.494 85.5818 42.416C84.2906 43.3384 83.3211 44.6413 82.8084 46.1406L82.367 48.5137C81.4199 54.3161 79.2351 59.8467 75.9617 64.7305C72.6887 69.6143 68.4035 73.7375 63.3963 76.8193C56.7827 80.8944 48.4994 81.5 39.4832 81.5H4.4129C8.68775 37.9949 45.3744 4.00009 89.9998 4Z"
+              />
+              <path
+                d="M39.4834 98.5C48.4997 98.5 56.783 99.1057 63.3945 103.18C68.8567 106.546 73.4544 111.143 76.8203 116.605C80.8943 123.217 81.5 131.5 81.5 140.517V176H27C20.9 176 15.0496 173.577 10.7363 169.264C6.423 164.95 4 159.1 4 153V98.5H39.4834ZM171 4C173.761 4 176 6.239 176 9C176 11.761 173.761 14 171 14C168.239 14 166 11.761 166 9C166 6.239 168.239 4 171 4Z"
+              />
+            </g>
+          </svg>
+          <span class="kicker">Adili Online V3 · Track 3 · DIALs</span>
+        </div>
+        <h1>Declarations of Income, Assets and Liabilities</h1>
+        <p class="sub">Placeholder title and subtitle: Denis's content goes here.</p>
+        <aside class="notes"><p>Placeholder notes for the opening.</p></aside>
+      </section>
+
+      <!-- ======================================================== Placeholder content -->
+      <section class="slide" data-id="problem" data-title="Problem">
+        <div class="top"><span class="kicker">Placeholder</span></div>
+        <h1>The problem</h1>
+        <div class="body">
+          <div class="placeholder">
+            <b>Denis's content.</b> Replace this block with the slide's text and visuals. Keep the
+            section's <code>data-id</code>; its minutes are in <code>deck.config.js</code>.
+          </div>
+        </div>
+        <aside class="notes"><p>Placeholder notes.</p></aside>
+      </section>
+
+      <section class="slide" data-id="solution" data-title="Solution">
+        <div class="top"><span class="kicker">Placeholder</span></div>
+        <h1>The solution</h1>
+        <div class="body">
+          <div class="placeholder"><b>Denis's content.</b></div>
+        </div>
+        <aside class="notes"><p>Placeholder notes.</p></aside>
+      </section>
+
+      <!-- ======================================================== Live app slides -->
+      <section class="slide embed-slide" data-id="demo-declarant" data-title="Demo: declarant">
+        <div class="top">
+          <span class="badge live">Live</span><span class="kicker">Declarant</span>
+        </div>
+        <h1>Example: who accessed my declaration</h1>
+        <div class="body"><div data-embed="demo-declarant"></div></div>
+        <aside class="notes">
+          <p>Example live slide: the portal, signed in as Otieno. Replace with Denis's view.</p>
+          <p>Click into the app to use it; move the pointer off it before using the clicker.</p>
+        </aside>
+      </section>
+
+      <section class="slide embed-slide" data-id="demo-commission" data-title="Demo: audit">
+        <div class="top">
+          <span class="badge live">Live</span><span class="kicker">EACC auditor</span>
+        </div>
+        <h1>Example: the audit trail's integrity</h1>
+        <div class="body"><div data-embed="demo-commission"></div></div>
+        <aside class="notes">
+          <p>Example live slide: the console, signed in as the auditor.</p>
+        </aside>
+      </section>
+
+      <section class="slide embed-slide" data-id="demo-eacc" data-title="Demo: AI policy">
+        <div class="top">
+          <span class="badge live">Live</span><span class="kicker">Platform admin</span>
+        </div>
+        <h1>Example: AI policy per Commission</h1>
+        <div class="body"><div data-embed="demo-eacc"></div></div>
+        <aside class="notes">
+          <p>
+            Example live slide: the console again, as another account. Opening it switches the
+            console's session, so the previous slide reloads if you go back to it.
+          </p>
+        </aside>
+      </section>
+
+      <section class="slide" data-id="impact" data-title="Impact">
+        <div class="top"><span class="kicker">Placeholder</span></div>
+        <h1>Impact</h1>
+        <div class="body">
+          <div class="placeholder"><b>Denis's content.</b></div>
+        </div>
+        <aside class="notes"><p>Placeholder notes.</p></aside>
+      </section>
+
+      <!-- ======================================================== Architecture (last two) -->
+      <section class="slide" data-id="architecture" data-title="Architecture">
+        <div class="top"><span class="badge live">Live today</span></div>
+        <h1>Architecture</h1>
+        <p class="sub">Small services, each owning its data; self-hosted and open source</p>
+        <div class="body">
+          <div class="arch">
+            <div class="tiers">
+              <div class="tier">
+                <div class="lbl">Apps</div>
+                <div class="cells">
+                  <div class="cell"><b>Portal</b>Declarants, public</div>
+                  <div class="cell"><b>Console</b>Commissions, EACC</div>
+                  <div class="cell"><b>Verify</b>Anyone, no login</div>
+                  <div class="cell"><b>Keycloak</b>Sign-in, OTP, step-up</div>
+                </div>
+              </div>
+              <div class="tier">
+                <div class="lbl">Domain</div>
+                <div class="cells">
+                  <div class="cell"><b>directory</b>Rosters</div>
+                  <div class="cell"><b>declarations</b>Filing</div>
+                  <div class="cell"><b>review</b>Checks, actions</div>
+                  <div class="cell"><b>access</b>Form K</div>
+                  <div class="cell"><b>reporting</b>Form M</div>
+                  <div class="cell"><b>documents</b>Signed PDFs</div>
+                </div>
+              </div>
+              <div class="tier">
+                <div class="lbl">Platform</div>
+                <div class="cells">
+                  <div class="cell ai"><b>ai-gateway</b>The only door to AI</div>
+                  <div class="cell"><b>integration-gateway</b>Registries, payroll</div>
+                  <div class="cell"><b>notifications</b>Email, SMS</div>
+                  <div class="cell"><b>audit</b>Hash chains</div>
+                </div>
+              </div>
+              <div class="tier">
+                <div class="lbl">Data</div>
+                <div class="cells">
+                  <div class="cell dark"><b>PostgreSQL</b>DB per service</div>
+                  <div class="cell dark"><b>OpenBao</b>Keys</div>
+                  <div class="cell dark"><b>Temporal</b>Workflows</div>
+                  <div class="cell dark"><b>RabbitMQ</b>Events</div>
+                  <div class="cell dark"><b>S3</b>Documents</div>
+                </div>
+              </div>
+            </div>
+            <div class="talk">
+              <div class="lbl">How services talk</div>
+              <div class="cell">
+                <b><span class="verb">Ask</span>API call</b>Typed clients, one hop
+              </div>
+              <div class="cell">
+                <b><span class="verb">Announce</span>Event</b>Saved with the change, never lost
+              </div>
+              <div class="cell">
+                <b><span class="verb">Process</span>Workflow</b>Legal deadlines as durable timers
+              </div>
+              <div class="stats">
+                <span><b>11</b>services</span><span><b>40</b>workflows</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">
+          <h4>Say (1 min)</h4>
+          <ul>
+            <li>
+              Three apps on one sign-in; eleven services, each owning one job and its own database.
+            </li>
+            <li>
+              Services ask, announce or run a workflow; a 30-day clarification is a timer that
+              survives restarts.
+            </li>
+            <li>Only two doors to the outside: one for registries, one for AI.</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section class="slide" data-id="built-to-last" data-title="Built to last">
+        <div class="top">
+          <span class="badge live">Live today</span><span class="badge plan">Production plan</span>
+        </div>
+        <h1>Built for national scale</h1>
+        <div class="body">
+          <div class="tiles">
+            <div class="tile">
+              <h3>Scale</h3>
+              <p>Sized for 1.5M declarants and the December peak, with 10× headroom.</p>
+              <div class="foot">
+                <span class="tag live">Sized</span><span class="tag plan">Load test</span>
+              </div>
+            </div>
+            <div class="tile">
+              <h3>Isolation</h3>
+              <p>Each Commission sees only its own people; the database enforces it.</p>
+              <div class="foot"><span class="tag live">Live</span></div>
+            </div>
+            <div class="tile">
+              <h3>Evidence</h3>
+              <p>Signed, QR-verifiable documents and a hash-chained audit trail.</p>
+              <div class="foot"><span class="tag live">Live</span></div>
+            </div>
+            <div class="tile">
+              <h3>Responsible AI</h3>
+              <p>Rules find, AI explains, people decide; no personal data leaves by default.</p>
+              <div class="foot"><span class="tag live">Live</span></div>
+            </div>
+            <div class="tile">
+              <h3>Open APIs</h3>
+              <p>Commissions use our portals or plug in their own systems.</p>
+              <div class="foot"><span class="tag live">Live</span></div>
+            </div>
+            <div class="tile">
+              <h3>Sovereign</h3>
+              <p>Open source, self-hosted in Kenyan data centres, with disaster recovery.</p>
+              <div class="foot"><span class="tag plan">Production plan</span></div>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">
+          <h4>Say (1 min, plus any time carried over)</h4>
+          <ul>
+            <li>Walk the six tiles in one sentence each.</li>
+            <li>
+              Close: built end to end in three weeks, from the law to a system you can use today.
+            </li>
+          </ul>
+        </aside>
+      </section>
+    </div>
+
+    <div class="timer-bar" id="timerBar"></div>
+    <div class="timer-text" id="timerText"></div>
+    <button
+      class="focus-sink"
+      id="focusSink"
+      type="button"
+      tabindex="-1"
+      aria-hidden="true"
+    ></button>
+    <div id="help">
+      → next · T timer · H hide timer · E app full screen · S presenter · F full screen
+    </div>
+
+    <div id="presenter">
+      <div>
+        <div class="cap">Now</div>
+        <div class="slidename"></div>
+        <div class="next"></div>
+        <div class="cap clock-cap"></div>
+        <div class="clock"></div>
+        <div class="row pills" style="margin-top: 18px"></div>
+        <div class="controls">
+          <button type="button" data-cmd="prev">← Back</button>
+          <button type="button" data-cmd="next">Next →</button>
+          <button type="button" data-cmd="toggle">Start</button>
+          <button type="button" data-cmd="reset">Reset timers</button>
+          <select aria-label="Talk length"></select>
+        </div>
+        <p class="warning"></p>
+        <div class="plan">
+          <table>
+            <thead>
+              <tr>
+                <td>Slide</td>
+                <td class="num">Plan</td>
+                <td class="num">Spent</td>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="cap">Notes</div>
+        <div class="notes-view"></div>
+      </div>
+    </div>
+
+    <script src="deck.config.js"></script>
+    <script src="deck.js"></script>
+  </body>
+</html>
