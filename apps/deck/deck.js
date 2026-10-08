@@ -4,7 +4,8 @@
  *
  * Keys (audience window): → / Space / PageDown next, ← / PageUp back, T start or pause the
  * timers, R reset them, H hide or show the audience timer, E app full screen, S presenter view,
- * F full screen. The presenter view drives the same deck from another window.
+ * F full screen. The presenter view drives the same deck from another window. ?offline shows
+ * every app slide's fallback screenshot instead of the live app.
  */
 (() => {
   const CONFIG = window.DECK_CONFIG;
@@ -236,6 +237,12 @@
     /** Opens the view; the app's session is switched to the slide's account on the way. */
     function load(view, force = false) {
       const { spec, host, iframe } = view;
+      // ?offline: the backup copy for a venue without the demo host; every app slide shows its
+      // fallback screenshot and nothing is loaded.
+      if (params.has('offline')) {
+        host.classList.add('offline');
+        return;
+      }
       const fresh = view.loadedAs === spec.as && signedIn[spec.app] === spec.as;
       if (fresh && !force) return;
       host.classList.remove('offline');
