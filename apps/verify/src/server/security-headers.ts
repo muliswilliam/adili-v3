@@ -3,7 +3,8 @@
  * "noindex, no personal data in URLs, strict security headers").
  *
  * Scripts run only with the request's nonce ('strict-dynamic' lets them load the app's chunks);
- * nothing may frame the page, send the URL on as a referrer or be fetched from another origin.
+ * nothing may frame the page (except the demo host's presentation deck, DEMO_FRAME_ANCESTORS),
+ * send the URL on as a referrer or be fetched from another origin.
  * The file check reads files locally, so `connect-src 'self'` also guards S15: a script could
  * not upload a file anywhere but this origin, and this app has no endpoint that takes one.
  */
@@ -14,9 +15,19 @@ export interface SecurityHeaderOptions {
   dev: boolean;
   /** The visitor reached the app over https (directly or through the edge proxy). */
   https: boolean;
+  /**
+   * Origins allowed to frame the page: the demo host's presentation deck, which embeds app views
+   * (DEMO_FRAME_ANCESTORS). Empty, as everywhere but the demo host, nothing may frame it.
+   */
+  frameAncestors?: string[];
 }
 
-export function securityHeaders({ nonce, dev, https }: SecurityHeaderOptions): Headers {
+export function securityHeaders({
+  nonce,
+  dev,
+  https,
+  frameAncestors = [],
+}: SecurityHeaderOptions): Headers {
   const csp = [
     "default-src 'none'",
     `script-src 'nonce-${nonce}' 'strict-dynamic'`,
@@ -30,14 +41,15 @@ export function securityHeaders({ nonce, dev, https }: SecurityHeaderOptions): H
     "manifest-src 'self'",
     "base-uri 'none'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
+    frameAncestors.length > 0
+      ? `frame-ancestors 'self' ${frameAncestors.join(' ')}`
+      : "frame-ancestors 'none'",
     "object-src 'none'",
   ].join('; ');
   const headers = new Headers({
     'content-security-policy': csp,
     'x-content-type-options': 'nosniff',
     'referrer-policy': 'no-referrer',
-    'x-frame-options': 'DENY',
     'permissions-policy':
       'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
     'cross-origin-opener-policy': 'same-origin',
@@ -46,6 +58,8 @@ export function securityHeaders({ nonce, dev, https }: SecurityHeaderOptions): H
     // A status can change at any time (superseded, revoked); no page is kept anywhere.
     'cache-control': 'no-store',
   });
+  // X-Frame-Options cannot name origins; browsers that know frame-ancestors ignore it anyway.
+  if (frameAncestors.length === 0) headers.set('x-frame-options', 'DENY');
   if (https) headers.set('strict-transport-security', 'max-age=31536000; includeSubDomains');
   return headers;
 }
@@ -60,4 +74,22 @@ export function createNonce(): string {
 export function isHttps(request: Request): boolean {
   const forwarded = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
   return (forwarded ?? new URL(request.url).protocol.replace(':', '')) === 'https';
+}
+
+/** The origin of a configured URL, for a CSP source; undefined when unset or malformed. */
+export function urlOrigin(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return undefined;
+  }
+}
+
+/** DEMO_FRAME_ANCESTORS, comma-separated URLs, as CSP origins; malformed entries are dropped. */
+export function frameAncestorsFrom(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((entry) => urlOrigin(entry.trim()))
+    .filter((origin): origin is string => origin !== undefined);
 }

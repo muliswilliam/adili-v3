@@ -38,6 +38,7 @@ import { Route as ApprovalsBulkClosureRouteImport } from './routes/approvals_/bu
 import { Route as AuditIndexRouteImport } from './routes/audit/index'
 import { Route as AuditIntegrityRouteImport } from './routes/audit/integrity'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as AuthDemoEnterRouteImport } from './routes/auth/demo-enter'
 import { Route as AuthDemoSwitchRouteImport } from './routes/auth/demo-switch'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
@@ -266,6 +267,11 @@ const AuditIntegrityRoute = AuditIntegrityRouteImport.update({
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthDemoEnterRoute = AuthDemoEnterRouteImport.update({
+  id: '/auth/demo-enter',
+  path: '/auth/demo-enter',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthDemoSwitchRoute = AuthDemoSwitchRouteImport.update({
@@ -743,6 +749,7 @@ export interface FileRoutesByFullPath {
   '/approvals/bulk-closure': typeof ApprovalsBulkClosureRoute
   '/audit/integrity': typeof AuditIntegrityRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/demo-enter': typeof AuthDemoEnterRoute
   '/auth/demo-switch': typeof AuthDemoSwitchRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -829,6 +836,7 @@ export interface FileRoutesByTo {
   '/approvals/bulk-closure': typeof ApprovalsBulkClosureRoute
   '/audit/integrity': typeof AuditIntegrityRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/demo-enter': typeof AuthDemoEnterRoute
   '/auth/demo-switch': typeof AuthDemoSwitchRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -938,6 +946,7 @@ export interface FileRoutesById {
   '/approvals_/bulk-closure': typeof ApprovalsBulkClosureRoute
   '/audit/integrity': typeof AuditIntegrityRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/demo-enter': typeof AuthDemoEnterRoute
   '/auth/demo-switch': typeof AuthDemoSwitchRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -1054,6 +1063,7 @@ export interface FileRouteTypes {
     | '/approvals/bulk-closure'
     | '/audit/integrity'
     | '/auth/callback'
+    | '/auth/demo-enter'
     | '/auth/demo-switch'
     | '/auth/login'
     | '/auth/logout'
@@ -1140,6 +1150,7 @@ export interface FileRouteTypes {
     | '/approvals/bulk-closure'
     | '/audit/integrity'
     | '/auth/callback'
+    | '/auth/demo-enter'
     | '/auth/demo-switch'
     | '/auth/login'
     | '/auth/logout'
@@ -1248,6 +1259,7 @@ export interface FileRouteTypes {
     | '/approvals_/bulk-closure'
     | '/audit/integrity'
     | '/auth/callback'
+    | '/auth/demo-enter'
     | '/auth/demo-switch'
     | '/auth/login'
     | '/auth/logout'
@@ -1352,6 +1364,7 @@ export interface RootRouteChildren {
   ObligationsNationalRouteRoute: typeof ObligationsNationalRouteRouteWithChildren
   ApprovalsBulkClosureRoute: typeof ApprovalsBulkClosureRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthDemoEnterRoute: typeof AuthDemoEnterRoute
   AuthDemoSwitchRoute: typeof AuthDemoSwitchRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
@@ -1566,6 +1579,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/demo-enter': {
+      id: '/auth/demo-enter'
+      path: '/auth/demo-enter'
+      fullPath: '/auth/demo-enter'
+      preLoaderRoute: typeof AuthDemoEnterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/demo-switch': {
@@ -2684,6 +2704,7 @@ const rootRouteChildren: RootRouteChildren = {
   ObligationsNationalRouteRoute: ObligationsNationalRouteRouteWithChildren,
   ApprovalsBulkClosureRoute: ApprovalsBulkClosureRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthDemoEnterRoute: AuthDemoEnterRoute,
   AuthDemoSwitchRoute: AuthDemoSwitchRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,

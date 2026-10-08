@@ -1,8 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { createNonce, isHttps, securityHeaders } from './security-headers';
+import { createNonce, frameAncestorsFrom, isHttps, securityHeaders } from './security-headers';
 
 describe('securityHeaders', () => {
+  it("lets only the demo host's deck frame the page, when configured", () => {
+    const headers = securityHeaders({
+      nonce: 'abc',
+      dev: false,
+      https: true,
+      frameAncestors: frameAncestorsFrom(
+        'https://demo.example.ke/deck/, not a url, https://demo.example.ke:3020',
+      ),
+    });
+
+    expect(headers.get('content-security-policy')).toContain(
+      "frame-ancestors 'self' https://demo.example.ke https://demo.example.ke:3020;",
+    );
+    expect(headers.has('x-frame-options')).toBe(false);
+  });
+
   it('lets only the nonce-carrying scripts run and keeps the page to itself', () => {
     const headers = securityHeaders({ nonce: 'abc', dev: false, https: true });
     const csp = headers.get('content-security-policy') ?? '';
