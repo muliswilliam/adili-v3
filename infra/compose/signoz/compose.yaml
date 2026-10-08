@@ -178,6 +178,7 @@ services:
       - /run/log/journal:/run/log/journal:ro
       - /etc/machine-id:/etc/machine-id:ro
       - ./journal/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./journal/service.lua:/fluent-bit/etc/service.lua:ro
       - signoz-journal-offset:/var/lib/fluent-bit
     networks:
       signoz-network: {}

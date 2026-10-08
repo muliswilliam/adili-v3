@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "dev": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register --watch-path=src --watch-preserve-output src/main.ts",
+    "dev": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @adili/telemetry/register --import @swc-node/register/esm-register --watch-path=src --watch-preserve-output src/main.ts",
     "start": "node --import @adili/telemetry/register dist/main.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
