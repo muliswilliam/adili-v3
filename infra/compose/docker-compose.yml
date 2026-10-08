@@ -29,6 +29,9 @@ services:
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD-SHELL', 'pg_isready -U postgres']
+    # Listed so Compose publishes the `postgres` DNS alias. An implicit attach to an
+    # internal network does not, and the name lookup then fails.
+    networks: [default]
 
   valkey:
     image: valkey/valkey:9.0.6-alpine
@@ -38,6 +41,7 @@ services:
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', 'valkey-cli', 'ping']
+    networks: [default]
 
   rabbitmq:
     image: rabbitmq:4.3.6-management-alpine
@@ -55,6 +59,7 @@ services:
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', 'su-exec', 'rabbitmq', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
+    networks: [default]
 
   temporal-schema:
     image: temporalio/admin-tools:1.32.0
@@ -67,6 +72,7 @@ services:
     volumes: [./temporal/setup-schema.sh:/scripts/setup-schema.sh:ro]
     entrypoint: ['/bin/sh', '/scripts/setup-schema.sh']
     <<: *init-job
+    networks: [default]
 
   temporal:
     image: temporalio/server:1.32.0
@@ -85,6 +91,7 @@ services:
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', 'nc', '-z', 'localhost', '7233']
+    networks: [default]
 
   temporal-namespace:
     image: temporalio/admin-tools:1.32.0
@@ -96,6 +103,7 @@ services:
     volumes: [./temporal/create-namespace.sh:/scripts/create-namespace.sh:ro]
     entrypoint: ['/bin/sh', '/scripts/create-namespace.sh']
     <<: *init-job
+    networks: [default]
 
   temporal-ui:
     image: temporalio/ui:2.54.1
@@ -105,6 +113,7 @@ services:
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_DEFAULT_NAMESPACE: adili
     ports: ['8233:8080']
+    networks: [default]
 
   keycloak:
     # Keycloak plus the Adili login and email themes from apps/keycloak-theme.
@@ -189,6 +198,7 @@ services:
           'CMD-SHELL',
           'wget -q -O /dev/null http://127.0.0.1:9333/cluster/status && nc -z 127.0.0.1 8333',
         ]
+    networks: [default]
 
   seaweedfs-buckets:
     image: chrislusf/seaweedfs:4.47
@@ -197,6 +207,7 @@ services:
     volumes: [./seaweedfs/create-buckets.sh:/scripts/create-buckets.sh:ro]
     entrypoint: ['/bin/sh', '/scripts/create-buckets.sh']
     <<: *init-job
+    networks: [default]
 
   # Persistent server (integrated storage on openbao-data) that unseals itself with the committed
   # demo seal key, so transit keys and the demo CA survive restarts and checkpoint restores.
@@ -212,6 +223,7 @@ services:
       <<: *healthcheck-defaults
       test:
         ['CMD-SHELL', 'wget -q -O /dev/null "http://127.0.0.1:8200/v1/sys/health?uninitcode=200"']
+    networks: [default]
 
   # Initialises OpenBao once and creates the fixed development root token the services use.
   openbao-init:
@@ -224,6 +236,7 @@ services:
     volumes: [./openbao/init.sh:/scripts/init.sh:ro]
     entrypoint: ['/bin/sh', '/scripts/init.sh']
     <<: *init-job
+    networks: [default]
 
   openbao-keys:
     image: openbao/openbao:2.7.0
@@ -235,6 +248,7 @@ services:
     volumes: [./openbao/create-transit-keys.sh:/scripts/create-transit-keys.sh:ro]
     entrypoint: ['/bin/sh', '/scripts/create-transit-keys.sh']
     <<: *init-job
+    networks: [default]
 
   # Demo root CA and the documents signing keys and certificate (ADR-010), generated once and kept
   # on openbao-data.
@@ -248,6 +262,7 @@ services:
     volumes: [./openbao/create-demo-ca.sh:/scripts/create-demo-ca.sh:ro]
     entrypoint: ['/bin/sh', '/scripts/create-demo-ca.sh']
     <<: *init-job
+    networks: [default]
 
   clamav:
     image: clamav/clamav:1.5-debian
@@ -267,6 +282,7 @@ services:
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', 'curl', '-sf', 'http://127.0.0.1:3000/health']
+    networks: [default]
 
   mailpit:
     image: axllent/mailpit:v1.31.2
@@ -295,6 +311,7 @@ services:
       - openbao-data:/volumes/openbao
       - rabbitmq-data:/volumes/rabbitmq
       - mailpit-data:/volumes/mailpit
+    networks: [default]
 
   otel-collector:
     # Image is FROM scratch: no shell, so no in-container healthcheck.
@@ -303,9 +320,13 @@ services:
     command: ['--config=/etc/otelcol/collector.yaml']
     ports: ['4317:4317', '4318:4318']
     volumes: [./otel/collector.yaml:/etc/otelcol/collector.yaml:ro]
+    networks: [default]
 
 # The default network has no route off the host. Only the services named in
 # infra/security/egress-allowlist.txt also join `egress`, and CI checks that list.
+# Every service lists the network it joins. Compose publishes the service-name DNS
+# alias only for a network the service names; on an internal network the missing
+# alias is a failed lookup, which is what took the demo deploy down.
 networks:
   default:
     internal: true
