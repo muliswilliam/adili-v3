@@ -71,8 +71,9 @@ pnpm bootstrap
 # admin API is reachable on loopback only (Caddyfile.cloudapp).
 KEYCLOAK_URL=http://127.0.0.1:18080 node infra/azure/keycloak-admin-password.mjs
 # The realm import skips an existing realm: apply demo sign-in (#616) to the live one.
+# The presentation deck at the portal's /deck/ embeds app views, so its origin may frame sign-in.
 KEYCLOAK_URL=http://127.0.0.1:18080 KEYCLOAK_ADMIN_PASSWORD="$(cat "$ADILI_KEYCLOAK_ADMIN_PASSWORD_FILE")" \
-  node scripts/keycloak-demo-sign-in.mjs
+  DEMO_FRAME_ANCESTORS="$ADILI_PORTAL_URL" node scripts/keycloak-demo-sign-in.mjs
 ./infra/azure/configure-app-env.sh
 # The API reference Caddy serves at /api-docs/. A failed build leaves the last one up.
 pnpm api:docs || echo "WARNING: API reference not rebuilt; /api-docs/ serves the previous build." >&2

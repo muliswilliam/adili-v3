@@ -3,8 +3,9 @@
  *
  * Scripts run only with the request's nonce ('strict-dynamic' lets them load the app's chunks).
  * The browser talks to this origin, where server functions proxy the services, and to the object
- * store, where it uploads files to presigned URLs. Nothing may frame the page. Keycloak is a
- * top-level redirect, not a connection from the page; downloads are navigations to the store.
+ * store, where it uploads files to presigned URLs. Nothing may frame the page, except the demo
+ * host's presentation deck (DEMO_FRAME_ANCESTORS). Keycloak is a top-level redirect, not a
+ * connection from the page; downloads are navigations to the store.
  */
 export interface SecurityHeaderOptions {
   /** A fresh random value per response, on every script tag the server renders. */
@@ -23,6 +24,11 @@ export interface SecurityHeaderOptions {
    * documents service's S3_PUBLIC_ENDPOINT).
    */
   objectStorage?: string;
+  /**
+   * Origins allowed to frame the page: the demo host's presentation deck, which embeds app views
+   * (DEMO_FRAME_ANCESTORS). Empty, as everywhere but the demo host, nothing may frame it.
+   */
+  frameAncestors?: string[];
 }
 
 export function securityHeaders({
@@ -31,6 +37,7 @@ export function securityHeaders({
   https,
   identityProvider,
   objectStorage,
+  frameAncestors = [],
 }: SecurityHeaderOptions): Headers {
   const connect = [
     "'self'",
@@ -50,7 +57,9 @@ export function securityHeaders({
     "manifest-src 'self'",
     "base-uri 'none'",
     identityProvider ? `form-action 'self' ${identityProvider}` : "form-action 'self'",
-    "frame-ancestors 'none'",
+    frameAncestors.length > 0
+      ? `frame-ancestors 'self' ${frameAncestors.join(' ')}`
+      : "frame-ancestors 'none'",
     "object-src 'none'",
   ].join('; ');
   const headers = new Headers({
@@ -60,12 +69,13 @@ export function securityHeaders({
     // form posts, so logout and the demo switch, which refuse foreign origins, refused every post.
     // Other origins still get no referrer.
     'referrer-policy': 'same-origin',
-    'x-frame-options': 'DENY',
     'permissions-policy':
       'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
     'cross-origin-opener-policy': 'same-origin',
     'cross-origin-resource-policy': 'same-origin',
   });
+  // X-Frame-Options cannot name origins; browsers that know frame-ancestors ignore it anyway.
+  if (frameAncestors.length === 0) headers.set('x-frame-options', 'DENY');
   if (https) headers.set('strict-transport-security', 'max-age=31536000; includeSubDomains');
   return headers;
 }
@@ -90,4 +100,12 @@ export function createNonce(): string {
 export function isHttps(request: Request): boolean {
   const forwarded = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
   return (forwarded ?? new URL(request.url).protocol.replace(':', '')) === 'https';
+}
+
+/** DEMO_FRAME_ANCESTORS, comma-separated URLs, as CSP origins; malformed entries are dropped. */
+export function frameAncestorsFrom(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((entry) => urlOrigin(entry.trim()))
+    .filter((origin): origin is string => origin !== undefined);
 }

@@ -144,4 +144,60 @@ describe('createDemoSwitch', () => {
     expect(await demoStepUpParams(bff, new Request(APP_URL), 'step-up', SECRET)).toBeUndefined();
     expect(await demo.currentDemoKey(request)).toBe('reviewer');
   });
+
+  describe("enter (the deck's deep link)", () => {
+    const enter = (query: string, cookie?: string) =>
+      new Request(`${APP_URL}/auth/demo-enter?${query}`, {
+        headers: cookie ? { cookie } : {},
+      });
+
+    it('switches to the account, recorded, and lands on the view', async () => {
+      const { demo, record } = setup();
+
+      const response = await demo.enter(enter('as=eacc-analyst&next=%2Freports%3Ffy%3D2026'));
+
+      expect(response.status).toBe(302);
+      const location = new URL(response.headers.get('location') ?? '');
+      expect(location.searchParams.get('demo_ticket')).toMatch(/^v1\./);
+      expect(record.mock.calls[0]?.[0].data.to).toEqual(
+        expect.objectContaining({ username: 'eacc-analyst' }),
+      );
+      const login = response.headers
+        .getSetCookie()
+        .find((c) => c.startsWith('adili_console_login='));
+      expect(login).toBeDefined();
+    });
+
+    it('only redirects when already signed in as the account', async () => {
+      const { bff, demo, record } = setup();
+      const cookie = await signIn(bff);
+
+      const response = await demo.enter(enter('as=reviewer&next=%2Freview', cookie));
+
+      expect(response.status).toBe(303);
+      expect(response.headers.get('location')).toBe('/review');
+      expect(record).not.toHaveBeenCalled();
+    });
+
+    it('lands on / for a next that is not a path on the app', async () => {
+      const { bff, demo } = setup();
+      const cookie = await signIn(bff);
+
+      for (const next of ['https://evil.test/', '//evil.test', '/\\evil.test']) {
+        const response = await demo.enter(
+          enter(`as=reviewer&next=${encodeURIComponent(next)}`, cookie),
+        );
+        expect(response.headers.get('location')).toBe('/');
+      }
+    });
+
+    it("refuses unknown accounts and the other app's accounts", async () => {
+      const { demo, record } = setup();
+
+      expect((await demo.enter(enter('as=root'))).status).toBe(400);
+      expect((await demo.enter(enter('as=wanjiku'))).status).toBe(400);
+      expect((await demo.enter(enter('next=%2F'))).status).toBe(400);
+      expect(record).not.toHaveBeenCalled();
+    });
+  });
 });

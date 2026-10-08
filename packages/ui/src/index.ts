@@ -651,6 +651,7 @@ export {
   type VersionState,
 } from './components/version-badge';
 export { cn } from './lib/cn';
+export { useInFrame } from './lib/use-in-frame';
 export { type Tone, toneClassNames } from './lib/tone';
 export {
   countdownAnnouncement,

@@ -1,0 +1,903 @@
+@font-face {
+  font-family: 'Inter Deck';
+  src: url('fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-display: block;
+}
+
+:root {
+  --bg: #fafaf9;
+  --ink: #1a1a1a;
+  --ink-2: #4a4a48;
+  --muted: #6f6e6b;
+  --line: #e8e6e3;
+  --line-2: #d9d7d3;
+  --sunken: #f4f3f1;
+  --card: #ffffff;
+  --brand: #e95a24;
+  --brand-soft: #fdf0e9;
+  --brand-ink: #b8430f;
+  --logo: #f06225;
+  --ai: #6d4ae0;
+  --ai-soft: #f1edfd;
+  --ai-ink: #43299f;
+  --ok: #167a3e;
+  --ok-soft: #e9f6ee;
+  --ok-ink: #0f5a2d;
+  --warn: #d98a00;
+  --late: #c9291e;
+  --sans: 'Inter Deck', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --lift: 0 0 0 1px var(--line), 0 1px 2px rgb(0 0 0 / 0.04), 0 6px 16px -8px rgb(0 0 0 / 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #e9e7e3;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Stage ---------- */
+
+.stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  transform: translate(-50%, -50%) scale(var(--s, 1));
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  /* The bottom 88px is the timer's strip: no content reaches it. */
+  padding: 72px 112px 88px;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.slide.active {
+  display: flex;
+}
+
+.slide .top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 34px;
+}
+
+.kicker {
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-ink);
+}
+
+.slide h1 {
+  font-size: 64px;
+  line-height: 1.06;
+  letter-spacing: -0.025em;
+  font-weight: 680;
+  margin: 14px 0 0;
+}
+
+.slide .sub {
+  font-size: 30px;
+  line-height: 1.3;
+  color: var(--ink-2);
+  margin: 10px 0 0;
+}
+
+.body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin-top: 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.notes {
+  display: none;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.badge::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge.live {
+  background: var(--ok-soft);
+  color: var(--ok-ink);
+}
+
+.badge.plan {
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1.5px var(--line-2);
+}
+
+.badge.plan::before {
+  background: transparent;
+  border: 2px dashed currentColor;
+  width: 11px;
+  height: 11px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tag.live {
+  background: var(--ok-soft);
+  color: var(--ok-ink);
+}
+
+.tag.plan {
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+
+/* ---------- Placeholder content (until Denis's slides arrive) ---------- */
+
+.placeholder {
+  border: 2px dashed var(--line-2);
+  border-radius: 20px;
+  padding: 40px 48px;
+  color: var(--muted);
+  font-size: 26px;
+  line-height: 1.45;
+}
+
+.placeholder b {
+  color: var(--ink-2);
+}
+
+/* ---------- Title slide ---------- */
+
+.slide.title {
+  justify-content: center;
+}
+
+.slide.title h1 {
+  font-size: 96px;
+  letter-spacing: -0.035em;
+  margin-top: 32px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand svg {
+  width: 56px;
+  height: 56px;
+  fill: var(--logo);
+}
+
+/* ---------- Live app slides ---------- */
+
+.slide.embed-slide {
+  padding-top: 52px;
+  padding-bottom: 88px;
+}
+
+.slide.embed-slide h1 {
+  font-size: 48px;
+  margin-top: 8px;
+}
+
+.slide.embed-slide .body {
+  margin-top: 24px;
+  justify-content: stretch;
+}
+
+.embed {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #141414;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 24px 50px -24px rgb(0 0 0 / 0.45);
+}
+
+.embed-bar {
+  flex: none;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 14px 0 20px;
+  background: #1f1d1b;
+  color: #d6d3cd;
+  font-size: 17px;
+}
+
+.embed-bar .dots {
+  display: flex;
+  gap: 8px;
+}
+
+.embed-bar .dots i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #3a3632;
+}
+
+.embed-bar .who {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.07);
+  font-weight: 550;
+}
+
+.embed-bar .app {
+  color: #a8a5a0;
+}
+
+.embed-bar .spacer {
+  flex: 1;
+}
+
+.embed-bar button {
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.08);
+  color: #f1efeb;
+  font: 600 15px var(--sans);
+  cursor: pointer;
+}
+
+.embed-bar button:hover {
+  background: rgb(255 255 255 / 0.16);
+}
+
+.embed-view {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #141414;
+}
+
+.embed-view iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #141414;
+}
+
+.embed-veil,
+.embed-fallback {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+
+.embed-veil {
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: #141414;
+  color: #a8a5a0;
+  font-size: 20px;
+}
+
+.embed-veil::before {
+  content: '';
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid #3a3632;
+  border-top-color: var(--brand);
+  animation: spin 0.8s linear infinite;
+}
+
+.embed.loading .embed-veil {
+  display: flex;
+}
+
+.embed-fallback {
+  background: #141414 center top / contain no-repeat;
+}
+
+.embed-fallback span {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.6);
+  color: #d6d3cd;
+  font-size: 13px;
+}
+
+.embed.offline .embed-fallback {
+  display: block;
+}
+
+.embed:fullscreen {
+  border-radius: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Architecture ---------- */
+
+.arch {
+  display: grid;
+  grid-template-columns: 1fr 470px;
+  gap: 40px;
+  height: 100%;
+}
+
+.tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  justify-content: center;
+}
+
+.tier {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.tier > .lbl,
+.lbl {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tier > .lbl {
+  display: flex;
+  align-items: center;
+}
+
+.cells {
+  display: flex;
+  gap: 10px;
+}
+
+.cell {
+  flex: 1;
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: var(--lift);
+  padding: 12px 14px;
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.cell b {
+  display: block;
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.cell.dark {
+  background: var(--ink);
+  box-shadow: none;
+  color: #b9b7b2;
+}
+
+.cell.dark b {
+  color: #fff;
+}
+
+.cell.ai {
+  background: var(--ai-soft);
+  box-shadow: 0 0 0 1px #ddd3fa;
+}
+
+.cell.plan {
+  background: transparent;
+  box-shadow: none;
+  border: 2px dashed var(--line-2);
+}
+
+.talk {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  justify-content: center;
+}
+
+.talk .cell b {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 21px;
+}
+
+.verb {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+
+.stats {
+  display: flex;
+  gap: 28px;
+  margin-top: 6px;
+  font-size: 18px;
+  color: var(--ink-2);
+}
+
+.stats b {
+  color: var(--brand);
+  font-size: 30px;
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  height: 100%;
+}
+
+.tile {
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: var(--lift);
+  padding: 26px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tile h3 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+}
+
+.tile p {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.42;
+  color: var(--ink-2);
+}
+
+.tile .foot {
+  margin-top: auto;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---------- On-slide timer: readable from the stage, quiet for the audience ---------- */
+
+.timer-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 5px;
+  width: 0;
+  background: rgb(26 26 26 / 0.16);
+  z-index: 5;
+  transition:
+    width 0.25s linear,
+    background 0.4s;
+}
+
+/* Inside the stage, so it scales with the slide and never sits in the letterbox. */
+.timer-text {
+  position: absolute;
+  right: 32px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  font: 600 32px/1 var(--mono);
+  letter-spacing: -0.02em;
+  color: rgb(26 26 26 / 0.42);
+  z-index: 5;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.4s;
+}
+
+.timer-text small {
+  font: 500 15px/1 var(--sans);
+  letter-spacing: 0.02em;
+}
+
+body.warn .timer-bar {
+  background: var(--warn);
+}
+
+body.warn .timer-text {
+  color: var(--warn);
+}
+
+body.late .timer-bar {
+  background: var(--late);
+}
+
+body.late .timer-text {
+  color: var(--late);
+}
+
+body.timer-hidden .timer-bar,
+body.timer-hidden .timer-text {
+  display: none;
+}
+
+.focus-sink {
+  position: fixed;
+  left: -100px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+/* ---------- Presenter view ---------- */
+
+body.presenter {
+  background: #141210;
+  color: #f1efeb;
+  overflow: auto;
+}
+
+body.presenter .stage,
+body.presenter .timer-bar,
+body.presenter .timer-text {
+  display: none;
+}
+
+#presenter {
+  display: none;
+}
+
+body.presenter #presenter {
+  display: grid;
+  grid-template-columns: 520px 1fr;
+  gap: 28px;
+  padding: 26px 30px;
+  min-height: 100vh;
+}
+
+#presenter .clock {
+  font: 700 120px/1 var(--sans);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+#presenter .clock.warn {
+  color: #ffb84d;
+}
+
+#presenter .clock.late {
+  color: #ff8a80;
+}
+
+#presenter .cap {
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #a8a5a0;
+  margin: 18px 0 6px;
+}
+
+#presenter .row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+#presenter .pill {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #2a2622;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+#presenter .pill b {
+  display: block;
+  font-size: 30px;
+  margin-top: 2px;
+}
+
+#presenter .pill.good b {
+  color: #9be3b4;
+}
+
+#presenter .pill.bad b {
+  color: #ff8a80;
+}
+
+#presenter .slidename {
+  font-size: 30px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+#presenter .next {
+  color: #b9b7b2;
+  font-size: 20px;
+}
+
+#presenter .controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+#presenter button,
+#presenter select {
+  font: 15px var(--sans);
+  background: #2a2622;
+  color: #f1efeb;
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+#presenter .notes-view {
+  font-size: 22px;
+  line-height: 1.55;
+  overflow: auto;
+}
+
+#presenter .notes-view h4 {
+  margin: 16px 0 4px;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #a8a5a0;
+}
+
+#presenter .notes-view p,
+#presenter .notes-view li {
+  margin: 6px 0;
+}
+
+#presenter .plan {
+  margin-top: 18px;
+  font-size: 15px;
+  color: #b9b7b2;
+}
+
+#presenter .plan table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#presenter .plan td {
+  padding: 5px 6px;
+  border-top: 1px solid #2f2b27;
+  font-variant-numeric: tabular-nums;
+}
+
+#presenter .plan tr.current td {
+  color: #fff;
+  font-weight: 700;
+}
+
+#presenter .plan td.num {
+  text-align: right;
+}
+
+#presenter .warning {
+  color: #ffb84d;
+}
+
+#help {
+  position: absolute;
+  right: 32px;
+  top: 22px;
+  font: 15px var(--sans);
+  color: #8a8782;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 6;
+}
+
+.stage:hover #help {
+  opacity: 1;
+}
+
+/* ---------- Architecture: sizing for a one-minute, read-at-a-glance slide ---------- */
+
+.arch {
+  height: auto;
+  align-items: center;
+}
+
+.tiers {
+  gap: 18px;
+}
+
+.tier {
+  grid-template-columns: 130px 1fr;
+}
+
+.cell {
+  padding: 18px 18px;
+  font-size: 17px;
+}
+
+.cell b {
+  font-size: 21px;
+  margin-bottom: 2px;
+}
+
+.talk .cell {
+  flex: none;
+}
+
+.tiles {
+  height: auto;
+}
+
+.tile {
+  min-height: 300px;
+  padding: 30px 32px;
+}
+
+.tile h3 {
+  font-size: 34px;
+}
+
+.tile p {
+  font-size: 24px;
+}
+
+/* ---------- Why / How points ---------- */
+
+.points {
+  display: grid;
+  gap: 22px;
+}
+
+.points.four {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.points.six {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.point {
+  display: flex;
+  gap: 22px;
+  align-items: flex-start;
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: var(--lift);
+  padding: 34px 34px;
+  min-height: 190px;
+}
+
+.points.six .point {
+  min-height: 210px;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.point .n {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--brand);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 24px;
+}
+
+.point p {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.points.six .point p {
+  font-size: 30px;
+}
+
+/* ---------- Closing ---------- */
+
+.slide.closing .body {
+  margin-top: 0;
+  align-items: flex-start;
+}
+
+.slide.closing blockquote {
+  margin: 0;
+  max-width: 1500px;
+  font-size: 60px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  border-left: 8px solid var(--brand);
+  padding-left: 48px;
+}
+
+.slide.closing .team {
+  margin: 48px 0 0 56px;
+  font-size: 26px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}

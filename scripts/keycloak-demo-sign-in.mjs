@@ -6,6 +6,8 @@
 //     adili browser flow
 //   - the admin-only demo_key user profile attribute, and its claim on portal and console tokens
 //   - each demo user's demo_key and display name
+//   - with DEMO_FRAME_ANCESTORS (the demo host's presentation deck), lets that origin frame the
+//     realm's sign-in pages, so a slide can embed an app view signed in as a demo account
 // The authenticator stays inert unless Keycloak runs with ADILI_DEMO_MODE=true.
 //
 //   pnpm keycloak:demo-sign-in
@@ -43,6 +45,7 @@ await ensureProfileAttribute();
 await ensureClaimMappers();
 await ensureExecution();
 await ensureDemoUsers();
+await ensureFrameAncestors();
 console.log(`Demo sign-in applied to ${base} realm ${REALM}`);
 console.log(changes > 0 ? 'changed' : 'unchanged');
 
@@ -191,4 +194,36 @@ async function ensureDemoUsers() {
     changes++;
     console.log(`updated ${wanted.username}`);
   }
+}
+
+async function ensureFrameAncestors() {
+  const origins = (process.env.DEMO_FRAME_ANCESTORS ?? '')
+    .split(',')
+    .map((entry) => {
+      try {
+        return new URL(entry.trim()).origin;
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+  if (origins.length === 0) return;
+  const realm = await call('GET', admin);
+  const headers = realm.browserSecurityHeaders ?? {};
+  // Keycloak's defaults with the deck's origin added; X-Frame-Options cannot name an origin, and
+  // browsers that know frame-ancestors ignore it, so it goes.
+  const wanted = {
+    ...headers,
+    xFrameOptions: '',
+    contentSecurityPolicy: `frame-src 'self'; frame-ancestors 'self' ${origins.join(' ')}; object-src 'none';`,
+  };
+  if (
+    headers.xFrameOptions === wanted.xFrameOptions &&
+    headers.contentSecurityPolicy === wanted.contentSecurityPolicy
+  ) {
+    return;
+  }
+  await call('PUT', admin, { browserSecurityHeaders: wanted });
+  changes++;
+  console.log(`let ${origins.join(', ')} frame the realm's sign-in pages`);
 }

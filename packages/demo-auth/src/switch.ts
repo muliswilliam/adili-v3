@@ -1,4 +1,4 @@
-import type { Bff } from '@adili/bff-auth';
+import { type Bff, safeReturnTo } from '@adili/bff-auth';
 
 import { type DemoApp, demoAccount } from './accounts.ts';
 import { type DemoSwitchAccount, demoSwitchEvent, type DemoSwitchEvent } from './audit.ts';
@@ -26,7 +26,8 @@ interface AccessClaims {
 
 /**
  * The demo role switcher's server side (#616), for an app's BFF in demo mode: `switchAccount`
- * answers `POST /auth/demo-switch` (form field `as`, a demo key).
+ * answers `POST /auth/demo-switch` (form field `as`, a demo key), and `enter` answers the deck's
+ * `GET /auth/demo-enter` deep link.
  */
 export function createDemoSwitch(options: DemoSwitchOptions) {
   const appOrigin = new URL(options.appUrl).origin;
@@ -34,6 +35,43 @@ export function createDemoSwitch(options: DemoSwitchOptions) {
   async function currentClaims(request: Request): Promise<AccessClaims | null> {
     const session = await options.bff.getSession(request);
     return session ? decodeClaims(session.accessToken) : null;
+  }
+
+  /** Records the switch, then signs in afresh as `demoKey`, landing on `returnTo`. */
+  async function switchTo(
+    request: Request,
+    account: { demoKey: string },
+    returnTo?: string,
+  ): Promise<Response> {
+    const from = await currentClaims(request);
+    const to: DemoSwitchAccount = {
+      username: account.demoKey,
+      subject: null,
+      tenant: null,
+      roles: [],
+    };
+    try {
+      await options.record(
+        demoSwitchEvent({
+          app: options.app,
+          from: from ? accountOf(from) : null,
+          to,
+          outcome: 'success',
+        }),
+      );
+    } catch (error) {
+      options.log?.('demo switch not recorded in the audit trail; not switched', error);
+      return new Response('The switch could not be recorded. Try again.', { status: 503 });
+    }
+    return options.bff.signInAfresh(request, {
+      authorizeParams: {
+        [DEMO_TICKET_PARAM]: mintDemoTicket({
+          demoKey: account.demoKey,
+          secret: options.ticketSecret,
+        }),
+      },
+      ...(returnTo === undefined ? {} : { returnTo }),
+    });
   }
 
   return {
@@ -46,35 +84,28 @@ export function createDemoSwitch(options: DemoSwitchOptions) {
       const demoKey = new URLSearchParams(await request.text()).get('as');
       const account = demoKey ? demoAccount(options.app, demoKey) : undefined;
       if (!account) return new Response('Unknown demo account', { status: 400 });
+      return switchTo(request, account);
+    },
 
-      const from = await currentClaims(request);
-      const to: DemoSwitchAccount = {
-        username: account.demoKey,
-        subject: null,
-        tenant: null,
-        roles: [],
-      };
-      try {
-        await options.record(
-          demoSwitchEvent({
-            app: options.app,
-            from: from ? accountOf(from) : null,
-            to,
-            outcome: 'success',
-          }),
-        );
-      } catch (error) {
-        options.log?.('demo switch not recorded in the audit trail; not switched', error);
-        return new Response('The switch could not be recorded. Try again.', { status: 503 });
+    /**
+     * `GET /auth/demo-enter?as=<demo key>&next=<path>`: the presentation deck's deep link into a
+     * view as a demo account. Already signed in as that account, it only redirects to `next`;
+     * otherwise it switches (recorded like any switch) and lands on `next`. A `next` that is not
+     * a path on this app lands on `/`.
+     */
+    async enter(request: Request): Promise<Response> {
+      const url = new URL(request.url);
+      const demoKey = url.searchParams.get('as');
+      const account = demoKey ? demoAccount(options.app, demoKey) : undefined;
+      if (!account) return new Response('Unknown demo account', { status: 400 });
+      const next = safeReturnTo(url.searchParams.get('next'));
+      if ((await currentClaims(request))?.demo_key === account.demoKey) {
+        return new Response(null, {
+          status: 303,
+          headers: { location: next, 'cache-control': 'no-store' },
+        });
       }
-      return options.bff.signInAfresh(request, {
-        authorizeParams: {
-          [DEMO_TICKET_PARAM]: mintDemoTicket({
-            demoKey: account.demoKey,
-            secret: options.ticketSecret,
-          }),
-        },
-      });
+      return switchTo(request, account, next);
     },
 
     /** The signed-in demo account's key, or null (signed out, or not a demo account). */
