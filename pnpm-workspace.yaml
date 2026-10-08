@@ -24,6 +24,10 @@ minimumReleaseAgeExclude:
 # installs and splits @nestjs/core in two, so guards in shared packages see another Reflector.
 # Shared Nest packages also take the framework as peerDependencies.
 dedupePeers: true
+# source-map-js 1.2.1 (GHSA-68fv-2mgg-jv7q, high) is what Tailwind, Vite and the Temporal
+# worker resolve. 1.2.2 is the patched release.
+overrides:
+  source-map-js: '>=1.2.2'
 # Node's watch mode (dev scripts) posts dependency reports from worker threads to the Worker's
 # 'message' listeners (nodejs/node#62368); the SDK took them for patch activation callbacks and
 # crashed the process. The patch ignores messages the SDK did not send. Drop it once upstream does.

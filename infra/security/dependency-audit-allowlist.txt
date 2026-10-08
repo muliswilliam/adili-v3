@@ -1,0 +1,2 @@
+# Advisory ids CI may report at high or critical without failing.
+# One GHSA-... id or pnpm advisory number per line. Prefer an upgrade or a pnpm override.

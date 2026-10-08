@@ -137,6 +137,9 @@ services:
       ADILI_DEMO_MODE: ${ADILI_DEMO_MODE:-false}
     # Podman resolves host.docker.internal itself; Docker on Linux needs the mapping.
     extra_hosts: ['host.docker.internal:host-gateway']
+    # default is internal (no internet). egress is how this container reaches the host,
+    # where notifications listens. See infra/security/egress-allowlist.txt.
+    networks: [default, egress]
     ports: ['8080:8080']
     volumes:
       - ./keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro
@@ -250,6 +253,8 @@ services:
     image: clamav/clamav:1.5-debian
     ports: ['3310:3310']
     volumes: [clamav-data:/var/lib/clamav]
+    # Signature updates are downloaded on first start. Every other data service stays internal.
+    networks: [default, egress]
     healthcheck:
       <<: *healthcheck-defaults
       # First start downloads the signature database.
@@ -272,6 +277,8 @@ services:
       MP_MAX_MESSAGES: 50000
       MP_DATABASE: /data/mailpit.db
     volumes: [mailpit-data:/data]
+    # The Azure demo relays a copy of e2e mail over SMTP. Locally this network is unused.
+    networks: [default, egress]
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', '/mailpit', 'readyz']
@@ -296,6 +303,13 @@ services:
     command: ['--config=/etc/otelcol/collector.yaml']
     ports: ['4317:4317', '4318:4318']
     volumes: [./otel/collector.yaml:/etc/otelcol/collector.yaml:ro]
+
+# The default network has no route off the host. Only the services named in
+# infra/security/egress-allowlist.txt also join `egress`, and CI checks that list.
+networks:
+  default:
+    internal: true
+  egress: {}
 
 volumes:
   postgres-data:

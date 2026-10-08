@@ -1,0 +1,5 @@
+# Compose services that may open a connection off this host.
+# scripts/check-egress-policy.mjs fails when any other service joins a network that is not internal.
+keycloak
+mailpit
+clamav
