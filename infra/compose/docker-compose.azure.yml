@@ -59,6 +59,10 @@ services:
   otel-collector:
     volumes: !override
       - ./otel/collector.azure.yaml:/etc/otelcol/collector.yaml:ro
-    networks:
-      - default
-      - signoz-network
+    # host-ports keeps :4317 published. signoz-network stays the higher gateway so the
+    # ingester route is unchanged.
+    networks: !override
+      default: {}
+      host-ports:
+        gw_priority: -1
+      signoz-network: {}

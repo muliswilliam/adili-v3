@@ -29,18 +29,29 @@ const config = JSON.parse(rendered.stdout);
 const networks = config.networks ?? {};
 const problems = [];
 
+// Closed: an internal network, or one that does not masquerade. Docker 29 will not
+// publish a host port on an internal-only container, so `host-ports` is the second
+// kind: attached for the port mapping, not a path to the internet.
+function closed(network) {
+  if (!network) return false;
+  if (network.internal === true) return true;
+  const opts = network.driver_opts ?? network.options ?? {};
+  const masq = opts['com.docker.network.bridge.enable_ip_masquerade'];
+  return masq === 'false' || masq === false;
+}
+
 for (const [name, network] of Object.entries(networks)) {
   if (name === 'egress') {
-    if (network.internal === true) problems.push('egress network is internal');
+    if (closed(network)) problems.push('egress network cannot reach the internet');
     continue;
   }
-  if (network.internal !== true) problems.push(`network ${name} is not internal`);
+  if (!closed(network)) problems.push(`network ${name} is not closed`);
 }
 
 const canEgress = [];
 for (const [name, service] of Object.entries(config.services ?? {})) {
   const attached = Object.keys(service.networks ?? {});
-  const open = attached.some((network) => networks[network]?.internal !== true);
+  const open = attached.some((network) => !closed(networks[network]));
   if (open) canEgress.push(name);
 }
 

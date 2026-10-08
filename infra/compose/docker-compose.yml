@@ -29,9 +29,9 @@ services:
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD-SHELL', 'pg_isready -U postgres']
-    # Listed so Compose publishes the `postgres` DNS alias. An implicit attach to an
-    # internal network does not, and the name lookup then fails.
-    networks: [default]
+    networks:
+      default: {}
+      host-ports: {}
 
   valkey:
     image: valkey/valkey:9.0.6-alpine
@@ -41,7 +41,9 @@ services:
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', 'valkey-cli', 'ping']
-    networks: [default]
+    networks:
+      default: {}
+      host-ports: {}
 
   rabbitmq:
     image: rabbitmq:4.3.6-management-alpine
@@ -59,7 +61,9 @@ services:
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', 'su-exec', 'rabbitmq', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
-    networks: [default]
+    networks:
+      default: {}
+      host-ports: {}
 
   temporal-schema:
     image: temporalio/admin-tools:1.32.0
@@ -91,7 +95,9 @@ services:
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', 'nc', '-z', 'localhost', '7233']
-    networks: [default]
+    networks:
+      default: {}
+      host-ports: {}
 
   temporal-namespace:
     image: temporalio/admin-tools:1.32.0
@@ -113,7 +119,9 @@ services:
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_DEFAULT_NAMESPACE: adili
     ports: ['8233:8080']
-    networks: [default]
+    networks:
+      default: {}
+      host-ports: {}
 
   keycloak:
     # Keycloak plus the Adili login and email themes from apps/keycloak-theme.
@@ -147,8 +155,14 @@ services:
     # Podman resolves host.docker.internal itself; Docker on Linux needs the mapping.
     extra_hosts: ['host.docker.internal:host-gateway']
     # default is internal (no internet). egress is how this container reaches the host,
-    # where notifications listens. See infra/security/egress-allowlist.txt.
-    networks: [default, egress]
+    # where notifications listens. host-ports only exists so Docker publishes the host
+    # port; its gateway priority stays below egress. See infra/security/egress-allowlist.txt.
+    networks:
+      default: {}
+      egress:
+        gw_priority: 1
+      host-ports:
+        gw_priority: -1
     ports: ['8080:8080']
     volumes:
       - ./keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro
@@ -198,7 +212,9 @@ services:
           'CMD-SHELL',
           'wget -q -O /dev/null http://127.0.0.1:9333/cluster/status && nc -z 127.0.0.1 8333',
         ]
-    networks: [default]
+    networks:
+      default: {}
+      host-ports: {}
 
   seaweedfs-buckets:
     image: chrislusf/seaweedfs:4.47
@@ -223,7 +239,9 @@ services:
       <<: *healthcheck-defaults
       test:
         ['CMD-SHELL', 'wget -q -O /dev/null "http://127.0.0.1:8200/v1/sys/health?uninitcode=200"']
-    networks: [default]
+    networks:
+      default: {}
+      host-ports: {}
 
   # Initialises OpenBao once and creates the fixed development root token the services use.
   openbao-init:
@@ -269,7 +287,12 @@ services:
     ports: ['3310:3310']
     volumes: [clamav-data:/var/lib/clamav]
     # Signature updates are downloaded on first start. Every other data service stays internal.
-    networks: [default, egress]
+    networks:
+      default: {}
+      egress:
+        gw_priority: 1
+      host-ports:
+        gw_priority: -1
     healthcheck:
       <<: *healthcheck-defaults
       # First start downloads the signature database.
@@ -282,7 +305,9 @@ services:
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', 'curl', '-sf', 'http://127.0.0.1:3000/health']
-    networks: [default]
+    networks:
+      default: {}
+      host-ports: {}
 
   mailpit:
     image: axllent/mailpit:v1.31.2
@@ -294,7 +319,12 @@ services:
       MP_DATABASE: /data/mailpit.db
     volumes: [mailpit-data:/data]
     # The Azure demo relays a copy of e2e mail over SMTP. Locally this network is unused.
-    networks: [default, egress]
+    networks:
+      default: {}
+      egress:
+        gw_priority: 1
+      host-ports:
+        gw_priority: -1
     healthcheck:
       <<: *healthcheck-defaults
       test: ['CMD', '/mailpit', 'readyz']
@@ -320,16 +350,24 @@ services:
     command: ['--config=/etc/otelcol/collector.yaml']
     ports: ['4317:4317', '4318:4318']
     volumes: [./otel/collector.yaml:/etc/otelcol/collector.yaml:ro]
-    networks: [default]
+    networks:
+      default: {}
+      host-ports: {}
 
 # The default network has no route off the host. Only the services named in
 # infra/security/egress-allowlist.txt also join `egress`, and CI checks that list.
 # Every service lists the network it joins. Compose publishes the service-name DNS
-# alias only for a network the service names; on an internal network the missing
-# alias is a failed lookup, which is what took the demo deploy down.
+# alias only for a network the service names.
+# Docker 29 does not publish a host port for a container that is only on an internal
+# network, which is why migrations could not reach Postgres. `host-ports` is attached
+# so the mapping exists. Masquerade is off, so it is not a path to the internet, and
+# egress services keep it at a lower gateway priority than `egress`.
 networks:
   default:
     internal: true
+  host-ports:
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: 'false'
   egress: {}
 
 volumes:
