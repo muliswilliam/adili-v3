@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-// Fails unless every compose service that can reach a non-internal network is named in
-// infra/security/egress-allowlist.txt, and each named service actually can (#372).
+// Fails unless every compose service that can reach a network with a route off the host is named
+// in infra/security/egress-allowlist.txt, and each named service actually can (#372). A network
+// has no route off the host when it is internal, or when it has no IP masquerade (host-ports,
+// which only publishes ports to the host).
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -29,18 +31,23 @@ const config = JSON.parse(rendered.stdout);
 const networks = config.networks ?? {};
 const problems = [];
 
+/** No route off the host: internal, or no masquerade so nothing is NATed out. */
+const offHostRoute = (network) =>
+  network?.internal !== true &&
+  network?.driver_opts?.['com.docker.network.bridge.enable_ip_masquerade'] !== 'false';
+
 for (const [name, network] of Object.entries(networks)) {
   if (name === 'egress') {
     if (network.internal === true) problems.push('egress network is internal');
     continue;
   }
-  if (network.internal !== true) problems.push(`network ${name} is not internal`);
+  if (offHostRoute(network)) problems.push(`network ${name} has a route off the host`);
 }
 
 const canEgress = [];
 for (const [name, service] of Object.entries(config.services ?? {})) {
   const attached = Object.keys(service.networks ?? {});
-  const open = attached.some((network) => networks[network]?.internal !== true);
+  const open = attached.some((network) => offHostRoute(networks[network]));
   if (open) canEgress.push(name);
 }
 
