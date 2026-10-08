@@ -22,8 +22,8 @@ logger:
   level: information
   size: 1000M
 macros:
-  replica: "00"
-  shard: "00"
+  replica: '00'
+  shard: '00'
 metric_log:
   flush_interval_milliseconds: 30000
   ttl: event_date + INTERVAL 1 DAY DELETE
@@ -60,9 +60,9 @@ quotas:
 remote_servers:
   cluster:
     shard:
-    - replica:
-      - host: signoz-telemetrystore-clickhouse-0-0
-        port: 9000
+      - replica:
+          - host: signoz-telemetrystore-clickhouse-0-0
+            port: 9000
 session_log:
   ttl: event_date + INTERVAL 1 DAY DELETE
 tcp_port: 9000
@@ -85,14 +85,14 @@ users:
     named_collection_control: 1
     networks:
       ip: ::/0
-    password: ""
+    password: ''
     profile: default
     quota: default
     show_named_collection: 1
     show_named_collection_secrets: 1
 zookeeper:
   node:
-  - host: signoz-telemetrykeeper-clickhousekeeper-0
-    port: 9181
+    - host: signoz-telemetrykeeper-clickhousekeeper-0
+      port: 9181
 zookeeper_log:
   ttl: event_date + INTERVAL 1 DAY DELETE

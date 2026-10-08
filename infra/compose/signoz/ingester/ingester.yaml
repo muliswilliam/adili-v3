@@ -1,9 +1,9 @@
 connectors:
   signozmeter:
     dimensions:
-    - name: service.name
-    - name: deployment.environment
-    - name: host.name
+      - name: service.name
+      - name: deployment.environment
+      - name: host.name
     metrics_flush_interval: 1h
 exporters:
   clickhouselogsexporter:
@@ -69,32 +69,32 @@ processors:
   signozspanmetrics/delta:
     aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
     dimensions:
-    - default: default
-      name: service.namespace
-    - default: default
-      name: deployment.environment
-    - name: signoz.collector.id
-    - name: service.version
+      - default: default
+        name: service.namespace
+      - default: default
+        name: deployment.environment
+      - name: signoz.collector.id
+      - name: service.version
     dimensions_cache_size: 100000
     enable_exp_histogram: true
     latency_histogram_buckets:
-    - 100us
-    - 1ms
-    - 2ms
-    - 6ms
-    - 10ms
-    - 50ms
-    - 100ms
-    - 250ms
-    - 500ms
-    - 1000ms
-    - 1400ms
-    - 2000ms
-    - 5s
-    - 10s
-    - 20s
-    - 40s
-    - 60s
+      - 100us
+      - 1ms
+      - 2ms
+      - 6ms
+      - 10ms
+      - 50ms
+      - 100ms
+      - 250ms
+      - 500ms
+      - 1000ms
+      - 1400ms
+      - 2000ms
+      - 5s
+      - 10s
+      - 20s
+      - 40s
+      - 60s
     metrics_exporter: signozclickhousemetrics
     metrics_flush_interval: 60s
 receivers:
@@ -106,46 +106,46 @@ receivers:
         endpoint: 0.0.0.0:4318
 service:
   extensions:
-  - signoz_health_check
-  - pprof
+    - signoz_health_check
+    - pprof
   pipelines:
     logs:
       exporters:
-      - clickhouselogsexporter
-      - signozmeter
-      - metadataexporter
+        - clickhouselogsexporter
+        - signozmeter
+        - metadataexporter
       processors:
-      - batch
+        - batch
       receivers:
-      - otlp
+        - otlp
     metrics:
       exporters:
-      - signozclickhousemetrics
-      - signozmeter
-      - metadataexporter
+        - signozclickhousemetrics
+        - signozmeter
+        - metadataexporter
       processors:
-      - batch
+        - batch
       receivers:
-      - otlp
+        - otlp
     metrics/meter:
       exporters:
-      - signozclickhousemeter
+        - signozclickhousemeter
       processors:
-      - batch/meter
+        - batch/meter
       receivers:
-      - signozmeter
+        - signozmeter
     traces:
       exporters:
-      - clickhousetraces
-      - signozmeter
-      - metadataexporter
+        - clickhousetraces
+        - signozmeter
+        - metadataexporter
       processors:
-      - signozspanmetrics/delta
-      - signozspanmapper
-      - signozllmpricing
-      - batch
+        - signozspanmetrics/delta
+        - signozspanmapper
+        - signozllmpricing
+        - batch
       receivers:
-      - otlp
+        - otlp
   telemetry:
     logs:
       encoding: json
