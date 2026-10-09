@@ -54,6 +54,7 @@ Government-system mocks run on the host via `pnpm dev` (or `pnpm --filter @adili
 | Gotenberg                        | http://localhost:3300                                                 | none |
 | Mailpit SMTP / UI                | `localhost:1025` / http://localhost:8025                              | none |
 | OTel collector OTLP              | `localhost:4317` (gRPC), `localhost:4318` (HTTP)                      | none |
+| SigNoz (centralised logging, alerting and dashboards) | hosted demo, https://adili-demo.southafricanorth.cloudapp.azure.com/signoz/ | created on the demo host |
 
 OpenBao keeps its keys on the `openbao-data` volume and unseals itself with the committed demo seal key (`infra/compose/openbao/server/`, local and demo only), so transit keys and the demo CA survive restarts. `pnpm infra:reset` deletes the volume, and with it every key the sealed data in Postgres needs: re-seed afterwards.
 
@@ -87,4 +88,4 @@ Container images (from the repo root):
 
 ## Stack
 
-TanStack Start (React) · NestJS on Fastify · PostgreSQL · Valkey · RabbitMQ · Temporal · Keycloak · SeaweedFS / Ceph RGW · OpenBao · Django (integration mocks) · Docker / Dokploy
+TanStack Start (React) · NestJS on Fastify · PostgreSQL · Valkey · RabbitMQ · Temporal · Keycloak · SeaweedFS / Ceph RGW · OpenBao · Django (integration mocks) · SigNoz (centralised logging, alerting and dashboards) · Docker / Dokploy
