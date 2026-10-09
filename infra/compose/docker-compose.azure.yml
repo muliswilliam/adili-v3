@@ -42,6 +42,7 @@ services:
         '-s3.allowedOrigins=${ADILI_PORTAL_URL},${ADILI_CONSOLE_URL}',
         '-master.volumeSizeLimitMB=1024',
         '-volume.max=64',
+        '-ip.bind=0.0.0.0',
       ]
     ports: !override
       - '127.0.0.1:18333:8333'

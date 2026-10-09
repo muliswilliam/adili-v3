@@ -33,6 +33,12 @@ case "$cmd" in
       "$CADDYFILE_SRC" >"$CADDYFILE_DST"
     systemctl enable caddy
     systemctl reload caddy 2>/dev/null || systemctl restart caddy
+    # The apps reach this host by its public name (Keycloak's issuer, the console, object
+    # storage), and the NSG lets the VM reach its own public IP on 443 only: resolve the name
+    # locally, where Caddy serves every port.
+    if ! grep -qE "^127\.0\.0\.1[[:space:]]+${ADILI_PUBLIC_BASE}([[:space:]]|$)" /etc/hosts; then
+      printf '127.0.0.1 %s\n' "$ADILI_PUBLIC_BASE" >>/etc/hosts
+    fi
     ;;
   *)
     echo "usage: $0 stop-apps|restart-apps|install-caddy" >&2
