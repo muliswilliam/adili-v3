@@ -185,7 +185,9 @@ services:
     # CORS: browsers PUT uploads straight to storage (ADR-002), from the portal and console only.
     # Volume slots: each bucket grows 7 volumes on its first write. Left at 0, -volume.max is
     # free disk / volume size, which on a small disk (e.g. a CI runner) leaves the clean bucket
-    # none. Volumes are sparse, so a fixed count costs no disk up front.
+    # none. Volumes are sparse, so a fixed count costs no disk up front. -ip.bind: listen on every
+    # network, not only the first one's address (its -ip); published ports arrive through
+    # host-ports, and without it SeaweedFS refused them.
     command:
       [
         'server',
@@ -195,6 +197,7 @@ services:
         '-s3.allowedOrigins=http://localhost:3010,http://localhost:3020',
         '-master.volumeSizeLimitMB=1024',
         '-volume.max=64',
+        '-ip.bind=0.0.0.0',
       ]
     environment:
       # SSE-S3 key for the documents service's clean-bucket copies. A dev-only secret: SeaweedFS
